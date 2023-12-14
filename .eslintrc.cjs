@@ -5,7 +5,9 @@ module.exports = {
     },
     "extends": [
         "standard-with-typescript",
-        "plugin:vue/vue3-essential"
+        "plugin:vue/vue3-essential",
+        "@vue/eslint-config-typescript",
+        "@vue/eslint-config-prettier",
     ],
     "overrides": [
         {
@@ -20,12 +22,16 @@ module.exports = {
             }
         }
     ],
+    "parser":"vue-eslint-parser",
     "parserOptions": {
+        "parser": "@typescript-eslint/parser",
+        "extraFileExtensions": [".vue"],
         "ecmaVersion": "latest",
         "sourceType": "module"
     },
     "plugins": [
-        "vue"
+        "vue",
+        "@typescript-eslint"
     ],
     "rules": {
     }
