@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import MapContainer from './components/MapContainer.vue'
+import MapView from './views/MapView.vue' 
 </script>
 
 <template>
   <div class="container">
-    <MapContainer/>
-  </div>
+    <MapView></MapView>
+</div>
 </template>
 
 <style scoped>
