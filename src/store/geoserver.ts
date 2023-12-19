@@ -85,6 +85,11 @@ export interface WorkspaceListItem{
     name:string
     href:string
 }
+export interface WorkspaceListResponse {
+    workspaces: {
+        workspace : WorkspaceListItem[]
+    }
+}
 export const useGeoserverStore = defineStore('geoserver', () => {
 
  const pointData = ref()
@@ -114,7 +119,7 @@ export const useGeoserverStore = defineStore('geoserver', () => {
   * Lists all workspaces user has access in geoserver.
   * @returns
   */
- async function getWorkspaceList():Promise<JSON>{
+ async function getWorkspaceList():Promise<WorkspaceListResponse>{
     const url = new URL(`${import.meta.env.VITE_GEOSERVER_REST_URL}/workspaces`)
     const response = await fetch(url,{ 
         method:'GET',
