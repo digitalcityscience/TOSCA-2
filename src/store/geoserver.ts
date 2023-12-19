@@ -81,6 +81,11 @@ export interface GeoserverLayerListItem {
     name:string
     href:string
 }
+export interface GeoserverLayerListResponse {
+    layers: {
+        layer : GeoserverLayerListItem[]
+    }
+}
 export interface WorkspaceListItem{
     name:string
     href:string
@@ -100,7 +105,7 @@ export const useGeoserverStore = defineStore('geoserver', () => {
   * Gets layer list from geoserver. If optional workspace argument used it returns only layer list under this workspace.
   * @returns
   */
- async function getLayerList(workspaceName?:string):Promise<JSON>{
+ async function getLayerList(workspaceName?:string):Promise<GeoserverLayerListResponse>{
     let url = new URL(`${import.meta.env.VITE_GEOSERVER_REST_URL}/layers`)
     if(workspaceName){
         url = new URL(`${import.meta.env.VITE_GEOSERVER_REST_URL}/workspaces/${workspaceName}/layers`)
