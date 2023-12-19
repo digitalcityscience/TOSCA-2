@@ -77,6 +77,9 @@ export interface GeoserverLayerInfo{
         dateCreated: string;
         dateModified: string;
 }
+export interface GeoserverLayerInfoResponse{
+    layer: GeoserverLayerInfo
+}
 export interface GeoserverLayerListItem {
     name:string
     href:string
@@ -143,7 +146,7 @@ export const useGeoserverStore = defineStore('geoserver', () => {
  * @param workspace - The workspace in which the layer is located.
  * @returns - A Promise resolving to the JSON representation of the layer information.
  */
- async function getLayerInformation(layer:GeoserverLayerListItem,workspace:string):Promise<JSON> {
+ async function getLayerInformation(layer:GeoserverLayerListItem,workspace:string):Promise<GeoserverLayerInfoResponse> {
     const url = new URL(`${import.meta.env.VITE_GEOSERVER_REST_URL}/workspaces/${workspace}/layers/${layer.name}`)
     const response = await fetch(url,{ 
         method:'GET',
@@ -161,7 +164,7 @@ export const useGeoserverStore = defineStore('geoserver', () => {
  * @param url - Resource.href from GeoserverLayerInfo
  * @returns - A Promise resolving to the JSON representation of the layer detailed information.
  */
- async function getLayerDetail(url:string):Promise<JSON> {
+ async function getLayerDetail(url:string):Promise<GeoServerFeatureType> {
     const response = await fetch(url,{
         method:'GET',
         redirect:'follow',
