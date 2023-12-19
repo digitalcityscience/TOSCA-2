@@ -1,8 +1,6 @@
 <template>
     <div v-if="props.list">
-        <div v-for="(item,index) in props.list" :key="index">
-            {{ item.name }}
-        </div>
+        <WorkspaceLayetListingItem v-for="(layer,index) in props.list" :key="index" :item="layer" :workspace="workspaceName"></WorkspaceLayetListingItem>
     </div>
     <div v-else>
         There is no layer in this workspace
@@ -10,6 +8,8 @@
 </template>
 
 <script setup lang="ts">
+//Components
+import WorkspaceLayetListingItem from './WorkspaceLayetListingItem.vue';
 import { GeoserverLayerListItem } from '../store/geoserver';
 export interface Props {
     list: Array<GeoserverLayerListItem> | undefined
