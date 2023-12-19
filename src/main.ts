@@ -2,6 +2,8 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import PrimeVue from 'primevue/config'
 import './style.css'
+//this is a temporary import. It should be changed after implementation of primevue components.
+import 'primevue/resources/themes/bootstrap4-light-purple/theme.css'
 import App from './App.vue'
 
 const pinia = createPinia()
