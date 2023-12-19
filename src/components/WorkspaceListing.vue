@@ -10,7 +10,7 @@
                         <template #header>
                             <h2 class="text-xl font-semibold capitalize">{{ item.name }}</h2>
                         </template>
-                        
+                        <WorkspaceListingItem :workspace="item"></WorkspaceListingItem>
                     </AccordionTab>
                 </Accordion>
             </div>
@@ -25,6 +25,7 @@
 import Accordion from 'primevue/accordion';
 import AccordionTab from 'primevue/accordiontab';
 import BaseSidebarComponent from './BaseSidebarComponent.vue';
+import WorkspaceListingItem from './WorkspaceListingItem.vue';
 // JS-TS imports
 import { type WorkspaceListItem } from '../store/geoserver'
 export interface Props {
