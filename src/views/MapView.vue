@@ -1,6 +1,7 @@
 <template>
     <div class="mapview">
         <WorkspaceListing :workspaces="geoserverStore.workspaceList"></WorkspaceListing>
+        <MapLayerListing></MapLayerListing>
         <MapContainer></MapContainer>
     </div>
 </template>
@@ -8,6 +9,7 @@
 <script setup lang="ts">
 import MapContainer from '../components/MapContainer.vue'
 import WorkspaceListing from '../components/WorkspaceListing.vue';
+import MapLayerListing from '../components/MapLayerListing.vue';
 import { useGeoserverStore } from '../store/geoserver'
 import { onMounted } from 'vue';
 const geoserverStore = useGeoserverStore()
