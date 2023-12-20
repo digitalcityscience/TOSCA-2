@@ -117,6 +117,7 @@ import { computed } from 'vue';
 .sidebar > .content-body{
     flex-grow: 1;
     padding: 0.5rem;
+    overflow-y: scroll;
 }
 .sidebar.sidebar-left{
     top: 10px;
