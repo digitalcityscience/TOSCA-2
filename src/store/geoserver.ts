@@ -48,16 +48,17 @@ export interface GeoServerFeatureType {
       skipNumberMatched: boolean;
       circularArcPresent: boolean;
       attributes: {
-        attribute: Array<{
-          name: string;
-          minOccurs: number;
-          maxOccurs: number;
-          nillable: boolean;
-          binding: string;
-        }>;
+        attribute: Array<GeoServerFeatureTypeAttribute>;
       };
     };
   }
+export interface GeoServerFeatureTypeAttribute {
+  name: string;
+  minOccurs: number;
+  maxOccurs: number;
+  nillable: boolean;
+  binding: string;
+}
 export interface GeoserverLayerInfo{
         name: string;
         type: string;
