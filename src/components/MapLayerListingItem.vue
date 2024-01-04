@@ -27,18 +27,22 @@
                     }" />
             </label>
         </div>
+        <div>
+            <AttributeFiltering :layer="props.layer"></AttributeFiltering>
+        </div>
     </Panel>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import { CustomAddLayerObject, useMapStore } from '../store/map'
+import { LayerObjectWithAttributes, useMapStore } from '../store/map'
 import Panel from 'primevue/panel';
 import ColorPicker from 'primevue/colorpicker';
 import Slider from 'primevue/slider';
 import Checkbox from 'primevue/checkbox';
+import AttributeFiltering from './AttributeFiltering.vue';
 export interface Props {
-    layer: CustomAddLayerObject
+    layer: LayerObjectWithAttributes
 }
 const props = defineProps<Props>()
 const mapStore = useMapStore()
