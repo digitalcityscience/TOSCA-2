@@ -17,11 +17,14 @@ export interface CustomAddLayerObject {
   paint?: Object;
   layout?: Object;
 }
+export interface LayerObjectWithAttributes extends CustomAddLayerObject {
+  details:GeoServerFeatureType
+}
 type MapLibreLayerTypes = "fill" | "line" | "symbol" | "circle" | "heatmap" | "fill-extrusion" | "raster" | "hillshade" | "background";
 
 export const useMapStore = defineStore("map", () => {
   const map = ref<any>();
-  const layersOnMap = ref<Array<CustomAddLayerObject>>([])
+  const layersOnMap = ref<Array<LayerObjectWithAttributes>>([])
   /**
    * Add's a new source to maplibre map sources.
    * @param layer - Layer details
@@ -60,6 +63,7 @@ export const useMapStore = defineStore("map", () => {
    * Adds layer with source to map
    * @param layerID - id for layer to add
    * @param layerType - which MapLibreLayerType suits for source
+   * @param details - feature details for attribute listing
    * @param sourceLayer - Which layer from vector tile source. Only required for vector tile sources.
    * @param layerStyle - If you want to add a style to layer use this parameter
    * @returns - If succes returns layer, else throws an error
@@ -67,6 +71,7 @@ export const useMapStore = defineStore("map", () => {
   async function addLyr(
     layerID: string,
     layerType: MapLibreLayerTypes,
+    details:GeoServerFeatureType,
     sourceLayer?: string,
     layerStyle?: LayerStyleOptions
   ) {
@@ -90,7 +95,8 @@ export const useMapStore = defineStore("map", () => {
       console.log(layerObject)
       map.value.addLayer(layerObject);
       if (map.value.getLayer(`layer-${layerID}`)) {
-        add2MapLayerList(layerObject)
+        (layerObject as LayerObjectWithAttributes)["details"] = details
+        add2MapLayerList(layerObject as LayerObjectWithAttributes)
         return Promise.resolve(map.value.getLayer(layerID));
       } else {
         throw new Error(`Couldn't add requested layer: ${layerID}`);
@@ -103,7 +109,7 @@ export const useMapStore = defineStore("map", () => {
    * Adds layers on map to a layerlist for layer listing
    * @param layerObject detailed layer information
    */
-  function add2MapLayerList(layerObject:CustomAddLayerObject){
+  function add2MapLayerList(layerObject:LayerObjectWithAttributes){
     layersOnMap.value.push(layerObject)
   }
   function createRandomPaintObj(type:MapLibreLayerTypes){

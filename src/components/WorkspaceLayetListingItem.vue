@@ -56,7 +56,7 @@ function add2Map(){
     if (layerDetail.value) {
         mapStore.addSrc(layerDetail.value, props.workspace, layerDetail.value.featureType.name).then(source => {
             if (source && dataType && layerDetail.value) {
-                mapStore.addLyr(layerDetail.value.featureType.name, mapStore.geometryConversion(dataType.value), `${layerDetail.value.featureType.name}`).then(()=>{
+                mapStore.addLyr(layerDetail.value.featureType.name, mapStore.geometryConversion(dataType.value),layerDetail.value, `${layerDetail.value.featureType.name}`).then(()=>{
                     console.info(mapStore.map)
                 }).catch(error => {
                     console.log(mapStore.map.value.getStyle().layers)
