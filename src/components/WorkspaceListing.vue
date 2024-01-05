@@ -21,18 +21,15 @@
 </template>
 
 <script setup lang="ts">
-//Components
-import Accordion from 'primevue/accordion';
-import AccordionTab from 'primevue/accordiontab';
-import BaseSidebarComponent from './BaseSidebarComponent.vue';
-import WorkspaceListingItem from './WorkspaceListingItem.vue';
+// Components
+import Accordion from "primevue/accordion";
+import AccordionTab from "primevue/accordiontab";
+import BaseSidebarComponent from "./BaseSidebarComponent.vue";
+import WorkspaceListingItem from "./WorkspaceListingItem.vue";
 // JS-TS imports
-import { type WorkspaceListItem } from '../store/geoserver'
+import { type WorkspaceListItem } from "../store/geoserver"
 export interface Props {
-    workspaces: Array<WorkspaceListItem> | undefined
+    workspaces: WorkspaceListItem[] | undefined
 }
 const props = defineProps<Props>()
 </script>
-
-<style scoped>
-</style>

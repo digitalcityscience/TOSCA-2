@@ -1,5 +1,6 @@
 <template>
     <Panel class="m-2" @update:collapsed="collapsedState" toggleable :pt="{
+        /* eslint-disable */
         header: (options) => ({
             class: [
                 {
@@ -34,90 +35,91 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
-import { LayerObjectWithAttributes, useMapStore } from '../store/map'
-import Panel from 'primevue/panel';
-import ColorPicker from 'primevue/colorpicker';
-import Slider from 'primevue/slider';
-import Checkbox from 'primevue/checkbox';
-import AttributeFiltering from './AttributeFiltering.vue';
+import { onMounted, ref } from "vue";
+import { type LayerObjectWithAttributes, useMapStore } from "../store/map"
+import Panel from "primevue/panel";
+import ColorPicker from "primevue/colorpicker";
+import Slider from "primevue/slider";
+import Checkbox from "primevue/checkbox";
+import AttributeFiltering from "./AttributeFiltering.vue";
+import { isNullOrEmpty } from "../core/helpers/functions";
 export interface Props {
     layer: LayerObjectWithAttributes
 }
 const props = defineProps<Props>()
 const mapStore = useMapStore()
-let collapsed = ref<boolean>(false)
-let color = ref<string>('000000')
-let opacity = ref<number>(1)
-let checked = ref<boolean>(true)
+const collapsed = ref<boolean>(false)
+const color = ref<string>("000000")
+const opacity = ref<number>(1)
+const checked = ref<boolean>(true)
 onMounted(() => {
-    let prop = ''
-    let opac = ''
-    if (props.layer.type == "circle") {
-        prop = 'circle-color'
-        opac = 'circle-opacity'
+    let prop = ""
+    let opac = ""
+    if (props.layer.type === "circle") {
+        prop = "circle-color"
+        opac = "circle-opacity"
     }
-    if (props.layer.type == "fill") {
-        prop = 'fill-color'
-        opac = 'fill-opacity'
+    if (props.layer.type === "fill") {
+        prop = "fill-color"
+        opac = "fill-opacity"
     }
-    if (props.layer.type == "line") {
-        prop = 'line-color'
-        opac = 'line-opacity'
+    if (props.layer.type === "line") {
+        prop = "line-color"
+        opac = "line-opacity"
     }
     console.log("prop is:", prop)
     console.log("opacity is: ", opac)
-    if (mapStore.map.getPaintProperty(props.layer.id, prop)) {
+    if (!isNullOrEmpty(mapStore.map.getPaintProperty(props.layer.id, prop))) {
         color.value = (mapStore.map.getPaintProperty(props.layer.id, prop) as string).substring(1)
         console.log("changing cp color with: ", (mapStore.map.getPaintProperty(props.layer.id, prop) as string).substring(1))
     }
-    if (mapStore.map.getPaintProperty(props.layer.id, opac)) {
+    if (!isNullOrEmpty(mapStore.map.getPaintProperty(props.layer.id, opac))) {
         opacity.value = mapStore.map.getPaintProperty(props.layer.id, opac)
         console.log("changing cp opac with: ", mapStore.map.getPaintProperty(props.layer.id, opac))
     }
 })
-function changeLayerColor(color: any) {
-    let prop = ''
-    if (props.layer.type == "circle") {
-        prop = 'circle-color'
+function changeLayerColor(color: any): void {
+    let prop = ""
+    if (props.layer.type === "circle") {
+        prop = "circle-color"
     }
-    if (props.layer.type == "fill") {
-        prop = 'fill-color'
+    if (props.layer.type === "fill") {
+        prop = "fill-color"
     }
-    if (props.layer.type == "line") {
-        prop = 'line-color'
+    if (props.layer.type === "line") {
+        prop = "line-color"
     }
     console.log("prop is:", prop)
-    if (mapStore.map.getPaintProperty(props.layer.id, prop)) {
+    if (!isNullOrEmpty(mapStore.map.getPaintProperty(props.layer.id, prop))) {
         mapStore.map.setPaintProperty(props.layer.id, prop, `#${color}`)
     }
-    console.info('new color is: ', color)
+    console.info("new color is: ", color)
 }
-function changeLayerOpac(layerOpacity: any) {
-    let opac = ''
-    if (props.layer.type == "circle") {
-        opac = 'circle-opacity'
+function changeLayerOpac(layerOpacity: any): void {
+    let opac = ""
+    if (props.layer.type === "circle") {
+        opac = "circle-opacity"
     }
-    if (props.layer.type == "fill") {
-        opac = 'fill-opacity'
+    if (props.layer.type === "fill") {
+        opac = "fill-opacity"
     }
-    if (props.layer.type == "line") {
-        opac = 'line-opacity'
+    if (props.layer.type === "line") {
+        opac = "line-opacity"
     }
-    if (mapStore.map.getPaintProperty(props.layer.id, opac)) {
+    if (!isNullOrEmpty(mapStore.map.getPaintProperty(props.layer.id, opac))) {
         mapStore.map.setPaintProperty(props.layer.id, opac, layerOpacity)
     }
 }
-function changeLayerVisibility(layerVisibility: any) {
+function changeLayerVisibility(layerVisibility: any): void {
     console.log("changing visibility: ", layerVisibility)
-    console.log(mapStore.map.getLayoutProperty(props.layer.id, 'visibility'))
-    if (layerVisibility) {
-        mapStore.map.setLayoutProperty(props.layer.id, 'visibility', 'visible')
+    console.log(mapStore.map.getLayoutProperty(props.layer.id, "visibility"))
+    if (!isNullOrEmpty(layerVisibility)) {
+        mapStore.map.setLayoutProperty(props.layer.id, "visibility", "visible")
     } else {
-        mapStore.map.setLayoutProperty(props.layer.id, 'visibility', 'none')
+        mapStore.map.setLayoutProperty(props.layer.id, "visibility", "none")
     }
 }
-function collapsedState(isCollapsed: boolean) {
+function collapsedState(isCollapsed: boolean): void {
     collapsed.value = isCollapsed
 }
 </script>

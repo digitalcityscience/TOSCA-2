@@ -5,23 +5,20 @@
 </template>
 
 <script setup lang="ts">
-//Components
-import WorkspaceLayerListing from './WorkspaceLayerListing.vue';
-//JS imports
-import { useGeoserverStore, type WorkspaceListItem, type GeoserverLayerListItem } from '../store/geoserver';
-import { ref } from 'vue';
-import { onMounted } from 'vue';
+// Components
+import WorkspaceLayerListing from "./WorkspaceLayerListing.vue";
+// JS imports
+import { useGeoserverStore, type WorkspaceListItem, type GeoserverLayerListItem } from "../store/geoserver";
+import { ref, onMounted } from "vue";
 const geoserver = useGeoserverStore()
 export interface Props {
     workspace: WorkspaceListItem
 }
 const props = defineProps<Props>()
-let layerList = ref<Array<GeoserverLayerListItem>>()
+const layerList = ref<GeoserverLayerListItem[]>()
 onMounted(() => {
     geoserver.getLayerList(props.workspace.name).then((response) => {
         layerList.value = response.layers.layer
-    }).catch(err => console.log(err))
+    }).catch(err => { console.log(err) })
 })
 </script>
-
-<style scoped></style>

@@ -11,11 +11,11 @@
 </template>
 
 <script setup lang="ts">
-//components
-import BaseSidebarComponent from './BaseSidebarComponent.vue';
-import MapLayerListingItem from './MapLayerListingItem.vue';
-//JS imports
-import { useMapStore } from '../store/map';
+// components
+import BaseSidebarComponent from "./BaseSidebarComponent.vue";
+import MapLayerListingItem from "./MapLayerListingItem.vue";
+// JS imports
+import { useMapStore } from "../store/map";
 
 const map = useMapStore()
 
