@@ -8,12 +8,12 @@
 </template>
 
 <script setup lang="ts">
-//Components
-import WorkspaceLayetListingItem from './WorkspaceLayetListingItem.vue';
-import { GeoserverLayerListItem } from '../store/geoserver';
+// Components
+import WorkspaceLayetListingItem from "./WorkspaceLayetListingItem.vue";
+import { type GeoserverLayerListItem } from "../store/geoserver";
 export interface Props {
-    list: Array<GeoserverLayerListItem> | undefined
-    workspaceName:string
+    list: GeoserverLayerListItem[] | undefined
+    workspaceName: string
 }
 const props = defineProps<Props>()
 </script>

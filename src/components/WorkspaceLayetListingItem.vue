@@ -19,10 +19,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { GeoServerFeatureType, GeoserverLayerInfo, GeoserverLayerListItem, useGeoserverStore } from '../store/geoserver';
-import { useMapStore } from '../store/map';
-import Card from 'primevue/card';
+import { computed, ref } from "vue";
+import { type GeoServerFeatureType, type GeoserverLayerInfo, type GeoserverLayerListItem, useGeoserverStore } from "../store/geoserver";
+import { useMapStore } from "../store/map";
+import Card from "primevue/card";
+import { isNullOrEmpty } from "../core/helpers/functions";
 
 export interface Props {
     item: GeoserverLayerListItem
@@ -30,33 +31,33 @@ export interface Props {
 }
 const props = defineProps<Props>()
 const cleanLayerName = computed(() => {
-    return props.item ? props.item.name.replaceAll('_', ' ') : 'No name'
+    return props.item.name.replaceAll("_", " ")
 })
 const geoserver = useGeoserverStore()
 const layerInformation = ref<GeoserverLayerInfo>()
 const layerDetail = ref<GeoServerFeatureType>()
 geoserver.getLayerInformation(props.item, props.workspace).then((response) => {
     layerInformation.value = response.layer
-    if (layerInformation.value) {
+    if (layerInformation.value !== undefined) {
         geoserver.getLayerDetail(layerInformation.value?.resource.href).then((detail) => {
             layerDetail.value = detail
-        }).catch(err => console.error(err))
+        }).catch(err => { console.error(err) })
     }
-}).catch(err => console.log(err))
+}).catch(err => { console.log(err) })
 
 const dataType = computed(() => {
-    if (layerDetail.value) {
-        let feature = layerDetail.value.featureType.attributes.attribute.filter((att) => { return att.name == "geom" })
-        return feature ? feature[0].binding.split('.').slice(-1)[0] : ''
-    } else { return '' }
+    if (!isNullOrEmpty(layerDetail.value)) {
+        const feature = layerDetail.value!.featureType.attributes.attribute.filter((att) => { return att.name === "geom" })
+        return feature.length > 0 ? feature[0].binding.split(".").slice(-1)[0] : ""
+    } else { return "" }
 })
 
 const mapStore = useMapStore()
-function add2Map(){
-    if (layerDetail.value) {
-        mapStore.addSrc(layerDetail.value, props.workspace, layerDetail.value.featureType.name).then(source => {
-            if (source && dataType && layerDetail.value) {
-                mapStore.addLyr(layerDetail.value.featureType.name, mapStore.geometryConversion(dataType.value),layerDetail.value, `${layerDetail.value.featureType.name}`).then(()=>{
+function add2Map(): void{
+    if (!isNullOrEmpty(layerDetail.value)) {
+        mapStore.addSrc(layerDetail.value!, props.workspace, layerDetail.value!.featureType.name).then(() => {
+            if (!isNullOrEmpty(dataType) && !isNullOrEmpty(layerDetail.value)) {
+                mapStore.addLyr(layerDetail.value!.featureType.name, mapStore.geometryConversion(dataType.value), layerDetail.value!, `${layerDetail.value!.featureType.name}`).then(()=>{
                     console.info(mapStore.map)
                 }).catch(error => {
                     console.log(mapStore.map.value.getStyle().layers)
@@ -69,5 +70,3 @@ function add2Map(){
     }
 }
 </script>
-
-<style scoped></style>
