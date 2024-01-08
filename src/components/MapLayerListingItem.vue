@@ -90,9 +90,7 @@ function changeLayerColor(color: any): void {
         prop = "line-color"
     }
     console.log("prop is:", prop)
-    if (!isNullOrEmpty(mapStore.map.getPaintProperty(props.layer.id, prop))) {
-        mapStore.map.setPaintProperty(props.layer.id, prop, `#${color}`)
-    }
+    mapStore.map.setPaintProperty(props.layer.id, prop, `#${color}`)
     console.info("new color is: ", color)
 }
 function changeLayerOpac(layerOpacity: any): void {
@@ -106,9 +104,7 @@ function changeLayerOpac(layerOpacity: any): void {
     if (props.layer.type === "line") {
         opac = "line-opacity"
     }
-    if (!isNullOrEmpty(mapStore.map.getPaintProperty(props.layer.id, opac))) {
-        mapStore.map.setPaintProperty(props.layer.id, opac, layerOpacity)
-    }
+    mapStore.map.setPaintProperty(props.layer.id, opac, layerOpacity)
 }
 function changeLayerVisibility(layerVisibility: any): void {
     console.log("changing visibility: ", layerVisibility)
