@@ -5,7 +5,7 @@ import { ref } from "vue";
 import { type GeoServerFeatureType } from "./geoserver";
 import { type SourceSpecification } from "maplibre-gl";
 import { getRandomHexColor, isNullOrEmpty } from "../core/helpers/functions";
-interface LayerStyleOptions {
+export interface LayerStyleOptions {
 	paint?: Record<string, unknown>;
 	layout?: Record<string, unknown>;
 	minzoom?: number;

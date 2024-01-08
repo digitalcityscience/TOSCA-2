@@ -199,6 +199,22 @@ export const useGeoserverStore = defineStore("geoserver", () => {
     });
     return await response.json();
   }
+  /**
+   * Retrieves layer styling object from geoserver
+   * @param url - url of style from geoserver
+   * @returns - Style object
+   */
+  async function getLayerStyling(url:string):Promise<any> {
+    const response = await fetch(url,{
+      method: "GET",
+      redirect: "follow",
+      headers: new Headers({
+        "Content-Type": "application/mbstyle",
+        Authorization: `Basic ${auth}`,
+      }),
+    })
+    return await response.json()
+  }
   return {
     pointData,
     layerList,
@@ -207,6 +223,7 @@ export const useGeoserverStore = defineStore("geoserver", () => {
     getWorkspaceList,
     getLayerInformation,
     getLayerDetail,
+    getLayerStyling
   };
 });
 /* eslint-disable */
