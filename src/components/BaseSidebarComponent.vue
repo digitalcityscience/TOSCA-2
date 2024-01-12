@@ -1,5 +1,5 @@
 <template>
-    <div :class="sidebarPositionClass" :id="props.id" class="sidebar" :style="props.style ? props.style : ''">
+    <div ref="el" :class="sidebarPositionClass" :id="props.id" class="sidebar" :style="props.style ? props.style : ''">
         <div class="header">
             <div class="close-button">
                 <button class="button" @click="toggleSidebar">Close</button>
@@ -18,7 +18,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { isNullOrEmpty } from "../core/helpers/functions";
 /*
 To use this component properly please use props accordingly:
@@ -48,7 +48,7 @@ const hexColorRegex = /^#([0-9A-Fa-f]{3}){1,2}$/;
 // CALCULATED CSS VARIABLES
 const backgroundClr = computed(() => {
     if (!isNullOrEmpty(props.bgColor) && hexColorRegex.test(props.bgColor!)) {
-        return props.bgColor
+        return props.bgColor!
     } else {
         return "transparent"
     }
@@ -62,7 +62,11 @@ const width4Vertical = computed(() => {
                 return `calc(${props.width} + 100px)`
             }
         } else {
-            return "calc(50px + 30vw)"
+            if (props.position === "left") {
+                return "calc(0px - calc(50px + 30vw))"
+            } else {
+                return "calc(50px + 30vw)"
+            }
         }
     } else {
         return ""
@@ -77,6 +81,14 @@ const height4Horizontal = computed(() => {
         }
     } else {
         return ""
+    }
+})
+const el = ref<HTMLElement | null>(null)
+onMounted(()=> {
+    if (el.value !== null){
+        el.value.style.setProperty("--width4Vertical", width4Vertical.value);
+        el.value.style.setProperty("--height4Horizontal", height4Horizontal.value);
+        el.value.style.setProperty("--backgroundClr", backgroundClr.value)
     }
 })
 /**
@@ -108,7 +120,7 @@ defineExpose({
     position: absolute;
     border-radius: 8px;
     padding: 4px;
-    background-color: v-bind('backgroundClr');
+    background-color: var(--backgroundClr);
     display: flex;
     flex-grow: 0;
     justify-content: space-between;
@@ -153,15 +165,15 @@ defineExpose({
 }
 
 .sidebar.sidebar-left.collapsed {
-    transform: translateX(v-bind(width4Vertical));
+    transform: translateX(var(--width4Vertical));
 }
 
 .sidebar.sidebar-right.collapsed {
-    transform: translateX(v-bind(width4Vertical));
+    transform: translateX(var(--width4Vertical));
 }
 
 .sidebar.sidebar-bottom.collapsed {
-    transform: translateY(v-bind(height4Horizontal));
+    transform: translateY(var(--height4Horizontal));
 }
 
 .sidebar>.header {
