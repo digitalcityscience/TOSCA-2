@@ -1,7 +1,7 @@
 <template>
-    <BaseSidebarComponent id="maplayerListing" position="right">
-        <div class="maplayers maplayers-list" v-if="map.layersOnMap.length > 0">
-            <MapLayerListingItem v-for="(layer, index) in map.layersOnMap" :key="index" :layer="layer">
+    <BaseSidebarComponent :id="sidebarID" position="right">
+        <div class="maplayers maplayers-list" v-if="mapStore.layersOnMap.length > 0">
+            <MapLayerListingItem v-for="(layer, index) in mapStore.layersOnMap" :key="index" :layer="layer">
             </MapLayerListingItem>
         </div>
         <div class="maplayers maplayers-empty" v-else>
@@ -16,9 +16,14 @@ import BaseSidebarComponent from "./BaseSidebarComponent.vue";
 import MapLayerListingItem from "./MapLayerListingItem.vue";
 // JS imports
 import { useMapStore } from "../store/map";
+import { SidebarControl } from "../core/helpers/sidebarControl"
 
-const map = useMapStore()
+const mapStore = useMapStore()
 
+const sidebarID = "maplayerListing"
+
+const sidebarControl = new SidebarControl("", sidebarID, document.createElement("div"), "mdi mdi-layers-outline")
+mapStore.map.addControl(sidebarControl, "top-right")
 </script>
 
 <style scoped></style>
