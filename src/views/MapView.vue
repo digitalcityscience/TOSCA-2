@@ -7,18 +7,20 @@
 </template>
 
 <script setup lang="ts">
-import MapContainer from '../components/MapContainer.vue'
-import WorkspaceListing from '../components/WorkspaceListing.vue';
-import MapLayerListing from '../components/MapLayerListing.vue';
-import { useGeoserverStore } from '../store/geoserver'
-import { onMounted } from 'vue';
+
+import { defineAsyncComponent, onMounted } from "vue";
+import { useGeoserverStore } from "../store/geoserver";
+
+const MapContainer = defineAsyncComponent(async () => await import("../components/MapContainer.vue"));
+const WorkspaceListing = defineAsyncComponent(async () => await import("../components/WorkspaceListing.vue"));
+const MapLayerListing = defineAsyncComponent(async () => await import("../components/MapLayerListing.vue"));
+
 const geoserverStore = useGeoserverStore()
 onMounted(()=>{
     geoserverStore.getWorkspaceList().then((data)=>{
         geoserverStore.workspaceList = data.workspaces.workspace
         console.log(data)
-    }).catch((error)=>console.error(error))
-    
+    }).catch((error)=>{ console.error(error) })
 })
 </script>
 
