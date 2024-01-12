@@ -16,6 +16,9 @@ onMounted(() => {
         center: [9.993163, 53.552123], // starting position [lng, lat]
         zoom: 15 // starting zoom
     })
+    // Add zoom and rotation controls to the map.
+    const zoomControl = new maplibre.NavigationControl()
+    mapStore.map.addControl(zoomControl, "top-right");
 })
 </script>
 
