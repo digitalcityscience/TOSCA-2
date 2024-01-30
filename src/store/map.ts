@@ -3,8 +3,9 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
 import { type GeoServerFeatureType } from "./geoserver";
-import { type SourceSpecification } from "maplibre-gl";
+import { type SourceSpecification, type AddLayerObject } from "maplibre-gl";
 import { getRandomHexColor, isNullOrEmpty } from "../core/helpers/functions";
+import { type GeoJSONStoreFeatures } from "terra-draw";
 export interface LayerStyleOptions {
 	paint?: Record<string, unknown>;
 	layout?: Record<string, unknown>;
@@ -22,6 +23,13 @@ export interface CustomAddLayerObject {
 export interface LayerObjectWithAttributes extends CustomAddLayerObject {
 	details: GeoServerFeatureType;
 }
+
+export interface GeoJSONObject {
+	type: GeoJSONObjectTypes,
+	features: GeoJSONStoreFeatures[],
+	properties?: unknown
+}
+type GeoJSONObjectTypes = "Feature" | "FeatureCollection"
 type MapLibreLayerTypes = "fill" | "line" | "symbol" | "circle" | "heatmap" | "fill-extrusion" | "raster" | "hillshade" | "background";
 
 export const useMapStore = defineStore("map", () => {
@@ -51,6 +59,25 @@ export const useMapStore = defineStore("map", () => {
 					}&STYLE=&TILEMATRIX=EPSG:900913:{z}&TILEMATRIXSET=EPSG:900913&TILECOL={x}&TILEROW={y}&format=application/vnd.mapbox-vector-tile`,
 				],
 			});
+			console.log(map.value.getSource(sourceID));
+			if (!isNullOrEmpty(map.value.getSource(sourceID))) {
+				return await Promise.resolve(
+					map.value.getSource(sourceID) as SourceSpecification
+				);
+			} else {
+				throw new Error(`Couldn't add requested source: ${sourceID}`);
+			}
+		} else {
+			throw new Error(`There is no map to add source: ${sourceID}`);
+		}
+	}
+	async function addGeoJSONSrc(layerID: string, geoJSONSrc: GeoJSONObject): Promise<SourceSpecification> {
+		const sourceID = "drawsource-" + layerID
+		if (!isNullOrEmpty(map.value)) {
+			map.value.addSource(sourceID, {
+				type:"geojson",
+				data: geoJSONSrc
+			})
 			console.log(map.value.getSource(sourceID));
 			if (!isNullOrEmpty(map.value.getSource(sourceID))) {
 				return await Promise.resolve(
@@ -101,9 +128,40 @@ export const useMapStore = defineStore("map", () => {
 				(layerObject as any)["source-layer"] = sourceLayer;
 			}
 			console.log(layerObject);
-			map.value.addLayer(layerObject);
+			map.value.addLayer(layerObject as AddLayerObject);
 			if (!isNullOrEmpty(map.value.getLayer(`layer-${layerID}`))) {
 				(layerObject as LayerObjectWithAttributes).details = details;
+				add2MapLayerList(layerObject as LayerObjectWithAttributes);
+				return await Promise.resolve(map.value.getLayer(layerID));
+			} else {
+				throw new Error(`Couldn't add requested layer: ${layerID}`);
+			}
+		} else {
+			throw new Error(`There is no map to add layer: ${layerID}`);
+		}
+	}
+	async function addGeoJSONLayer(
+		layerID: string,
+		layerType: MapLibreLayerTypes,
+		layerStyle?: LayerStyleOptions
+	): Promise<any | undefined>{
+		if (!isNullOrEmpty(map.value)) {
+			let styling = { ...layerStyle };
+			if (isNullOrEmpty(layerStyle)) {
+				const styleObj: LayerStyleOptions = {
+					paint: createRandomPaintObj(layerType),
+				};
+				styling = { ...styleObj };
+			}
+			const layerObject: CustomAddLayerObject = {
+				id: layerID,
+				source: `drawsource-${layerID}`,
+				type: layerType,
+				...styling,
+			};
+			console.log(layerObject);
+			map.value.addLayer(layerObject as AddLayerObject);
+			if (!isNullOrEmpty(map.value.getLayer(layerID))) {
 				add2MapLayerList(layerObject as LayerObjectWithAttributes);
 				return await Promise.resolve(map.value.getLayer(layerID));
 			} else {
@@ -172,7 +230,9 @@ export const useMapStore = defineStore("map", () => {
 		map,
 		layersOnMap,
 		addSrc,
+		addGeoJSONSrc,
 		addLyr,
+		addGeoJSONLayer,
 		geometryConversion,
 	};
 });
