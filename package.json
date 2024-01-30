@@ -13,9 +13,11 @@
     "maplibre-gl": "^3.6.1",
     "pinia": "^2.1.7",
     "primevue": "^3.43.0",
+    "terra-draw": "^0.0.1-alpha.53",
     "vue": "^3.3.8"
   },
   "devDependencies": {
+    "@stylistic/eslint-plugin-js": "^1.5.4",
     "@typescript-eslint/eslint-plugin": "^6.14.0",
     "@typescript-eslint/parser": "^6.14.0",
     "@vitejs/plugin-vue": "^4.5.0",

@@ -30,7 +30,7 @@ module.exports = {
     },
     "plugins": [
         "vue",
-        "@typescript-eslint"
+        '@stylistic/js'
     ],
     "rules": {
         "@typescript-eslint/quotes": ["error", "double"],
@@ -44,6 +44,7 @@ module.exports = {
         "@typescript-eslint/space-before-blocks":"off",
         "@typescript-eslint/key-spacing":"off",
         "@typescript-eslint/no-non-null-assertion":"off",
-        "vue/no-useless-template-attributes":"off"
+        "vue/no-useless-template-attributes":"off",
+        "no-tabs": ["error", { allowIndentationTabs: true }]
     }
 }
