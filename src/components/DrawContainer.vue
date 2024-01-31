@@ -148,7 +148,8 @@ function editMode(): void {
 }
 function stopDrawMode(): void {
     if (draw !== null && draw.enabled) {
-        draw.stop();
+        draw.setMode("static")
+        draw.stop()
         drawOnProgress.value = false
         editOnProgress.value = false
     } else {
