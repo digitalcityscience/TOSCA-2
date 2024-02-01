@@ -29,7 +29,7 @@
                     <Button :disabled="!drawOnProgress" @click="editMode">Edit Drawing</Button>
                 </template>
             </Card>
-            <Card>
+            <Card v-if="drawOnProgress || editOnProgress">
                 <template #title>Save</template>
                 <template #subtitle>Save your drawing as a Layer</template>
                 <template #content>
@@ -96,7 +96,7 @@ const draw = new TerraDraw({
                     feature: {
                         draggable: true,
                         coordinates: {
-                            deletable:true
+                            deletable: true
                         }
                     },
                 },
@@ -163,26 +163,32 @@ function stopDrawMode(): void {
 // Saving draw result as a layer
 function saveAsLayer(): void {
     const featureList = draw.getSnapshot()
-    if (featureList.length > 0) {
-        const geoJsonSnapshot: GeoJSONObject = {
-            type: "FeatureCollection",
-            features: featureList
-        }
-        console.log(geoJsonSnapshot)
-        const geomType = mapStore.geometryConversion(featureList[0].geometry.type)
-        mapStore.addGeoJSONSrc(layerName.value, geoJsonSnapshot).then(() => {
-            mapStore.addGeoJSONLayer(layerName.value, geomType).then(() => {
-                console.info(mapStore.map)
-                stopDrawMode()
-            }).catch(error => {
-                console.log(mapStore.map.value.getStyle().layers)
+    const processedLayerName = layerName.value.trim().toLowerCase().replaceAll(" ", "_")
+    const isOnMap = mapStore.layersOnMap.filter((layer) => layer.id === processedLayerName).length > 0
+    if (!isOnMap) {
+        if ((featureList.length > 0)) {
+            const geoJsonSnapshot: GeoJSONObject = {
+                type: "FeatureCollection",
+                features: featureList
+            }
+            console.log(geoJsonSnapshot)
+            const geomType = mapStore.geometryConversion(featureList[0].geometry.type)
+            mapStore.addGeoJSONSrc(processedLayerName, geoJsonSnapshot).then(() => {
+                mapStore.addGeoJSONLayer(processedLayerName, geomType).then(() => {
+                    console.info(mapStore.map)
+                    stopDrawMode()
+                }).catch(error => {
+                    console.log(mapStore.map.value.getStyle().layers)
+                    window.alert(error)
+                })
+            }).catch((error) => {
                 window.alert(error)
             })
-        }).catch((error) => {
-            window.alert(error)
-        })
+        } else {
+            window.alert("There is no feature drawn on map!")
+        }
     } else {
-        window.alert("There is no feature drawn on map")
+        window.alert("Layer name already in use!")
     }
 }
 const layerName = ref("")
