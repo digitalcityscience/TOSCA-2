@@ -155,6 +155,7 @@ function stopDrawMode(): void {
         draw.stop()
         drawOnProgress.value = false
         editOnProgress.value = false
+        layerName.value = ""
     } else {
         console.error("Could not find drawing instance")
     }
@@ -179,6 +180,7 @@ function saveAsLayer(): void {
                     stopDrawMode()
                 }).catch(error => {
                     console.log(mapStore.map.value.getStyle().layers)
+                    mapStore.map.value.removeSource(`drawsource-${processedLayerName}`)
                     window.alert(error)
                 })
             }).catch((error) => {
