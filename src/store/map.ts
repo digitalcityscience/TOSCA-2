@@ -19,6 +19,7 @@ export interface CustomAddLayerObject {
 	"source-layer"?: string;
 	paint?: Record<string, unknown>;
 	layout?: Record<string, unknown>;
+	filterLayer?: boolean;
 }
 export interface LayerObjectWithAttributes extends CustomAddLayerObject {
 	details: GeoServerFeatureType;
@@ -143,6 +144,7 @@ export const useMapStore = defineStore("map", () => {
 	async function addGeoJSONLayer(
 		layerID: string,
 		layerType: MapLibreLayerTypes,
+		isFilterLayer: boolean,
 		layerStyle?: LayerStyleOptions
 	): Promise<any | undefined>{
 		if (!isNullOrEmpty(map.value)) {
@@ -157,6 +159,7 @@ export const useMapStore = defineStore("map", () => {
 				id: layerID,
 				source: `drawsource-${layerID}`,
 				type: layerType,
+				filterLayer:isFilterLayer,
 				...styling,
 			};
 			console.log(layerObject);
