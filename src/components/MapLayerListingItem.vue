@@ -30,12 +30,13 @@
         </div>
         <div>
             <AttributeFiltering :layer="props.layer"></AttributeFiltering>
+            <GeometryFiltering></GeometryFiltering>
         </div>
     </Panel>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { defineAsyncComponent, onMounted, ref } from "vue";
 import { type LayerObjectWithAttributes, useMapStore } from "../store/map"
 import Panel from "primevue/panel";
 import ColorPicker from "primevue/colorpicker";
@@ -43,6 +44,9 @@ import Slider from "primevue/slider";
 import Checkbox from "primevue/checkbox";
 import AttributeFiltering from "./AttributeFiltering.vue";
 import { isNullOrEmpty } from "../core/helpers/functions";
+
+const GeometryFiltering = defineAsyncComponent(async () => await import("../components/GeometryFiltering.vue"));
+
 export interface Props {
     layer: LayerObjectWithAttributes
 }
