@@ -20,6 +20,7 @@ export interface CustomAddLayerObject {
 	paint?: Record<string, unknown>;
 	layout?: Record<string, unknown>;
 	filterLayer?: boolean;
+	filterLayerData?: GeoJSONObject
 }
 export interface LayerObjectWithAttributes extends CustomAddLayerObject {
 	details: GeoServerFeatureType;
@@ -79,7 +80,6 @@ export const useMapStore = defineStore("map", () => {
 				type:"geojson",
 				data: geoJSONSrc
 			})
-			console.log(map.value.getSource(sourceID));
 			if (!isNullOrEmpty(map.value.getSource(sourceID))) {
 				return await Promise.resolve(
 					map.value.getSource(sourceID) as SourceSpecification
@@ -145,10 +145,14 @@ export const useMapStore = defineStore("map", () => {
 		layerID: string,
 		layerType: MapLibreLayerTypes,
 		isFilterLayer: boolean,
-		layerStyle?: LayerStyleOptions
+		layerStyle?: LayerStyleOptions,
+		geoJSONSrc?: GeoJSONObject
 	): Promise<any | undefined>{
 		if (!isNullOrEmpty(map.value)) {
 			let styling = { ...layerStyle };
+			if (isNullOrEmpty(geoJSONSrc) && isFilterLayer){
+				throw new Error("geoJSONSrc is mandatory for filter layers")
+			}
 			if (isNullOrEmpty(layerStyle)) {
 				const styleObj: LayerStyleOptions = {
 					paint: createRandomPaintObj(layerType),
@@ -160,6 +164,7 @@ export const useMapStore = defineStore("map", () => {
 				source: `drawsource-${layerID}`,
 				type: layerType,
 				filterLayer:isFilterLayer,
+				filterLayerData:geoJSONSrc,
 				...styling,
 			};
 			console.log(layerObject);
