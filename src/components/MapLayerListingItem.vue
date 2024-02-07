@@ -30,7 +30,7 @@
         </div>
         <div>
             <AttributeFiltering :layer="props.layer"></AttributeFiltering>
-            <GeometryFiltering></GeometryFiltering>
+            <GeometryFiltering :layer="props.layer"></GeometryFiltering>
         </div>
     </Panel>
 </template>
