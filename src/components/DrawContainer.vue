@@ -176,7 +176,7 @@ function saveAsLayer(): void {
             const geomType = mapStore.geometryConversion(featureList[0].geometry.type)
             const isFilterLayer = featureList[0].geometry.type === "Polygon"
             mapStore.addGeoJSONSrc(processedLayerName, geoJsonSnapshot).then(() => {
-                mapStore.addGeoJSONLayer(processedLayerName, geomType, isFilterLayer).then(() => {
+                mapStore.addGeoJSONLayer(processedLayerName, geomType, isFilterLayer, undefined, geoJsonSnapshot).then(() => {
                     console.info(mapStore.map)
                     stopDrawMode()
                 }).catch(error => {
