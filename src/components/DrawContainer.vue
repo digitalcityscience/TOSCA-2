@@ -51,9 +51,10 @@ import OverlayPanel from "primevue/overlaypanel";
 import Button from "primevue/button";
 import InputText from "primevue/inputtext";
 import { ref } from "vue";
-import { type GeoJSONObject, useMapStore } from "../store/map";
+import { useMapStore } from "../store/map";
 import { DrawControl } from "../core/helpers/drawControl";
 import { TerraDraw, TerraDrawLineStringMode, TerraDrawMapLibreGLAdapter, TerraDrawPointMode, TerraDrawPolygonMode, TerraDrawRectangleMode, TerraDrawSelectMode } from "terra-draw"
+import { type FeatureCollection } from "geojson";
 const mapStore = useMapStore()
 // Overlay Panel operations
 const op = ref()
@@ -168,7 +169,7 @@ function saveAsLayer(): void {
     const isOnMap = mapStore.layersOnMap.filter((layer) => layer.id === processedLayerName).length > 0
     if (!isOnMap) {
         if ((featureList.length > 0)) {
-            const geoJsonSnapshot: GeoJSONObject = {
+            const geoJsonSnapshot: FeatureCollection = {
                 type: "FeatureCollection",
                 features: featureList
             }

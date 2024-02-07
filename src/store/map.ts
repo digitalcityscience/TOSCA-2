@@ -6,6 +6,7 @@ import { type GeoServerFeatureType } from "./geoserver";
 import { type SourceSpecification, type AddLayerObject } from "maplibre-gl";
 import { getRandomHexColor, isNullOrEmpty } from "../core/helpers/functions";
 import { type GeoJSONStoreFeatures } from "terra-draw";
+import { type FeatureCollection } from "geojson";
 export interface LayerStyleOptions {
 	paint?: Record<string, unknown>;
 	layout?: Record<string, unknown>;
@@ -20,7 +21,7 @@ export interface CustomAddLayerObject {
 	paint?: Record<string, unknown>;
 	layout?: Record<string, unknown>;
 	filterLayer?: boolean;
-	filterLayerData?: GeoJSONObject
+	filterLayerData?: FeatureCollection
 }
 export interface LayerObjectWithAttributes extends CustomAddLayerObject {
 	details: GeoServerFeatureType;
@@ -73,7 +74,7 @@ export const useMapStore = defineStore("map", () => {
 			throw new Error(`There is no map to add source: ${sourceID}`);
 		}
 	}
-	async function addGeoJSONSrc(layerID: string, geoJSONSrc: GeoJSONObject): Promise<SourceSpecification> {
+	async function addGeoJSONSrc(layerID: string, geoJSONSrc: FeatureCollection): Promise<SourceSpecification> {
 		const sourceID = "drawsource-" + layerID
 		if (!isNullOrEmpty(map.value)) {
 			map.value.addSource(sourceID, {
@@ -146,7 +147,7 @@ export const useMapStore = defineStore("map", () => {
 		layerType: MapLibreLayerTypes,
 		isFilterLayer: boolean,
 		layerStyle?: LayerStyleOptions,
-		geoJSONSrc?: GeoJSONObject
+		geoJSONSrc?: FeatureCollection
 	): Promise<any | undefined>{
 		if (!isNullOrEmpty(map.value)) {
 			let styling = { ...layerStyle };
