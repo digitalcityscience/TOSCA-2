@@ -28,6 +28,7 @@ import { type CustomAddLayerObject, useMapStore, type LayerObjectWithAttributes 
 import { computed, ref } from "vue";
 import bbox from "@turf/bbox"
 import { type FeatureCollection } from "geojson";
+import { isNullOrEmpty } from "../core/helpers/functions";
 export interface Props {
     layer: LayerObjectWithAttributes
 }
@@ -38,7 +39,9 @@ const filterLayerList = computed(() => {
     return mapStore.layersOnMap.filter((layer) => { return layer.filterLayer === true })
 })
 function dropdownFitter(event: DropdownChangeEvent): void{
-    fitToFilterLayer((event.value as CustomAddLayerObject).filterLayerData!)
+    if (!isNullOrEmpty(event.value)){
+        fitToFilterLayer((event.value as CustomAddLayerObject).filterLayerData!)
+    }
 }
 /**
  * Gets target layer, creates bbox and fits map to this bbox
