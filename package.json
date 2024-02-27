@@ -11,6 +11,8 @@
   "dependencies": {
     "@mdi/font": "^7.4.47",
     "@turf/bbox": "^7.0.0-alpha.2",
+    "@turf/boolean-within": "^7.0.0-alpha.2",
+    "@turf/flatten": "^7.0.0-alpha.2",
     "@types/geojson": "^7946.0.14",
     "maplibre-gl": "^3.6.1",
     "pinia": "^2.1.7",
