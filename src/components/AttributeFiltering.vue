@@ -106,7 +106,11 @@ async function applyAttributeFilter(): Promise<void> {
         await filterStore.addAttributeFilter(props.layer.id, filter).then((response)=>{
             if (response.attributeFilters !== undefined || response.geometryFilters !== undefined) {
                 filterStore.populateLayerFilter(response, relationType.value).then((expression)=>{
-                    mapStore.map.setFilter(props.layer.id, expression)
+                    if (expression.length > 1){
+                        mapStore.map.setFilter(props.layer.id, expression)
+                    } else {
+                        mapStore.map.setFilter(props.layer.id, null)
+                    }
                 }).catch((error)=>{
                     mapStore.map.setFilter(props.layer.id, null)
                     window.alert(error)
@@ -124,7 +128,11 @@ async function applyAttributeFilter(): Promise<void> {
         })
         if (appliedFilters !== undefined){
             await filterStore.populateLayerFilter(appliedFilters, relationType.value).then((expression)=>{
-                mapStore.map.setFilter(props.layer.id, expression)
+                if (expression.length > 1){
+                    mapStore.map.setFilter(props.layer.id, expression)
+                } else {
+                    mapStore.map.setFilter(props.layer.id, null)
+                }
             }).catch((error)=>{
                 mapStore.map.setFilter(props.layer.id, null)
                 window.alert(error)
@@ -155,7 +163,11 @@ function clearOperand(): void {
 async function deleteAttributeFilter(targetFilter: AppliedFilter): Promise<void> {
     await filterStore.removeAttributeFilter(props.layer.id, targetFilter).then((response)=>{
         filterStore.populateLayerFilter(response, relationType.value).then((expression)=>{
-            mapStore.map.setFilter(props.layer.id, expression)
+            if (expression.length > 1){
+                mapStore.map.setFilter(props.layer.id, expression)
+            } else {
+                mapStore.map.setFilter(props.layer.id, null)
+            }
         }).catch((error)=>{
             mapStore.map.setFilter(props.layer.id, null)
             window.alert(error)

@@ -207,7 +207,7 @@ async function removeAttributeFilter(layername: string, attributeFilter: Attribu
       console.log("expression is: ", expressionBlock)
       return await Promise.resolve(expressionBlock)
     } else {
-      throw new Error("There is no filter to populate")
+      return await Promise.resolve(expressionBlock)
     }
   }
   /**

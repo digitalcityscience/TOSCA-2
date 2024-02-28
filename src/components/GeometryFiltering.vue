@@ -1,6 +1,6 @@
 <template>
 	<div class="geometry-filter" v-if="(props.layer.filterLayer === undefined)">
-		<div class="new-filter">
+		<div class="new-filter" v-if="!hasGeometryFilter">
 			<Card>
 				<template #title>Geometry Filtering</template>
 				<template #subtitle>Select geometry layer to filter this layer</template>
@@ -22,6 +22,10 @@
 				</template>
 			</Card>
 		</div>
+        <div class="existing-filter" v-else>
+            You have a geometry filter
+            <Button @click="removeGeometryFilter">Delete</Button>
+        </div>
 	</div>
 </template>
 
@@ -44,6 +48,9 @@ const mapStore = useMapStore()
 const selectedFilterLayer = ref<CustomAddLayerObject>()
 const filterLayerList = computed(() => {
     return mapStore.layersOnMap.filter((layer) => { return layer.filterLayer === true })
+})
+const hasGeometryFilter = computed(()=>{
+    return filterStore.appliedFiltersList.filter((layer)=> { return layer.layerName === props.layer.id && layer.geometryFilters !== undefined }).length > 0
 })
 function dropdownFitter(event: DropdownChangeEvent): void{
     if (!isNullOrEmpty(event.value)){
@@ -98,7 +105,11 @@ function applyGeometryFilter(): void{
             }
             filterStore.addGeometryFilter(props.layer.id, item).then((response)=>{
                 filterStore.populateLayerFilter(response, "AND").then((expression)=> {
-                    mapStore.map.setFilter(props.layer.id, expression)
+                    if (expression.length > 1){
+                        mapStore.map.setFilter(props.layer.id, expression)
+                    } else {
+                        mapStore.map.setFilter(props.layer.id, null)
+                    }
                 }).catch((error)=>{
                     mapStore.map.setFilter(props.layer.id, null)
                     window.alert(error)
@@ -108,6 +119,20 @@ function applyGeometryFilter(): void{
             })
         }
     }
+}
+function removeGeometryFilter(): void{
+    filterStore.removeGeometryFilter(props.layer.id).then((response)=>{
+        filterStore.populateLayerFilter(response, "AND").then((expression)=>{
+            if (expression.length > 1){
+                mapStore.map.setFilter(props.layer.id, expression)
+            } else {
+                mapStore.map.setFilter(props.layer.id, null)
+            }
+        }).catch((error)=>{ window.alert(error) })
+    }).catch((error)=>{
+        mapStore.map.setFilter(props.layer.id, null)
+        window.alert(error)
+    })
 }
 </script>
 
