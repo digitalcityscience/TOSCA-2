@@ -5,15 +5,20 @@
 				<template #title>Geometry Filtering</template>
 				<template #subtitle>Select geometry layer to filter this layer</template>
 				<template #content>
-						<div>{{ Object.prototype.hasOwnProperty.call(props.layer,"filterLayer") }}</div>
+					<div class="filterlayer-dropdown">
 						<div v-if="filterLayerList.length>0">
 							<Dropdown v-model="selectedFilterLayer" @change="dropdownFitter" :options="filterLayerList" option-label="source" show-clear
 							placeholder="Select an filter layer"></Dropdown>
 						</div>
-					<div v-else>There is no layer for filter. Please draw a layer first!</div>
+						<div v-else>There is no layer for filter. Please draw a layer first!</div>
+					</div>
+					<div v-if="selectedFilterLayer"  class="identifier-dropdown">
+							<Dropdown v-model="selectedProperty" @change="checker" :options="filteredAttributes" option-label="name" show-clear placeholder="Select Identifier">
+							</Dropdown>
+					</div>
 				</template>
 				<template #footer>
-					<Button :disabled="selectedFilterLayer === undefined">Add Filter</Button>
+					<Button :disabled="(isNullOrEmpty(selectedFilterLayer) || isNullOrEmpty(selectedProperty))" @click="applyGeometryFilter">Add Filter</Button>
 				</template>
 			</Card>
 		</div>
@@ -29,6 +34,8 @@ import { computed, ref } from "vue";
 import bbox from "@turf/bbox"
 import { type FeatureCollection } from "geojson";
 import { isNullOrEmpty } from "../core/helpers/functions";
+import { type GeometryFilterItem, useFilterStore } from "../store/filter";
+import { type GeoServerFeatureTypeAttribute } from "../store/geoserver";
 export interface Props {
     layer: LayerObjectWithAttributes
 }
@@ -53,7 +60,53 @@ function fitToFilterLayer(filterLayerData: FeatureCollection): void{
     if (filterLayerData.features.length > 0){
         const box = bbox(filterLayerData)
         console.log(box)
-        mapStore.map.fitBounds(box, { padding: { top: 40, bottom:40, left: 40, right: 40 } })
+        mapStore.map.fitBounds(box, { padding: { top: 40, bottom:40, left: 40, right: 40 }, minZoom:16 })
+        mapStore.map.once("data", `layer-${props.layer.source}`, (event: any)=>{
+            console.log("once event is: ", event)
+        })
+    }
+}
+
+// Identifier selection logic
+/**
+ * First we are going to check has layer any attribute named 'id', 'gid' or 'uuid' in order.
+ * If there is no match we are showing dropdown empty. Then users can select their own identifier.
+ */
+const filterStore = useFilterStore()
+const filteredAttributes = computed(() => {
+    return props.layer.details.featureType.attributes.attribute.filter(attr => filterStore.allowedIDBindings.includes(attr.binding))
+})
+const selectedProperty = ref<GeoServerFeatureTypeAttribute>()
+function checker(event: DropdownChangeEvent): void{
+    console.log("selected attr :", event.value)
+}
+/**
+ * Checks geometry filter result array and other variables. If all variables checks populates geometry filter. Otherwise deletes filter.
+ */
+function applyGeometryFilter(): void{
+    console.log("applying geometry filter")
+    if (selectedFilterLayer.value?.filterLayerData != null && selectedProperty.value?.name != null && selectedProperty.value.name !== ""){
+        const filterArray: Array<string|number> = filterStore.createGeometryFilter(props.layer.id, {
+            filterGeoJSON: selectedFilterLayer.value.filterLayerData,
+            identifier: selectedProperty.value?.name
+        })
+        if (filterArray.length > 0){
+            const item: GeometryFilterItem = {
+                filterGeoJSON: selectedFilterLayer.value.filterLayerData,
+                identifier: selectedProperty.value?.name,
+                filterArray
+            }
+            filterStore.addGeometryFilter(props.layer.id, item).then((response)=>{
+                filterStore.populateLayerFilter(response, "AND").then((expression)=> {
+                    mapStore.map.setFilter(props.layer.id, expression)
+                }).catch((error)=>{
+                    mapStore.map.setFilter(props.layer.id, null)
+                    window.alert(error)
+                })
+            }).catch((error)=>{
+                window.alert(error)
+            })
+        }
     }
 }
 </script>

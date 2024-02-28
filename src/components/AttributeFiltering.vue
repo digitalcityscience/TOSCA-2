@@ -1,14 +1,14 @@
 <template>
     <div class="attribute-filtering">
         <div class="current-filters">
-            <div v-if="currentFilters">
+            <div v-if="filterStore.appliedFiltersList.find((listItem)=>{return listItem.layerName === props.layer.id})">
                 <div v-for="(filter, index) in currentFilters" :key="index"
                     style="width: 100%;display: flex;flex-direction: row;justify-content: space-between;">
                     <div>
                         {{ filter.attribute.name }} {{ filterStore.filterNames[filter.operand] }} {{ filter.value }}
                     </div>
                     <div>
-                        <Button @click="deleteFilter(filter)">x</Button>
+                        <Button @click="deleteAttributeFilter(filter)">x</Button>
                     </div>
                 </div>
             </div>
@@ -16,9 +16,9 @@
         </div>
         <div class="filter-control">
             <div class="relation-control">
-                <ToggleButton v-model="relationType" onLabel="AND" offLabel="OR" @change="applyFilter" />
-                <span v-if="relationType">(Match all selections)</span>
+                <span v-if="relationType==='AND'">(Match all selections)</span>
                 <span v-else>(Match at least one selection)</span>
+                <SelectButton v-model="relationType" :options="relationList" :allow-empty="false" @change="applyAttributeFilter"></SelectButton>
             </div>
             <Button @click="initNewFilter">Add New</Button>
             <Button v-if="newFilterProcess" @click="cancelNewFilter">Cancel</Button>
@@ -44,7 +44,7 @@
                 <input v-else type="number" v-model="filterValue">
             </div>
             <div class="applier">
-                <Button @click=applyFilter :disabled="!(selectedAttribute && selectedOperand && filterValue)">Apply</Button>
+                <Button @click=applyAttributeFilter :disabled="!(selectedAttribute && selectedOperand && filterValue)">Apply</Button>
             </div>
         </div>
     </div>
@@ -53,10 +53,10 @@
 <script setup lang="ts">
 import Dropdown from "primevue/dropdown";
 import Button from "primevue/button";
-import ToggleButton from "primevue/togglebutton";
+import SelectButton from "primevue/selectbutton";
 import { computed, ref } from "vue";
 import { type GeoServerFeatureTypeAttribute } from "../store/geoserver";
-import { type IntegerFilters, type StringFilters, useFilterStore, } from "../store/filter";
+import { type IntegerFilters, type StringFilters, useFilterStore, type RelationTypes, type AttributeFilterItem } from "../store/filter";
 import { type LayerObjectWithAttributes, useMapStore } from "../store/map";
 import { isNullOrEmpty } from "../core/helpers/functions"
 
@@ -72,57 +72,67 @@ const props = defineProps<Props>()
 const filterStore = useFilterStore()
 const mapStore = useMapStore()
 
-const currentFilters = ref<AppliedFilter[]>([])
-const relationType = ref<boolean>(true)
+const currentFilters = computed(()=>{
+    if (filterStore.appliedFiltersList.length>0){
+        const layerFilters = filterStore.appliedFiltersList.find((listItem)=>{ return listItem.layerName === props.layer.id })
+        if (layerFilters?.attributeFilters !== undefined){
+            return layerFilters.attributeFilters
+        } else {
+            return [] as AppliedFilter[]
+        }
+    } else {
+        return [] as AppliedFilter[]
+    }
+})
+const relationList = ["AND", "OR"]
+const relationType = ref<RelationTypes>("AND")
 const selectedAttribute = ref<GeoServerFeatureTypeAttribute>()
 const selectedOperand = ref<IntegerFilters | StringFilters>()
 const filterValue = ref<any>("")
 const filteredAttributes = computed(() => {
     return props.layer.details.featureType.attributes.attribute.filter(attr => filterStore.allowedBindings.includes(attr.binding))
 })
-function applyFilter(): void {
+/**
+ * Create current filters list then push this list to apply attribute filter function in filter store. wait for response
+ * and based on response handle
+ */
+async function applyAttributeFilter(): Promise<void> {
     if (!isNullOrEmpty(selectedAttribute.value) && !isNullOrEmpty(selectedOperand.value) && !isNullOrEmpty(filterValue.value)) {
-        const filter: AppliedFilter = {
+        const filter: AttributeFilterItem = {
             attribute: selectedAttribute.value!,
             operand: selectedOperand.value!,
             value: filterValue.value.toString()
         }
-        currentFilters.value.push(filter)
-        const f = createFilter()
-        if (f.length === 0) {
-            mapStore.map.setFilter(props.layer.id, null)
-        } else {
-            mapStore.map.setFilter(props.layer.id, f)
-        }
-        cancelNewFilter()
-    } else {
-        const f = createFilter()
-        if (f.length === 0) {
-            mapStore.map.setFilter(props.layer.id, null)
-        } else {
-            mapStore.map.setFilter(props.layer.id, f)
-        }
-        cancelNewFilter()
-    }
-}
-function createFilter(): any[] {
-    if (currentFilters.value.length > 0) {
-        const filterBlock: any[] = []
-        if (relationType.value) {
-            filterBlock.push("all")
-        } else {
-            filterBlock.push("any")
-        }
-        currentFilters.value.forEach((filter) => {
-            if (filter.attribute.binding === "java.lang.String") {
-                filterBlock.push([filter.operand, ["downcase", ["get", filter.attribute.name]], filter.value.toLowerCase()])
+        await filterStore.addAttributeFilter(props.layer.id, filter).then((response)=>{
+            if (response.attributeFilters !== undefined || response.geometryFilters !== undefined) {
+                filterStore.populateLayerFilter(response, relationType.value).then((expression)=>{
+                    mapStore.map.setFilter(props.layer.id, expression)
+                }).catch((error)=>{
+                    mapStore.map.setFilter(props.layer.id, null)
+                    window.alert(error)
+                })
             } else {
-                filterBlock.push([filter.operand, ["get", filter.attribute.name], parseFloat(filter.value)])
+                mapStore.map.setFilter(props.layer.id, null)
             }
+        }).catch((error)=> {
+            window.alert(error)
         })
-        return filterBlock
+        cancelNewFilter()
     } else {
-        return []
+        const appliedFilters = filterStore.appliedFiltersList.find((applied)=>{
+            return applied.layerName === props.layer.id
+        })
+        if (appliedFilters !== undefined){
+            await filterStore.populateLayerFilter(appliedFilters, relationType.value).then((expression)=>{
+                mapStore.map.setFilter(props.layer.id, expression)
+            }).catch((error)=>{
+                mapStore.map.setFilter(props.layer.id, null)
+                window.alert(error)
+            })
+        } else {
+            mapStore.map.setFilter(props.layer.id, null)
+        }
+        cancelNewFilter()
     }
 }
 const newFilterProcess = ref<boolean>(false)
@@ -142,9 +152,17 @@ function clearOperand(): void {
     selectedOperand.value = undefined
     filterValue.value = undefined
 }
-function deleteFilter(targetFilter: AppliedFilter): void {
-    currentFilters.value.splice(currentFilters.value.findIndex((filter => targetFilter.attribute.name === filter.attribute.name)), 1)
-    applyFilter()
+async function deleteAttributeFilter(targetFilter: AppliedFilter): Promise<void> {
+    await filterStore.removeAttributeFilter(props.layer.id, targetFilter).then((response)=>{
+        filterStore.populateLayerFilter(response, relationType.value).then((expression)=>{
+            mapStore.map.setFilter(props.layer.id, expression)
+        }).catch((error)=>{
+            mapStore.map.setFilter(props.layer.id, null)
+            window.alert(error)
+        })
+    }).catch((error)=>{
+        window.alert(error)
+    })
 }
 </script>
 
