@@ -6,7 +6,6 @@ import { type GeoServerFeatureTypeAttribute } from "./geoserver";
 import { type MultiPolygon, type FeatureCollection, type Feature, type Polygon } from "geojson";
 import { isNullOrEmpty } from "../core/helpers/functions";
 import { useMapStore } from "./map";
-import bbox from "@turf/bbox";
 import booleanWithin from "@turf/boolean-within";
 import flatten from "@turf/flatten";
 import { type MapGeoJSONFeature } from "maplibre-gl";
@@ -217,7 +216,6 @@ async function removeAttributeFilter(layername: string, attributeFilter: Attribu
    * @returns list of identifier
    */
   function createGeometryFilter(layerName: string, geometryFilter: GeometryFilterTargetItem): Array<string|number> {
-    const box = bbox(geometryFilter.filterGeoJSON)
     const mapFeatureList: MapGeoJSONFeature[] = mapStore.map.queryRenderedFeatures({ layers:[layerName] })
     if (mapFeatureList.length>0){
       const filteredMapFeatureList = mapFeatureList.filter((feature)=>{
