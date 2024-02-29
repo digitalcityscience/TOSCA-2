@@ -1,5 +1,5 @@
 <template>
-	<div class="geometry-filter" v-if="(props.layer.filterLayer === undefined)">
+	<div class="geometry-filter" v-if="(props.layer.filterLayer === undefined && isPolygonTiles)">
 		<div class="new-filter" v-if="!hasGeometryFilter">
 			<Card>
 				<template #title>Geometry Filtering</template>
@@ -51,6 +51,14 @@ const filterLayerList = computed(() => {
 })
 const hasGeometryFilter = computed(()=>{
     return filterStore.appliedFiltersList.filter((layer)=> { return layer.layerName === props.layer.id && layer.geometryFilters !== undefined }).length > 0
+})
+const isPolygonTiles = computed(()=>{
+    const sourceID = props.layer.id.split("-").slice(1).join("")
+    if (mapStore.map.getSource(sourceID) !== undefined && mapStore.map.getSource(sourceID).type === "vector" && props.layer.type === "fill"){
+        return true
+    } else {
+        return false
+    }
 })
 function dropdownFitter(event: DropdownChangeEvent): void{
     if (!isNullOrEmpty(event.value)){
