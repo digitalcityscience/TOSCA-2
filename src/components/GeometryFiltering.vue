@@ -36,10 +36,13 @@ import Button from "primevue/button";
 import { type CustomAddLayerObject, useMapStore, type LayerObjectWithAttributes } from "../store/map";
 import { computed, ref } from "vue";
 import bbox from "@turf/bbox"
-import { type FeatureCollection } from "geojson";
+import bboxPolygon from "@turf/bbox-polygon"
+import { type FeatureCollection, type Feature } from "geojson";
 import { isNullOrEmpty } from "../core/helpers/functions";
 import { type GeometryFilterItem, useFilterStore } from "../store/filter";
 import { type GeoServerFeatureTypeAttribute } from "../store/geoserver";
+import { type LngLatBounds } from "maplibre-gl";
+import booleanWithin from "@turf/boolean-within";
 export interface Props {
     layer: LayerObjectWithAttributes
 }
@@ -62,26 +65,38 @@ const isPolygonTiles = computed(()=>{
 })
 function dropdownFitter(event: DropdownChangeEvent): void{
     if (!isNullOrEmpty(event.value)){
-        fitToFilterLayer((event.value as CustomAddLayerObject).filterLayerData!)
+        fitToFilterLayer((event.value as CustomAddLayerObject).filterLayerData!).then(
+            () => {},
+            () => {},
+        )
     }
 }
 /**
  * Gets target layer, creates bbox and fits map to this bbox
  * @param layerName
  */
-function fitToFilterLayer(filterLayerData: FeatureCollection): void{
-    // const features = mapStore.map.querySourceFeatures(layerName)
-    console.log(filterLayerData)
+async function fitToFilterLayer(filterLayerData: FeatureCollection): Promise<void>{
     if (filterLayerData.features.length > 0){
         const box = bbox(filterLayerData)
-        console.log(box)
         mapStore.map.fitBounds(box, { padding: { top: 40, bottom:40, left: 40, right: 40 }, minZoom:16 })
-        mapStore.map.once("data", `layer-${props.layer.source}`, (event: any)=>{
-            console.log("once event is: ", event)
-        })
+        await new Promise<void>((resolve) => {
+            mapStore.map.once("moveend", () => {
+                resolve();
+            });
+        });
     }
 }
-
+function isFilterLayerInView(filterLayerData: FeatureCollection): boolean{
+    const mapBounds: LngLatBounds = mapStore.map.getBounds()
+    const screenBox: Feature = bboxPolygon([mapBounds.getWest(), mapBounds.getSouth(), mapBounds.getEast(), mapBounds.getNorth()])
+    for (const feature of filterLayerData.features) {
+        const featureBox: Feature = bboxPolygon(bbox(feature))
+        if (booleanWithin(featureBox, screenBox)){
+            return true
+        }
+    }
+    return false
+}
 // Identifier selection logic
 /**
  * First we are going to check has layer any attribute named 'id', 'gid' or 'uuid' in order.
@@ -100,6 +115,17 @@ function checker(event: DropdownChangeEvent): void{
  */
 function applyGeometryFilter(): void{
     console.log("applying geometry filter")
+    if (selectedFilterLayer.value?.filterLayerData != null && selectedProperty.value?.name != null && selectedProperty.value.name !== ""){
+        if (!isFilterLayerInView(selectedFilterLayer.value.filterLayerData)){
+            fitToFilterLayer(selectedFilterLayer.value.filterLayerData).then(() => {
+                geomFilterApplier()
+            }).catch((error)=>{ window.alert(error) })
+        } else {
+            geomFilterApplier()
+        }
+    }
+}
+function geomFilterApplier(): void{
     if (selectedFilterLayer.value?.filterLayerData != null && selectedProperty.value?.name != null && selectedProperty.value.name !== ""){
         const filterArray: Array<string|number> = filterStore.createGeometryFilter(props.layer.id, {
             filterGeoJSON: selectedFilterLayer.value.filterLayerData,
