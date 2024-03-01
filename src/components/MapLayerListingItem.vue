@@ -110,10 +110,10 @@ function changeLayerOpac(layerOpacity: any): void {
     }
     mapStore.map.setPaintProperty(props.layer.id, opac, layerOpacity)
 }
-function changeLayerVisibility(layerVisibility: any): void {
+function changeLayerVisibility(layerVisibility: boolean): void {
     console.log("changing visibility: ", layerVisibility)
     console.log(mapStore.map.getLayoutProperty(props.layer.id, "visibility"))
-    if (!isNullOrEmpty(layerVisibility)) {
+    if (layerVisibility) {
         mapStore.map.setLayoutProperty(props.layer.id, "visibility", "visible")
     } else {
         mapStore.map.setLayoutProperty(props.layer.id, "visibility", "none")
