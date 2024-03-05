@@ -19,7 +19,7 @@
                     }" />
             </label>
         </div>
-        <div>
+        <div v-if="props.layer.filterLayer == undefined || props.layer.filterLayer === false" class="py-2">
             <AttributeFiltering :layer="props.layer"></AttributeFiltering>
             <GeometryFiltering :layer="props.layer"></GeometryFiltering>
         </div>
