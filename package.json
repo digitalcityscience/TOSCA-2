@@ -9,7 +9,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@mdi/font": "^7.4.47",
     "@turf/bbox": "^7.0.0-alpha.2",
     "@turf/bbox-polygon": "^7.0.0-alpha.2",
     "@turf/boolean-within": "^7.0.0-alpha.2",

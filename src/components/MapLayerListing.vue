@@ -22,7 +22,7 @@ const mapStore = useMapStore()
 
 const sidebarID = "maplayerListing"
 
-const sidebarControl = new SidebarControl("", sidebarID, document.createElement("div"), "mdi mdi-layers-outline")
+const sidebarControl = new SidebarControl("", sidebarID, document.createElement("div"), "pi pi-tags")
 mapStore.map.addControl(sidebarControl, "top-right")
 </script>
 
