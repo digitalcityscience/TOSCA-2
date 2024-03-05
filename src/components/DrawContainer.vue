@@ -1,7 +1,8 @@
 <template>
     <div>
         <OverlayPanel ref="op">
-            <Card>
+            <div class="flex flex-col">
+                <Card>
                 <template #title>Create</template>
                 <template #subtitle>Select a mode and start drawing</template>
                 <template #content>
@@ -14,12 +15,12 @@
                         </div>
                     </div>
                 </template>
-                <template #footer class="flex flex-column">
-                    <Button @click="initDrawMode">
+                <template #footer class="w-full flex flex-column">
+                    <Button class="col" @click="initDrawMode">
                         <span v-if="!editOnProgress">Start Drawing</span>
                         <span v-else>Continue Drawing</span>
                     </Button>
-                    <Button :disabled="!(drawOnProgress || editOnProgress)" @click="stopDrawMode">Cancel Drawing</Button>
+                    <Button v-if="(drawOnProgress || editOnProgress)" :disabled="!(drawOnProgress || editOnProgress)" @click="stopDrawMode">Cancel Drawing</Button>
                 </template>
             </Card>
             <Card>
@@ -39,6 +40,7 @@
                     <Button @click="saveAsLayer" :disabled="layerName.length === 0">Add Layer</Button>
                 </template>
             </Card>
+            </div>
         </OverlayPanel>
     </div>
 </template>
