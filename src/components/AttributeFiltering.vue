@@ -1,59 +1,77 @@
 <template>
-    <div class="attribute-filtering">
-        <div class="current-filters">
-            <div v-if="filterStore.appliedFiltersList.find((listItem)=>{return listItem.layerName === props.layer.id})">
-                <div v-for="(filter, index) in currentFilters" :key="index"
-                    style="width: 100%;display: flex;flex-direction: row;justify-content: space-between;">
-                    <div>
-                        {{ filter.attribute.name }} {{ filterStore.filterNames[filter.operand] }} {{ filter.value }}
-                    </div>
-                    <div>
-                        <Button @click="deleteAttributeFilter(filter)">x</Button>
-                    </div>
+    <Card class="attribute-filtering w-full">
+        <template #title>Attribute Filtering</template>
+        <template #subtitle>Select an attribute and operand to filter this layer</template>
+        <template #content>
+            <div class="current-filters" v-if="filterStore.appliedFiltersList.find((listItem)=>{return listItem.layerName === props.layer.id && ((listItem.attributeFilters !== undefined && listItem.attributeFilters?.length > 0) || listItem.geometryFilters !== undefined)})">
+                <DataTable :value="currentFilters" class="w-full" size="small" table-class="w-full">
+                    <template #header></template>
+                    <Column>
+                        <template #body="filter">
+                            <span>{{ filter.data.attribute.name }} {{ filterStore.filterNames[filter.data.operand as IntegerFilters | StringFilters] }} {{ filter.data.value }}</span>
+                        </template>
+                    </Column>
+                    <Column>
+                        <template #body="filter">
+                            <div class="w-full flex flex-row-reverse">
+                                <Button @click="deleteAttributeFilter(filter.data)" severity="danger" text rounded>
+                                    <template #icon>
+                                        <i class="pi pi-times"></i>
+                                    </template>
+                                </Button>
+                            </div>
+                        </template>
+                    </Column>
+                </DataTable>
+            </div>
+            <div class="w-full no-current-filter py-2" v-else>
+                <InlineMessage class="w-full" severity="info">You have no filter</InlineMessage>
+            </div>
+            <div class="filter-control">
+                <div v-if="currentFilters.length" class="relation-control w-full flex flex-row ml-auto py-2 justify-between">
+                    <span class="self-center" v-if="relationType==='AND'">(Match all selections)</span>
+                    <span class="self-center" v-else>(Match at least one selection)</span>
+                    <SelectButton v-model="relationType" :options="relationList" :allow-empty="false" @change="applyAttributeFilter"></SelectButton>
                 </div>
             </div>
-            <div v-else>You have no filter</div>
-        </div>
-        <div class="filter-control">
-            <div class="relation-control">
-                <span v-if="relationType==='AND'">(Match all selections)</span>
-                <span v-else>(Match at least one selection)</span>
-                <SelectButton v-model="relationType" :options="relationList" :allow-empty="false" @change="applyAttributeFilter"></SelectButton>
+            <div class="new-filter flex flex-col w-full">
+                <div class="attribute w-full">
+                    <Dropdown class="min-w-32 w-full h-10" v-model="selectedAttribute" :options="filteredAttributes" option-label="name" filter show-clear
+                        placeholder="Select an attribute" :virtual-scroller-options="{ itemSize: 30 }" @change="clearOperand">
+                    </Dropdown>
+                </div>
+                <div class="operand w-full pt-2">
+                    <Dropdown class="min-w-32 w-full h-10" v-if="selectedAttribute && selectedAttribute.binding == 'java.lang.String'"
+                        v-model="selectedOperand" :options="filterStore.stringFilters" show-clear
+                        placeholder="Select an operand"></Dropdown>
+                    <Dropdown
+                        class="min-w-32 w-full h-10"
+                        v-else-if="selectedAttribute && (selectedAttribute.binding == 'java.lang.Integer' || selectedAttribute.binding == 'java.lang.Long' || selectedAttribute.binding == 'java.lang.Double')"
+                        v-model="selectedOperand" :options="filterStore.integerFilters" show-clear
+                        placeholder="Select an operand"></Dropdown>
+                </div>
+                <div class="value w-full pt-2" v-if="selectedOperand">
+                    <InputText class="min-w-32 w-full h-10" v-if="selectedAttribute && selectedAttribute.binding == 'java.lang.String'" type="text"
+                        v-model="filterValue"></InputText>
+                    <InputText class="min-w-32 w-full h-10" v-else type="number" v-model="filterValue"></InputText>
+                </div>
+                <div class="applier w-full flex flex-row-reverse pt-2">
+                    <Button @click=applyAttributeFilter :disabled="!(selectedAttribute && selectedOperand && filterValue)">Apply</Button>
+                </div>
             </div>
-            <Button @click="initNewFilter">Add New</Button>
-            <Button v-if="newFilterProcess" @click="cancelNewFilter">Cancel</Button>
-        </div>
-        <div v-if="newFilterProcess" class="new-filter">
-            <div class="attribute">
-                <Dropdown v-model="selectedAttribute" :options="filteredAttributes" option-label="name" filter show-clear
-                    placeholder="Select an attribute" :virtual-scroller-options="{ itemSize: 30 }" @change="clearOperand">
-                </Dropdown>
-            </div>
-            <div class="operand">
-                <Dropdown v-if="selectedAttribute && selectedAttribute.binding == 'java.lang.String'"
-                    v-model="selectedOperand" :options="filterStore.stringFilters" show-clear
-                    placeholder="Select an operand"></Dropdown>
-                <Dropdown
-                    v-else-if="selectedAttribute && (selectedAttribute.binding == 'java.lang.Integer' || selectedAttribute.binding == 'java.lang.Long' || selectedAttribute.binding == 'java.lang.Double')"
-                    v-model="selectedOperand" :options="filterStore.integerFilters" show-clear
-                    placeholder="Select an operand"></Dropdown>
-            </div>
-            <div class="value" v-if="selectedOperand">
-                <input v-if="selectedAttribute && selectedAttribute.binding == 'java.lang.String'" type="text"
-                    v-model="filterValue">
-                <input v-else type="number" v-model="filterValue">
-            </div>
-            <div class="applier">
-                <Button @click=applyAttributeFilter :disabled="!(selectedAttribute && selectedOperand && filterValue)">Apply</Button>
-            </div>
-        </div>
-    </div>
+        </template>
+    </Card>
 </template>
 
 <script setup lang="ts">
 import Dropdown from "primevue/dropdown";
 import Button from "primevue/button";
 import SelectButton from "primevue/selectbutton";
+import Card from "primevue/card"
+import DataTable from "primevue/datatable";
+import Column from "primevue/column";
+import InlineMessage from "primevue/inlinemessage";
+import InputText from "primevue/inputtext";
 import { computed, ref } from "vue";
 import { type GeoServerFeatureTypeAttribute } from "../store/geoserver";
 import { type IntegerFilters, type StringFilters, useFilterStore, type RelationTypes, type AttributeFilterItem } from "../store/filter";
@@ -144,12 +162,12 @@ async function applyAttributeFilter(): Promise<void> {
     }
 }
 const newFilterProcess = ref<boolean>(false)
-function initNewFilter(): void {
-    newFilterProcess.value = true
-    selectedAttribute.value = undefined
-    selectedOperand.value = undefined
-    filterValue.value = undefined
-}
+// function initNewFilter(): void {
+//     newFilterProcess.value = true
+//     selectedAttribute.value = undefined
+//     selectedOperand.value = undefined
+//     filterValue.value = undefined
+// }
 function cancelNewFilter(): void {
     newFilterProcess.value = false
     selectedAttribute.value = undefined
@@ -179,29 +197,4 @@ async function deleteAttributeFilter(targetFilter: AppliedFilter): Promise<void>
 </script>
 
 <style scoped>
-.attribute-filtering {
-    margin: 10px 0;
-    width: 100%;
-}
-
-.current-filters {
-    padding: 10px 0;
-}
-
-.new-filter {
-    display: flex;
-    flex-direction: column;
-    margin: 10px 0;
-    width: 100%;
-}
-
-.new-filter :deep(input) {
-    width: 100%;
-    height: 2rem;
-}
-
-.relation-control {
-    display: flex;
-    align-items: baseline;
-}
 </style>
