@@ -2,11 +2,7 @@
         <BaseSidebarComponent :id="sidebarID" position="left" >
             <div v-if="props.workspaces && props.workspaces.length > 0">
                 <Accordion :multiple="true" :activeIndex="[0]">
-                    <AccordionTab headerClass="rounded-lg" v-for="(item, index) in props.workspaces" :key="index" :pt="{
-                        root:'m-2',
-                        header:'bg-primary',
-                        headerAction:'bg-primary'
-                        }">
+                    <AccordionTab headerClass="rounded-lg" v-for="(item, index) in props.workspaces" :key="index">
                         <template #header>
                             <h2 class="text-xl font-semibold capitalize">{{ item.name }}</h2>
                         </template>

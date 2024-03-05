@@ -1,22 +1,13 @@
 <template>
-    <Panel class="m-2" @update:collapsed="collapsedState" toggleable :pt="{
-        /* eslint-disable */
-        header: (options) => ({
-            class: [
-                {
-                    'rounded-lg': options.state.d_collapsed,
-                }
-            ]
-        })
-    }">
-        <template :class="{ 'rounded-lg': collapsed }" #header>
+    <Panel class="m-2" @update:collapsed="collapsedState" toggleable>
+        <template #header>
             <Checkbox v-model="checked" :binary="true" @input="changeLayerVisibility" />
             <h3 class="capitalize mr-auto ml-2">{{ props.layer.source.replaceAll("_", " ") }}</h3>
         </template>
         <div>
-            <label class="flex w-full leading-none items-center pointer-events-none">
+            <label class="flex w-full leading-none pointer-events-none items-baseline">
                 <span class="mt-2 min-w-[25%]">Color</span>
-                <ColorPicker aria-label="Change Color" class="mt-2 ml-2 pointer-events-auto" format="hex" v-model="color"
+                <ColorPicker aria-label="Change Color" class="pointer-events-auto" format="hex" v-model="color" :baseZIndex="10"
                     @update:model-value="changeLayerColor"></ColorPicker>
             </label>
             <label class="flex w-full leading-none items-center mt-2">
