@@ -1,5 +1,5 @@
 <template>
-    <div ref="el" :class="sidebarPositionClass" :id="props.id" class="sidebar" :style="props.style ? props.style : ''">
+    <div ref="el" :class="sidebarPositionClass" :id="props.id" class="sidebar lg:max-w-md 2xl:max-w-xl 3xl:max-w-2xl" :style="props.style ? props.style : ''">
         <div class="header">
             <div class="close-button">
                 <button class="button" @click="toggleSidebar">Close</button>
