@@ -6,10 +6,9 @@ import { createPinia } from "pinia"
 import PrimeVue from "primevue/config"
 import "@mdi/font/css/materialdesignicons.min.css"
 import "./style.css"
-// this is a temporary import. It should be changed after implementation of primevue components.
-import "primevue/resources/themes/bootstrap4-light-purple/theme.css"
+import toscaPresets from "./presets/tosca"
 import App from "./App.vue"
 
 const pinia = createPinia()
 
-createApp(App).use(pinia).use(PrimeVue).mount("#app")
+createApp(App).use(pinia).use(PrimeVue, { unstyled: true, pt: toscaPresets }).mount("#app")
