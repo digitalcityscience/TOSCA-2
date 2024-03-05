@@ -24,7 +24,7 @@ export interface CustomAddLayerObject {
 	filterLayerData?: FeatureCollection
 }
 export interface LayerObjectWithAttributes extends CustomAddLayerObject {
-	details: GeoServerFeatureType;
+	details?: GeoServerFeatureType;
 }
 
 export interface GeoJSONObject {

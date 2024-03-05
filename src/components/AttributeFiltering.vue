@@ -108,7 +108,7 @@ const selectedAttribute = ref<GeoServerFeatureTypeAttribute>()
 const selectedOperand = ref<IntegerFilters | StringFilters>()
 const filterValue = ref<any>("")
 const filteredAttributes = computed(() => {
-    return props.layer.details.featureType.attributes.attribute.filter(attr => filterStore.allowedBindings.includes(attr.binding))
+    return props.layer.details?.featureType.attributes.attribute.filter(attr => filterStore.allowedBindings.includes(attr.binding))
 })
 /**
  * Create current filters list then push this list to apply attribute filter function in filter store. wait for response

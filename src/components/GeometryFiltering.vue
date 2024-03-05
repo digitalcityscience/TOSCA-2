@@ -10,7 +10,9 @@
 							<Dropdown v-model="selectedFilterLayer" @change="dropdownFitter" :options="filterLayerList" option-label="source" show-clear
 							placeholder="Select an filter layer"></Dropdown>
 						</div>
-						<div v-else>There is no layer for filter. Please draw a layer first!</div>
+                        <div class="w-full no-current-filter py-2" v-else>
+                            <InlineMessage class="w-full" severity="info">There is no layer for filter. Draw a layer first!</InlineMessage>
+                        </div>
 					</div>
 					<div v-if="selectedFilterLayer"  class="identifier-dropdown">
 							<Dropdown v-model="selectedProperty" @change="checker" :options="filteredAttributes" option-label="name" show-clear placeholder="Select Identifier">
@@ -18,7 +20,9 @@
 					</div>
 				</template>
 				<template #footer>
-					<Button :disabled="(isNullOrEmpty(selectedFilterLayer) || isNullOrEmpty(selectedProperty))" @click="applyGeometryFilter">Add Filter</Button>
+                    <div class="w-full flex flex-row-reverse pt-2">
+                        <Button :disabled="(isNullOrEmpty(selectedFilterLayer) || isNullOrEmpty(selectedProperty))" @click="applyGeometryFilter">Add Filter</Button>
+                    </div>
 				</template>
 			</Card>
 		</div>
@@ -33,6 +37,7 @@
 import Dropdown, { type DropdownChangeEvent } from "primevue/dropdown";
 import Card from "primevue/card";
 import Button from "primevue/button";
+import InlineMessage from "primevue/inlinemessage";
 import { type CustomAddLayerObject, useMapStore, type LayerObjectWithAttributes } from "../store/map";
 import { computed, ref } from "vue";
 import bbox from "@turf/bbox"
@@ -104,7 +109,7 @@ function isFilterLayerInView(filterLayerData: FeatureCollection): boolean{
  */
 const filterStore = useFilterStore()
 const filteredAttributes = computed(() => {
-    return props.layer.details.featureType.attributes.attribute.filter(attr => filterStore.allowedIDBindings.includes(attr.binding))
+    return props.layer.details?.featureType.attributes.attribute.filter(attr => filterStore.allowedIDBindings.includes(attr.binding))
 })
 const selectedProperty = ref<GeoServerFeatureTypeAttribute>()
 function checker(event: DropdownChangeEvent): void{
