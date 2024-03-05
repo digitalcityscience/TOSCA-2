@@ -45,7 +45,3 @@ html, body {
 .p-colorpicker-panel{
   z-index: 12 !important;
 }
-.mdi:before{
-  display: flex;
-  justify-content: center;
-}

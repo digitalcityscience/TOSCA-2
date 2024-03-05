@@ -4,7 +4,6 @@
 import { createApp } from "vue"
 import { createPinia } from "pinia"
 import PrimeVue from "primevue/config"
-import "@mdi/font/css/materialdesignicons.min.css"
 import "./style.css"
 import toscaPresets from "./presets/tosca"
 import App from "./App.vue"
