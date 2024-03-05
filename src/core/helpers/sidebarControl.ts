@@ -11,7 +11,7 @@ export class SidebarControl implements IControl {
         this._className = className;
         this._sidebarID = sidebarID;
         this._container = container;
-        this._icon = icon ?? "mdi mdi-import"
+        this._icon = icon ?? "pi pi-database"
     }
 
     onAdd(map: any): HTMLDivElement {

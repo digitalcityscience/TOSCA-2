@@ -31,7 +31,7 @@ export class DrawControl implements IControl {
 
     createIcon(): HTMLElement {
         const icon = document.createElement("span");
-        icon.className = "mdi mdi-draw";
+        icon.className = "pi pi-pencil";
         icon.setAttribute("aria-hidden", "true");
         return icon;
     }
