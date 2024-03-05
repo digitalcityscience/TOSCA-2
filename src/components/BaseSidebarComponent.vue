@@ -1,6 +1,6 @@
 <template>
-    <div ref="el" :class="sidebarPositionClass" :id="props.id" class="sidebar lg:max-w-md 2xl:max-w-xl 3xl:max-w-2xl" :style="props.style ? props.style : ''">
-        <div class="header">
+    <div ref="el" :class="sidebarPositionClass" :id="props.id" class="sidebar group flex grow-0 justify-between absolute rounded-lg p-1 lg:max-w-md 2xl:max-w-xl 3xl:max-w-2xl duration-1000" :style="props.style ? props.style : ''">
+        <div class="header w-full flex group-[.sidebar-left]:flex-row-reverse group-[.sidebar-right]:flex-row group-[.sidebar-bottom]:flex-row-reverse">
             <div class="close-button">
                 <button class="button" @click="toggleSidebar">Close</button>
             </div>
@@ -8,7 +8,7 @@
                 <slot name="header"></slot>
             </div>
         </div>
-        <div class="content-body">
+        <div class="content-body grow p-1 overflow-y-scroll">
             <slot></slot>
         </div>
         <div class="footer">
@@ -117,21 +117,7 @@ defineExpose({
 
 <style scoped>
 .sidebar {
-    position: absolute;
-    border-radius: 8px;
-    padding: 4px;
     background-color: var(--backgroundClr);
-    display: flex;
-    flex-grow: 0;
-    justify-content: space-between;
-    transition: 1s;
-
-}
-
-.sidebar>.content-body {
-    flex-grow: 1;
-    padding: 0.5rem;
-    overflow-y: scroll;
 }
 
 .sidebar.sidebar-left {
@@ -163,33 +149,13 @@ defineExpose({
     flex-direction: column;
     background-color: rgba(210, 210, 210, 0.807);
 }
-
 .sidebar.sidebar-left.collapsed {
     transform: translateX(var(--width4Vertical));
 }
-
 .sidebar.sidebar-right.collapsed {
     transform: translateX(var(--width4Vertical));
 }
-
 .sidebar.sidebar-bottom.collapsed {
     transform: translateY(var(--height4Horizontal));
 }
-
-.sidebar>.header {
-    min-height: 1.2rem;
-    width: 100%;
-    display: flex;
-}
-
-.sidebar.sidebar-left>.header {
-    flex-direction: row-reverse;
-}
-
-.sidebar.sidebar-right>.header {
-    flex-direction: row;
-}
-
-.sidebar.sidebar-bottom>.header {
-    flex-direction: row-reverse;
-}</style>
+</style>
