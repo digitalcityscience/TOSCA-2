@@ -17,6 +17,7 @@
     "@types/geojson": "^7946.0.14",
     "maplibre-gl": "^3.6.1",
     "pinia": "^2.1.7",
+    "primeicons": "^6.0.1",
     "primevue": "^3.49.1",
     "terra-draw": "^0.0.1-alpha.53",
     "vue": "^3.3.8"
