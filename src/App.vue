@@ -3,13 +3,13 @@ import MapView from "./views/MapView.vue"
 </script>
 
 <template>
-  <div class="container">
+  <div class="app-container">
     <MapView></MapView>
 </div>
 </template>
 
 <style scoped>
-.container {
+.app-container {
     width: 100%;
     height: 100%;
 }
