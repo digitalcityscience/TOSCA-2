@@ -1,21 +1,32 @@
 <template>
-    <Card v-if="props.item">
-        <template #title>
-            <span class="capitalize">{{ cleanLayerName }}</span>
-        </template>
-        <template #subtitle v-if="props.workspace">{{ props.workspace }}</template>
-        <template #content v-if="layerDetail">
-            <p v-if="layerDetail.featureType.abstract?.length>0"><span class="font-bold">Meta:</span> {{ layerDetail.featureType.abstract }}</p>
-            <p><span class="font-bold">Keywords:</span>
-                    <Chip class="ml-1 first:ml-0" v-for="(keyword,index) in layerDetail.featureType.keywords.string" :key="index" :label="keyword"></Chip>
-            </p>
-            <p v-if="dataType"><span class="font-bold">Data Type:</span> {{ dataType }}</p>
-        </template>
-        <template #footer>
-            <button @click="add2Map">Add to map</button>
-        </template>
-    </Card>
-    <div v-else>
+    <div v-if="props.item" class="first:pt-0 pt-1">
+        <Card>
+            <template #title>
+                <span class="capitalize">{{ cleanLayerName }}</span>
+            </template>
+            <template #subtitle v-if="props.workspace">{{ props.workspace }}</template>
+            <template #content v-if="layerDetail">
+                <div class="grid grid-cols-4 w-full" v-if="layerDetail.featureType.abstract?.length>0">
+                    <span class="font-bold col-span-1">Meta:</span>
+                    <span class="col-span-3 line-clamp-3 hover:line-clamp-none xl:line-clamp-none pl-1">{{ layerDetail.featureType.abstract }}</span>
+                </div>
+                <div class="grid grid-cols-4 w-full pt-1">
+                    <span class="font-bold col-span-1 self-center">Keywords:</span>
+                    <span class="col-span-3 pl-1">
+                        <Chip class="ml-1 first:ml-0" v-for="(keyword,index) in layerDetail.featureType.keywords.string" :key="index" :label="keyword" :pt="passThroughChip"></Chip>
+                    </span>
+                </div>
+                <div class="grid grid-cols-4 w-full pt-1" v-if="dataType">
+                    <span class="font-bold col-span-1">Data Type:</span>
+                    <span class="col-span-3 pl-1">{{ dataType }}</span>
+                </div>
+            </template>
+            <template #footer>
+                <Button size="small" @click="add2Map">Add to map</button>
+            </template>
+        </Card>
+    </div>
+    <div v-else class="first:pt-0 pt-1">
         No information about layer
     </div>
 </template>
@@ -23,6 +34,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import Chip from "primevue/chip";
+import Button from "primevue/button"
 import { type GeoServerFeatureType, type GeoserverLayerInfo, type GeoserverLayerListItem, useGeoserverStore } from "../store/geoserver";
 import { type LayerStyleOptions, useMapStore } from "../store/map";
 import Card from "primevue/card";
@@ -101,4 +113,23 @@ function add2Map(): void{
         })
     }
 }
+// special styling variable for chip component
+const passThroughChip = ref({
+    root: {
+        class: [
+        // Flexbox
+            "inline-flex items-center",
+
+            // Spacing
+            "px-2",
+
+            // Shape
+            "rounded-[1rem]",
+
+            // Colors
+            "text-white dark:text-surface-700",
+            "bg-primary-500 dark:bg-primary-400/85"
+        ]
+    }
+})
 </script>

@@ -56,7 +56,7 @@
                     <InputText class="min-w-32 w-full h-10" v-else type="number" v-model="filterValue"></InputText>
                 </div>
                 <div class="applier w-full flex flex-row-reverse pt-2">
-                    <Button @click=applyAttributeFilter :disabled="!(selectedAttribute && selectedOperand && filterValue)">Apply</Button>
+                    <Button size="small" @click=applyAttributeFilter :disabled="!(selectedAttribute && selectedOperand && filterValue)">Apply</Button>
                 </div>
             </div>
         </template>

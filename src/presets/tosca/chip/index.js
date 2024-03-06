@@ -16,7 +16,7 @@ export default {
         ]
     },
     label: {
-        class: 'leading-6 my-1.5 mx-0'
+        class: 'leading-6 my-1.5 mx-0 text-xs leading-tight'
     },
     icon: {
         class: 'leading-6 mr-2'
