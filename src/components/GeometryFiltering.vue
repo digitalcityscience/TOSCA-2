@@ -21,7 +21,7 @@
 				</template>
 				<template #footer>
                     <div class="w-full flex flex-row-reverse">
-                        <Button :disabled="(isNullOrEmpty(selectedFilterLayer) || isNullOrEmpty(selectedProperty))" @click="applyGeometryFilter">Add Filter</Button>
+                        <Button size="small" :disabled="(isNullOrEmpty(selectedFilterLayer) || isNullOrEmpty(selectedProperty))" @click="applyGeometryFilter">Add Filter</Button>
                     </div>
 				</template>
 			</Card>
