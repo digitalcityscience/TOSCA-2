@@ -23,6 +23,7 @@
             <AttributeFiltering :layer="props.layer"></AttributeFiltering>
             <GeometryFiltering :layer="props.layer"></GeometryFiltering>
         </div>
+        <div class="py-1" v-else></div>
     </Panel>
 </template>
 
