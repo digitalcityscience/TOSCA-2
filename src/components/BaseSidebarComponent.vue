@@ -1,8 +1,13 @@
 <template>
     <div ref="el" :class="sidebarPositionClass" :id="props.id" class="sidebar group flex grow-0 justify-between absolute rounded-lg p-1  lg:w-[300px] 2xl:w-[350px] 3xl:w-[400px] duration-1000" :style="props.style ? props.style : ''">
-        <div class="header w-full flex group-[.sidebar-left]:flex-row-reverse group-[.sidebar-right]:flex-row group-[.sidebar-bottom]:flex-row-reverse">
+        <div class="header w-full flex group-[.sidebar-left]:flex-row-reverse group-[.sidebar-right]:flex-row group-[.sidebar-bottom]:flex-row-reverse p-1">
             <div class="close-button">
-                <button class="button" @click="toggleSidebar">Close</button>
+                <Button @click="toggleSidebar">
+                            <template #icon>
+                                <i v-if="props.position === 'left'" class="pi pi-angle-double-left"></i>
+                                <i v-else-if="props.position === 'right'" class="pi pi-angle-double-right"></i>
+                                <i v-else class="pi pi-times"></i>
+                            </template></Button>
             </div>
             <div class="header-content">
                 <slot name="header"></slot>
@@ -18,6 +23,7 @@
 </template>
 
 <script setup lang="ts">
+import Button from "primevue/button";
 import { computed, onMounted, ref } from "vue";
 import { isNullOrEmpty } from "../core/helpers/functions";
 /*
