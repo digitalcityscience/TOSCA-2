@@ -1,34 +1,43 @@
 <template>
-	<div class="geometry-filter" v-if="(props.layer.filterLayer === undefined && isPolygonTiles)">
-		<div class="new-filter" v-if="!hasGeometryFilter">
+	<div class="geometry-filter w-full" v-if="(props.layer.filterLayer === undefined && isPolygonTiles)">
+		<div class="new-filter w-full pt-2" v-if="!hasGeometryFilter">
 			<Card>
 				<template #title>Geometry Filtering</template>
 				<template #subtitle>Select geometry layer to filter this layer</template>
 				<template #content>
-					<div class="filterlayer-dropdown">
+					<div class="filterlayer-dropdown w-full">
 						<div v-if="filterLayerList.length>0">
-							<Dropdown v-model="selectedFilterLayer" @change="dropdownFitter" :options="filterLayerList" option-label="source" show-clear
+							<Dropdown class="w-full" v-model="selectedFilterLayer" @change="dropdownFitter" :options="filterLayerList" option-label="source" show-clear
 							placeholder="Select an filter layer"></Dropdown>
 						</div>
                         <div class="w-full no-current-filter py-2" v-else>
                             <InlineMessage class="w-full" severity="info">There is no layer for filter. Draw a layer first!</InlineMessage>
                         </div>
 					</div>
-					<div v-if="selectedFilterLayer"  class="identifier-dropdown">
-							<Dropdown v-model="selectedProperty" @change="checker" :options="filteredAttributes" option-label="name" show-clear placeholder="Select Identifier">
+					<div v-if="selectedFilterLayer"  class="identifier-dropdown w-full py-2">
+							<Dropdown class="w-full" v-model="selectedProperty" @change="checker" :options="filteredAttributes" option-label="name" show-clear placeholder="Select Identifier">
 							</Dropdown>
 					</div>
 				</template>
 				<template #footer>
-                    <div class="w-full flex flex-row-reverse pt-2">
+                    <div class="w-full flex flex-row-reverse">
                         <Button :disabled="(isNullOrEmpty(selectedFilterLayer) || isNullOrEmpty(selectedProperty))" @click="applyGeometryFilter">Add Filter</Button>
                     </div>
 				</template>
 			</Card>
 		</div>
-        <div class="existing-filter" v-else>
-            You have a geometry filter
-            <Button @click="removeGeometryFilter">Delete</Button>
+        <div class="existing-filter pt-2" v-else>
+            <Card>
+                <template #content>
+                    <div class="flex flex-row justify-between w-full">
+                        <span class="self-center">You have a geometry filter</span>
+                        <Button @click="removeGeometryFilter" severity="danger" text rounded>
+                            <template #icon>
+                                <i class="pi pi-times"></i>
+                            </template></Button>
+                    </div>
+                </template>
+            </Card>
         </div>
 	</div>
 </template>
