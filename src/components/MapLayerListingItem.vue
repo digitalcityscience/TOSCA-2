@@ -1,30 +1,32 @@
 <template>
-    <Panel class="m-2" @update:collapsed="collapsedState" toggleable>
-        <template #header>
-            <Checkbox v-model="checked" :binary="true" @update:model-value="changeLayerVisibility" />
-            <h3 class="capitalize mr-auto ml-2">{{ props.layer.source.replaceAll("_", " ") }}</h3>
-        </template>
-        <div>
-            <label class="flex w-full leading-none pointer-events-none items-baseline">
-                <span class="mt-2 min-w-[25%]">Color</span>
-                <ColorPicker aria-label="Change Color" class="pointer-events-auto" format="hex" v-model="color" :baseZIndex="10"
-                    @update:model-value="changeLayerColor"></ColorPicker>
-            </label>
-            <label class="flex w-full leading-none items-center mt-2">
-                <span class="mt-2 min-w-[25%]">Opacity</span>
-                <Slider aria-label="Change Opacity" class="mt-2 ml-2 flex-grow" v-model="opacity" :step="0.1" :min=0 :max=1
-                    @update:model-value="changeLayerOpac" :pt="{
-                        range: { style: { 'background': `#${color}` } },
-                        handle: { style: { 'background': `#${color}`, 'border-color': `#${color}` } }
-                    }" />
-            </label>
-        </div>
-        <div v-if="props.layer.filterLayer == undefined || props.layer.filterLayer === false" class="py-2">
-            <AttributeFiltering :layer="props.layer"></AttributeFiltering>
-            <GeometryFiltering :layer="props.layer"></GeometryFiltering>
-        </div>
-        <div class="py-1" v-else></div>
-    </Panel>
+    <div class="py-1">
+        <Panel @update:collapsed="collapsedState" toggleable>
+            <template #header>
+                <Checkbox v-model="checked" :binary="true" @update:model-value="changeLayerVisibility" />
+                <h3 class="capitalize mr-auto ml-2">{{ props.layer.source.replaceAll("_", " ") }}</h3>
+            </template>
+            <div>
+                <label class="flex w-full leading-none pointer-events-none items-baseline">
+                    <span class="mt-2 min-w-[25%]">Color</span>
+                    <ColorPicker aria-label="Change Color" class="pointer-events-auto" format="hex" v-model="color" :baseZIndex="10"
+                        @update:model-value="changeLayerColor"></ColorPicker>
+                </label>
+                <label class="flex w-full leading-none items-center mt-2">
+                    <span class="mt-2 min-w-[25%]">Opacity</span>
+                    <Slider aria-label="Change Opacity" class="mt-2 ml-2 flex-grow" v-model="opacity" :step="0.1" :min=0 :max=1
+                        @update:model-value="changeLayerOpac" :pt="{
+                            range: { style: { 'background': `#${color}` } },
+                            handle: { style: { 'background': `#${color}`, 'border-color': `#${color}` } }
+                        }" />
+                </label>
+            </div>
+            <div v-if="props.layer.filterLayer == undefined || props.layer.filterLayer === false" class="py-2">
+                <AttributeFiltering :layer="props.layer"></AttributeFiltering>
+                <GeometryFiltering :layer="props.layer"></GeometryFiltering>
+            </div>
+            <div class="py-1" v-else></div>
+        </Panel>
+    </div>
 </template>
 
 <script setup lang="ts">
