@@ -30,16 +30,16 @@ export default {
                 "border border-zinc-200 dark:border-zinc-950",
                 "bg-zinc-50 dark:bg-zinc-900",
                 // Text Color
-                "text-zinc-900 dark:text-zinc-50",
-                { "text-red-600 dark:text-teal-600": context.active },
+                "text-zinc-800 dark:text-zinc-50",
+                { "text-zinc-950 dark:text-zinc-100": context.active },
 
                 // Transition
                 "transition duration-200 ease-in-out",
                 "transition-shadow duration-200",
 
                 // States
-                "hover:bg-zinc-250 dark:hover:bg-zinc-950",
-                "hover:text-red-600",
+                "hover:bg-zinc-250 dark:hover:bg-zinc-900",
+                "hover:text-zinc-950 dark:hover:text-zinc-200",
                 "focus:outline-none focus:outline-offset-0 focus-visible:ring focus-visible:ring-primary-400/50 ring-inset dark:focus-visible:ring-primary-300/50", // Focus
 
                 // Misc
@@ -62,7 +62,7 @@ export default {
                 "border-t-0",
 
                 // Color
-                "bg-red-950 dark:bg-zinc-50",
+                "bg-zinc-50 dark:bg-zinc-900",
                 "border border-surface-200 dark:border-surface-700",
                 "text-surface-700 dark:text-surface-0/80"
             ]

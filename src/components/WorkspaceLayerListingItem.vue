@@ -4,12 +4,9 @@
             <template #title>
                 <span class="capitalize">{{ cleanLayerName }}</span>
             </template>
-            <template #subtitle v-if="props.workspace">{{ props.workspace }}</template>
+            <template #subtitle v-if="layerDetail && layerDetail?.featureType.abstract?.length > 0">
+                <span class="line-clamp-3 hover:line-clamp-none xl:line-clamp-none">{{ layerDetail.featureType.abstract }}</span></template>
             <template #content v-if="layerDetail">
-                <div class="grid grid-cols-4 w-full" v-if="layerDetail.featureType.abstract?.length>0">
-                    <span class="font-bold col-span-1">Meta:</span>
-                    <span class="col-span-3 line-clamp-3 hover:line-clamp-none xl:line-clamp-none pl-1">{{ layerDetail.featureType.abstract }}</span>
-                </div>
                 <div class="grid grid-cols-4 w-full pt-1">
                     <span class="font-bold col-span-1 self-center">Keywords:</span>
                     <span class="col-span-3 pl-1">
@@ -26,8 +23,8 @@
             </template>
         </Card>
     </div>
-    <div v-else class="first:pt-0 pt-1">
-        No information about layer
+    <div v-else class="first:pt-0 pt-1 w-full">
+        <InlineMessage class="w-full" severity="info">No information about layer.</InlineMessage>
     </div>
 </template>
 
