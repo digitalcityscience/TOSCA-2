@@ -5,9 +5,11 @@
         </template>
         <template #subtitle v-if="props.workspace">{{ props.workspace }}</template>
         <template #content v-if="layerDetail">
-            <p>Meta: {{ layerDetail.featureType.abstract }}</p>
-            <p>Keywords: {{ layerDetail.featureType.keywords.string }}</p>
-            <p v-if="dataType">Data Type: {{ dataType }}</p>
+            <p v-if="layerDetail.featureType.abstract?.length>0"><span class="font-bold">Meta:</span> {{ layerDetail.featureType.abstract }}</p>
+            <p><span class="font-bold">Keywords:</span>
+                    <Chip class="ml-1 first:ml-0" v-for="(keyword,index) in layerDetail.featureType.keywords.string" :key="index" :label="keyword"></Chip>
+            </p>
+            <p v-if="dataType"><span class="font-bold">Data Type:</span> {{ dataType }}</p>
         </template>
         <template #footer>
             <button @click="add2Map">Add to map</button>
@@ -20,6 +22,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import Chip from "primevue/chip";
 import { type GeoServerFeatureType, type GeoserverLayerInfo, type GeoserverLayerListItem, useGeoserverStore } from "../store/geoserver";
 import { type LayerStyleOptions, useMapStore } from "../store/map";
 import Card from "primevue/card";
