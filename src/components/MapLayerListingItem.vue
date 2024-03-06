@@ -1,7 +1,7 @@
 <template>
     <Panel class="m-2" @update:collapsed="collapsedState" toggleable>
         <template #header>
-            <Checkbox v-model="checked" :binary="true" @input="changeLayerVisibility" />
+            <Checkbox v-model="checked" :binary="true" @update:model-value="changeLayerVisibility" />
             <h3 class="capitalize mr-auto ml-2">{{ props.layer.source.replaceAll("_", " ") }}</h3>
         </template>
         <div>
