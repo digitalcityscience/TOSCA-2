@@ -12,7 +12,7 @@ import slider from "./slider/index.js";
 import checkbox from "./checkbox/index.js";
 import accordion from "./accordion/index.js";
 import inlinemessage from "./inlinemessage/index.js";
-
+import chip from "./chip/index.js";
 
 export default {
     global,
@@ -28,5 +28,6 @@ export default {
     slider,
     checkbox,
     accordion,
-    inlinemessage
+    inlinemessage,
+    chip
 }
