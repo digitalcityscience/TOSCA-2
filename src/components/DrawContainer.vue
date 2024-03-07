@@ -1,45 +1,51 @@
 <template>
     <div>
-        <OverlayPanel ref="op">
-            <div class="flex flex-col">
-                <Card>
-                <template #title>Create</template>
-                <template #subtitle>Select a mode and start drawing</template>
-                <template #content>
-                    <div class="card flex justify-content-center">
-                        <div class="flex flex-column gap-3">
-                            <div v-for="draw in drawTypes" :key="draw.name" class="flex align-items-center">
-                                <RadioButton v-model="drawMode" :inputId="draw.name" :value="draw.name" />
-                                <label :for="draw.name" class="ml-2">{{ draw.mode }}</label>
+        <OverlayPanel ref="op" :dismissable="false" showCloseIcon :pt="closeButtonStyles">
+            <div class="flex flex-col min-w-72">
+                <div class="w-full">
+                    <Card>
+                        <template #title>Create</template>
+                        <template #subtitle>Select a mode and start drawing</template>
+                        <template #content>
+                                <div class="flex justify-between">
+                                    <div v-for="draw in drawTypes" :key="draw.name" class="flex align-items-center">
+                                        <RadioButton :disabled="drawOnProgress||editOnProgress" v-model="drawMode" :inputId="draw.name" :value="draw.name" />
+                                        <label :for="draw.name" class="ml-2">{{ draw.mode }}</label>
+                                    </div>
+                                </div>
+                        </template>
+                        <template #footer>
+                            <div class="w-full flex justify-between">
+                                <Button size="small" class="col" @click="initDrawMode">
+                                    <span v-if="!editOnProgress">Start Drawing</span>
+                                    <span v-else>Continue</span>
+                                </Button>
+                                <Button size="small" v-if="(drawOnProgress || editOnProgress)" :disabled="!(drawOnProgress || editOnProgress)" @click="stopDrawMode">Cancel</Button>
                             </div>
-                        </div>
-                    </div>
-                </template>
-                <template #footer class="w-full flex flex-column">
-                    <Button class="col" @click="initDrawMode">
-                        <span v-if="!editOnProgress">Start Drawing</span>
-                        <span v-else>Continue Drawing</span>
-                    </Button>
-                    <Button v-if="(drawOnProgress || editOnProgress)" :disabled="!(drawOnProgress || editOnProgress)" @click="stopDrawMode">Cancel Drawing</Button>
-                </template>
-            </Card>
-            <Card>
-                <template #title>Edit</template>
-                <template #subtitle>Edit your drawings</template>
-                <template #footer>
-                    <Button :disabled="!drawOnProgress" @click="editMode">Edit Drawing</Button>
-                </template>
-            </Card>
-            <Card v-if="drawOnProgress || editOnProgress">
-                <template #title>Save</template>
-                <template #subtitle>Save your drawing as a Layer</template>
-                <template #content>
-                    <InputText v-model="layerName" placeholder="Layer Name"></InputText>
-                </template>
-                <template #footer>
-                    <Button @click="saveAsLayer" :disabled="layerName.length === 0">Add Layer</Button>
-                </template>
-            </Card>
+                        </template>
+                    </Card>
+                </div>
+                <div class="w-full pt-1">
+                    <Card>
+                        <template #title>Edit</template>
+                        <template #subtitle>Edit your drawings</template>
+                        <template #content>
+                            <Button size="small" :disabled="!drawOnProgress" @click="editMode">Edit</Button>
+                        </template>
+                    </Card>
+                </div>
+                <div class="w-full pt-1">
+                    <Card v-if="drawOnProgress || editOnProgress">
+                        <template #title>Save</template>
+                        <template #subtitle>Save your drawing as a Layer</template>
+                        <template #content>
+                            <InputText v-model="layerName" placeholder="Layer Name"></InputText>
+                        </template>
+                        <template #footer>
+                            <Button size="small" @click="saveAsLayer" :disabled="layerName.length === 0">Add Layer</Button>
+                        </template>
+                    </Card>
+                </div>
             </div>
         </OverlayPanel>
     </div>
@@ -198,6 +204,19 @@ function saveAsLayer(): void {
     }
 }
 const layerName = ref("")
+
+const closeButtonStyles= {
+    closeButton:{
+        class: [
+            "absolute top-2 left-2 p-2",
+            "rounded-full",
+            "bg-transparent border",
+            "text-primary-500 dark:text-primary-400",
+            "hover:bg-primary-600 dark:hover:bg-primary-300 hover:border-primary-600 dark:hover:border-primary-300 text-primary-300 dark:text-primary-600",
+            "focus:ring-primary-400/50 dark:focus:ring-primary-300/50"
+        ]
+    }
+}
 </script>
 
 <style scoped></style>
