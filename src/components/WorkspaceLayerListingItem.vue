@@ -32,6 +32,7 @@
 import { computed, ref } from "vue";
 import Chip from "primevue/chip";
 import Button from "primevue/button"
+import InlineMessage from "primevue/inlinemessage";
 import { type GeoServerFeatureType, type GeoserverLayerInfo, type GeoserverLayerListItem, useGeoserverStore } from "../store/geoserver";
 import { type LayerStyleOptions, useMapStore } from "../store/map";
 import Card from "primevue/card";
