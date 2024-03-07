@@ -12,7 +12,7 @@ export default {
             "inline-flex items-center align-bottom text-center",
 
             // Spacing
-            "px-4 py-3",
+            "px-2 py-2",
 
             // Shape
             "border border-r-0",

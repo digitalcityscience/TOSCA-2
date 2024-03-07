@@ -1,21 +1,21 @@
 @import '../node_modules/maplibre-gl/dist/maplibre-gl.css';
-@import "../node_modules/primevue/resources/themes/lara-light-teal/theme.css";
+/* @import "../node_modules/primevue/resources/themes/lara-light-teal/theme.css"; */
 @import "../node_modules/primeicons/primeicons.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --primary-50: rgb(236, 253, 245);
---primary-100: rgb(209, 250, 229);
---primary-200: rgb(167, 243, 208);
---primary-300: rgb(110, 231, 183);
---primary-400: rgb(52, 211, 153);
---primary-500: rgb(16, 185, 129);
---primary-600: rgb(5, 150, 105);
---primary-700: rgb(4, 120, 87);
---primary-800: rgb(6, 95, 70);
---primary-900: rgb(4, 78, 56);
+--primary-50: rgb(235, 236, 246);
+--primary-100: rgb(196, 198, 229);
+--primary-200: rgb(156, 160, 212);
+--primary-300: rgb(117, 122, 195);
+--primary-400: rgb(77, 83, 178);
+--primary-500: rgb(54, 50, 115);
+--primary-600: rgb(60, 65, 138);
+--primary-700: rgb(43, 46, 99);
+--primary-800: rgb(26, 28, 59);
+--primary-900: rgb(9, 9, 20);
 --primary-950: rgb(2, 44, 34);
 --surface-0: rgb(255, 255, 255);
 --surface-50: rgb(248, 250, 252);
