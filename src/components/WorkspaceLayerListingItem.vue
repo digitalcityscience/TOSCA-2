@@ -97,7 +97,12 @@ const dataType = computed(() => {
 const mapStore = useMapStore()
 function add2Map(): void{
     if (!isNullOrEmpty(layerDetail.value)) {
-        mapStore.addSrc(layerDetail.value!, props.workspace, layerDetail.value!.featureType.name).then(() => {
+        mapStore.addMapDataSource(
+            "geoserver",
+            layerDetail.value!.featureType.name,
+            false,
+            props.workspace,
+            layerDetail.value).then(() => {
             if (!isNullOrEmpty(dataType) && !isNullOrEmpty(layerDetail.value)) {
                 mapStore.addLyr(layerDetail.value!.featureType.name, mapStore.geometryConversion(dataType.value), layerDetail.value!, `${layerDetail.value!.featureType.name}`, !isNullOrEmpty(layerStyling.value) ? { ...layerStyling.value }: undefined).then(()=>{
                 }).catch(error => {
