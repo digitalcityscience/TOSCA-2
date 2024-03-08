@@ -104,7 +104,14 @@ function add2Map(): void{
             props.workspace,
             layerDetail.value).then(() => {
             if (!isNullOrEmpty(dataType) && !isNullOrEmpty(layerDetail.value)) {
-                mapStore.addLyr(layerDetail.value!.featureType.name, mapStore.geometryConversion(dataType.value), layerDetail.value!, `${layerDetail.value!.featureType.name}`, !isNullOrEmpty(layerStyling.value) ? { ...layerStyling.value }: undefined).then(()=>{
+                mapStore.addMapLayer(
+                    "geoserver",
+                    layerDetail.value!.featureType.name,
+                    mapStore.geometryConversion(dataType.value),
+                    !isNullOrEmpty(layerStyling.value) ? { ...layerStyling.value }: undefined,
+                    layerDetail.value,
+                    `${layerDetail.value!.featureType.name}`
+                ).then(()=>{
                 }).catch(error => {
                     window.alert(error)
                 })

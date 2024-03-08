@@ -70,7 +70,7 @@ const hasGeometryFilter = computed(()=>{
     return filterStore.appliedFiltersList.filter((layer)=> { return layer.layerName === props.layer.id && layer.geometryFilters !== undefined }).length > 0
 })
 const isPolygonTiles = computed(()=>{
-    const sourceID = props.layer.id.split("-").slice(1).join("")
+    const sourceID = props.layer.source
     if (mapStore.map.getSource(sourceID) !== undefined && mapStore.map.getSource(sourceID).type === "vector" && props.layer.type === "fill"){
         return true
     } else {
