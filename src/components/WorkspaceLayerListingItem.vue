@@ -100,9 +100,7 @@ function add2Map(): void{
         mapStore.addSrc(layerDetail.value!, props.workspace, layerDetail.value!.featureType.name).then(() => {
             if (!isNullOrEmpty(dataType) && !isNullOrEmpty(layerDetail.value)) {
                 mapStore.addLyr(layerDetail.value!.featureType.name, mapStore.geometryConversion(dataType.value), layerDetail.value!, `${layerDetail.value!.featureType.name}`, !isNullOrEmpty(layerStyling.value) ? { ...layerStyling.value }: undefined).then(()=>{
-                    console.info(mapStore.map)
                 }).catch(error => {
-                    console.log(mapStore.map.value.getStyle().layers)
                     window.alert(error)
                 })
             }

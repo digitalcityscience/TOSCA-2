@@ -65,15 +65,11 @@ onMounted(() => {
         prop = "line-color"
         opac = "line-opacity"
     }
-    console.log("prop is:", prop)
-    console.log("opacity is: ", opac)
     if (!isNullOrEmpty(mapStore.map.getPaintProperty(props.layer.id, prop))) {
         color.value = (mapStore.map.getPaintProperty(props.layer.id, prop) as string).substring(1)
-        console.log("changing cp color with: ", (mapStore.map.getPaintProperty(props.layer.id, prop) as string).substring(1))
     }
     if (!isNullOrEmpty(mapStore.map.getPaintProperty(props.layer.id, opac))) {
         opacity.value = mapStore.map.getPaintProperty(props.layer.id, opac)
-        console.log("changing cp opac with: ", mapStore.map.getPaintProperty(props.layer.id, opac))
     }
 })
 function changeLayerColor(color: any): void {
@@ -87,9 +83,7 @@ function changeLayerColor(color: any): void {
     if (props.layer.type === "line") {
         prop = "line-color"
     }
-    console.log("prop is:", prop)
     mapStore.map.setPaintProperty(props.layer.id, prop, `#${color}`)
-    console.info("new color is: ", color)
 }
 function changeLayerOpac(layerOpacity: any): void {
     let opac = ""
@@ -105,8 +99,6 @@ function changeLayerOpac(layerOpacity: any): void {
     mapStore.map.setPaintProperty(props.layer.id, opac, layerOpacity)
 }
 function changeLayerVisibility(layerVisibility: boolean): void {
-    console.log("changing visibility: ", layerVisibility)
-    console.log(mapStore.map.getLayoutProperty(props.layer.id, "visibility"))
     if (layerVisibility) {
         mapStore.map.setLayoutProperty(props.layer.id, "visibility", "visible")
     } else {
