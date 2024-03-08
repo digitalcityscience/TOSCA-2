@@ -161,15 +161,7 @@ async function applyAttributeFilter(): Promise<void> {
         cancelNewFilter()
     }
 }
-const newFilterProcess = ref<boolean>(false)
-// function initNewFilter(): void {
-//     newFilterProcess.value = true
-//     selectedAttribute.value = undefined
-//     selectedOperand.value = undefined
-//     filterValue.value = undefined
-// }
 function cancelNewFilter(): void {
-    newFilterProcess.value = false
     selectedAttribute.value = undefined
     selectedOperand.value = undefined
     filterValue.value = ""
