@@ -15,7 +15,7 @@
                         </div>
 					</div>
 					<div v-if="selectedFilterLayer"  class="identifier-dropdown w-full py-2">
-							<Dropdown class="w-full" v-model="selectedProperty" @change="checker" :options="filteredAttributes" option-label="name" show-clear placeholder="Select Identifier">
+							<Dropdown class="w-full" v-model="selectedProperty" :options="filteredAttributes" option-label="name" show-clear placeholder="Select Identifier">
 							</Dropdown>
 					</div>
 				</template>
@@ -48,7 +48,7 @@ import Card from "primevue/card";
 import Button from "primevue/button";
 import InlineMessage from "primevue/inlinemessage";
 import { type CustomAddLayerObject, useMapStore, type LayerObjectWithAttributes } from "../store/map";
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import bbox from "@turf/bbox"
 import bboxPolygon from "@turf/bbox-polygon"
 import { type FeatureCollection, type Feature } from "geojson";
@@ -120,15 +120,44 @@ const filterStore = useFilterStore()
 const filteredAttributes = computed(() => {
     return props.layer.details?.featureType.attributes.attribute.filter(attr => filterStore.allowedIDBindings.includes(attr.binding))
 })
-const selectedProperty = ref<GeoServerFeatureTypeAttribute>()
-function checker(event: DropdownChangeEvent): void{
-    console.log("selected attr :", event.value)
+onMounted(()=>{
+    identifierChecker()
+})
+/**
+Checks if the layer details contain an identifier attribute
+(either "gid" or "id") and sets the selected property value
+accordingly.
+@param {Object} props - The component props
+@returns {void}
+*/
+function identifierChecker(): void{
+    if (props.layer.details !== undefined) {
+        const hasGID = props.layer.details?.featureType.attributes.attribute.some(attr => {
+            if (attr.name === "gid"){
+                return true
+            }
+            return false
+        })
+        const hasID = props.layer.details?.featureType.attributes.attribute.some(attr => {
+            if (attr.name === "id"){
+                return true
+            }
+            return false
+        })
+        if (hasGID) {
+            selectedProperty.value = filteredAttributes.value?.filter((attr) => { return attr.name === "gid" })[0]
+        } else {
+            if (hasID) {
+                selectedProperty.value = filteredAttributes.value?.filter((attr) => { return attr.name === "gid" })[0]
+            }
+        }
+    }
 }
+const selectedProperty = ref<GeoServerFeatureTypeAttribute>()
 /**
  * Checks geometry filter result array and other variables. If all variables checks populates geometry filter. Otherwise deletes filter.
  */
 function applyGeometryFilter(): void{
-    console.log("applying geometry filter")
     if (selectedFilterLayer.value?.filterLayerData != null && selectedProperty.value?.name != null && selectedProperty.value.name !== ""){
         if (!isFilterLayerInView(selectedFilterLayer.value.filterLayerData)){
             fitToFilterLayer(selectedFilterLayer.value.filterLayerData).then(() => {
