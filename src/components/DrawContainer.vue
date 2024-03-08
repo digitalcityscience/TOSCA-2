@@ -191,12 +191,21 @@ function saveAsLayer(): void {
                 undefined,
                 geoJsonSnapshot
             ).then(() => {
-                mapStore.addGeoJSONLayer(processedLayerName, geomType, isFilterLayer, undefined, geoJsonSnapshot).then(() => {
-                    stopDrawMode()
-                }).catch(error => {
-                    mapStore.map.value.removeSource(`drawn-${processedLayerName}`)
-                    window.alert(error)
-                })
+                mapStore.addMapLayer(
+                    "geojson",
+                    processedLayerName,
+                    geomType,
+                    undefined,
+                    undefined,
+                    undefined,
+                    geoJsonSnapshot,
+                    isFilterLayer)
+                    .then(() => {
+                        stopDrawMode()
+                    }).catch(error => {
+                        mapStore.map.value.removeSource(isFilterLayer ? `drawn-${processedLayerName}` : processedLayerName)
+                        window.alert(error)
+                    })
             }).catch((error) => {
                 window.alert(error)
             })
