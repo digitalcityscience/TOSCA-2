@@ -100,6 +100,12 @@ async function fitToFilterLayer(filterLayerData: FeatureCollection): Promise<voi
         });
     }
 }
+/**
+Checks if the geometry of a filter layer is currently visible
+within the map bounds.
+@param {FeatureCollection} filterLayerData - The filter layer data
+@returns {boolean} True if the layer is within the bounds, false otherwise
+*/
 function isFilterLayerInView(filterLayerData: FeatureCollection): boolean{
     const mapBounds: LngLatBounds = mapStore.map.getBounds()
     const screenBox: Feature = bboxPolygon([mapBounds.getWest(), mapBounds.getSouth(), mapBounds.getEast(), mapBounds.getNorth()])
@@ -168,6 +174,12 @@ function applyGeometryFilter(): void{
         }
     }
 }
+/**
+Applies a geometry filter to the layer by creating and adding
+a filter to the store, then setting the filter on the map.
+@param {Object} props - The component props
+@returns {void}
+ */
 function geomFilterApplier(): void{
     if (selectedFilterLayer.value?.filterLayerData != null && selectedProperty.value?.name != null && selectedProperty.value.name !== ""){
         const filterArray: Array<string|number> = filterStore.createGeometryFilter(props.layer.id, {
@@ -197,6 +209,12 @@ function geomFilterApplier(): void{
         }
     }
 }
+/**
+Removes any existing geometry filter applied to the layer by
+calling the filter store remove method and updating the map filter.
+@param {Object} props - The component props
+@returns {void}
+*/
 function removeGeometryFilter(): void{
     filterStore.removeGeometryFilter(props.layer.id).then((response)=>{
         filterStore.populateLayerFilter(response, "AND").then((expression)=>{
