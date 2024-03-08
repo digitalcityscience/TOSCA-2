@@ -5,7 +5,6 @@ import { ref } from "vue";
 import { type GeoServerFeatureType } from "./geoserver";
 import { type SourceSpecification, type AddLayerObject } from "maplibre-gl";
 import { getRandomHexColor, isNullOrEmpty } from "../core/helpers/functions";
-import { type GeoJSONStoreFeatures } from "terra-draw";
 import { type FeatureCollection } from "geojson";
 export interface LayerStyleOptions {
 	paint?: Record<string, unknown>;
@@ -26,68 +25,85 @@ export interface CustomAddLayerObject {
 export interface LayerObjectWithAttributes extends CustomAddLayerObject {
 	details?: GeoServerFeatureType;
 }
-
-export interface GeoJSONObject {
-	type: GeoJSONObjectTypes,
-	features: GeoJSONStoreFeatures[],
-	properties?: unknown
-}
-type GeoJSONObjectTypes = "Feature" | "FeatureCollection"
+type SourceType = "geojson"|"geoserver"
 type MapLibreLayerTypes = "fill" | "line" | "symbol" | "circle" | "heatmap" | "fill-extrusion" | "raster" | "hillshade" | "background";
 
 export const useMapStore = defineStore("map", () => {
 	const map = ref<any>();
 	const layersOnMap = ref<LayerObjectWithAttributes[]>([]);
 	/**
-	 * Add's a new source to maplibre map sources.
-	 * @param layer - Layer details
-	 * @param workspaceName -Layer's workspace name
-	 * @param sourceID - id for source to add
-	 * @returns - If success returns source, else throws an error
+	 * Adds new source to Maplibre map sources. Source can be GeoJSON data or Geoserver vector tile source.
+	 * @param sourceType - Either geojson or geoserver
+	 * @param identifier - id for source to add.
+	 * @param isFilterLayer - If true, source tagged as a user drawn data. This sources can be used as a filter layer for geometry filtering.
+	 * @param workspaceName - Workspace name for Geoserver source. Only required for Geoserver sources.
+	 * @param layer - Layer details. Only required for Geoserver sources.
+	 * @param geoJSONSrc - GeoJSON data. Only required for GeoJSON sources.
+	 * @returns - If success returns recently added source, else throws an error
 	 */
-	async function addSrc(
-		layer: GeoServerFeatureType,
-		workspaceName: string,
-		sourceID: string
+	async function addMapDataSource(
+		sourceType: SourceType,
+		identifier: string,
+		isFilterLayer: boolean,
+		workspaceName?: string,
+		layer?: GeoServerFeatureType,
+		geoJSONSrc?: FeatureCollection
 	): Promise<SourceSpecification> {
 		if (!isNullOrEmpty(map.value)) {
-			map.value.addSource(sourceID, {
-				type: "vector",
-				tiles: [
-					`${
-						import.meta.env.VITE_GEOSERVER_BASE_URL
-					}/gwc/service/wmts?REQUEST=GetTile&SERVICE=WMTS&VERSION=1.0.0&LAYER=${workspaceName}:${
-						layer.featureType.name
-					}&STYLE=&TILEMATRIX=EPSG:900913:{z}&TILEMATRIXSET=EPSG:900913&TILECOL={x}&TILEROW={y}&format=application/vnd.mapbox-vector-tile`,
-				],
-			});
-			if (!isNullOrEmpty(map.value.getSource(sourceID))) {
-				return await Promise.resolve(
-					map.value.getSource(sourceID) as SourceSpecification
-				);
-			} else {
-				throw new Error(`Couldn't add requested source: ${sourceID}`);
+			if (identifier === "") {
+				throw new Error("Identifier is required to add source");
 			}
-		} else {
-			throw new Error(`There is no map to add source: ${sourceID}`);
-		}
-	}
-	async function addGeoJSONSrc(layerID: string, geoJSONSrc: FeatureCollection): Promise<SourceSpecification> {
-		const sourceID = "drawsource-" + layerID
-		if (!isNullOrEmpty(map.value)) {
-			map.value.addSource(sourceID, {
-				type:"geojson",
-				data: geoJSONSrc
-			})
-			if (!isNullOrEmpty(map.value.getSource(sourceID))) {
-				return await Promise.resolve(
-					map.value.getSource(sourceID) as SourceSpecification
-				);
-			} else {
-				throw new Error(`Couldn't add requested source: ${sourceID}`);
+			if (sourceType === "geoserver") {
+				if (layer === undefined) {
+					throw new Error("Layer information required to add geoserver sources");
+				}
+				if (workspaceName === undefined || workspaceName === "") {
+					throw new Error("Workspace name required to add geoserver sources");
+				}
+				map.value.addSource(identifier, {
+					type: "vector",
+					tiles: [
+						`${import.meta.env.VITE_GEOSERVER_BASE_URL}/gwc/service/wmts
+						?REQUEST=GetTile&SERVICE=WMTS&VERSION=1.0.0
+						&LAYER=${workspaceName}:${layer.featureType.name}
+						&STYLE=
+						&TILEMATRIX=EPSG:900913:{z}
+						&TILEMATRIXSET=EPSG:900913
+						&TILECOL={x}
+						&TILEROW={y}
+						&format=application/vnd.mapbox-vector-tile`,
+					],
+				});
+				if (!isNullOrEmpty(map.value.getSource(identifier))) {
+					return await Promise.resolve(
+						map.value.getSource(identifier) as SourceSpecification
+					);
+				} else {
+					throw new Error(
+						`Couldn't add requested source: ${identifier}`
+					);
+				}
 			}
+			if (sourceType === "geojson") {
+				if (geoJSONSrc === undefined) {
+					throw new Error("GeoJSON data required to add GeoJSON sources");
+				}
+				const sourceIdentifier = isFilterLayer ? "drawn-"+identifier : identifier
+				map.value.addSource(sourceIdentifier, {
+					type:"geojson",
+					data: geoJSONSrc
+				})
+				if (!isNullOrEmpty(map.value.getSource(sourceIdentifier))) {
+					return await Promise.resolve(
+						map.value.getSource(sourceIdentifier) as SourceSpecification
+					);
+				} else {
+					throw new Error(`Couldn't add requested source: ${identifier}`);
+				}
+			}
+			throw new Error("Invalid source type");
 		} else {
-			throw new Error(`There is no map to add source: ${sourceID}`);
+			throw new Error("There is no map to add source");
 		}
 	}
 	/**
@@ -159,7 +175,7 @@ export const useMapStore = defineStore("map", () => {
 			}
 			const layerObject: CustomAddLayerObject = {
 				id: layerID,
-				source: `drawsource-${layerID}`,
+				source: `drawn-${layerID}`,
 				type: layerType,
 				filterLayer:isFilterLayer,
 				filterLayerData:geoJSONSrc,
@@ -234,8 +250,7 @@ export const useMapStore = defineStore("map", () => {
 	return {
 		map,
 		layersOnMap,
-		addSrc,
-		addGeoJSONSrc,
+		addMapDataSource,
 		addLyr,
 		addGeoJSONLayer,
 		geometryConversion,
