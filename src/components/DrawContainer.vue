@@ -17,7 +17,7 @@
                         <template #footer>
                             <div class="w-full flex justify-between">
                                 <Button size="small" class="col" @click="initDrawMode">
-                                    <span v-if="!editOnProgress">Start Drawing</span>
+                                    <span v-if="!(drawOnProgress || editOnProgress)">Start Drawing</span>
                                     <span v-else>Continue</span>
                                 </Button>
                                 <Button size="small" v-if="(drawOnProgress || editOnProgress)" :disabled="!(drawOnProgress || editOnProgress)" @click="stopDrawMode">Cancel</Button>
@@ -181,15 +181,12 @@ function saveAsLayer(): void {
                 type: "FeatureCollection",
                 features: featureList
             }
-            console.log(geoJsonSnapshot)
             const geomType = mapStore.geometryConversion(featureList[0].geometry.type)
             const isFilterLayer = featureList[0].geometry.type === "Polygon"
             mapStore.addGeoJSONSrc(processedLayerName, geoJsonSnapshot).then(() => {
                 mapStore.addGeoJSONLayer(processedLayerName, geomType, isFilterLayer, undefined, geoJsonSnapshot).then(() => {
-                    console.info(mapStore.map)
                     stopDrawMode()
                 }).catch(error => {
-                    console.log(mapStore.map.value.getStyle().layers)
                     mapStore.map.value.removeSource(`drawsource-${processedLayerName}`)
                     window.alert(error)
                 })

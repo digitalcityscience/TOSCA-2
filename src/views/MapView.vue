@@ -20,7 +20,6 @@ const geoserverStore = useGeoserverStore()
 onMounted(()=>{
     geoserverStore.getWorkspaceList().then((data)=>{
         geoserverStore.workspaceList = data.workspaces.workspace
-        console.log(data)
     }).catch((error)=>{ console.error(error) })
 })
 </script>

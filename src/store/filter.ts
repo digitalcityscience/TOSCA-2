@@ -203,7 +203,6 @@ async function removeAttributeFilter(layername: string, attributeFilter: Attribu
       }
     }
     if (expressionBlock.length>1){
-      console.log("expression is: ", expressionBlock)
       return await Promise.resolve(expressionBlock)
     } else {
       return await Promise.resolve(expressionBlock)

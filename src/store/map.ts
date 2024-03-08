@@ -51,7 +51,6 @@ export const useMapStore = defineStore("map", () => {
 		sourceID: string
 	): Promise<SourceSpecification> {
 		if (!isNullOrEmpty(map.value)) {
-			console.log(map.value.getSource(sourceID));
 			map.value.addSource(sourceID, {
 				type: "vector",
 				tiles: [
@@ -62,7 +61,6 @@ export const useMapStore = defineStore("map", () => {
 					}&STYLE=&TILEMATRIX=EPSG:900913:{z}&TILEMATRIXSET=EPSG:900913&TILECOL={x}&TILEROW={y}&format=application/vnd.mapbox-vector-tile`,
 				],
 			});
-			console.log(map.value.getSource(sourceID));
 			if (!isNullOrEmpty(map.value.getSource(sourceID))) {
 				return await Promise.resolve(
 					map.value.getSource(sourceID) as SourceSpecification
@@ -129,7 +127,6 @@ export const useMapStore = defineStore("map", () => {
 			) {
 				(layerObject as any)["source-layer"] = sourceLayer;
 			}
-			console.log(layerObject);
 			map.value.addLayer(layerObject as AddLayerObject);
 			if (!isNullOrEmpty(map.value.getLayer(`layer-${layerID}`))) {
 				(layerObject as LayerObjectWithAttributes).details = details;
@@ -168,7 +165,6 @@ export const useMapStore = defineStore("map", () => {
 				filterLayerData:geoJSONSrc,
 				...styling,
 			};
-			console.log(layerObject);
 			map.value.addLayer(layerObject as AddLayerObject);
 			if (!isNullOrEmpty(map.value.getLayer(layerID))) {
 				add2MapLayerList(layerObject as LayerObjectWithAttributes);
