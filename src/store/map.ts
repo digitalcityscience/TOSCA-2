@@ -88,7 +88,7 @@ export const useMapStore = defineStore("map", () => {
 				data: geoJSONSrc
 			})
 		}
-		const addedSource = map.value.getSource(sourceType === "geojson" ? `drawn-${identifier}` : identifier);
+		const addedSource = map.value.getSource(sourceType === "geojson" ? isFilterLayer ? "drawn-"+identifier : identifier : identifier);
 		if (addedSource !== undefined) {
 			return addedSource as SourceSpecification;
 		} else {
