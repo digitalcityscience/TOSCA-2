@@ -24,17 +24,20 @@
                     </Column>
                 </DataTable>
             </div>
-            <div class="w-full no-current-filter py-2" v-else>
+            <div class="w-full no-current-filter py-1" v-else>
                 <InlineMessage class="w-full" severity="info">You have no filter</InlineMessage>
             </div>
             <div class="filter-control">
-                <div v-if="currentFilters.length" class="relation-control w-full flex flex-row ml-auto py-2 justify-between">
+                <div v-if="currentFilters.length" class="relation-control w-full flex flex-row ml-auto py-1 justify-between">
                     <span class="self-center" v-if="relationType==='AND'">(Match all selections)</span>
                     <span class="self-center" v-else>(Match at least one selection)</span>
                     <SelectButton v-model="relationType" :options="relationList" :allow-empty="false" @change="applyAttributeFilter"></SelectButton>
                 </div>
             </div>
             <div class="new-filter flex flex-col w-full">
+                <div class="w-full font-thin italic text-sm py-1 text-surface-600/50 dark:text-surface-0/50">
+                    <p>Add new attribute filter</p>
+                </div>
                 <div class="attribute w-full">
                     <Dropdown class="min-w-32 w-full h-10" v-model="selectedAttribute" :options="filteredAttributes" option-label="name" filter show-clear
                         placeholder="Select an attribute" :virtual-scroller-options="{ itemSize: 30 }" @change="clearOperand">
