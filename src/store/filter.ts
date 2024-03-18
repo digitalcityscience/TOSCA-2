@@ -5,7 +5,7 @@ import { ref } from "vue";
 import { type GeoServerFeatureTypeAttribute } from "./geoserver";
 import { type MultiPolygon, type FeatureCollection, type Feature, type Polygon } from "geojson";
 import { isNullOrEmpty } from "../core/helpers/functions";
-import { useMapStore } from "./map";
+import { type MapLibreLayerTypes, useMapStore } from "./map";
 import booleanWithin from "@turf/boolean-within";
 import flatten from "@turf/flatten";
 import { type MapGeoJSONFeature } from "maplibre-gl";
@@ -20,10 +20,11 @@ export interface AppliedFiltersListItem {
 }
 export interface GeometryFilterTargetItem {
   filterGeoJSON: FeatureCollection,
-  identifier: string
+  identifier?: string
 }
 export interface GeometryFilterItem extends GeometryFilterTargetItem{
-  filterArray: Array<string|number>
+  targetLayerSourceType: MapLibreLayerTypes
+  filterArray?: Array<string|number>,
 }
 export interface AttributeFilterItem {
   attribute: GeoServerFeatureTypeAttribute;
@@ -124,27 +125,36 @@ async function removeAttributeFilter(layername: string, attributeFilter: Attribu
    * @returns - Filterlist to apply to specified layer
    */
   async function addGeometryFilter(layername: string, geometryFilter: GeometryFilterItem): Promise<AppliedFiltersListItem> {
-    if (isNullOrEmpty(geometryFilter.identifier)){
-      throw new Error("There is no identifier")
+    if (geometryFilter.targetLayerSourceType === undefined) {
+      throw new Error("There is no target layer source type")
+    }
+    if (geometryFilter.filterGeoJSON.type !== "FeatureCollection") {
+      throw new Error("Filter geojson is not a feature collection")
     }
     if (geometryFilter.filterGeoJSON.features.length<1){
       throw new Error("There is no geometry feature")
     }
-    if (geometryFilter.filterArray?.length === 0){
-      throw new Error("There is no array of identifiers")
+    if (geometryFilter.targetLayerSourceType === "fill") {
+      // create id list for filtering
+      if (isNullOrEmpty(geometryFilter.identifier)){
+        throw new Error("There is no identifier")
+      }
+      if (geometryFilter.filterArray?.length === 0){
+        throw new Error("There is no array of identifiers")
+      }
     }
     const layerFilters = appliedFiltersList.value.find((item) => { return item.layerName === layername })
-    if (layerFilters !== undefined){
-      layerFilters.geometryFilters = { ...geometryFilter }
-      return await Promise.resolve(appliedFiltersList.value.find((item) => { return item.layerName === layername })!)
-    } else {
-      const appliedFilter: AppliedFiltersListItem = {
-        layerName:layername,
-        geometryFilters:geometryFilter
+      if (layerFilters !== undefined){
+        layerFilters.geometryFilters = { ...geometryFilter }
+        return await Promise.resolve(appliedFiltersList.value.find((item) => { return item.layerName === layername })!)
+      } else {
+        const appliedFilter: AppliedFiltersListItem = {
+          layerName:layername,
+          geometryFilters:geometryFilter
+        }
+        appliedFiltersList.value.push(appliedFilter)
+        return await Promise.resolve(appliedFiltersList.value.find((item) => { return item.layerName === layername })!)
       }
-      appliedFiltersList.value.push(appliedFilter)
-      return await Promise.resolve(appliedFiltersList.value.find((item) => { return item.layerName === layername })!)
-    }
   }
   /**
    * Removes geometry filter from specified layer
@@ -197,8 +207,14 @@ async function removeAttributeFilter(layername: string, attributeFilter: Attribu
       }
     }
     if (appliedFilters.geometryFilters !== undefined){
-      if (appliedFilters.geometryFilters.filterArray.length>0){
-        const geomFiltetExpression = ["in", ["get", appliedFilters.geometryFilters.identifier], ["literal", appliedFilters.geometryFilters.filterArray]]
+      if (appliedFilters.geometryFilters.targetLayerSourceType === "fill"){
+        if (appliedFilters.geometryFilters.filterArray!.length>0){
+          const geomFiltetExpression = ["in", ["get", appliedFilters.geometryFilters.identifier], ["literal", appliedFilters.geometryFilters.filterArray]]
+          expressionBlock.push(geomFiltetExpression)
+        }
+      }
+      if (appliedFilters.geometryFilters.targetLayerSourceType === "circle" || appliedFilters.geometryFilters.targetLayerSourceType === "line"){
+        const geomFiltetExpression = ["within", appliedFilters.geometryFilters.filterGeoJSON]
         expressionBlock.push(geomFiltetExpression)
       }
     }
@@ -237,7 +253,7 @@ async function removeAttributeFilter(layername: string, attributeFilter: Attribu
           return false
         }
       })
-      const filteredIDArray = filteredMapFeatureList.map(mapFeature=>mapFeature.properties?.[geometryFilter.identifier])
+      const filteredIDArray = filteredMapFeatureList.map(mapFeature=>mapFeature.properties?.[geometryFilter.identifier!])
       return filteredIDArray
     } else {
       return []
