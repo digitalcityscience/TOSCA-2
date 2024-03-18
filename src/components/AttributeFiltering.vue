@@ -43,12 +43,24 @@
                 <div class="operand w-full pt-2">
                     <Dropdown class="min-w-32 w-full h-10" v-if="selectedAttribute && selectedAttribute.binding == 'java.lang.String'"
                         v-model="selectedOperand" :options="filterStore.stringFilters" show-clear
-                        placeholder="Select an operand"></Dropdown>
+                        placeholder="Select an operand">
+                        <template #option="slotProps">
+                            <div class="flex align-items-center">
+                                <div>{{ filterStore.filterNames[slotProps.option as OptionKey] }}</div>
+                            </div>
+                        </template>
+                    </Dropdown>
                     <Dropdown
                         class="min-w-32 w-full h-10"
                         v-else-if="selectedAttribute && (selectedAttribute.binding == 'java.lang.Integer' || selectedAttribute.binding == 'java.lang.Long' || selectedAttribute.binding == 'java.lang.Double')"
                         v-model="selectedOperand" :options="filterStore.integerFilters" show-clear
-                        placeholder="Select an operand"></Dropdown>
+                        placeholder="Select an operand">
+                        <template #option="slotProps">
+                            <div class="flex align-items-center">
+                                <div>{{ filterStore.filterNames[slotProps.option as OptionKey] }}</div>
+                            </div>
+                        </template>
+                    </Dropdown>
                 </div>
                 <div class="value w-full pt-2" v-if="selectedOperand">
                     <InputText class="min-w-32 w-full h-10" v-if="selectedAttribute && selectedAttribute.binding == 'java.lang.String'" type="text"
@@ -77,7 +89,7 @@ import { type GeoServerFeatureTypeAttribute } from "../store/geoserver";
 import { type IntegerFilters, type StringFilters, useFilterStore, type RelationTypes, type AttributeFilterItem } from "../store/filter";
 import { type LayerObjectWithAttributes, useMapStore } from "../store/map";
 import { isNullOrEmpty } from "../core/helpers/functions"
-
+type OptionKey = keyof typeof filterStore.filterNames
 interface Props {
     layer: LayerObjectWithAttributes;
 }
