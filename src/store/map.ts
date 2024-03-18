@@ -26,7 +26,7 @@ export interface LayerObjectWithAttributes extends CustomAddLayerObject {
 	details?: GeoServerFeatureType;
 }
 type SourceType = "geojson"|"geoserver"
-type MapLibreLayerTypes = "fill" | "line" | "symbol" | "circle" | "heatmap" | "fill-extrusion" | "raster" | "hillshade" | "background";
+export type MapLibreLayerTypes = "fill" | "line" | "symbol" | "circle" | "heatmap" | "fill-extrusion" | "raster" | "hillshade" | "background";
 
 export const useMapStore = defineStore("map", () => {
 	const map = ref<any>();
