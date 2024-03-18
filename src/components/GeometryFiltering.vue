@@ -8,7 +8,7 @@
 					<div class="filterlayer-dropdown w-full">
 						<div v-if="filterLayerList.length>0">
 							<Dropdown class="w-full" v-model="selectedFilterLayer" @change="dropdownFitter" :options="filterLayerList" option-label="source" show-clear
-							placeholder="Select an filter layer"></Dropdown>
+							placeholder="Select a filter layer"></Dropdown>
 						</div>
                         <div class="w-full no-current-filter py-2" v-else>
                             <InlineMessage class="w-full" severity="info">There is no layer for filter. Draw a layer first!</InlineMessage>
