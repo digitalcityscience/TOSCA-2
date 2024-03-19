@@ -26,13 +26,27 @@ export class SidebarControl implements IControl {
             e.preventDefault()
             const sidebar: HTMLElement = document.getElementById(this._sidebarID)!
             if (sidebar !== null){
-                if (sidebar.classList.contains("collapsed")){
-                    sidebar.classList.remove("collapsed")
-                } else {
-                    sidebar.classList.add("collapsed")
+                const position = sidebar.dataset.position
+                if (position !== undefined){
+                    const alignedSidebars = document.querySelectorAll(`.sidebar-${position}`)
+                    if (alignedSidebars.length > 1){
+                        alignedSidebars.forEach(alignedSidebar => {
+                            if (alignedSidebar !== sidebar) {
+                                if (sidebar.classList.contains("collapsed")) {
+                                    alignedSidebar.classList.add("collapsed")
+                                }
+                            }
+                        })
+                    }
                 }
             }
-        });
+            if (sidebar.classList.contains("collapsed")){
+                sidebar.classList.remove("collapsed")
+            } else {
+                sidebar.classList.add("collapsed")
+            }
+        }
+        );
         return this._container;
     }
 

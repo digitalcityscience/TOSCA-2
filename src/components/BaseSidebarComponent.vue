@@ -1,5 +1,5 @@
 <template>
-    <div ref="el" :class="sidebarPositionClass" :id="props.id" class="sidebar group flex grow-0 justify-between absolute rounded-lg p-1  lg:w-[300px] 2xl:w-[350px] 3xl:w-[400px] duration-1000" :style="props.style ? props.style : ''">
+    <div ref="el" :class="sidebarStatusClasses" :id="props.id" class="sidebar group flex grow-0 justify-between absolute rounded-lg p-1  lg:w-[300px] 2xl:w-[350px] 3xl:w-[400px] duration-1000" :style="props.style ? props.style : ''">
         <div class="header w-full flex group-[.sidebar-left]:flex-row-reverse group-[.sidebar-right]:flex-row group-[.sidebar-bottom]:flex-row-reverse p-1">
             <div class="close-button">
                 <Button @click="toggleSidebar">
@@ -36,14 +36,17 @@ will be higher than left and/or right component(s).
 interface Props {
     position: "left" | "right" | "bottom",
     id: string,
+    collapsed: boolean
     width?: string,
     height?: string,
     style?: string,
     bgColor?: string
 }
-const props = defineProps<Props>()
-const sidebarPositionClass = computed(() => {
-    return "sidebar-" + props.position
+const props = withDefaults(defineProps<Props>(), {
+    collapsed: true
+})
+const sidebarStatusClasses = computed(() => {
+    return `sidebar-${props.position} ${props.collapsed ? "collapsed":""}`
 })
 // to check width prop with css patterns (ends with 'px', 'vw' or '%')
 const widthRegex = /^(\d+(?:\.\d*)?)px$|^(\d+(?:\.\d*)?)vw$|^(\d+(?:\.\d*)?)%$/
