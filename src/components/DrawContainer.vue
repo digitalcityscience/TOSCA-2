@@ -1,7 +1,7 @@
 <template>
     <div>
         <OverlayPanel ref="op" :dismissable="false" showCloseIcon :pt="closeButtonStyles">
-            <div class="flex flex-col min-w-72">
+            <div class="flex flex-col min-w-72 max-h-[90vh] overflow-y-auto">
                 <div class="w-full">
                     <Card>
                         <template #title>Create</template>
