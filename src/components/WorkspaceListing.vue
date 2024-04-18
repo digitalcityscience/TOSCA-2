@@ -1,7 +1,7 @@
 <template>
-        <BaseSidebarComponent :id="sidebarID" position="left" >
+        <BaseSidebarComponent :id="sidebarID" position="left" :collapsed=false>
             <div class="w-full" v-if="props.workspaces && props.workspaces.length > 0">
-                <Accordion :multiple="true" :activeIndex="[0]">
+                <Accordion :multiple="true" :activeIndex="[]">
                     <AccordionTab headerClass="rounded-lg" v-for="(item, index) in props.workspaces" :key="index">
                         <template #header>
                             <h2 class="text-xl font-semibold capitalize">{{ item.name }}</h2>
