@@ -12,7 +12,7 @@ const mapStore = useMapStore()
 onMounted(() => {
     mapStore.map = new maplibre.Map({
         container: "map",
-        style: `https://api.maptiler.com/maps/a2eb63ba-7d0e-4b25-9cfc-9ef74d786ec4/style.json?key=${import.meta.env.VITE_MAPTILER_API_KEY}`, // stylesheet location
+        style: `https://api.maptiler.com/maps/${import.meta.env.VITE_MAPTILER_API_MAP_ID}/style.json?key=${import.meta.env.VITE_MAPTILER_API_KEY}`, // stylesheet location
         center: [9.993163, 53.552123], // starting position [lng, lat]
         zoom: 15 // starting zoom
     })
