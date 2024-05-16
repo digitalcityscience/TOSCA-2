@@ -71,6 +71,11 @@ onMounted(() => {
     if (!isNullOrEmpty(mapStore.map.getPaintProperty(props.layer.id, opac))) {
         opacity.value = mapStore.map.getPaintProperty(props.layer.id, opac)
     }
+    if (!isNullOrEmpty(mapStore.map.getLayoutProperty(props.layer.id, "visibility"))){
+        if (mapStore.map.getLayoutProperty(props.layer.id, "visibility") === "none"){
+            checked.value = false
+        }
+    }
 })
 function changeLayerColor(color: any): void {
     let prop = ""

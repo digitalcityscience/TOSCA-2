@@ -11,6 +11,7 @@ export interface LayerStyleOptions {
 	layout?: Record<string, unknown>;
 	minzoom?: number;
 	maxzoom?: number;
+	visibility?: "none"|"visible"
 }
 export interface CustomAddLayerObject {
 	id: string;
@@ -168,10 +169,9 @@ export const useMapStore = defineStore("map", () => {
 	function generateStyling(layerType: MapLibreLayerTypes, layerStyle?: LayerStyleOptions): LayerStyleOptions {
 		let styling: LayerStyleOptions = {};
 		const defaultPaint = createRandomPaintObj(layerType);
+		styling = { ...layerStyle };
 		if (layerStyle?.paint === undefined) {
 			styling.paint = defaultPaint;
-		} else {
-			styling = { ...layerStyle };
 		}
 		return styling;
 	}
