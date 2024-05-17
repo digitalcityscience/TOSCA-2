@@ -47,7 +47,7 @@ export interface LayerStylingPaint {
 }
 const props = defineProps<Props>()
 const cleanLayerName = computed(() => {
-    return props.item.name.replaceAll("_", " ")
+    return ((layerDetail.value?.featureType.title) != null) ? layerDetail.value?.featureType.title.replaceAll("_", " ") : props.item.name.replaceAll("_", " ")
 })
 const geoserver = useGeoserverStore()
 const layerInformation = ref<GeoserverLayerInfo>()
