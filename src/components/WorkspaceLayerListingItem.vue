@@ -110,7 +110,10 @@ function add2Map(): void{
                     mapStore.geometryConversion(dataType.value),
                     !isNullOrEmpty(layerStyling.value) ? { ...layerStyling.value }: undefined,
                     layerDetail.value,
-                    `${layerDetail.value!.featureType.name}`
+                    `${layerDetail.value!.featureType.name}`,
+                    undefined,
+                    false,
+                    layerDetail.value?.featureType.title ?? undefined
                 ).then(()=>{
                 }).catch(error => {
                     window.alert(error)
