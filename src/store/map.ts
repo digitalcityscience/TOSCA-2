@@ -22,6 +22,7 @@ export interface CustomAddLayerObject {
 	layout?: Record<string, unknown>;
 	filterLayer?: boolean;
 	filterLayerData?: FeatureCollection
+	displayName?: string
 }
 export interface LayerObjectWithAttributes extends CustomAddLayerObject {
 	details?: GeoServerFeatureType;
@@ -120,7 +121,8 @@ export const useMapStore = defineStore("map", () => {
 		geoserverLayerDetails?: GeoServerFeatureType,
 		sourceLayer?: string,
 		geoJSONSrc?: FeatureCollection,
-		isFilterLayer: boolean=false
+		isFilterLayer: boolean=false,
+		displayName?: string
 	): Promise<any|undefined>{
 		if (isNullOrEmpty(map.value)) {
 			throw new Error("There is no map to add layer");
@@ -145,6 +147,7 @@ export const useMapStore = defineStore("map", () => {
 			// Conditional properties
 			...(sourceLayer !== undefined && sourceLayer !== "" ? { "source-layer": sourceLayer } : {}),
 			...(isFilterLayer ? { filterLayer: isFilterLayer, filterLayerData: geoJSONSrc } : {}),
+			...(displayName !== undefined && displayName !== "" ? { displayName }:{})
 		};
 		// add layer object to map
 		map.value.addLayer(layerObject as AddLayerObject);
