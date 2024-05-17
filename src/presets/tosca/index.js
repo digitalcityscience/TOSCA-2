@@ -13,6 +13,7 @@ import checkbox from "./checkbox/index.js";
 import accordion from "./accordion/index.js";
 import inlinemessage from "./inlinemessage/index.js";
 import chip from "./chip/index.js";
+import inputswitch from "./inputswitch/index.js";
 
 export default {
     global,
@@ -29,5 +30,6 @@ export default {
     checkbox,
     accordion,
     inlinemessage,
-    chip
+    chip,
+    inputswitch
 }

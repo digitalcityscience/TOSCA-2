@@ -13,7 +13,8 @@ export interface Preset {
     checkbox: any;
     accordion: any;
     inlinemessage: any;
-    chip: any
+    chip: any;
+    inputswitch: any
 }
 declare const toscaPresets: Preset;
 export default toscaPresets;
