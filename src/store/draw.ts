@@ -138,7 +138,8 @@ export const useDrawStore = defineStore("draw", () => {
                         undefined,
                         undefined,
                         geoJsonSnapshot,
-                        isFilterLayer)
+                        isFilterLayer,
+                        layerName.value)
                         .then(() => {
                             stopDrawMode()
                         }).catch(error => {
