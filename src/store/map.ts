@@ -98,6 +98,28 @@ export const useMapStore = defineStore("map", () => {
 		}
 	}
 	/**
+	 * Asynchronously deletes a data source from the Maplibre map.
+	 * @param {string} identifier - The unique identifier for the source to delete.
+	 * @returns {Promise<void>} A promise that resolves if the source is successfully deleted, or rejects with an error.
+	 * @throws {Error} Throws an error if the map is not initialized or if the source cannot be found.
+	 */
+	async function deleteMapDataSource(identifier: string): Promise<void> {
+		await new Promise<void>((resolve, reject) => {
+		if (isNullOrEmpty(map.value)) {
+			reject(new Error("There is no map to delete source from"));
+			return;
+		}
+		const source = map.value.getSource(identifier);
+		if (source === undefined) {
+			reject(new Error(`Source with identifier ${identifier} not found`));
+			return;
+		}
+		map.value.removeSource(identifier);
+		console.log(`Source ${identifier} deleted successfully`);
+		resolve();
+		});
+	}
+	/**
 	 * Asynchronously adds a new layer to a Maplibre map based on the provided parameters. This function supports adding
 	 * layers from GeoServer or GeoJSON data sources. It allows for customization of the layer's appearance through
 	 * Maplibre style options and can tag layers as filter layers for geometry filtering.
@@ -161,6 +183,36 @@ export const useMapStore = defineStore("map", () => {
 		return await Promise.resolve(map.value.getLayer(identifier));
 	}
 	/**
+	 * Asynchronously deletes a layer from the Maplibre map.
+	 * @param {string} identifier - The unique identifier for the layer to delete.
+	 * @returns {Promise<void>} A promise that resolves if the layer is successfully deleted, or rejects with an error.
+	 * @throws {Error} Throws an error if the map is not initialized or if the layer cannot be found.
+	 */
+	async function deleteMapLayer(identifier: string): Promise<void> {
+		await new Promise<void>((resolve, reject) => {
+		if (isNullOrEmpty(map.value)) {
+			reject(new Error("There is no map to delete layer from"));
+			return;
+		}
+
+		const layer = map.value.getLayer(identifier);
+
+		if (layer === undefined) {
+			reject(new Error(`Layer with identifier ${identifier} not found`));
+			return;
+		}
+
+		try {
+			map.value.removeLayer(identifier);
+			removeFromMapLayerList(identifier);
+			console.log(`Layer ${identifier} deleted successfully`);
+			resolve();
+		} catch (error) {
+			reject(error);
+		}
+		});
+	}
+	/**
 	 * Generates the styling object for a MapLibre layer based on the specified layer type and optional custom style options.
 	 * If custom style options are provided and include a 'paint' property, those styles are used directly.
 	 * Otherwise, a default paint object is created based on the layer type.
@@ -184,6 +236,20 @@ export const useMapStore = defineStore("map", () => {
 	 */
 	function add2MapLayerList(layerObject: LayerObjectWithAttributes): void {
 		layersOnMap.value.push(layerObject);
+	}
+	/**
+	 * Removes a layer from the layersOnMap list based on its identifier.
+	 * @param {string} identifier - The unique identifier for the layer to remove.
+	 * @throws {Error} Throws an error if the layer cannot be found in the list.
+	 */
+	function removeFromMapLayerList(identifier: string): void {
+		const index = layersOnMap.value.findIndex(layer => layer.id === identifier);
+		if (index !== -1) {
+		layersOnMap.value.splice(index, 1);
+		console.log(`Layer ${identifier} removed from layer list`);
+		} else {
+		throw new Error(`Layer with identifier ${identifier} not found in layer list`);
+		}
 	}
 	function createRandomPaintObj(
 		type: MapLibreLayerTypes
@@ -237,7 +303,9 @@ export const useMapStore = defineStore("map", () => {
 		map,
 		layersOnMap,
 		addMapDataSource,
+		deleteMapDataSource,
 		addMapLayer,
+		deleteMapLayer,
 		geometryConversion,
 	};
 });
