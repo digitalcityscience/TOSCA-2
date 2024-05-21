@@ -1,5 +1,5 @@
 <template>
-    <div ref="el" :class="sidebarStatusClasses" :id="props.id" class="sidebar group flex grow-0 justify-between absolute rounded-lg p-1  lg:w-[300px] 2xl:w-[350px] 3xl:w-[400px] duration-1000" :style="props.style ? props.style : ''">
+    <div ref="el" :class="sidebarStatusClasses" :id="props.id" class="sidebar group flex grow-0 justify-between absolute rounded-lg p-1  lg:w-[350px] 2xl:w-[400px] 3xl:w-[40px] duration-1000" :style="props.style ? props.style : ''">
         <div class="header w-full flex group-[.sidebar-left]:flex-row-reverse group-[.sidebar-right]:flex-row group-[.sidebar-bottom]:flex-row-reverse p-1">
             <div class="close-button">
                 <Button @click="toggleSidebar">
@@ -136,7 +136,7 @@ defineExpose({
     height: 90vh;
     flex-direction: column;
     min-width: 15vw;
-    backdrop-filter: invert(100%);
+    backdrop-filter: blur(5px);
 }
 
 .sidebar.sidebar-right {
@@ -146,7 +146,7 @@ defineExpose({
     height: 90vh;
     flex-direction: column;
     min-width: 15vw;
-    backdrop-filter: invert(100%);
+    backdrop-filter: blur(5px);
 }
 
 .sidebar.sidebar-bottom {
