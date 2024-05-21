@@ -14,7 +14,9 @@ export interface Preset {
     accordion: any;
     inlinemessage: any;
     chip: any;
-    inputswitch: any
+    inputswitch: any;
+    dialog: any;
+    toast: any;
 }
 declare const toscaPresets: Preset;
 export default toscaPresets;

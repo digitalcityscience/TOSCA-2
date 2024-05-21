@@ -14,6 +14,8 @@ import accordion from "./accordion/index.js";
 import inlinemessage from "./inlinemessage/index.js";
 import chip from "./chip/index.js";
 import inputswitch from "./inputswitch/index.js";
+import dialog from "./dialog/index.js";
+import toast from "./toast/index.js"
 
 export default {
     global,
@@ -31,5 +33,7 @@ export default {
     accordion,
     inlinemessage,
     chip,
-    inputswitch
+    inputswitch,
+    dialog,
+    toast
 }
