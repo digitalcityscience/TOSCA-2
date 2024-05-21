@@ -136,7 +136,7 @@ defineExpose({
     height: 90vh;
     flex-direction: column;
     min-width: 15vw;
-    backdrop-filter: blur(5px);
+    backdrop-filter: invert(100%);
 }
 
 .sidebar.sidebar-right {
@@ -146,7 +146,7 @@ defineExpose({
     height: 90vh;
     flex-direction: column;
     min-width: 15vw;
-    backdrop-filter: blur(5px);
+    backdrop-filter: invert(100%);
 }
 
 .sidebar.sidebar-bottom {
