@@ -10,7 +10,9 @@ import WorkspaceLayerListing from "./WorkspaceLayerListing.vue";
 // JS imports
 import { useGeoserverStore, type WorkspaceListItem, type GeoserverLayerListItem } from "../store/geoserver";
 import { ref, onMounted } from "vue";
+import { useToast } from "primevue/usetoast";
 const geoserver = useGeoserverStore()
+const toast = useToast()
 export interface Props {
     workspace: WorkspaceListItem
 }
@@ -19,6 +21,8 @@ const layerList = ref<GeoserverLayerListItem[]>()
 onMounted(() => {
     geoserver.getLayerList(props.workspace.name).then((response) => {
         layerList.value = response.layers.layer
-    }).catch(err => { console.log(err) })
+    }).catch(err => {
+        toast.add({ severity: "error", summary: "Error", detail: err, life: 3000 });
+    })
 })
 </script>
