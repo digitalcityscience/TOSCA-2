@@ -57,11 +57,13 @@ import { type GeometryFilterItem, useFilterStore } from "../store/filter";
 import { type GeoServerFeatureTypeAttribute } from "../store/geoserver";
 import { type LngLatBounds } from "maplibre-gl";
 import booleanWithin from "@turf/boolean-within";
+import { useToast } from "primevue/usetoast";
 export interface Props {
     layer: LayerObjectWithAttributes
 }
 const props = defineProps<Props>()
 const mapStore = useMapStore()
+const toast = useToast()
 const selectedFilterLayer = ref<CustomAddLayerObject>()
 const filterLayerList = computed(() => {
     return mapStore.layersOnMap.filter((layer) => { return layer.filterLayer === true })
@@ -168,7 +170,9 @@ function applyGeometryFilter(): void{
         if (!isFilterLayerInView(selectedFilterLayer.value.filterLayerData)){
             fitToFilterLayer(selectedFilterLayer.value.filterLayerData).then(() => {
                 geomFilterApplier()
-            }).catch((error)=>{ window.alert(error) })
+            }).catch((error)=>{
+                toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
+            })
         } else {
             geomFilterApplier()
         }
@@ -207,10 +211,10 @@ function geomFilterApplier(): void{
                         }
                     }).catch((error)=>{
                         mapStore.map.setFilter(props.layer.id, null)
-                        window.alert(error)
+                        toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
                     })
                 }).catch((error)=>{
-                    window.alert(error)
+                    toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
                 })
             }
         }
@@ -232,10 +236,10 @@ function geomFilterApplier(): void{
                     }
                 }).catch((error)=>{
                     mapStore.map.setFilter(props.layer.id, null)
-                    window.alert(error)
+                    toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
                 })
             }).catch((error)=>{
-                window.alert(error)
+                toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
             })
         }
     }
@@ -254,10 +258,12 @@ function removeGeometryFilter(): void{
             } else {
                 mapStore.map.setFilter(props.layer.id, null)
             }
-        }).catch((error)=>{ window.alert(error) })
+        }).catch((error)=>{
+            toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
+        })
     }).catch((error)=>{
         mapStore.map.setFilter(props.layer.id, null)
-        window.alert(error)
+        toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
     })
 }
 </script>

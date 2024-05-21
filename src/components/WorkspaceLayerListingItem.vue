@@ -37,6 +37,7 @@ import { type GeoServerFeatureType, type GeoserverLayerInfo, type GeoserverLayer
 import { type LayerStyleOptions, useMapStore } from "../store/map";
 import Card from "primevue/card";
 import { isNullOrEmpty } from "../core/helpers/functions";
+import { useToast } from "primevue/usetoast";
 
 export interface Props {
     item: GeoserverLayerListItem
@@ -46,6 +47,7 @@ export interface LayerStylingPaint {
     paint: object
 }
 const props = defineProps<Props>()
+const toast = useToast()
 const cleanLayerName = computed(() => {
     return ((layerDetail.value?.featureType.title) != null) ? layerDetail.value?.featureType.title.replaceAll("_", " ") : props.item.name.replaceAll("_", " ")
 })
@@ -77,15 +79,19 @@ geoserver.getLayerInformation(props.item, props.workspace).then((response) => {
                 layerStyling.value = obj
             }
         }).catch((error) => {
-            window.alert(error)
+            toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
         })
     }
     if (layerInformation.value !== undefined) {
         geoserver.getLayerDetail(layerInformation.value?.resource.href).then((detail) => {
             layerDetail.value = detail
-        }).catch(err => { window.alert(err) })
+        }).catch(err => {
+            toast.add({ severity: "error", summary: "Error", detail: err, life: 3000 });
+        })
     }
-}).catch(err => { window.alert(err) })
+}).catch(err => {
+    toast.add({ severity: "error", summary: "Error", detail: err, life: 3000 });
+})
 
 const dataType = computed(() => {
     if (!isNullOrEmpty(layerDetail.value)) {
@@ -116,11 +122,11 @@ function add2Map(): void{
                     layerDetail.value?.featureType.title ?? undefined
                 ).then(()=>{
                 }).catch(error => {
-                    window.alert(error)
+                    toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
                 })
             }
         }).catch(error => {
-            window.alert(error)
+            toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
         })
     }
 }

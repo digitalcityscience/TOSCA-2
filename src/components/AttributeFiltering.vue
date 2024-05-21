@@ -92,6 +92,7 @@ import { type GeoServerFeatureTypeAttribute } from "../store/geoserver";
 import { type IntegerFilters, type StringFilters, useFilterStore, type RelationTypes, type AttributeFilterItem } from "../store/filter";
 import { type LayerObjectWithAttributes, useMapStore } from "../store/map";
 import { isNullOrEmpty } from "../core/helpers/functions"
+import { useToast } from "primevue/usetoast";
 type OptionKey = keyof typeof filterStore.filterNames
 interface Props {
     layer: LayerObjectWithAttributes;
@@ -104,6 +105,7 @@ interface AppliedFilter {
 const props = defineProps<Props>()
 const filterStore = useFilterStore()
 const mapStore = useMapStore()
+const toast = useToast();
 
 const currentFilters = computed(()=>{
     if (filterStore.appliedFiltersList.length>0){
@@ -146,13 +148,13 @@ async function applyAttributeFilter(): Promise<void> {
                     }
                 }).catch((error)=>{
                     mapStore.map.setFilter(props.layer.id, null)
-                    window.alert(error)
+                    toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
                 })
             } else {
                 mapStore.map.setFilter(props.layer.id, null)
             }
         }).catch((error)=> {
-            window.alert(error)
+            toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
         })
         cancelNewFilter()
     } else {
@@ -168,7 +170,7 @@ async function applyAttributeFilter(): Promise<void> {
                 }
             }).catch((error)=>{
                 mapStore.map.setFilter(props.layer.id, null)
-                window.alert(error)
+                toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
             })
         } else {
             mapStore.map.setFilter(props.layer.id, null)
@@ -195,10 +197,10 @@ async function deleteAttributeFilter(targetFilter: AppliedFilter): Promise<void>
             }
         }).catch((error)=>{
             mapStore.map.setFilter(props.layer.id, null)
-            window.alert(error)
+            toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
         })
     }).catch((error)=>{
-        window.alert(error)
+        toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
     })
 }
 </script>

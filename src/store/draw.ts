@@ -4,9 +4,11 @@ import { ref } from "vue";
 import { useMapStore } from "./map";
 import { type Map } from "maplibre-gl"
 import { type Feature, type FeatureCollection } from "geojson";
+import { useToast } from "primevue/usetoast";
 
 export const useDrawStore = defineStore("draw", () => {
     const mapStore = useMapStore()
+    const toast = useToast()
     const drawTypes = ref([{ name: "point", mode: "Point" }, { name: "linestring", mode: "Line" }, { name: "polygon", mode: "Polygon" }])
     const drawMode = ref("polygon")
     const drawOnProgress = ref(false)
@@ -144,16 +146,16 @@ export const useDrawStore = defineStore("draw", () => {
                             stopDrawMode()
                         }).catch(error => {
                             mapStore.map.value.removeSource(isFilterLayer ? `drawn-${processedLayerName}` : processedLayerName)
-                            window.alert(error)
+                            toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
                         })
                 }).catch((error) => {
-                    window.alert(error)
+                    toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
                 })
             } else {
-                window.alert("There is no feature drawn on map!")
+                toast.add({ severity: "error", summary: "Error", detail: "There is no feature drawn on map!", life: 3000 });
             }
         } else {
-            window.alert("Layer name already in use!")
+            toast.add({ severity: "error", summary: "Error", detail: "Layer name already in use!", life: 3000 });
         }
     }
     const layerName = ref("")
