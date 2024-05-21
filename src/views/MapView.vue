@@ -4,6 +4,7 @@
         <WorkspaceListing :workspaces="geoserverStore.workspaceList"></WorkspaceListing>
         <MapLayerListing></MapLayerListing>
         <DrawContainer></DrawContainer>
+        <Toast/>
     </div>
 </template>
 
@@ -15,7 +16,7 @@ import MapContainer from "../components/MapContainer.vue";
 const WorkspaceListing = defineAsyncComponent(async () => await import("../components/WorkspaceListing.vue"));
 const MapLayerListing = defineAsyncComponent(async () => await import("../components/MapLayerListing.vue"));
 const DrawContainer = defineAsyncComponent(async () => await import("../components/DrawContainer.vue"))
-
+const Toast = defineAsyncComponent(async () => await import("primevue/toast"))
 const geoserverStore = useGeoserverStore()
 onMounted(()=>{
     geoserverStore.getWorkspaceList().then((data)=>{
