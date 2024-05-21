@@ -6,6 +6,7 @@ import { type GeoServerFeatureType } from "./geoserver";
 import { type SourceSpecification, type AddLayerObject } from "maplibre-gl";
 import { getRandomHexColor, isNullOrEmpty } from "../core/helpers/functions";
 import { type FeatureCollection } from "geojson";
+import { useToast } from "primevue/usetoast";
 export interface LayerStyleOptions {
 	paint?: Record<string, unknown>;
 	layout?: Record<string, unknown>;
@@ -31,6 +32,7 @@ type SourceType = "geojson"|"geoserver"
 export type MapLibreLayerTypes = "fill" | "line" | "symbol" | "circle" | "heatmap" | "fill-extrusion" | "raster" | "hillshade" | "background";
 
 export const useMapStore = defineStore("map", () => {
+	const toast = useToast()
 	const map = ref<any>();
 	const layersOnMap = ref<LayerObjectWithAttributes[]>([]);
 	/**
@@ -92,6 +94,7 @@ export const useMapStore = defineStore("map", () => {
 		}
 		const addedSource = map.value.getSource(sourceType === "geojson" ? isFilterLayer ? "drawn-"+identifier : identifier : identifier);
 		if (addedSource !== undefined) {
+			toast.add({ severity: "success", summary: "Success", detail: `Source ${identifier} added successfully`, life: 3000 });
 			return addedSource as SourceSpecification;
 		} else {
 			throw new Error(`Couldn't add requested source: ${identifier}`);
@@ -115,7 +118,7 @@ export const useMapStore = defineStore("map", () => {
 			return;
 		}
 		map.value.removeSource(identifier);
-		console.log(`Source ${identifier} deleted successfully`);
+		toast.add({ severity: "success", summary: "Success", detail: `Source ${identifier} deleted successfully`, life: 3000 });
 		resolve();
 		});
 	}
@@ -205,7 +208,6 @@ export const useMapStore = defineStore("map", () => {
 		try {
 			map.value.removeLayer(identifier);
 			removeFromMapLayerList(identifier);
-			console.log(`Layer ${identifier} deleted successfully`);
 			resolve();
 		} catch (error) {
 			reject(error);
@@ -236,6 +238,7 @@ export const useMapStore = defineStore("map", () => {
 	 */
 	function add2MapLayerList(layerObject: LayerObjectWithAttributes): void {
 		layersOnMap.value.push(layerObject);
+		toast.add({ severity: "success", summary: "Success", detail: `Layer ${layerObject.displayName ?? layerObject.id} added successfully`, life: 3000 });
 	}
 	/**
 	 * Removes a layer from the layersOnMap list based on its identifier.
@@ -246,7 +249,7 @@ export const useMapStore = defineStore("map", () => {
 		const index = layersOnMap.value.findIndex(layer => layer.id === identifier);
 		if (index !== -1) {
 		layersOnMap.value.splice(index, 1);
-		console.log(`Layer ${identifier} removed from layer list`);
+		toast.add({ severity: "success", summary: "Success", detail: `Layer ${identifier} removed successfully`, life: 3000 });
 		} else {
 		throw new Error(`Layer with identifier ${identifier} not found in layer list`);
 		}
