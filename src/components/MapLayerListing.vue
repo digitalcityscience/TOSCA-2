@@ -1,5 +1,5 @@
 <template>
-    <BaseSidebarComponent :id="sidebarID" position="right">
+    <BaseSidebarComponent :id="sidebarID" position="right" :collapsed="true">
         <div class="w-full" v-if="mapStore.layersOnMap.length > 0">
             <MapLayerListingItem v-for="(layer, index) in mapStore.layersOnMap" :key="index" :layer="layer">
             </MapLayerListingItem>
