@@ -1,5 +1,8 @@
 <template>
         <BaseSidebarComponent :id="sidebarID" position="left" :collapsed=false>
+            <template #header>
+            <p>Datastores</p>
+        </template>
             <div class="w-full" v-if="props.workspaces && props.workspaces.length > 0">
                 <Accordion :multiple="true" :activeIndex="[]">
                     <AccordionTab headerClass="rounded-lg" v-for="(item, index) in props.workspaces" :key="index">
