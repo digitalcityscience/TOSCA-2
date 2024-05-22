@@ -1,3 +1,4 @@
 .eslintrc.cjs
 tailwind.config.js
+postcss.config.js
 **/src/presets/**/*.js
