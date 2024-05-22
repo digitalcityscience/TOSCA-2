@@ -20,17 +20,9 @@
                                     <span v-if="!(drawTool.drawOnProgress || drawTool.editOnProgress)">Start Drawing</span>
                                     <span v-else>Continue</span>
                                 </Button>
+                                <Button size="small" v-if="(drawTool.drawOnProgress||drawTool.editOnProgress)" :disabled="!drawTool.drawOnProgress" @click="drawTool.editMode">Edit</Button>
                                 <Button size="small" v-if="(drawTool.drawOnProgress || drawTool.editOnProgress)" :disabled="!(drawTool.drawOnProgress || drawTool.editOnProgress)" @click="drawTool.stopDrawMode">Cancel</Button>
                             </div>
-                        </template>
-                    </Card>
-                </div>
-                <div class="w-full pt-1">
-                    <Card>
-                        <template #title>Edit</template>
-                        <template #subtitle>Edit your drawings</template>
-                        <template #content>
-                            <Button size="small" :disabled="!drawTool.drawOnProgress" @click="drawTool.editMode">Edit</Button>
                         </template>
                     </Card>
                 </div>
@@ -81,7 +73,7 @@ const closeButtonStyles= {
             "rounded-full",
             "bg-transparent border",
             "text-primary-500 dark:text-primary-400",
-            "hover:bg-primary-600 dark:hover:bg-primary-300 hover:border-primary-600 dark:hover:border-primary-300 text-primary-300 dark:text-primary-600",
+            "hover:bg-primary-600 dark:hover:bg-primary-300 hover:text-white hover:border-primary-600 dark:hover:border-primary-300 text-primary-300 dark:text-primary-600",
             "focus:ring-primary-400/50 dark:focus:ring-primary-300/50"
         ]
     }
