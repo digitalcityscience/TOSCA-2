@@ -94,7 +94,7 @@ export const useMapStore = defineStore("map", () => {
 		}
 		const addedSource = map.value.getSource(sourceType === "geojson" ? isFilterLayer ? "drawn-"+identifier : identifier : identifier);
 		if (addedSource !== undefined) {
-			toast.add({ severity: "success", summary: "Success", detail: `Source ${identifier} added successfully`, life: 3000 });
+			console.log(`Source ${identifier} added successfully`);
 			return addedSource as SourceSpecification;
 		} else {
 			throw new Error(`Couldn't add requested source: ${identifier}`);
@@ -118,7 +118,7 @@ export const useMapStore = defineStore("map", () => {
 			return;
 		}
 		map.value.removeSource(identifier);
-		toast.add({ severity: "success", summary: "Success", detail: `Source ${identifier} deleted successfully`, life: 3000 });
+		console.log(`Source ${identifier} deleted successfully`);
 		resolve();
 		});
 	}
@@ -289,7 +289,7 @@ export const useMapStore = defineStore("map", () => {
 		if (geometry === "Point" || geometry === "MultiPoint") {
 			return "circle";
 		}
-		if (geometry === "LineString" || geometry === "LinearRing") {
+		if (geometry === "LineString" || geometry === "LinearRing" || geometry === "MultiLineString") {
 			return "line";
 		}
 		if (
