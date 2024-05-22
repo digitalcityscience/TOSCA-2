@@ -2,14 +2,14 @@
     <div ref="el" :class="sidebarStatusClasses" :id="props.id" class="sidebar group flex grow-0 justify-between absolute rounded-lg p-1  lg:w-[350px] 2xl:w-[400px] 3xl:w-[40px] duration-1000" :style="props.style ? props.style : ''">
         <div class="header w-full flex group-[.sidebar-left]:flex-row-reverse group-[.sidebar-right]:flex-row group-[.sidebar-bottom]:flex-row-reverse p-1">
             <div class="close-button">
-                <Button @click="toggleSidebar">
+                <Button outlined rounded class="text-white" @click="toggleSidebar">
                             <template #icon>
-                                <i v-if="props.position === 'left'" class="pi pi-angle-double-left"></i>
-                                <i v-else-if="props.position === 'right'" class="pi pi-angle-double-right"></i>
-                                <i v-else class="pi pi-times"></i>
+                                <i v-if="props.position === 'left'" class="pi pi-angle-double-left font-bold text-lg hover:text-2xl "></i>
+                                <i v-else-if="props.position === 'right'" class="pi pi-angle-double-right font-bold text-lg hover:text-2xl "></i>
+                                <i v-else class="pi pi-times font-bold text-lg hover:text-2xl "></i>
                             </template></Button>
             </div>
-            <div class="header-content">
+            <div class="header-content grow text-2xl text-white font-bold self-center">
                 <slot name="header"></slot>
             </div>
         </div>
