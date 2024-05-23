@@ -8,6 +8,7 @@ import "./style.css"
 import ToastService from "primevue/toastservice";
 import toscaPresets from "./presets/tosca"
 import App from "./App.vue"
+import "@material-design-icons/font";
 
 const pinia = createPinia()
 
