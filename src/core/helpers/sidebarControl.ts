@@ -5,13 +5,19 @@ export class SidebarControl implements IControl {
     _sidebarID: string;
     _container: HTMLDivElement;
     _map: any;
-    _icon: string
+    _icon: HTMLSpanElement
 
-    constructor(className = "", sidebarID = "", container: HTMLDivElement, icon?: string) {
+    constructor(className = "", sidebarID = "", container: HTMLDivElement, icon?: HTMLSpanElement) {
         this._className = className;
         this._sidebarID = sidebarID;
         this._container = container;
-        this._icon = icon ?? "pi pi-database"
+        if (icon === undefined){
+            const el = document.createElement("span")
+            el.classList.add("pi", "pi-database")
+            this._icon = el
+        } else {
+            this._icon = icon
+        }
     }
 
     onAdd(map: any): HTMLDivElement {
@@ -55,15 +61,8 @@ export class SidebarControl implements IControl {
         this._map = undefined;
     }
 
-    createIcon(): HTMLElement {
-        const icon = document.createElement("span");
-        icon.className = this._icon;
-        icon.setAttribute("aria-hidden", "true");
-        return icon;
-    }
-
     createButton(): HTMLButtonElement {
-        const span = this.createIcon();
+        const span = this._icon
         const btn = document.createElement("button");
         btn.className = "";
         btn.style.fontSize = "1.4rem";

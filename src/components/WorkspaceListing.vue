@@ -38,6 +38,9 @@ const props = defineProps<Props>()
 const mapStore = useMapStore()
 const sidebarID = "workspaceListing"
 
-const sidebarControl = new SidebarControl("", sidebarID, document.createElement("div"))
+const iconElement = document.createElement("span")
+iconElement.classList.add("material-icons-outlined")
+iconElement.textContent = "sd_storage"
+const sidebarControl = new SidebarControl("", sidebarID, document.createElement("div"), iconElement)
 mapStore.map.addControl(sidebarControl, "top-left")
 </script>
