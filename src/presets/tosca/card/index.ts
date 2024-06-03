@@ -21,7 +21,9 @@ export default {
     subtitle: {
         class: [
             // Font
-            "font-normal",
+            "font-thin",
+            "italic",
+            "text-sm",
 
             // Spacing
             "mb-2",

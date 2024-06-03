@@ -23,7 +23,7 @@ export default {
                 "relative",
 
                 // Sizing
-                "p-5",
+                "p-3",
 
                 // Shape
                 "rounded-t-md",
@@ -57,7 +57,7 @@ export default {
         content: {
             class: [
                 // Spacing
-                "p-5",
+                "p-3",
 
                 // Shape
                 "rounded-tl-none rounded-tr-none rounded-br-lg rounded-bl-lg",
