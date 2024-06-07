@@ -95,7 +95,7 @@ geoserver.getLayerInformation(props.item, props.workspace).then((response) => {
 
 const dataType = computed(() => {
     if (!isNullOrEmpty(layerDetail.value)) {
-        const feature = layerDetail.value!.featureType.attributes.attribute.filter((att) => { return att.name === "geom" })
+        const feature = layerDetail.value!.featureType.attributes.attribute.filter((att) => { return att.name.includes("geom") })
         return feature.length > 0 ? feature[0].binding.split(".").slice(-1)[0] : ""
     } else { return "" }
 })
