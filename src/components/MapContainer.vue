@@ -9,6 +9,7 @@ import { h, nextTick, onMounted, ref, render } from "vue";
 import { useMapStore } from "../store/map";
 import MapAttributeDialog from "./MapAttributeDialog.vue"
 import { useDrawStore } from "../store/draw";
+import { useParticipationStore } from "../store/participation";
 
 const mapStore = useMapStore()
 const clickedLayers = ref()
@@ -23,14 +24,22 @@ onMounted(() => {
     })
     if (mapStore.map !== undefined) {
         mapStore.map.on("click", (e: MapMouseEvent)=>{
-            if (!(useDrawStore().drawOnProgress || useDrawStore().editOnProgress)) {
+            if (!(useDrawStore().drawOnProgress || useDrawStore().editOnProgress || useParticipationStore().selectionOnProgress)) {
                 const clickedFeatures: any[] = mapStore.map.queryRenderedFeatures(e.point)
                 if (clickedFeatures.length > 0) {
                     const matchedFeatures = clickedFeatures.filter((clickedLayer)=>{ return mapStore.layersOnMap.some((l)=>{ return l.source === clickedLayer.source }) })
                     if (matchedFeatures.length > 0){
+                        const uniqueLayers = new Set();
+                        const reducedFeatures: any[] = [];
+                        for (const feature of matchedFeatures) {
+                            if (!uniqueLayers.has(feature.sourceLayer)) {
+                                uniqueLayers.add(feature.sourceLayer);
+                                reducedFeatures.push(feature);
+                            }
+                        }
                         console.log("matched features", matchedFeatures)
                         console.log(e)
-                        clickedLayers.value = matchedFeatures
+                        clickedLayers.value = reducedFeatures
                         console.log("clicked layers", clickedLayers.value)
                         new maplibre.Popup({ maxWidth:"none" })
                             .setLngLat(e.lngLat)
@@ -39,7 +48,7 @@ onMounted(() => {
                         nextTick(() => {
                             // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
                             const popupComp = h(MapAttributeDialog, {
-                                features: [...matchedFeatures],
+                                features: [...reducedFeatures],
                             });
                             render(popupComp, document.getElementById("map-popup-content")!);
                         }).then(()=>{}, ()=>{})

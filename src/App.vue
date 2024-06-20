@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import MapView from "./views/MapView.vue"
+import { RouterView } from "vue-router";
+import { useMapStore } from "./store/map";
 </script>
 
 <template>
   <div class="app-container">
-    <MapView></MapView>
+    <RouterView name="default"></RouterView>
+    <RouterView v-if="useMapStore().map" name="participation"></RouterView>
 </div>
 </template>
 

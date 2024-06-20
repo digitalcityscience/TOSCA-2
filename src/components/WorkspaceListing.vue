@@ -1,13 +1,15 @@
 <template>
         <BaseSidebarComponent :id="sidebarID" position="left" :collapsed=false>
             <template #header>
-            <p>Datastores</p>
+                <RouterLink to="/participation">
+                <p>Datastores</p>
+            </RouterLink>
         </template>
             <div class="w-full" v-if="props.workspaces && props.workspaces.length > 0">
                 <Accordion :multiple="true" :activeIndex="[]">
                     <AccordionTab headerClass="rounded-lg" v-for="(item, index) in props.workspaces" :key="index">
                         <template #header>
-                            <h2 class="text-xl font-semibold capitalize">{{ item.name }}</h2>
+                            <h2 class="text-xl font-semibold capitalize">{{ item.name.replace(/[_-]/g, ' ') }}</h2>
                         </template>
                         <WorkspaceListingItem :workspace="item"></WorkspaceListingItem>
                     </AccordionTab>
@@ -31,6 +33,7 @@ import { type WorkspaceListItem } from "../store/geoserver";
 
 import { SidebarControl } from "../core/helpers/sidebarControl";
 import { useMapStore } from "../store/map";
+import { RouterLink } from "vue-router";
 export interface Props {
     workspaces: WorkspaceListItem[] | undefined
 }

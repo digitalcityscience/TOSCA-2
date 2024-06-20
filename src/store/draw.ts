@@ -5,6 +5,7 @@ import { useMapStore } from "./map";
 import { type Map } from "maplibre-gl"
 import { type Feature, type FeatureCollection } from "geojson";
 import { useToast } from "primevue/usetoast";
+import { useParticipationStore } from "./participation";
 
 export const useDrawStore = defineStore("draw", () => {
     const mapStore = useMapStore()
@@ -68,6 +69,9 @@ export const useDrawStore = defineStore("draw", () => {
         ]
     })
     function initDrawMode(): void {
+        if (useParticipationStore().centerSelectDrawer !== null) {
+            useParticipationStore().centerSelectDrawer.stop()
+        }
         if (draw !== null) {
             if (!drawOnProgress.value){
                 if (editOnProgress.value) {
@@ -167,6 +171,7 @@ export const useDrawStore = defineStore("draw", () => {
         saveAsLayer,
         getSnapshot,
         clearSnapshot,
+        draw,
         drawMode,
         drawTypes,
         drawOnProgress,

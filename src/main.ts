@@ -4,6 +4,7 @@
 import { createApp } from "vue"
 import { createPinia } from "pinia"
 import PrimeVue from "primevue/config"
+import router from "./router"
 import "./style.css"
 import ToastService from "primevue/toastservice";
 import toscaPresets from "./presets/tosca"
@@ -12,4 +13,4 @@ import "@material-design-icons/font";
 
 const pinia = createPinia()
 
-createApp(App).use(pinia).use(PrimeVue, { unstyled: true, pt: toscaPresets }).use(ToastService).mount("#app")
+createApp(App).use(pinia).use(router).use(PrimeVue, { unstyled: true, pt: toscaPresets }).use(ToastService).mount("#app")
