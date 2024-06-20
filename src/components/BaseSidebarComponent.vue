@@ -1,5 +1,5 @@
 <template>
-    <div ref="el" :class="sidebarStatusClasses" :id="props.id" class="sidebar group flex grow-0 justify-between absolute rounded-lg p-1  lg:w-[350px] 2xl:w-[400px] 3xl:w-[40px] duration-1000" :style="props.style ? props.style : ''">
+    <div ref="el" :data-position="props.position"  :class="[sidebarStatusClasses, props.bgClass ?? 'bg-transparent']" :id="props.id" class="sidebar group flex grow-0 justify-between absolute rounded-lg p-1  lg:w-[350px] 2xl:w-[400px] 3xl:w-[400px] duration-1000" :style="props.style ? props.style : ''">
         <div class="header w-full flex group-[.sidebar-left]:flex-row-reverse group-[.sidebar-right]:flex-row group-[.sidebar-bottom]:flex-row-reverse p-1">
             <div class="close-button">
                 <Button outlined rounded class="text-white" @click="toggleSidebar">
@@ -40,7 +40,7 @@ interface Props {
     width?: string,
     height?: string,
     style?: string,
-    bgColor?: string
+    bgClass?: string
 }
 const props = withDefaults(defineProps<Props>(), {
     collapsed: true
@@ -52,16 +52,7 @@ const sidebarStatusClasses = computed(() => {
 const widthRegex = /^(\d+(?:\.\d*)?)px$|^(\d+(?:\.\d*)?)vw$|^(\d+(?:\.\d*)?)%$/
 // to check height prop with css patterns (ends with 'px', 'vh' or '%')
 const heightRegex = /^(\d+(?:\.\d*)?)px$|^(\d+(?:\.\d*)?)vh$|^(\d+(?:\.\d*)?)%$/
-// to check  bgcolor prop with hexadecimal color pattern in ex: #AABBCC
-const hexColorRegex = /^#([0-9A-Fa-f]{3}){1,2}$/;
 // CALCULATED CSS VARIABLES
-const backgroundClr = computed(() => {
-    if (!isNullOrEmpty(props.bgColor) && hexColorRegex.test(props.bgColor!)) {
-        return props.bgColor!
-    } else {
-        return "transparent"
-    }
-})
 const width4Vertical = computed(() => {
     if ((props.position === "left" || props.position === "right")) {
         if (!isNullOrEmpty(props.width) && widthRegex.test(props.width!)) {
@@ -97,7 +88,6 @@ onMounted(()=> {
     if (el.value !== null){
         el.value.style.setProperty("--width4Vertical", width4Vertical.value);
         el.value.style.setProperty("--height4Horizontal", height4Horizontal.value);
-        el.value.style.setProperty("--backgroundClr", backgroundClr.value)
     }
 })
 /**
@@ -125,9 +115,6 @@ defineExpose({
 </script>
 
 <style scoped>
-.sidebar {
-    background-color: var(--backgroundClr);
-}
 
 .sidebar.sidebar-left {
     top: 10px;
