@@ -46,7 +46,7 @@ import Textarea from "primevue/textarea"
 import Dropdown from "primevue/dropdown"
 import Card from "primevue/card"
 import ParticipationDraw from "./ParticipationDraw.vue"
-import { onMounted, ref } from "vue";
+import { ref } from "vue";
 import { useParticipationStore, type CenterLocation } from "../../store/participation";
 import { type Feature, type FeatureCollection } from "geojson";
 import { useMapStore } from "../../store/map";
@@ -117,9 +117,6 @@ function createFeedbackLayer(): void{
         console.error(error)
     })
 }
-onMounted(()=>{
-    createFeedbackLayer()
-})
 function sendFeedback(): void{
     // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
     if (!mapStore.map.getSource("feedbackLayer")) {
