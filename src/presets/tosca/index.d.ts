@@ -18,6 +18,7 @@ export interface Preset {
     dialog: any;
     toast: any;
     tag: any;
+    textarea: any;
 }
 declare const toscaPresets: Preset;
 export default toscaPresets;
