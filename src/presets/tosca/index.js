@@ -17,6 +17,7 @@ import inputswitch from "./inputswitch/index.js";
 import dialog from "./dialog/index.js";
 import toast from "./toast/index.js"
 import tag from "./tag/index.js"
+import textarea from "./textarea/index.js"
 
 export default {
     global,
@@ -37,5 +38,6 @@ export default {
     inputswitch,
     dialog,
     toast,
-    tag
+    tag,
+    textarea
 }
