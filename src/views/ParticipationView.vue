@@ -71,7 +71,7 @@ onMounted(() => {
     })
     // just in case if map is not focused on the kochi, fly to kochi
     useMapStore().map.flyTo({
-        center: [76.268798, 9.978536],
+        center: [import.meta.env.VITE_PARTICIPATION_DEMO_LAT, import.meta.env.VITE_PARTICIPATION_DEMO_LON],
         zoom: 13,
         speed: 1
     })
