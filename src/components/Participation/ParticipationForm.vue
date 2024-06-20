@@ -91,7 +91,7 @@ function createFeedbackLayer(): void{
     const layerStylePoint: Record<string, any> = {
         paint: {
             "circle-color": "#5603fc",
-            "circle-radius": 12,
+            "circle-radius": 8,
         },
     };
     const src: FeatureCollection = {
