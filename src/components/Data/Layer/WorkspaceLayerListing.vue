@@ -11,7 +11,7 @@
 import InlineMessage from "primevue/inlinemessage";
 // Components
 import WorkspaceLayerListingItem from "./WorkspaceLayerListingItem.vue";
-import { type GeoserverLayerListItem } from "../store/geoserver";
+import { type GeoserverLayerListItem } from "@store/geoserver";
 export interface Props {
     list: GeoserverLayerListItem[] | undefined
     workspaceName: string

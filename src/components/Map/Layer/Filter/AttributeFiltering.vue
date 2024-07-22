@@ -88,10 +88,10 @@ import Column from "primevue/column";
 import InlineMessage from "primevue/inlinemessage";
 import InputText from "primevue/inputtext";
 import { computed, ref } from "vue";
-import { type GeoServerFeatureTypeAttribute } from "../store/geoserver";
-import { type IntegerFilters, type StringFilters, useFilterStore, type RelationTypes, type AttributeFilterItem } from "../store/filter";
-import { type LayerObjectWithAttributes, useMapStore } from "../store/map";
-import { isNullOrEmpty } from "../core/helpers/functions"
+import { type GeoServerFeatureTypeAttribute } from "@store/geoserver";
+import { type IntegerFilters, type StringFilters, useFilterStore, type RelationTypes, type AttributeFilterItem } from "@store/filter";
+import { type LayerObjectWithAttributes, useMapStore } from "@store/map";
+import { isNullOrEmpty } from "@helpers/functions"
 import { useToast } from "primevue/usetoast";
 type OptionKey = keyof typeof filterStore.filterNames
 interface Props {

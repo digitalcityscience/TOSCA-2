@@ -50,9 +50,9 @@ import OverlayPanel from "primevue/overlaypanel";
 import Button from "primevue/button";
 import InputText from "primevue/inputtext";
 import { ref } from "vue";
-import { useDrawStore } from "../store/draw"
-import { useMapStore } from "../store/map";
-import { DrawControl } from "../core/helpers/drawControl";
+import { useDrawStore } from "@store/draw"
+import { useMapStore } from "@store/map";
+import { DrawControl } from "@helpers/drawControl";
 const mapStore = useMapStore()
 const drawTool = useDrawStore()
 // Overlay Panel operations

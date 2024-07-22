@@ -18,7 +18,7 @@
 </template>
 
 <script setup lang="ts">
-import BaseSidebarComponent from "../BaseSidebarComponent.vue"
+import BaseSidebarComponent from "@components/Base/BaseSidebarComponent.vue"
 import Panel from "primevue/panel"
 import ParticipationForm from "./ParticipationForm.vue"
 import { SidebarControl } from "../../core/helpers/sidebarControl";

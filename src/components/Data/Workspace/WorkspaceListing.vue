@@ -26,13 +26,13 @@
 import Accordion from "primevue/accordion";
 import AccordionTab from "primevue/accordiontab";
 import InlineMessage from "primevue/inlinemessage";
-import BaseSidebarComponent from "./BaseSidebarComponent.vue";
+import BaseSidebarComponent from "@components/Base/BaseSidebarComponent.vue";
 import WorkspaceListingItem from "./WorkspaceListingItem.vue";
 // JS-TS imports
-import { type WorkspaceListItem } from "../store/geoserver";
+import { type WorkspaceListItem } from "@store/geoserver";
 
-import { SidebarControl } from "../core/helpers/sidebarControl";
-import { useMapStore } from "../store/map";
+import { SidebarControl } from "@helpers/sidebarControl";
+import { useMapStore } from "@store/map";
 import { RouterLink } from "vue-router";
 export interface Props {
     workspaces: WorkspaceListItem[] | undefined

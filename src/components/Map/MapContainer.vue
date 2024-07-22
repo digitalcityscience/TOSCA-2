@@ -6,10 +6,10 @@
 <script setup lang="ts">
 import maplibre, { type MapMouseEvent, type Map } from "maplibre-gl"
 import { h, nextTick, onMounted, ref, render } from "vue";
-import { useMapStore } from "../store/map";
+import { useMapStore } from "@store/map";
 import MapAttributeDialog from "./MapAttributeDialog.vue"
-import { useDrawStore } from "../store/draw";
-import { useParticipationStore } from "../store/participation";
+import { useDrawStore } from "@store/draw";
+import { useParticipationStore } from "@store/participation";
 
 const mapStore = useMapStore()
 const clickedLayers = ref()

@@ -47,14 +47,14 @@ import Dropdown, { type DropdownChangeEvent } from "primevue/dropdown";
 import Card from "primevue/card";
 import Button from "primevue/button";
 import InlineMessage from "primevue/inlinemessage";
-import { type CustomAddLayerObject, useMapStore, type LayerObjectWithAttributes } from "../store/map";
+import { type CustomAddLayerObject, useMapStore, type LayerObjectWithAttributes } from "@store/map";
 import { computed, onMounted, ref } from "vue";
 import bbox from "@turf/bbox"
 import bboxPolygon from "@turf/bbox-polygon"
 import { type FeatureCollection, type Feature } from "geojson";
-import { isNullOrEmpty } from "../core/helpers/functions";
-import { type GeometryFilterItem, useFilterStore } from "../store/filter";
-import { type GeoServerFeatureTypeAttribute } from "../store/geoserver";
+import { isNullOrEmpty } from "@helpers/functions";
+import { type GeometryFilterItem, useFilterStore } from "@store/filter";
+import { type GeoServerFeatureTypeAttribute } from "@store/geoserver";
 import { type LngLatBounds } from "maplibre-gl";
 import booleanWithin from "@turf/boolean-within";
 import { useToast } from "primevue/usetoast";
