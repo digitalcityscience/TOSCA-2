@@ -46,5 +46,17 @@ module.exports = {
         "@typescript-eslint/no-non-null-assertion":"off",
         "vue/no-useless-template-attributes":"off",
         "no-tabs": ["error", { allowIndentationTabs: true }]
-    }
+    },
+    settings: {
+        'import/resolver': {
+          alias: {
+            map: [
+              ['@components', './src/components'],
+              ['@store', './src/store'],
+              ['@helpers', './src/core/helpers'],
+              ['@presets', './src/presets']
+            ],
+          },
+        },
+      },
 }
