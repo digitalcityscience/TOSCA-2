@@ -29,9 +29,9 @@
 import Card from "primevue/card";
 import Accordion from "primevue/accordion";
 import AccordionTab from "primevue/accordiontab";
-import { useMapStore } from "../store/map"
-import cardPTOptions from "../presets/tosca/card/index.ts"
-import accordPTOptions from "../presets/tosca/accordion/index.ts"
+import { useMapStore } from "@store/map"
+import cardPTOptions from "@presets/tosca/card/index.ts"
+import accordPTOptions from "@presets/tosca/accordion/index.ts"
 import { computed } from "vue";
 import { type MapGeoJSONFeature } from "maplibre-gl";
 

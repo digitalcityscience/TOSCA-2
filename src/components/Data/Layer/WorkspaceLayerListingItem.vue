@@ -33,10 +33,10 @@ import { computed, ref } from "vue";
 import Tag from "primevue/tag";
 import Button from "primevue/button"
 import InlineMessage from "primevue/inlinemessage";
-import { type GeoServerFeatureType, type GeoserverLayerInfo, type GeoserverLayerListItem, useGeoserverStore } from "../store/geoserver";
-import { type LayerStyleOptions, useMapStore } from "../store/map";
+import { type GeoServerFeatureType, type GeoserverLayerInfo, type GeoserverLayerListItem, useGeoserverStore } from "@store/geoserver";
+import { type LayerStyleOptions, useMapStore } from "@store/map";
 import Card from "primevue/card";
-import { isNullOrEmpty } from "../core/helpers/functions";
+import { isNullOrEmpty } from "../../../core/helpers/functions";
 import { useToast } from "primevue/usetoast";
 
 export interface Props {

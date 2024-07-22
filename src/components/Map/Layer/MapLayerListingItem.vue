@@ -41,7 +41,7 @@
 
 <script setup lang="ts">
 import { defineAsyncComponent, onMounted, ref } from "vue";
-import { type LayerObjectWithAttributes, useMapStore } from "../store/map"
+import { type LayerObjectWithAttributes, useMapStore } from "@store/map"
 import Panel from "primevue/panel";
 import ColorPicker from "primevue/colorpicker";
 import Slider from "primevue/slider";
@@ -49,10 +49,10 @@ import InputSwitch from "primevue/inputswitch";
 import Button from "primevue/button"
 import Dialog from "primevue/dialog";
 import { useToast } from "primevue/usetoast";
-import AttributeFiltering from "./AttributeFiltering.vue";
-import { isNullOrEmpty } from "../core/helpers/functions";
+import AttributeFiltering from "./Filter/AttributeFiltering.vue";
+import { isNullOrEmpty } from "@helpers/functions";
 
-const GeometryFiltering = defineAsyncComponent(async () => await import("../components/GeometryFiltering.vue"));
+const GeometryFiltering = defineAsyncComponent(async () => await import("@components/Map/Layer/Filter/GeometryFiltering.vue"));
 
 export interface Props {
     layer: LayerObjectWithAttributes

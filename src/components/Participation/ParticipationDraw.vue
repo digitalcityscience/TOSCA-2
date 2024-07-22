@@ -31,9 +31,9 @@
 <script setup lang="ts">
 import Button from "primevue/button"
 import RadioButton from "primevue/radiobutton";
-import ChipWrapper from "../ChipWrapper.vue"
-import { useDrawStore } from "../../store/draw"
-import { useParticipationStore } from "../../store/participation";
+import ChipWrapper from "@components/Base/ChipWrapper.vue"
+import { useDrawStore } from "@store/draw"
+import { useParticipationStore } from "@store/participation";
 import { type Feature } from "geojson"
 import { ref } from "vue";
 

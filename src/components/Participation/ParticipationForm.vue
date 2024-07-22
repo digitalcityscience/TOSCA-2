@@ -47,9 +47,9 @@ import Dropdown from "primevue/dropdown"
 import Card from "primevue/card"
 import ParticipationDraw from "./ParticipationDraw.vue"
 import { ref } from "vue";
-import { useParticipationStore, type CenterLocation } from "../../store/participation";
+import { useParticipationStore, type CenterLocation } from "@store/participation";
 import { type Feature, type FeatureCollection } from "geojson";
-import { useMapStore } from "../../store/map";
+import { useMapStore } from "@store/map";
 
 const mapStore = useMapStore()
 const participation = useParticipationStore()
