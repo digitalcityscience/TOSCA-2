@@ -34,7 +34,7 @@ import Tag from "primevue/tag";
 import Button from "primevue/button"
 import InlineMessage from "primevue/inlinemessage";
 import { type GeoServerFeatureType, type GeoserverLayerInfo, type GeoserverLayerListItem, useGeoserverStore } from "@store/geoserver";
-import { type LayerStyleOptions, useMapStore } from "@store/map";
+import { type LayerParams, type LayerStyleOptions, useMapStore } from "@store/map";
 import Card from "primevue/card";
 import { isNullOrEmpty } from "../../../core/helpers/functions";
 import { useToast } from "primevue/usetoast";
@@ -110,17 +110,16 @@ function add2Map(): void{
             props.workspace,
             layerDetail.value).then(() => {
             if (!isNullOrEmpty(dataType) && !isNullOrEmpty(layerDetail.value)) {
-                mapStore.addMapLayer(
-                    "geoserver",
-                    layerDetail.value!.featureType.name,
-                    mapStore.geometryConversion(dataType.value),
-                    !isNullOrEmpty(layerStyling.value) ? { ...layerStyling.value }: undefined,
-                    layerDetail.value,
-                    `${layerDetail.value!.featureType.name}`,
-                    undefined,
-                    false,
-                    layerDetail.value?.featureType.title ?? undefined
-                ).then(()=>{
+                const layerParams: LayerParams = {
+                    sourceType:"geoserver",
+                    identifier:layerDetail.value!.featureType.name,
+                    layerType:mapStore.geometryConversion(dataType.value),
+                    layerStyle:!isNullOrEmpty(layerStyling.value) ? { ...layerStyling.value }: undefined,
+                    geoserverLayerDetails:layerDetail.value!,
+                    sourceLayer:`${layerDetail.value!.featureType.name}`,
+                    displayName:layerDetail.value?.featureType.title ?? undefined
+                }
+                mapStore.addMapLayer(layerParams).then(()=>{
                 }).catch(error => {
                     toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
                 })

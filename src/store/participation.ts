@@ -1,7 +1,7 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
 import { type FeatureCollection, type Feature } from "geojson";
-import { useMapStore } from "./map";
+import { type LayerParams, useMapStore } from "./map";
 import { type Map } from "maplibre-gl";
 import {
     TerraDraw,
@@ -109,20 +109,18 @@ export const useParticipationStore = defineStore("participation", () => {
                 features
             )
             .then(() => {
+                const layerParamsPolygon: LayerParams = {
+                    sourceType:"geojson",
+                    identifier:"selectedAreasTempLayer-polygon",
+                    layerType:"fill",
+                    layerStyle:layerStylePolygon,
+                    geoJSONSrc:features,
+                    isFilterLayer:false,
+                    sourceIdentifier:"selectedAreasTempLayer",
+                    showOnLayerList:false
+                }
                 mapStore
-                    .addMapLayer(
-                        "geojson",
-                        "selectedAreasTempLayer-polygon",
-                        "fill",
-                        layerStylePolygon,
-                        undefined,
-                        undefined,
-                        features,
-                        false,
-                        undefined,
-                        "selectedAreasTempLayer",
-                        false
-                    )
+                    .addMapLayer(layerParamsPolygon)
                     .then(() => {
                         mapStore.map.setFilter(
                             "selectedAreasTempLayer-polygon",
@@ -132,20 +130,18 @@ export const useParticipationStore = defineStore("participation", () => {
                     .catch((error) => {
                         console.error(error);
                     });
+                const layerParamsLine: LayerParams = {
+                    sourceType:"geojson",
+                    identifier:"selectedAreasTempLayer-line",
+                    layerType:"line",
+                    layerStyle:layerStyleLine,
+                    geoJSONSrc:features,
+                    isFilterLayer:false,
+                    sourceIdentifier:"selectedAreasTempLayer",
+                    showOnLayerList:false
+                }
                 mapStore
-                    .addMapLayer(
-                        "geojson",
-                        "selectedAreasTempLayer-line",
-                        "line",
-                        layerStyleLine,
-                        undefined,
-                        undefined,
-                        features,
-                        false,
-                        undefined,
-                        "selectedAreasTempLayer",
-                        false
-                    )
+                    .addMapLayer(layerParamsLine)
                     .then(() => {
                         mapStore.map.setFilter("selectedAreasTempLayer-line", [
                             "==",
@@ -156,20 +152,18 @@ export const useParticipationStore = defineStore("participation", () => {
                     .catch((error) => {
                         console.error(error);
                     });
+                const layerParamsPoint: LayerParams = {
+                    sourceType:"geojson",
+                    identifier:"selectedAreasTempLayer-point",
+                    layerType:"circle",
+                    layerStyle:layerStylePoint,
+                    geoJSONSrc:features,
+                    isFilterLayer:false,
+                    sourceIdentifier:"selectedAreasTempLayer",
+                    showOnLayerList:false
+                }
                 mapStore
-                    .addMapLayer(
-                        "geojson",
-                        "selectedAreasTempLayer-point",
-                        "circle",
-                        layerStylePoint,
-                        undefined,
-                        undefined,
-                        features,
-                        false,
-                        undefined,
-                        "selectedAreasTempLayer",
-                        false
-                    )
+                    .addMapLayer(layerParamsPoint)
                     .then(() => {
                         mapStore.map.setFilter("selectedAreasTempLayer-point", [
                             "==",
@@ -251,12 +245,16 @@ export const useParticipationStore = defineStore("participation", () => {
         // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
         if (!mapStore.map.getSource("centerSelectionLayer")) {
             mapStore.addMapDataSource("geojson", "centerSelectionLayer", false, undefined, undefined, src).then(()=>{
-                mapStore.addMapLayer(
-                    "geojson",
-                    "centerSelectionLayer",
-                    "circle",
-                    layerStylePoint,
-                    undefined, undefined, src, false, undefined, undefined, false).then(()=>{}).catch((error)=>{
+                const layerParams: LayerParams = {
+                    sourceType:"geojson",
+                    identifier:"centerSelectionLayer",
+                    layerType:"circle",
+                    layerStyle:layerStylePoint,
+                    geoJSONSrc:src,
+                    isFilterLayer:false,
+                    showOnLayerList:false
+                }
+                mapStore.addMapLayer(layerParams).then(()=>{}).catch((error)=>{
                     console.error(error)
                 })
             }).catch((error)=>{
