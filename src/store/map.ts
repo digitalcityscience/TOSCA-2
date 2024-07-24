@@ -32,6 +32,26 @@ export interface LayerObjectWithAttributes extends CustomAddLayerObject {
 type SourceType = "geojson"|"geoserver"
 export type MapLibreLayerTypes = "fill" | "line" | "symbol" | "circle" | "heatmap" | "fill-extrusion" | "raster" | "hillshade" | "background";
 
+interface BaseLayerParams {
+	sourceType: SourceType;
+	identifier: string;
+	layerType: MapLibreLayerTypes;
+	layerStyle?: LayerStyleOptions;
+	displayName?: string;
+	sourceIdentifier?: string;
+	showOnLayerList?: boolean;
+}
+interface GeoJSONLayerParams extends BaseLayerParams {
+	sourceType: "geojson";
+	geoJSONSrc: FeatureCollection;
+	isFilterLayer: boolean;
+}
+interface GeoServerLayerParams extends BaseLayerParams {
+	sourceType: "geoserver";
+	geoserverLayerDetails: GeoServerFeatureType;
+	sourceLayer?: string;
+}
+export type LayerParams = GeoJSONLayerParams|GeoServerLayerParams;
 export const useMapStore = defineStore("map", () => {
 	const toast = useToast()
 	const map = ref<any>();
@@ -126,36 +146,34 @@ export const useMapStore = defineStore("map", () => {
 	/**
 	 * Asynchronously adds a new layer to a Maplibre map based on the provided parameters. This function supports adding
 	 * layers from GeoServer or GeoJSON data sources. It allows for customization of the layer's appearance through
-	 * Maplibre style options and can tag layers as filter layers for geometry filtering.
+	 * Maplibre style options and can tag layers as filter layers for geometry filtering. It also allows for appearance of layer
+	 * on map layer list.
 	 *
-	 * @param {SourceType} sourceType - Specifies the type of the data source for the layer; either "geojson" or "geoserver".
-	 * @param {string} identifier - A unique identifier for the layer. This ID is used for adding, accessing, and manipulating the layer within the map instance.
-	 * @param {MapLibreLayerTypes} layerType - The type of the layer, determining how the source data is rendered (e.g., "circle", "line", "fill").
-	 * @param {LayerStyleOptions} [layerStyle] - Optional style options for customizing the appearance of the layer according to Maplibre's style specification.
-	 * @param {GeoServerFeatureType} [geoserverLayerDetails] - Required for GeoServer sourced layers; includes details necessary for attribute listing.
-	 * @param {string} [sourceLayer] - Specifies the target layer within a vector tile source. Required for vector tile sources containing multiple layers.
-	 * @param {FeatureCollection} [geoJSONSrc] - GeoJSON data for the layer. Required if the source type is "geojson" and isFilterLayer is true.
-	 * @param {boolean} [isFilterLayer=false] - If true, marks the layer as a filter layer, which can be used for geometry filtering. Default is false.
-	 * @param {string} [displayName] - Optional display name for the layer, used for UI purposes.
-	 * @param {string} [sourceIdentifier] - Optional source identifier if the source is already added to the map.
-	 * @param {boolean} [showOnLayerList=true] - If true, the layer will be shown in the layer list UI. Default is true.
-	 * @returns {Promise<any|undefined>} A promise that resolves with the added layer object if the addition is successful, or rejects with an error message if it fails.
+	 * @param {LayerParams} params - The parameters for adding the layer, encapsulated in an object.
+	 * @param {SourceType} params.sourceType - Specifies the type of the data source for the layer; either "geojson" or "geoserver".
+	 * @param {string} params.identifier - A unique identifier for the layer. This ID is used for adding, accessing, and manipulating the layer within the map instance.
+	 * @param {MapLibreLayerTypes} params.layerType - The type of the layer, determining how the source data is rendered (e.g., "circle", "line", "fill").
+	 * @param {LayerStyleOptions} [params.layerStyle] - Optional style options for customizing the appearance of the layer according to Maplibre's style specification.
+	 * @param {GeoServerFeatureType} [params.geoserverLayerDetails] - Required for GeoServer sourced layers; includes details necessary for attribute listing.
+	 * @param {string} [params.sourceLayer] - Specifies the target layer within a vector tile source. Required for vector tile sources containing multiple layers.
+	 * @param {FeatureCollection} [params.geoJSONSrc] - GeoJSON data for the layer. Required if the source type is "geojson" and isFilterLayer is true.
+	 * @param {boolean} [params.isFilterLayer=false] - If true, marks the layer as a filter layer, which can be used for geometry filtering. Default is false.
+	 * @param {string} [params.displayName] - Optional display name for the layer, used for UI purposes.
+	 * @param {string} [params.sourceIdentifier] - Optional source identifier if the source is already added to the map.
+	 * @param {boolean} [params.showOnLayerList=true] - If true, the layer will be shown in the layer list UI. Default is true.
+	 * @returns {Promise<AddLayerObject | undefined>} A promise that resolves with the added layer object if the addition is successful, or rejects with an error message if it fails.
 	 * @throws {Error} Throws an error if the map is not initialized, if required parameters are missing, or if the layer cannot be added.
 	 */
-	async function addMapLayer(
-		sourceType: SourceType,
-		identifier: string,
-		layerType: MapLibreLayerTypes,
-		layerStyle?: LayerStyleOptions,
-		geoserverLayerDetails?: GeoServerFeatureType,
-		sourceLayer?: string,
-		geoJSONSrc?: FeatureCollection,
-		isFilterLayer: boolean=false,
-		displayName?: string,
-		sourceIdentifier?: string,
-		showOnLayerList: boolean=true,
-
-	): Promise<any|undefined>{
+	async function addMapLayer(params: LayerParams): Promise<AddLayerObject | undefined> {
+		const {
+			sourceType,
+			identifier,
+			layerType,
+			layerStyle,
+			displayName,
+			sourceIdentifier,
+			showOnLayerList = true
+		} = params;
 		if (isNullOrEmpty(map.value)) {
 			throw new Error("There is no map to add layer");
 		}
@@ -163,23 +181,16 @@ export const useMapStore = defineStore("map", () => {
 			throw new Error("Identifier is required to add layer");
 		}
 		// Additional validation for geoserver source type
-		if (sourceType === "geoserver" && geoserverLayerDetails === undefined) {
+		if (sourceType === "geoserver" && !("geoserverLayerDetails" in params)) {
 		throw new Error("Layer details required to add geoserver layers");
 		}
 		// Additional validation for geojson source type
-		if (sourceType === "geojson" && geoJSONSrc === undefined) {
+		if (sourceType === "geojson" && !("geoJSONSrc" in params)) {
 		throw new Error("GeoJSON data required to add GeoJSON layers");
 		}
 		const styling = generateStyling(layerType, layerStyle);
+		const source = sourceIdentifier ?? (sourceType === "geojson" && params.isFilterLayer ? `drawn-${identifier}` : identifier)
 
-		let source;
-		if (sourceIdentifier !== undefined) {
-			source = sourceIdentifier;
-		} else if (sourceType === "geojson") {
-			source = isFilterLayer ? `drawn-${identifier}` : identifier;
-		} else {
-			source = identifier;
-		}
 		const layerObject: CustomAddLayerObject = {
 			id: identifier,
 			source,
@@ -187,8 +198,8 @@ export const useMapStore = defineStore("map", () => {
 			showOnLayerList,
 			...styling,
 			// Conditional properties
-			...(sourceLayer !== undefined && sourceLayer !== "" ? { "source-layer": sourceLayer } : {}),
-			...(isFilterLayer ? { filterLayer: isFilterLayer, filterLayerData: geoJSONSrc } : {}),
+			...(sourceType === "geoserver" && (params.sourceLayer != null) ? { "source-layer": params.sourceLayer } : {}),
+			...(sourceType === "geojson" && params.isFilterLayer ? { filterLayer: params.isFilterLayer, filterLayerData: params.geoJSONSrc } : {}),
 			...(displayName !== undefined && displayName !== "" ? { displayName }:{})
 		};
 		// add layer object to map
@@ -197,7 +208,7 @@ export const useMapStore = defineStore("map", () => {
 			throw new Error(`Couldn't add requested layer: ${identifier}`);
 		}
 		if (sourceType === "geoserver") {
-			(layerObject as LayerObjectWithAttributes).details = geoserverLayerDetails;
+			(layerObject as LayerObjectWithAttributes).details = params.geoserverLayerDetails;
 		}
 		add2MapLayerList(layerObject as LayerObjectWithAttributes);
 		return await Promise.resolve(map.value.getLayer(identifier));
@@ -297,7 +308,9 @@ export const useMapStore = defineStore("map", () => {
 	 */
 	function add2MapLayerList(layerObject: LayerObjectWithAttributes): void {
 		layersOnMap.value.push(layerObject);
-		toast.add({ severity: "success", summary: "Success", detail: `Layer ${layerObject.displayName ?? layerObject.id} added successfully`, life: 3000 });
+		if (layerObject.showOnLayerList !== undefined && layerObject.showOnLayerList) {
+			toast.add({ severity: "success", summary: "Success", detail: `Layer ${layerObject.displayName ?? layerObject.id} added successfully`, life: 3000 });
+		}
 	}
 	/**
 	 * Removes a layer from the layersOnMap list based on its identifier.
@@ -307,8 +320,10 @@ export const useMapStore = defineStore("map", () => {
 	function removeFromMapLayerList(identifier: string): void {
 		const index = layersOnMap.value.findIndex(layer => layer.id === identifier);
 		if (index !== -1) {
-		layersOnMap.value.splice(index, 1);
-		toast.add({ severity: "success", summary: "Success", detail: `Layer ${identifier} removed successfully`, life: 3000 });
+		const removedLayer = layersOnMap.value.splice(index, 1);
+		if (removedLayer[0].showOnLayerList !== undefined && removedLayer[0].showOnLayerList) {
+			toast.add({ severity: "success", summary: "Success", detail: `Layer ${identifier} removed successfully`, life: 3000 });
+		}
 		} else {
 		throw new Error(`Layer with identifier ${identifier} not found in layer list`);
 		}

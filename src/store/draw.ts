@@ -1,7 +1,7 @@
 import { defineStore, acceptHMRUpdate } from "pinia"
 import { TerraDraw, TerraDrawLineStringMode, TerraDrawMapLibreGLAdapter, TerraDrawPointMode, TerraDrawPolygonMode, TerraDrawRectangleMode, TerraDrawSelectMode } from "terra-draw"
 import { ref } from "vue";
-import { useMapStore } from "./map";
+import { type LayerParams, useMapStore } from "./map";
 import { type Map } from "maplibre-gl"
 import { type Feature, type FeatureCollection } from "geojson";
 import { useToast } from "primevue/usetoast";
@@ -136,16 +136,15 @@ export const useDrawStore = defineStore("draw", () => {
                     undefined,
                     geoJsonSnapshot
                 ).then(() => {
-                    mapStore.addMapLayer(
-                        "geojson",
-                        processedLayerName,
-                        geomType,
-                        undefined,
-                        undefined,
-                        undefined,
-                        geoJsonSnapshot,
+                    const layerParams: LayerParams = {
+                        sourceType:"geojson",
+                        identifier:processedLayerName,
+                        layerType:geomType,
+                        geoJSONSrc:geoJsonSnapshot,
                         isFilterLayer,
-                        layerName.value)
+                        displayName:layerName.value,
+                    }
+                    mapStore.addMapLayer(layerParams)
                         .then(() => {
                             stopDrawMode()
                         }).catch(error => {

@@ -6,7 +6,7 @@
 import { onMounted } from "vue";
 import ParticipationSidebar from "../components/Participation/ParticipationSidebar.vue"
 import sidebarConfig from "../configurations/sidebars"
-import { useMapStore } from "../store/map"
+import { type LayerParams, useMapStore } from "../store/map"
 import { type GeoserverLayerListItem, useGeoserverStore } from "../store/geoserver";
 import { useToast } from "primevue/usetoast";
 import { isNullOrEmpty } from "../core/helpers/functions";
@@ -42,17 +42,15 @@ onMounted(() => {
                         workspace,
                         detail).then(() => {
                         if (!isNullOrEmpty(dataType) && !isNullOrEmpty(detail)) {
-                            mapStore.addMapLayer(
-                                "geoserver",
-                                detail.featureType.name,
-                                mapStore.geometryConversion(dataType),
-                                undefined,
-                                detail,
-                                `${detail.featureType.name}`,
-                                undefined,
-                                false,
-                                detail?.featureType.title ?? undefined
-                            ).then(() => {
+                            const layerParams: LayerParams = {
+                                sourceType:"geoserver",
+                                identifier:detail.featureType.name,
+                                layerType:mapStore.geometryConversion(dataType),
+                                geoserverLayerDetails:detail,
+                                sourceLayer:`${detail.featureType.name}`,
+                                displayName:detail?.featureType.title ?? undefined
+                            }
+                            mapStore.addMapLayer(layerParams).then(() => {
                                 console.log(mapStore.map.getStyle().layers)
                             }).catch(error => {
                                 toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
