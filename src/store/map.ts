@@ -12,7 +12,7 @@ export interface LayerStyleOptions {
 	layout?: Record<string, unknown>;
 	minzoom?: number;
 	maxzoom?: number;
-	visibility?: "none"|"visible"
+	visibility?: "none" | "visible";
 }
 export interface CustomAddLayerObject {
 	id: string;
@@ -22,15 +22,24 @@ export interface CustomAddLayerObject {
 	paint?: Record<string, unknown>;
 	layout?: Record<string, unknown>;
 	filterLayer?: boolean;
-	filterLayerData?: FeatureCollection
-	displayName?: string,
-	showOnLayerList?: boolean
+	filterLayerData?: FeatureCollection;
+	displayName?: string;
+	showOnLayerList?: boolean;
 }
 export interface LayerObjectWithAttributes extends CustomAddLayerObject {
 	details?: GeoServerFeatureType;
 }
-type SourceType = "geojson"|"geoserver"
-export type MapLibreLayerTypes = "fill" | "line" | "symbol" | "circle" | "heatmap" | "fill-extrusion" | "raster" | "hillshade" | "background";
+type SourceType = "geojson" | "geoserver";
+export type MapLibreLayerTypes =
+	| "fill"
+	| "line"
+	| "symbol"
+	| "circle"
+	| "heatmap"
+	| "fill-extrusion"
+	| "raster"
+	| "hillshade"
+	| "background";
 
 interface BaseLayerParams {
 	sourceType: SourceType;
@@ -51,30 +60,68 @@ interface GeoServerLayerParams extends BaseLayerParams {
 	geoserverLayerDetails: GeoServerFeatureType;
 	sourceLayer?: string;
 }
-export type LayerParams = GeoJSONLayerParams|GeoServerLayerParams;
+export type LayerParams = GeoJSONLayerParams | GeoServerLayerParams;
+export interface BaseDataSourceParams {
+	sourceType: SourceType;
+	identifier: string;
+	isFilterLayer: boolean;
+}
+export interface GeoServerSourceParams extends BaseDataSourceParams {
+	sourceType: "geoserver";
+	workspaceName: string;
+	layer: GeoServerFeatureType;
+}
+export interface GeoJSONSourceParams extends BaseDataSourceParams {
+	sourceType: "geojson";
+	geoJSONSrc: FeatureCollection;
+}
+export type SourceParams = GeoJSONSourceParams | GeoServerSourceParams;
 export const useMapStore = defineStore("map", () => {
-	const toast = useToast()
+	const toast = useToast();
 	const map = ref<any>();
 	const layersOnMap = ref<LayerObjectWithAttributes[]>([]);
 	/**
 	 * Asynchronously adds a new data source to Maplibre map sources. The source can be either GeoJSON data or a Geoserver vector tile source.
-	 * @param {SourceType} sourceType - Specifies the type of the data source; either "geojson" or "geoserver".
-	 * @param {string} identifier - The unique identifier for the source to add.
-	 * @param {boolean} isFilterLayer - If true, the source is tagged as user-drawn data, which can be used as a filter layer for geometry filtering.
-	 * @param {string} [workspaceName] - The workspace name for the Geoserver source. Required only for Geoserver sources.
-	 * @param {GeoServerFeatureType} [layer] - The layer details. Required only for Geoserver sources.
-	 * @param {FeatureCollection} [geoJSONSrc] - The GeoJSON data for the source. Required only for GeoJSON sources.
+	 * @param {SourceParams} sourceParams - The parameters for the source to add.
+	 * @param {SourceType} params.sourceType - Specifies the type of the data source; either "geojson" or "geoserver".
+	 * @param {string} params.identifier - The unique identifier for the source to add.
+	 * @param {boolean} params.isFilterLayer - If true, the source is tagged as user-drawn data, which can be used as a filter layer for geometry filtering.
+	 * @param {string} [params.workspaceName] - The workspace name for the Geoserver source. Required only for Geoserver sources.
+	 * @param {GeoServerFeatureType} [params.layer] - The layer details. Required only for Geoserver sources.
+	 * @param {FeatureCollection} [params.geoJSONSrc] - The GeoJSON data for the source. Required only for GeoJSON sources.
 	 * @returns {Promise<SourceSpecification>} A promise that resolves to the added source specification if successful, or rejects with an error.
 	 * @throws {Error} Throws an error if the map is not initialized, if required parameters are missing, or if adding the source fails.
+	 *
+	 * @example
+	 * ```typescript
+	 * // Adding a GeoJSON source
+	 * const geoJSONSourceParams: GeoJSONSourceParams = {
+	 *     sourceType: "geojson",
+	 *     identifier: "myGeoJSONSource",
+	 *     isFilterLayer: false,
+	 *     geoJSONSrc: myGeoJSONData
+	 * };
+	 * addMapDataSource(geoJSONSourceParams)
+	 *     .then(sourceSpec => console.log('GeoJSON source added:', sourceSpec))
+	 *     .catch(error => console.error('Error adding GeoJSON source:', error));
+	 *
+	 * // Adding a Geoserver source
+	 * const geoServerSourceParams: GeoServerSourceParams = {
+	 *     sourceType: "geoserver",
+	 *     identifier: "myGeoserverSource",
+	 *     isFilterLayer: false,
+	 *     workspaceName: "myWorkspace",
+	 *     layer: myGeoserverLayerDetails
+	 * };
+	 * addMapDataSource(geoServerSourceParams)
+	 *     .then(sourceSpec => console.log('Geoserver source added:', sourceSpec))
+	 *     .catch(error => console.error('Error adding Geoserver source:', error));
+	 * ```
 	 */
 	async function addMapDataSource(
-		sourceType: SourceType,
-		identifier: string,
-		isFilterLayer: boolean,
-		workspaceName?: string,
-		layer?: GeoServerFeatureType,
-		geoJSONSrc?: FeatureCollection
+		params: SourceParams
 	): Promise<SourceSpecification> {
+		const { sourceType, identifier, isFilterLayer } = params;
 		if (isNullOrEmpty(map.value)) {
 			throw new Error("There is no map to add source");
 		}
@@ -82,18 +129,25 @@ export const useMapStore = defineStore("map", () => {
 			throw new Error("Identifier is required to add source");
 		}
 		if (sourceType === "geoserver") {
-			if (layer === undefined) {
-				throw new Error("Layer information required to add geoserver sources");
+			if (params.layer === undefined) {
+				throw new Error(
+					"Layer information required to add geoserver sources"
+				);
 			}
-			if (workspaceName === undefined || workspaceName === "") {
-				throw new Error("Workspace name required to add geoserver sources");
+			if (
+				params.workspaceName === undefined ||
+				params.workspaceName === ""
+			) {
+				throw new Error(
+					"Workspace name required to add geoserver sources"
+				);
 			}
 			map.value.addSource(identifier, {
 				type: "vector",
 				tiles: [
 					`${import.meta.env.VITE_GEOSERVER_BASE_URL}/gwc/service/wmts
 					?REQUEST=GetTile&SERVICE=WMTS&VERSION=1.0.0
-					&LAYER=${workspaceName}:${layer.featureType.name}
+					&LAYER=${params.workspaceName}:${params.layer.featureType.name}
 					&STYLE=
 					&TILEMATRIX=EPSG:900913:{z}
 					&TILEMATRIXSET=EPSG:900913
@@ -104,16 +158,24 @@ export const useMapStore = defineStore("map", () => {
 			});
 		}
 		if (sourceType === "geojson") {
-			if (geoJSONSrc === undefined) {
+			if (params.geoJSONSrc === undefined) {
 				throw new Error("GeoJSON data required to add GeoJSON sources");
 			}
-			const sourceIdentifier = isFilterLayer ? "drawn-"+identifier : identifier
+			const sourceIdentifier = params.isFilterLayer
+				? "drawn-" + identifier
+				: identifier;
 			map.value.addSource(sourceIdentifier, {
-				type:"geojson",
-				data: geoJSONSrc
-			})
+				type: "geojson",
+				data: params.geoJSONSrc,
+			});
 		}
-		const addedSource = map.value.getSource(sourceType === "geojson" ? isFilterLayer ? "drawn-"+identifier : identifier : identifier);
+		const addedSource = map.value.getSource(
+			sourceType === "geojson"
+				? isFilterLayer
+					? "drawn-" + identifier
+					: identifier
+				: identifier
+		);
 		if (addedSource !== undefined) {
 			console.log(`Source ${identifier} added successfully`);
 			return addedSource as SourceSpecification;
@@ -129,18 +191,20 @@ export const useMapStore = defineStore("map", () => {
 	 */
 	async function deleteMapDataSource(identifier: string): Promise<void> {
 		await new Promise<void>((resolve, reject) => {
-		if (isNullOrEmpty(map.value)) {
-			reject(new Error("There is no map to delete source from"));
-			return;
-		}
-		const source = map.value.getSource(identifier);
-		if (source === undefined) {
-			reject(new Error(`Source with identifier ${identifier} not found`));
-			return;
-		}
-		map.value.removeSource(identifier);
-		console.log(`Source ${identifier} deleted successfully`);
-		resolve();
+			if (isNullOrEmpty(map.value)) {
+				reject(new Error("There is no map to delete source from"));
+				return;
+			}
+			const source = map.value.getSource(identifier);
+			if (source === undefined) {
+				reject(
+					new Error(`Source with identifier ${identifier} not found`)
+				);
+				return;
+			}
+			map.value.removeSource(identifier);
+			console.log(`Source ${identifier} deleted successfully`);
+			resolve();
 		});
 	}
 	/**
@@ -164,7 +228,9 @@ export const useMapStore = defineStore("map", () => {
 	 * @returns {Promise<AddLayerObject | undefined>} A promise that resolves with the added layer object if the addition is successful, or rejects with an error message if it fails.
 	 * @throws {Error} Throws an error if the map is not initialized, if required parameters are missing, or if the layer cannot be added.
 	 */
-	async function addMapLayer(params: LayerParams): Promise<AddLayerObject | undefined> {
+	async function addMapLayer(
+		params: LayerParams
+	): Promise<AddLayerObject | undefined> {
 		const {
 			sourceType,
 			identifier,
@@ -172,7 +238,7 @@ export const useMapStore = defineStore("map", () => {
 			layerStyle,
 			displayName,
 			sourceIdentifier,
-			showOnLayerList = true
+			showOnLayerList = true,
 		} = params;
 		if (isNullOrEmpty(map.value)) {
 			throw new Error("There is no map to add layer");
@@ -181,15 +247,22 @@ export const useMapStore = defineStore("map", () => {
 			throw new Error("Identifier is required to add layer");
 		}
 		// Additional validation for geoserver source type
-		if (sourceType === "geoserver" && !("geoserverLayerDetails" in params)) {
-		throw new Error("Layer details required to add geoserver layers");
+		if (
+			sourceType === "geoserver" &&
+			!("geoserverLayerDetails" in params)
+		) {
+			throw new Error("Layer details required to add geoserver layers");
 		}
 		// Additional validation for geojson source type
 		if (sourceType === "geojson" && !("geoJSONSrc" in params)) {
-		throw new Error("GeoJSON data required to add GeoJSON layers");
+			throw new Error("GeoJSON data required to add GeoJSON layers");
 		}
 		const styling = generateStyling(layerType, layerStyle);
-		const source = sourceIdentifier ?? (sourceType === "geojson" && params.isFilterLayer ? `drawn-${identifier}` : identifier)
+		const source =
+			sourceIdentifier ??
+			(sourceType === "geojson" && params.isFilterLayer
+				? `drawn-${identifier}`
+				: identifier);
 
 		const layerObject: CustomAddLayerObject = {
 			id: identifier,
@@ -198,9 +271,18 @@ export const useMapStore = defineStore("map", () => {
 			showOnLayerList,
 			...styling,
 			// Conditional properties
-			...(sourceType === "geoserver" && (params.sourceLayer != null) ? { "source-layer": params.sourceLayer } : {}),
-			...(sourceType === "geojson" && params.isFilterLayer ? { filterLayer: params.isFilterLayer, filterLayerData: params.geoJSONSrc } : {}),
-			...(displayName !== undefined && displayName !== "" ? { displayName }:{})
+			...(sourceType === "geoserver" && params.sourceLayer != null
+				? { "source-layer": params.sourceLayer }
+				: {}),
+			...(sourceType === "geojson" && params.isFilterLayer
+				? 	{
+						filterLayer: params.isFilterLayer,
+						filterLayerData: params.geoJSONSrc,
+					}
+				: {}),
+			...(displayName !== undefined && displayName !== ""
+				? { displayName }
+				: {}),
 		};
 		// add layer object to map
 		map.value.addLayer(layerObject as AddLayerObject);
@@ -208,7 +290,8 @@ export const useMapStore = defineStore("map", () => {
 			throw new Error(`Couldn't add requested layer: ${identifier}`);
 		}
 		if (sourceType === "geoserver") {
-			(layerObject as LayerObjectWithAttributes).details = params.geoserverLayerDetails;
+			(layerObject as LayerObjectWithAttributes).details =
+				params.geoserverLayerDetails;
 		}
 		add2MapLayerList(layerObject as LayerObjectWithAttributes);
 		return await Promise.resolve(map.value.getLayer(identifier));
@@ -221,25 +304,27 @@ export const useMapStore = defineStore("map", () => {
 	 */
 	async function deleteMapLayer(identifier: string): Promise<void> {
 		await new Promise<void>((resolve, reject) => {
-		if (isNullOrEmpty(map.value)) {
-			reject(new Error("There is no map to delete layer from"));
-			return;
-		}
+			if (isNullOrEmpty(map.value)) {
+				reject(new Error("There is no map to delete layer from"));
+				return;
+			}
 
-		const layer = map.value.getLayer(identifier);
+			const layer = map.value.getLayer(identifier);
 
-		if (layer === undefined) {
-			reject(new Error(`Layer with identifier ${identifier} not found`));
-			return;
-		}
+			if (layer === undefined) {
+				reject(
+					new Error(`Layer with identifier ${identifier} not found`)
+				);
+				return;
+			}
 
-		try {
-			map.value.removeLayer(identifier);
-			removeFromMapLayerList(identifier);
-			resolve();
-		} catch (error) {
-			reject(error);
-		}
+			try {
+				map.value.removeLayer(identifier);
+				removeFromMapLayerList(identifier);
+				resolve();
+			} catch (error) {
+				reject(error);
+			}
 		});
 	}
 	/**
@@ -293,7 +378,10 @@ export const useMapStore = defineStore("map", () => {
 	 * @param {LayerStyleOptions} [layerStyle] - Optional custom style options for the layer. If this includes a 'paint' property, it will be used as the styling; otherwise, default styling based on the layer type will be generated.
 	 * @returns {LayerStyleOptions} The styling object for the MapLibre layer, which includes a 'paint' property among possible others, determined by the input parameters.
 	 */
-	function generateStyling(layerType: MapLibreLayerTypes, layerStyle?: LayerStyleOptions): LayerStyleOptions {
+	function generateStyling(
+		layerType: MapLibreLayerTypes,
+		layerStyle?: LayerStyleOptions
+	): LayerStyleOptions {
 		let styling: LayerStyleOptions = {};
 		const defaultPaint = createRandomPaintObj(layerType);
 		styling = { ...layerStyle };
@@ -308,8 +396,18 @@ export const useMapStore = defineStore("map", () => {
 	 */
 	function add2MapLayerList(layerObject: LayerObjectWithAttributes): void {
 		layersOnMap.value.push(layerObject);
-		if (layerObject.showOnLayerList !== undefined && layerObject.showOnLayerList) {
-			toast.add({ severity: "success", summary: "Success", detail: `Layer ${layerObject.displayName ?? layerObject.id} added successfully`, life: 3000 });
+		if (
+			layerObject.showOnLayerList !== undefined &&
+			layerObject.showOnLayerList
+		) {
+			toast.add({
+				severity: "success",
+				summary: "Success",
+				detail: `Layer ${
+					layerObject.displayName ?? layerObject.id
+				} added successfully`,
+				life: 3000,
+			});
 		}
 	}
 	/**
@@ -318,14 +416,26 @@ export const useMapStore = defineStore("map", () => {
 	 * @throws {Error} Throws an error if the layer cannot be found in the list.
 	 */
 	function removeFromMapLayerList(identifier: string): void {
-		const index = layersOnMap.value.findIndex(layer => layer.id === identifier);
+		const index = layersOnMap.value.findIndex(
+			(layer) => layer.id === identifier
+		);
 		if (index !== -1) {
-		const removedLayer = layersOnMap.value.splice(index, 1);
-		if (removedLayer[0].showOnLayerList !== undefined && removedLayer[0].showOnLayerList) {
-			toast.add({ severity: "success", summary: "Success", detail: `Layer ${identifier} removed successfully`, life: 3000 });
-		}
+			const removedLayer = layersOnMap.value.splice(index, 1);
+			if (
+				removedLayer[0].showOnLayerList !== undefined &&
+				removedLayer[0].showOnLayerList
+			) {
+				toast.add({
+					severity: "success",
+					summary: "Success",
+					detail: `Layer ${identifier} removed successfully`,
+					life: 3000,
+				});
+			}
 		} else {
-		throw new Error(`Layer with identifier ${identifier} not found in layer list`);
+			throw new Error(
+				`Layer with identifier ${identifier} not found in layer list`
+			);
 		}
 	}
 	function createRandomPaintObj(
@@ -363,7 +473,11 @@ export const useMapStore = defineStore("map", () => {
 		if (geometry === "Point" || geometry === "MultiPoint") {
 			return "circle";
 		}
-		if (geometry === "LineString" || geometry === "LinearRing" || geometry === "MultiLineString") {
+		if (
+			geometry === "LineString" ||
+			geometry === "LinearRing" ||
+			geometry === "MultiLineString"
+		) {
 			return "line";
 		}
 		if (

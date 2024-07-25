@@ -49,7 +49,7 @@ import ParticipationDraw from "./ParticipationDraw.vue"
 import { ref } from "vue";
 import { useParticipationStore, type CenterLocation } from "@store/participation";
 import { type Feature, type FeatureCollection } from "geojson";
-import { type LayerParams, useMapStore } from "@store/map";
+import { type GeoJSONSourceParams, type LayerParams, useMapStore } from "@store/map";
 
 const mapStore = useMapStore()
 const participation = useParticipationStore()
@@ -98,7 +98,13 @@ function createFeedbackLayer(): void{
         type:"FeatureCollection",
         features:[]
     }
-    mapStore.addMapDataSource("geojson", "feedbackLayer", false, undefined, undefined, src).then(()=>{
+    const sourceParams: GeoJSONSourceParams={
+        sourceType:"geojson",
+        identifier:"feedbackLayer",
+        isFilterLayer:false,
+        geoJSONSrc:src
+    }
+    mapStore.addMapDataSource(sourceParams).then(()=>{
         const layerParams: LayerParams = {
             sourceType:"geojson",
             identifier:"feedbackLayer",
