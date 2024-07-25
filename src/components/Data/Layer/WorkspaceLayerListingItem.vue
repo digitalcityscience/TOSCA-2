@@ -34,7 +34,7 @@ import Tag from "primevue/tag";
 import Button from "primevue/button"
 import InlineMessage from "primevue/inlinemessage";
 import { type GeoServerFeatureType, type GeoserverLayerInfo, type GeoserverLayerListItem, useGeoserverStore } from "@store/geoserver";
-import { type LayerParams, type LayerStyleOptions, useMapStore } from "@store/map";
+import { type GeoServerSourceParams, type LayerParams, type LayerStyleOptions, useMapStore } from "@store/map";
 import Card from "primevue/card";
 import { isNullOrEmpty } from "../../../core/helpers/functions";
 import { useToast } from "primevue/usetoast";
@@ -103,12 +103,14 @@ const dataType = computed(() => {
 const mapStore = useMapStore()
 function add2Map(): void{
     if (!isNullOrEmpty(layerDetail.value)) {
-        mapStore.addMapDataSource(
-            "geoserver",
-            layerDetail.value!.featureType.name,
-            false,
-            props.workspace,
-            layerDetail.value).then(() => {
+        const sourceParams: GeoServerSourceParams = {
+            sourceType:"geoserver",
+            identifier:layerDetail.value!.featureType.name,
+            isFilterLayer:false,
+            workspaceName:props.workspace,
+            layer:layerDetail.value!
+        }
+        mapStore.addMapDataSource(sourceParams).then(() => {
             if (!isNullOrEmpty(dataType) && !isNullOrEmpty(layerDetail.value)) {
                 const layerParams: LayerParams = {
                     sourceType:"geoserver",

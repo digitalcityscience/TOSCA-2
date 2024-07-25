@@ -6,7 +6,7 @@
 import { onMounted } from "vue";
 import ParticipationSidebar from "../components/Participation/ParticipationSidebar.vue"
 import sidebarConfig from "../configurations/sidebars"
-import { type LayerParams, useMapStore } from "../store/map"
+import { type GeoServerSourceParams, type LayerParams, useMapStore } from "../store/map"
 import { type GeoserverLayerListItem, useGeoserverStore } from "../store/geoserver";
 import { useToast } from "primevue/usetoast";
 import { isNullOrEmpty } from "../core/helpers/functions";
@@ -35,12 +35,14 @@ onMounted(() => {
                 const feature = detail.featureType.attributes.attribute.filter((att) => { return att.name.includes("geom") })
                 const dataType = feature.length > 0 ? feature[0].binding.split(".").slice(-1)[0] : ""
                 if (!isNullOrEmpty(detail)) {
-                    mapStore.addMapDataSource(
-                        "geoserver",
-                        detail.featureType.name,
-                        false,
-                        workspace,
-                        detail).then(() => {
+                    const sourceParams: GeoServerSourceParams = {
+                        sourceType:"geoserver",
+                        identifier:detail.featureType.name,
+                        isFilterLayer:false,
+                        workspaceName:workspace,
+                        layer:detail
+                    }
+                    mapStore.addMapDataSource(sourceParams).then(() => {
                         if (!isNullOrEmpty(dataType) && !isNullOrEmpty(detail)) {
                             const layerParams: LayerParams = {
                                 sourceType:"geoserver",

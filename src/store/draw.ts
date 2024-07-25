@@ -1,7 +1,7 @@
 import { defineStore, acceptHMRUpdate } from "pinia"
 import { TerraDraw, TerraDrawLineStringMode, TerraDrawMapLibreGLAdapter, TerraDrawPointMode, TerraDrawPolygonMode, TerraDrawRectangleMode, TerraDrawSelectMode } from "terra-draw"
 import { ref } from "vue";
-import { type LayerParams, useMapStore } from "./map";
+import { type GeoJSONSourceParams, type LayerParams, useMapStore } from "./map";
 import { type Map } from "maplibre-gl"
 import { type Feature, type FeatureCollection } from "geojson";
 import { useToast } from "primevue/usetoast";
@@ -128,14 +128,13 @@ export const useDrawStore = defineStore("draw", () => {
                 }
                 const geomType = mapStore.geometryConversion(featureList[0].geometry.type)
                 const isFilterLayer = featureList[0].geometry.type === "Polygon"
-                mapStore.addMapDataSource(
-                    "geojson",
-                    processedLayerName,
+                const sourceParams: GeoJSONSourceParams={
+                    sourceType:"geojson",
+                    identifier:processedLayerName,
                     isFilterLayer,
-                    undefined,
-                    undefined,
-                    geoJsonSnapshot
-                ).then(() => {
+                    geoJSONSrc:geoJsonSnapshot
+                }
+                mapStore.addMapDataSource(sourceParams).then(() => {
                     const layerParams: LayerParams = {
                         sourceType:"geojson",
                         identifier:processedLayerName,

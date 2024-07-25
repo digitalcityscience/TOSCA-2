@@ -1,7 +1,7 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
 import { type FeatureCollection, type Feature } from "geojson";
-import { type LayerParams, useMapStore } from "./map";
+import { type GeoJSONSourceParams, type LayerParams, useMapStore } from "./map";
 import { type Map } from "maplibre-gl";
 import {
     TerraDraw,
@@ -99,15 +99,14 @@ export const useParticipationStore = defineStore("participation", () => {
                 "circle-radius": 8,
             },
         };
+        const tempAreaSourceParams: GeoJSONSourceParams={
+            sourceType:"geojson",
+            identifier:"selectedAreasTempLayer",
+            isFilterLayer:false,
+            geoJSONSrc:features
+        }
         mapStore
-            .addMapDataSource(
-                "geojson",
-                "selectedAreasTempLayer",
-                false,
-                undefined,
-                undefined,
-                features
-            )
+            .addMapDataSource(tempAreaSourceParams)
             .then(() => {
                 const layerParamsPolygon: LayerParams = {
                     sourceType:"geojson",
@@ -244,7 +243,13 @@ export const useParticipationStore = defineStore("participation", () => {
         };
         // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
         if (!mapStore.map.getSource("centerSelectionLayer")) {
-            mapStore.addMapDataSource("geojson", "centerSelectionLayer", false, undefined, undefined, src).then(()=>{
+            const centerSelectionSourceParams: GeoJSONSourceParams = {
+                sourceType:"geojson",
+                identifier:"centerSelectionLayer",
+                isFilterLayer:false,
+                geoJSONSrc:src
+            }
+            mapStore.addMapDataSource(centerSelectionSourceParams).then(()=>{
                 const layerParams: LayerParams = {
                     sourceType:"geojson",
                     identifier:"centerSelectionLayer",
