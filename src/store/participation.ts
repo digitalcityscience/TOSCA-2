@@ -13,10 +13,75 @@ export interface CenterLocation {
     lng: number;
     lat: number;
 }
+export type FeedbackStep = "idle" | "location" | "feedback" | "rating";
+export interface CampaignListItem {
+    "campaing_title": string,
+    "campaign_url_name": string,
+    "campaing_short_description": string,
+    "geoserver_layers": string[],
+    "geoserver_workspace": string,
+    "start_date": string,
+    "end_date": string,
+    "total_comment_count": number,
+}
+export interface CampaignDetail {
+    campaign_id: number;
+    campaign_name: string;
+    campaign_url_name: string;
+    allow_drawings: boolean;
+    rate_enabled: boolean;
+    form_enabled: boolean;
+    campaing_title: string;
+    campaing_detailed_description: string;
+    start_date: string; // ISO 8601 date string
+    geoserver_workspace: string;
+    geoserver_layers: string[];
+    end_date: string; // ISO 8601 date string
+    category_type: number;
+    categories: string[];
+}
+// Interface for POST1: Only Rating
+export interface PostRating {
+    type: "POST1";
+    rating: {
+        campaign_id: number;
+        rating: number;
+    };
+}
+
+// Interface for POST2: Only Feedback
+export interface PostFeedback {
+    type: "POST2";
+    feedback: {
+        campaign_id: number;
+        feedback_location: Feature; // Assuming Feature is defined elsewhere
+        feedback_text: string;
+        feedback_category: string;
+        feedback_geometry?: FeatureCollection; // Optional, assuming FeatureCollection is defined elsewhere
+    };
+}
+
+// Interface for POST3: Feedback + Rating
+export interface PostFeedbackRating {
+    type: "POST3";
+    rating: {
+        campaign_id: number;
+        rating: number;
+    };
+    feedback: {
+        campaign_id: number;
+        feedback_location: Feature; // Assuming Feature is defined elsewhere
+        feedback_text: string;
+        feedback_category: string;
+        feedback_geometry?: FeatureCollection; // Optional, assuming FeatureCollection is defined elsewhere
+    };
+}
 export const useParticipationStore = defineStore("participation", () => {
     // Feedback Progression
     const feedbackOnProgress = ref<boolean>(false)
+    const feedbackStep = ref<FeedbackStep>("location")
     const isLocationSelected = ref<boolean>(false)
+    const isCampaignRated = ref<boolean>(false)
 
     const mapStore = useMapStore();
     const drawTool = useDrawStore();
@@ -210,7 +275,7 @@ export const useParticipationStore = defineStore("participation", () => {
         selectedDrawnGeometry.value = [];
     }
     // Feedback Location Selector
-    const selectionOnProgress = ref<boolean>(false);
+    const locationSelectionOnProgress = ref<boolean>(false);
     const pointOfInterest = ref<CenterLocation>();
     const centerSelectDrawer = new TerraDraw({
         adapter: new TerraDrawMapLibreGLAdapter({
@@ -226,7 +291,8 @@ export const useParticipationStore = defineStore("participation", () => {
         ],
     });
     function startCenterSelection(): void {
-        selectionOnProgress.value = true;
+        feedbackStep.value = "location";
+        locationSelectionOnProgress.value = true;
         drawTool.stopDrawMode();
         centerSelectDrawer.start();
         centerSelectDrawer.setMode("point");
@@ -269,20 +335,28 @@ export const useParticipationStore = defineStore("participation", () => {
     }
     function cancelCenterSelection(): void {
         console.log("canceling center selection");
-        selectionOnProgress.value = false;
+        locationSelectionOnProgress.value = false;
         if (centerSelectDrawer.enabled) {
             centerSelectDrawer.setMode("static");
             centerSelectDrawer.off("change", centerSelector);
             centerSelectDrawer.stop();
         }
-        mapStore.map.getSource("centerSelectionLayer").setData({
-            type: "FeatureCollection",
-            features: [],
-        });
+        // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
+        if (mapStore.map.getSource("centerSelectionLayer")){
+            mapStore.map.getSource("centerSelectionLayer").setData({
+                type: "FeatureCollection",
+                features: [],
+            });
+        }
         pointOfInterest.value = undefined;
     }
-    function finishCenterSelection(): void {
-        selectionOnProgress.value = false;
+    function finishCenterSelection(campaign: CampaignDetail): void {
+        if (campaign.rate_enabled) {
+            feedbackStep.value = "rating";
+        } else {
+            feedbackStep.value = "feedback";
+        }
+        locationSelectionOnProgress.value = false;
         centerSelectDrawer.setMode("static");
         centerSelectDrawer.off("change", centerSelector);
         const features = centerSelectDrawer.getSnapshot()[0]
@@ -314,10 +388,80 @@ export const useParticipationStore = defineStore("participation", () => {
         selectedDrawnGeometry.value = [];
         updateSelectedAreasTempLayer();
     }
+    /**
+     * CAMPAIGN OPERATIONS
+     *  This part contains operations related to campaigns. Such as fetching active campaigns and campaign details.
+     */
+    const activeCampaigns = ref<CampaignListItem[]>([]);
+    /**
+     * Retrieves the list of active campaigns.
+     * @returns A promise that resolves to an array of CampaignListItem objects.
+     * @throws An error if there is an issue fetching the campaigns.
+     */
+    async function getActiveCampaigns(): Promise<CampaignListItem[]> {
+        const url = `${import.meta.env.VITE_GEONODE_REST_URL}/v2/cpt/campaigns`;
+        try {
+            const response = await fetch(url, {
+                method: "GET"
+            });
+            return await response.json();
+        } catch (error) {
+            throw new Error(`Error fetching campaigns: ${String(error)}`);
+        }
+    }
+    /**
+     * Populate campaign list
+     */
+    function populateCampaignList(): void {
+        getActiveCampaigns().then((campaigns) => {
+            console.log(campaigns);
+            console.log("Campaigns fetched");
+            activeCampaigns.value = campaigns;
+        }).catch((error) => {
+            console.error(error);
+        });
+    }
+    /**
+     * Retrieves the campaign detail from the specified URL.
+     *
+     * @param campaignURL - The URL of the campaign (campaign_url_name from campaign list item).
+     * @returns A promise that resolves to the campaign detail.
+     * @throws An error if there is an issue fetching the campaign detail.
+     */
+    async function getCampaignDetail(campaignURL: string): Promise<CampaignDetail> {
+        const url = `${import.meta.env.VITE_GEONODE_REST_URL}/v2/cpt/campaigns/${campaignURL}`;
+        try {
+            const response = await fetch(url, {
+                method: "GET"
+            });
+            return await response.json();
+        } catch (error) {
+            throw new Error(`Error fetching campaign detail: ${String(error)}`);
+        }
+    }
+    async function sendFeedback(feed: PostRating|PostFeedback|PostFeedbackRating): Promise<void> {
+        feedbackOnProgress.value = false;
+        locationSelectionOnProgress.value = false;
+        const url = `${import.meta.env.VITE_GEONODE_REST_URL}/v2/cpt/feedback/`;
+        const feedback = await fetch(url, {
+            method: "POST",
+            headers: {
+                Accept: "application/json",
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(feed)
+        });
+        if (!feedback.ok) {
+            throw new Error("Error sending feedback");
+        }
+    }
     return {
         feedbackOnProgress,
+        feedbackStep,
+        sendFeedback,
         isLocationSelected,
-        selectionOnProgress,
+        isCampaignRated,
+        locationSelectionOnProgress,
         centerSelectDrawer,
         pointOfInterest,
         startCenterSelection,
@@ -332,6 +476,10 @@ export const useParticipationStore = defineStore("participation", () => {
         deleteSelectedAreasTempLayer,
         resetSelectedAreas,
         drawMode,
+        getCampaignDetail,
+        getActiveCampaigns,
+        activeCampaigns,
+        populateCampaignList
     };
 });
 

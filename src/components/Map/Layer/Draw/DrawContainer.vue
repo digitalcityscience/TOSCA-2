@@ -71,7 +71,7 @@ const closeButtonStyles= {
         class: [
             "absolute top-2 left-2 p-2",
             "rounded-full",
-            "bg-transparent border",
+            "bg-transparent",
             "text-primary-500 dark:text-primary-400",
             "hover:bg-primary-600 dark:hover:bg-primary-300 hover:text-white hover:border-primary-600 dark:hover:border-primary-300 text-primary-300 dark:text-primary-600",
             "focus:ring-primary-400/50 dark:focus:ring-primary-300/50"
