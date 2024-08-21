@@ -32,7 +32,7 @@ const router = createRouter({
         }
     ]
 })
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
     console.log("Navigation guard")
     if (to.name === "active-campaigns") {
         const participationStore = useParticipationStore()
