@@ -27,19 +27,21 @@ export default {
                 { "rounded-br-md rounded-bl-md": !context.active, "rounded-br-0 rounded-bl-0": context.active },
 
                 // Background Color
-                "border border-zinc-200 dark:border-zinc-950",
-                "bg-zinc-50 dark:bg-zinc-900",
+                "border-slate-200 dark:border-slate-950",
+                { "border": !context.active },
+                { "border-b-2 border-b-slate-900": context.active },
+                "bg-slate-50 dark:bg-slate-900",
                 // Text Color
-                "text-zinc-800 dark:text-zinc-50",
-                { "text-zinc-950 dark:text-zinc-100": context.active },
+                "text-slate-800 dark:text-slate-50",
+                { "text-slate-950 dark:text-slate-100": context.active },
 
                 // Transition
                 "transition duration-200 ease-in-out",
                 "transition-shadow duration-200",
 
                 // States
-                "hover:bg-zinc-250 dark:hover:bg-zinc-900",
-                "hover:text-zinc-950 dark:hover:text-zinc-200",
+                "hover:bg-slate-250 dark:hover:bg-slate-900",
+                "hover:text-slate-950 dark:hover:text-slate-200",
                 "focus:outline-none focus:outline-offset-0 focus-visible:ring focus-visible:ring-primary-400/50 ring-inset dark:focus-visible:ring-primary-300/50", // Focus
 
                 // Misc
@@ -62,7 +64,7 @@ export default {
                 "border-t-0",
 
                 // Color
-                "bg-zinc-50 dark:bg-zinc-900",
+                "bg-slate-50 dark:bg-slate-900",
                 "border border-surface-200 dark:border-surface-700",
                 "text-surface-700 dark:text-surface-0/80"
             ]

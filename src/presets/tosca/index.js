@@ -18,6 +18,7 @@ import dialog from "./dialog/index.js";
 import toast from "./toast/index.js"
 import tag from "./tag/index.js"
 import textarea from "./textarea/index.js"
+import rating from "./rating/index.js"
 
 export default {
     global,
@@ -39,5 +40,6 @@ export default {
     dialog,
     toast,
     tag,
-    textarea
+    textarea,
+    rating
 }

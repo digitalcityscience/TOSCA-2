@@ -1,6 +1,7 @@
 export default {
     root: ({ props, context, parent }) => ({
         class: [
+            "font-bold",
             "relative",
 
             // Alignments
@@ -36,7 +37,7 @@ export default {
             { "bg-transparent border-transparent": props.text && !props.plain },
 
             // Outlined Button
-            { "bg-transparent border": props.outlined && !props.plain },
+            { "bg-transparent": props.outlined && !props.plain },
 
             // --- Severity Buttons ---
 
@@ -49,7 +50,7 @@ export default {
             // Primary Text Button
             { "text-primary-500 dark:text-primary-400": props.text && props.severity === null && !props.plain },
             // Primary Outlined Button
-            { "text-primary-500 border border-primary-500 hover:bg-primary-300/20": props.outlined && props.severity === null && !props.plain },
+            { "text-primary-500 border-primary-500 hover:bg-primary-300/20": props.outlined && props.severity === null && !props.plain },
 
             // Secondary Button
             {

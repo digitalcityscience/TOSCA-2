@@ -2,7 +2,7 @@ export default {
     root: {
         class: [
             // Shape
-            "rounded-md shadow-lg",
+            "rounded-md",
             "border-0 dark:border",
 
             // Position
