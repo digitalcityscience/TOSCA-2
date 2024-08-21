@@ -6,15 +6,15 @@ export default {
             "shadow-md",
 
             // Color
-            "bg-surface-0 dark:bg-surface-900",
-            "text-surface-700 dark:text-surface-0"
+            "bg-slate-0 dark:bg-slate-900",
+            "text-slate-800 dark:text-slate-0"
         ]
     },
     body: {
         class: "p-3"
     },
     title: {
-        class: "font-bold mb-1"
+        class: "text-lg font-bold mb-1"
     },
     subtitle: {
         class: [
@@ -25,7 +25,7 @@ export default {
             // Spacing
             "mb-2",
             // Color
-            "text-surface-600/50 dark:text-surface-0/50"
+            "text-slate-600/50 dark:text-slate-0/50"
         ]
     },
     content: {
