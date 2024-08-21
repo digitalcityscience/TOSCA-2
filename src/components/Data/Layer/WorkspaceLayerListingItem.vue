@@ -96,9 +96,12 @@ geoserver.getLayerInformation(props.item, props.workspace).then((response) => {
 const dataType = computed(() => {
     if (!isNullOrEmpty(layerDetail.value)) {
         const feature = layerDetail.value!.featureType.attributes.attribute.filter((att) => { return att.name.includes("geom") })
-        return feature.length > 0 ? feature[0].binding.split(".").slice(-1)[0] : ""
+        return feature.length > 0 ? sanitizeDataType(feature[0].binding.split(".").slice(-1)[0]) : ""
     } else { return "" }
 })
+const sanitizeDataType = (type: string): string => {
+    return type.replace(/multi|string/gi, "");
+}
 
 const mapStore = useMapStore()
 function add2Map(): void{
