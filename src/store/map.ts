@@ -302,7 +302,7 @@ export const useMapStore = defineStore("map", () => {
 	 * @returns {Promise<void>} A promise that resolves if the layer is successfully deleted, or rejects with an error.
 	 * @throws {Error} Throws an error if the map is not initialized or if the layer cannot be found.
 	 */
-	async function deleteMapLayer(identifier: string): Promise<void> {
+	async function deleteMapLayer(identifier: string, information?: boolean): Promise<void> {
 		await new Promise<void>((resolve, reject) => {
 			if (isNullOrEmpty(map.value)) {
 				reject(new Error("There is no map to delete layer from"));
@@ -320,7 +320,7 @@ export const useMapStore = defineStore("map", () => {
 
 			try {
 				map.value.removeLayer(identifier);
-				removeFromMapLayerList(identifier);
+				removeFromMapLayerList(identifier, information);
 				resolve();
 			} catch (error) {
 				reject(error);
@@ -415,7 +415,7 @@ export const useMapStore = defineStore("map", () => {
 	 * @param {string} identifier - The unique identifier for the layer to remove.
 	 * @throws {Error} Throws an error if the layer cannot be found in the list.
 	 */
-	function removeFromMapLayerList(identifier: string): void {
+	function removeFromMapLayerList(identifier: string, information?: boolean): void {
 		const index = layersOnMap.value.findIndex(
 			(layer) => layer.id === identifier
 		);
@@ -425,12 +425,14 @@ export const useMapStore = defineStore("map", () => {
 				removedLayer[0].showOnLayerList !== undefined &&
 				removedLayer[0].showOnLayerList
 			) {
-				toast.add({
-					severity: "success",
-					summary: "Success",
-					detail: `Layer ${identifier} removed successfully`,
-					life: 3000,
-				});
+				if (information !== undefined && information) {
+					toast.add({
+						severity: "info",
+						summary: "Info",
+						detail: `Layer ${identifier} removed from layer list`,
+						life: 3000,
+					});
+				}
 			}
 		} else {
 			throw new Error(
