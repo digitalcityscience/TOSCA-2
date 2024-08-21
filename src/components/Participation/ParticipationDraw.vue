@@ -18,12 +18,14 @@
 		<div class="p-1" v-if="!drawTool.drawOnProgress && !drawTool.editOnProgress">
 			<Button class="w-full" size="small" @click="startDraw">Start Drawing</Button>
 		</div>
-		<div class="p-1" v-if="(drawTool.drawOnProgress || drawTool.editOnProgress)">
-			<Button class="w-full" size="small" :disabled="!(drawTool.drawOnProgress || drawTool.editOnProgress)"
-				@click="drawTool.stopDrawMode">Cancel Drawing</Button>
-		</div>
-		<div class="p-1">
-			<Button class="w-full" size="small" @click="addToDrawnArea">Add to Items</Button>
+		<div v-if="(drawTool.drawOnProgress || drawTool.editOnProgress)">
+			<div class="p-1" >
+				<Button class="w-full" size="small" :disabled="!(drawTool.drawOnProgress || drawTool.editOnProgress)"
+					@click="drawTool.stopDrawMode">Cancel Drawing</Button>
+			</div>
+			<div class="p-1">
+				<Button class="w-full" size="small" @click="addToDrawnArea">Add to Items</Button>
+			</div>
 		</div>
 	</div>
 </template>
