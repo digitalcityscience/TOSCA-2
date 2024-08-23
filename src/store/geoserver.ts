@@ -2,7 +2,7 @@
 /* eslint "no-tabs": "off" */
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
-export interface GeoServerFeatureType {
+export interface GeoServerVectorTypeLayerDetail {
   featureType: {
     name: string;
     nativeName: string;
@@ -53,6 +53,88 @@ export interface GeoServerFeatureType {
       attribute: GeoServerFeatureTypeAttribute[];
     };
   };
+}
+export interface GeoserverRasterTypeLayerDetail {
+  coverage: {
+    name: string,
+    nativeName: string,
+    namespace: {
+      name: string,
+      href: string
+    },
+    title: string,
+    description: string,
+    keywords: {
+      string: string[]
+    },
+    nativeCRS: string
+    srs: string,
+    nativeBoundingBox: {
+      minx: number,
+      maxx: number,
+      miny: number,
+      maxy: number,
+      crs: string
+    },
+    latLonBoundingBox: {
+      minx: number,
+      maxx: number,
+      miny: number,
+      maxy: number,
+      crs: string
+    },
+    projectionPolicy: string,
+    enabled: boolean,
+    metadata: {
+      entry: Array<Record<string, unknown>>
+    },
+    store: {
+      "@class": string,
+      name: string,
+      href: string
+    },
+    serviceConfiguration: boolean,
+    simpleConversionEnabled: boolean,
+    internationalTitle: string,
+    internationalAbstract: string,
+    nativeFormat: string,
+    grid: {
+      "@dimension": number,
+      range: {
+        low: string,
+        high: string
+      },
+      transform: {
+        scaleX: string,
+        scaleY: string,
+        shearX: number,
+        shearY: number,
+        translateX: number,
+        translateY: number
+      },
+      crs: string
+    },
+    supportedFormats: {
+      string: string[]
+    },
+    interpolationMethods: {
+      string: string[]
+    },
+    defaultInterpolationMethod: string,
+    dimensions: {
+      coverageDimension: Array<Record<string, unknown>>
+    },
+    requestSRS: {
+      string: string
+    },
+    responseSRS: {
+      string: string
+    },
+    parameters: {
+      entry: Array<Record<string, unknown>>
+    },
+    nativeCoverageName: string
+  }
 }
 export interface GeoServerFeatureTypeAttribute {
   name: string;
@@ -188,7 +270,7 @@ export const useGeoserverStore = defineStore("geoserver", () => {
    * @param url - Resource.href from GeoserverLayerInfo
    * @returns - A Promise resolving to the JSON representation of the layer detailed information.
    */
-  async function getLayerDetail(url: string): Promise<GeoServerFeatureType> {
+  async function getLayerDetail(url: string): Promise<GeoServerVectorTypeLayerDetail|GeoserverRasterTypeLayerDetail> {
     const response = await fetch(url, {
       method: "GET",
       redirect: "follow",

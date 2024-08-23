@@ -16,21 +16,24 @@
                 </Dialog>
             </template>
             <div>
-                <label class="flex w-full leading-none pointer-events-none items-baseline">
-                    <span class="mt-2 min-w-[25%]">Color</span>
-                    <ColorPicker aria-label="Change Color" class="pointer-events-auto" format="hex" v-model="color"
-                        :baseZIndex="10" @update:model-value="changeLayerColor"></ColorPicker>
-                </label>
-                <label class="flex w-full leading-none items-center mt-2">
-                    <span class="mt-2 min-w-[25%]">Opacity</span>
-                    <Slider aria-label="Change Opacity" class="mt-2 ml-2 flex-grow" v-model="opacity" :step="0.1" :min=0
-                        :max=1 @update:model-value="changeLayerOpac" :pt="{
-            range: { style: { 'background': `#${color}` } },
-            handle: { style: { 'background': `#${color}`, 'border-color': `#${color}` } }
-        }" />
-                </label>
+                <div v-if="props.layer.type !== 'raster'">
+                    <label class="flex w-full leading-none pointer-events-none items-baseline">
+                        <span class="mt-2 min-w-[25%]">Color</span>
+                        <ColorPicker aria-label="Change Color" class="pointer-events-auto" format="hex" v-model="color"
+                            :baseZIndex="10" @update:model-value="changeLayerColor"></ColorPicker>
+                    </label>
+                </div>
+                    <label class="flex w-full leading-none items-center mt-2">
+                        <span class="mt-2 min-w-[25%]">Opacity</span>
+                        <Slider aria-label="Change Opacity" class="mt-2 ml-2 flex-grow" v-model="opacity" :step="0.1" :min=0
+                            :max=1 @update:model-value="changeLayerOpac" :pt="{
+                                range: { style: { 'background': `#${color}` } },
+                                handle: { style: { 'background': `#${color}`, 'border-color': `#${color}` } }
+                            }"
+                        />
+                    </label>
             </div>
-            <div v-if="props.layer.filterLayer == undefined || props.layer.filterLayer === false" class="py-2">
+            <div v-if="(props.layer.filterLayer == undefined || props.layer.filterLayer === false) && (props.layer.type !== 'raster')" class="py-2">
                 <AttributeFiltering :layer="props.layer"></AttributeFiltering>
                 <GeometryFiltering :layer="props.layer"></GeometryFiltering>
             </div>
@@ -64,29 +67,31 @@ const color = ref<string>("000000")
 const opacity = ref<number>(1)
 const checked = ref<boolean>(true)
 onMounted(() => {
-    let prop = ""
-    let opac = ""
-    if (props.layer.type === "circle") {
-        prop = "circle-color"
-        opac = "circle-opacity"
-    }
-    if (props.layer.type === "fill") {
-        prop = "fill-color"
-        opac = "fill-opacity"
-    }
-    if (props.layer.type === "line") {
-        prop = "line-color"
-        opac = "line-opacity"
-    }
-    if (!isNullOrEmpty(mapStore.map.getPaintProperty(props.layer.id, prop))) {
-        color.value = (mapStore.map.getPaintProperty(props.layer.id, prop) as string).substring(1)
-    }
-    if (!isNullOrEmpty(mapStore.map.getPaintProperty(props.layer.id, opac))) {
-        opacity.value = mapStore.map.getPaintProperty(props.layer.id, opac)
-    }
-    if (!isNullOrEmpty(mapStore.map.getLayoutProperty(props.layer.id, "visibility"))) {
-        if (mapStore.map.getLayoutProperty(props.layer.id, "visibility") === "none") {
-            checked.value = false
+    if (props.layer.type !== "raster"){
+        let prop = ""
+        let opac = ""
+        if (props.layer.type === "circle") {
+            prop = "circle-color"
+            opac = "circle-opacity"
+        }
+        if (props.layer.type === "fill") {
+            prop = "fill-color"
+            opac = "fill-opacity"
+        }
+        if (props.layer.type === "line") {
+            prop = "line-color"
+            opac = "line-opacity"
+        }
+        if (!isNullOrEmpty(mapStore.map.getPaintProperty(props.layer.id, prop))) {
+            color.value = (mapStore.map.getPaintProperty(props.layer.id, prop) as string).substring(1)
+        }
+        if (!isNullOrEmpty(mapStore.map.getPaintProperty(props.layer.id, opac))) {
+            opacity.value = mapStore.map.getPaintProperty(props.layer.id, opac)
+        }
+        if (!isNullOrEmpty(mapStore.map.getLayoutProperty(props.layer.id, "visibility"))) {
+            if (mapStore.map.getLayoutProperty(props.layer.id, "visibility") === "none") {
+                checked.value = false
+            }
         }
     }
 })
@@ -113,6 +118,9 @@ function changeLayerOpac(layerOpacity: any): void {
     }
     if (props.layer.type === "line") {
         opac = "line-opacity"
+    }
+    if (props.layer.type === "raster") {
+        opac = "raster-opacity"
     }
     mapStore.map.setPaintProperty(props.layer.id, opac, layerOpacity)
 }
