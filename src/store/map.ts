@@ -2,7 +2,7 @@
 /* eslint "no-tabs": "off" */
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
-import { type GeoServerFeatureType } from "./geoserver";
+import { type GeoserverRasterTypeLayerDetail, type GeoServerVectorTypeLayerDetail } from "./geoserver";
 import { type SourceSpecification, type AddLayerObject } from "maplibre-gl";
 import { getRandomHexColor, isNullOrEmpty } from "../core/helpers/functions";
 import { type FeatureCollection } from "geojson";
@@ -27,7 +27,7 @@ export interface CustomAddLayerObject {
 	showOnLayerList?: boolean;
 }
 export interface LayerObjectWithAttributes extends CustomAddLayerObject {
-	details?: GeoServerFeatureType;
+	details?: GeoServerVectorTypeLayerDetail|GeoserverRasterTypeLayerDetail;
 }
 type SourceType = "geojson" | "geoserver";
 export type MapLibreLayerTypes =
@@ -57,8 +57,10 @@ interface GeoJSONLayerParams extends BaseLayerParams {
 }
 interface GeoServerLayerParams extends BaseLayerParams {
 	sourceType: "geoserver";
-	geoserverLayerDetails: GeoServerFeatureType;
+	geoserverLayerDetails: GeoServerVectorTypeLayerDetail|GeoserverRasterTypeLayerDetail;
 	sourceLayer?: string;
+	sourceDataType: "vector" | "raster";
+	sourceProtocol?: "wms" | "wmts";
 }
 export type LayerParams = GeoJSONLayerParams | GeoServerLayerParams;
 export interface BaseDataSourceParams {
@@ -69,7 +71,9 @@ export interface BaseDataSourceParams {
 export interface GeoServerSourceParams extends BaseDataSourceParams {
 	sourceType: "geoserver";
 	workspaceName: string;
-	layer: GeoServerFeatureType;
+	layer: GeoServerVectorTypeLayerDetail|GeoserverRasterTypeLayerDetail;
+	sourceDataType: "vector" | "raster";
+	sourceProtocol?: "wms" | "wmts";
 }
 export interface GeoJSONSourceParams extends BaseDataSourceParams {
 	sourceType: "geojson";
@@ -87,7 +91,7 @@ export const useMapStore = defineStore("map", () => {
 	 * @param {string} params.identifier - The unique identifier for the source to add.
 	 * @param {boolean} params.isFilterLayer - If true, the source is tagged as user-drawn data, which can be used as a filter layer for geometry filtering.
 	 * @param {string} [params.workspaceName] - The workspace name for the Geoserver source. Required only for Geoserver sources.
-	 * @param {GeoServerFeatureType} [params.layer] - The layer details. Required only for Geoserver sources.
+	 * @param {GeoServerVectorTypeLayerDetail} [params.layer] - The layer details. Required only for Geoserver sources.
 	 * @param {FeatureCollection} [params.geoJSONSrc] - The GeoJSON data for the source. Required only for GeoJSON sources.
 	 * @returns {Promise<SourceSpecification>} A promise that resolves to the added source specification if successful, or rejects with an error.
 	 * @throws {Error} Throws an error if the map is not initialized, if required parameters are missing, or if adding the source fails.
@@ -142,20 +146,72 @@ export const useMapStore = defineStore("map", () => {
 					"Workspace name required to add geoserver sources"
 				);
 			}
-			map.value.addSource(identifier, {
-				type: "vector",
-				tiles: [
-					`${import.meta.env.VITE_GEOSERVER_BASE_URL}/gwc/service/wmts
-					?REQUEST=GetTile&SERVICE=WMTS&VERSION=1.0.0
-					&LAYER=${params.workspaceName}:${params.layer.featureType.name}
-					&STYLE=
-					&TILEMATRIX=EPSG:900913:{z}
-					&TILEMATRIXSET=EPSG:900913
-					&TILECOL={x}
-					&TILEROW={y}
-					&format=application/vnd.mapbox-vector-tile`,
-				],
-			});
+			if (params.sourceProtocol !== undefined || params.sourceProtocol !== "") {
+				if (params.sourceProtocol === "wms") {
+					if (params.sourceDataType === "raster") {
+						/**
+						 * @todo Add raster source handling
+						 */
+						map.value.addSource(identifier, {
+							type: "raster",
+							tiles: [
+								`${import.meta.env.VITE_GEOSERVER_BASE_URL}/wms
+								?REQUEST=GetMap
+								&SERVICE=WMS
+								&VERSION=1.3.0
+								&LAYERS=${params.workspaceName}:${(params.layer as GeoserverRasterTypeLayerDetail).coverage.name}
+								&STYLES=
+								&CRS=EPSG:3857
+								&WIDTH=256
+								&HEIGHT=256
+								&BBOX={bbox-epsg-3857}
+								&transparent=true
+								&format=image/png
+								&TILED=true`,
+							],
+						});
+					}
+					if (params.sourceDataType === "vector") {
+						map.value.addSource(identifier, {
+							type: "vector",
+							tiles: [
+								`${import.meta.env.VITE_GEOSERVER_BASE_URL}/gwc/service/wmts
+								?REQUEST=GetTile&SERVICE=WMTS&VERSION=1.0.0
+								&LAYER=${params.workspaceName}:${(params.layer as GeoServerVectorTypeLayerDetail).featureType.name}
+								&STYLE=
+								&TILEMATRIX=EPSG:900913:{z}
+								&TILEMATRIXSET=EPSG:900913
+								&TILECOL={x}
+								&TILEROW={y}
+								&format=application/vnd.mapbox-vector-tile`,
+							],
+						});
+					}
+				}
+				if (params.sourceProtocol === "wmts") {
+					if (params.sourceDataType === "raster") {
+						/**
+						 * @todo Return error, because raster cannot be added as WMTS
+						 */
+					}
+					if (params.sourceDataType === "vector") {
+						map.value.addSource(identifier, {
+							type: "vector",
+							tiles: [
+								`${import.meta.env.VITE_GEOSERVER_BASE_URL}/gwc/service/wmts
+								?REQUEST=GetTile&SERVICE=WMTS&VERSION=1.0.0
+								&LAYER=${params.workspaceName}:${(params.layer as GeoServerVectorTypeLayerDetail).featureType.name}
+								&STYLE=
+								&TILEMATRIX=EPSG:900913:{z}
+								&TILEMATRIXSET=EPSG:900913
+								&TILECOL={x}
+								&TILEROW={y}
+								&format=application/vnd.mapbox-vector-tile`,
+							],
+						});
+					}
+				}
+			}
 		}
 		if (sourceType === "geojson") {
 			if (params.geoJSONSrc === undefined) {
@@ -218,7 +274,7 @@ export const useMapStore = defineStore("map", () => {
 	 * @param {string} params.identifier - A unique identifier for the layer. This ID is used for adding, accessing, and manipulating the layer within the map instance.
 	 * @param {MapLibreLayerTypes} params.layerType - The type of the layer, determining how the source data is rendered (e.g., "circle", "line", "fill").
 	 * @param {LayerStyleOptions} [params.layerStyle] - Optional style options for customizing the appearance of the layer according to Maplibre's style specification.
-	 * @param {GeoServerFeatureType} [params.geoserverLayerDetails] - Required for GeoServer sourced layers; includes details necessary for attribute listing.
+	 * @param {GeoServerVectorTypeLayerDetail} [params.geoserverLayerDetails] - Required for GeoServer sourced layers; includes details necessary for attribute listing.
 	 * @param {string} [params.sourceLayer] - Specifies the target layer within a vector tile source. Required for vector tile sources containing multiple layers.
 	 * @param {FeatureCollection} [params.geoJSONSrc] - GeoJSON data for the layer. Required if the source type is "geojson" and isFilterLayer is true.
 	 * @param {boolean} [params.isFilterLayer=false] - If true, marks the layer as a filter layer, which can be used for geometry filtering. Default is false.
@@ -383,10 +439,12 @@ export const useMapStore = defineStore("map", () => {
 		layerStyle?: LayerStyleOptions
 	): LayerStyleOptions {
 		let styling: LayerStyleOptions = {};
-		const defaultPaint = createRandomPaintObj(layerType);
-		styling = { ...layerStyle };
-		if (layerStyle?.paint === undefined) {
-			styling.paint = defaultPaint;
+		if (layerType !== "raster"){
+			const defaultPaint = createRandomPaintObj(layerType);
+			styling = { ...layerStyle };
+			if (layerStyle?.paint === undefined) {
+				styling.paint = defaultPaint;
+			}
 		}
 		return styling;
 	}

@@ -18,7 +18,7 @@ import ParticipationForm from "./ParticipationForm.vue";
 import { type CampaignDetail, useParticipationStore } from "@store/participation";
 import { useRoute } from "vue-router";
 import { useToast } from "primevue/usetoast";
-import { useGeoserverStore } from "@store/geoserver";
+import { type GeoserverRasterTypeLayerDetail, type GeoServerVectorTypeLayerDetail, useGeoserverStore } from "@store/geoserver";
 import { type LayerParams, useMapStore, type GeoServerSourceParams } from "@store/map";
 import { isNullOrEmpty } from "@helpers/functions";
 import { type FeatureCollection } from "geojson";
@@ -74,28 +74,61 @@ const loadCampaignLayers = async (): Promise<void> => {
                 const response = await geoserver.getLayerInformation({ name:item.split(":")[1], href:"" }, item.split(":")[0]);
                 if (response.layer !== undefined) {
                     const detail = await geoserver.getLayerDetail(response.layer?.resource.href);
-                    const feature = detail.featureType.attributes.attribute.filter((att) => att.name.includes("geom"));
-                    const dataType = feature.length > 0 ? feature[0].binding.split(".").slice(-1)[0] : "";
-                    if (!isNullOrEmpty(detail)) {
-                        const sourceParams: GeoServerSourceParams = {
-                            sourceType: "geoserver",
-                            identifier: detail.featureType.name,
-                            isFilterLayer: false,
-                            workspaceName: item.split(":")[0],
-                            layer: detail,
-                        };
-                        await mapStore.addMapDataSource(sourceParams);
-                        if (!isNullOrEmpty(dataType) && !isNullOrEmpty(detail)) {
+                    if (response.layer.type === "VECTOR") {
+                        const feature = (detail as GeoServerVectorTypeLayerDetail).featureType.attributes.attribute.filter((att) => att.name.includes("geom"));
+                        const dataType = feature.length > 0 ? feature[0].binding.split(".").slice(-1)[0] : "";
+                        if (!isNullOrEmpty(detail)) {
+                            const sourceParams: GeoServerSourceParams = {
+                                sourceType: "geoserver",
+                                sourceDataType: "vector",
+                                sourceProtocol: "wmts",
+                                identifier: (detail as GeoServerVectorTypeLayerDetail).featureType.name,
+                                isFilterLayer: false,
+                                workspaceName: item.split(":")[0],
+                                layer: detail,
+                            };
+                            await mapStore.addMapDataSource(sourceParams);
+                            if (!isNullOrEmpty(dataType) && !isNullOrEmpty(detail)) {
+                                const layerParams: LayerParams = {
+                                    sourceType: "geoserver",
+                                    sourceDataType: "vector",
+                                    sourceProtocol: "wmts",
+                                    identifier: (detail as GeoServerVectorTypeLayerDetail).featureType.name,
+                                    layerType: mapStore.geometryConversion(dataType),
+                                    geoserverLayerDetails: detail,
+                                    sourceLayer: `${(detail as GeoServerVectorTypeLayerDetail).featureType.name}`,
+                                    displayName: (detail as GeoServerVectorTypeLayerDetail)?.featureType.title ?? undefined,
+                                };
+                                await mapStore.addMapLayer(layerParams);
+                                const bbox = (detail as GeoServerVectorTypeLayerDetail).featureType.latLonBoundingBox;
+                                layerBboxPolygons.features.push(bboxPolygon([bbox.minx, bbox.miny, bbox.maxx, bbox.maxy]))
+                            }
+                        }
+                    }
+                    if (response.layer.type === "RASTER") {
+                        if (!isNullOrEmpty(detail)) {
+                            const sourceParams: GeoServerSourceParams = {
+                                sourceType: "geoserver",
+                                sourceDataType: "raster",
+                                sourceProtocol: "wms",
+                                identifier: (detail as GeoserverRasterTypeLayerDetail).coverage.name,
+                                isFilterLayer: false,
+                                workspaceName: item.split(":")[0],
+                                layer: detail,
+                            };
+                            await mapStore.addMapDataSource(sourceParams);
                             const layerParams: LayerParams = {
                                 sourceType: "geoserver",
-                                identifier: detail.featureType.name,
-                                layerType: mapStore.geometryConversion(dataType),
+                                sourceDataType: "vector",
+                                sourceProtocol: "wmts",
+                                identifier: (detail as GeoserverRasterTypeLayerDetail).coverage.name,
+                                layerType: "raster",
                                 geoserverLayerDetails: detail,
-                                sourceLayer: `${detail.featureType.name}`,
-                                displayName: detail?.featureType.title ?? undefined,
+                                sourceLayer: `${(detail as GeoserverRasterTypeLayerDetail).coverage.name}`,
+                                displayName: (detail as GeoserverRasterTypeLayerDetail).coverage.title ?? undefined,
                             };
                             await mapStore.addMapLayer(layerParams);
-                            const bbox = detail.featureType.latLonBoundingBox;
+                            const bbox = (detail as GeoserverRasterTypeLayerDetail).coverage.latLonBoundingBox;
                             layerBboxPolygons.features.push(bboxPolygon([bbox.minx, bbox.miny, bbox.maxx, bbox.maxy]))
                         }
                     }
