@@ -17,12 +17,13 @@ export interface LayerStyleOptions {
 export interface CustomAddLayerObject {
 	id: string;
 	source: string;
+	sourceType: SourceType;
 	type: MapLibreLayerTypes;
 	"source-layer"?: string;
 	paint?: Record<string, unknown>;
 	layout?: Record<string, unknown>;
 	filterLayer?: boolean;
-	filterLayerData?: FeatureCollection;
+	layerData?: FeatureCollection;
 	displayName?: string;
 	showOnLayerList?: boolean;
 }
@@ -50,10 +51,11 @@ interface BaseLayerParams {
 	sourceIdentifier?: string;
 	showOnLayerList?: boolean;
 }
-interface GeoJSONLayerParams extends BaseLayerParams {
+export interface GeoJSONLayerParams extends BaseLayerParams {
 	sourceType: "geojson";
 	geoJSONSrc: FeatureCollection;
 	isFilterLayer: boolean;
+	isDrawnLayer?: boolean;
 }
 interface GeoServerLayerParams extends BaseLayerParams {
 	sourceType: "geoserver";
@@ -125,7 +127,7 @@ export const useMapStore = defineStore("map", () => {
 	async function addMapDataSource(
 		params: SourceParams
 	): Promise<SourceSpecification> {
-		const { sourceType, identifier, isFilterLayer } = params;
+		const { sourceType, identifier } = params;
 		if (isNullOrEmpty(map.value)) {
 			throw new Error("There is no map to add source");
 		}
@@ -217,21 +219,12 @@ export const useMapStore = defineStore("map", () => {
 			if (params.geoJSONSrc === undefined) {
 				throw new Error("GeoJSON data required to add GeoJSON sources");
 			}
-			const sourceIdentifier = params.isFilterLayer
-				? "drawn-" + identifier
-				: identifier;
-			map.value.addSource(sourceIdentifier, {
+			map.value.addSource(identifier, {
 				type: "geojson",
 				data: params.geoJSONSrc,
 			});
 		}
-		const addedSource = map.value.getSource(
-			sourceType === "geojson"
-				? isFilterLayer
-					? "drawn-" + identifier
-					: identifier
-				: identifier
-		);
+		const addedSource = map.value.getSource(identifier);
 		if (addedSource !== undefined) {
 			console.log(`Source ${identifier} added successfully`);
 			return addedSource as SourceSpecification;
@@ -278,6 +271,7 @@ export const useMapStore = defineStore("map", () => {
 	 * @param {string} [params.sourceLayer] - Specifies the target layer within a vector tile source. Required for vector tile sources containing multiple layers.
 	 * @param {FeatureCollection} [params.geoJSONSrc] - GeoJSON data for the layer. Required if the source type is "geojson" and isFilterLayer is true.
 	 * @param {boolean} [params.isFilterLayer=false] - If true, marks the layer as a filter layer, which can be used for geometry filtering. Default is false.
+	 * @param {boolean} [params.isDrawnLayer] - If true, marks the layer as a user-drawn layer.
 	 * @param {string} [params.displayName] - Optional display name for the layer, used for UI purposes.
 	 * @param {string} [params.sourceIdentifier] - Optional source identifier if the source is already added to the map.
 	 * @param {boolean} [params.showOnLayerList=true] - If true, the layer will be shown in the layer list UI. Default is true.
@@ -314,15 +308,12 @@ export const useMapStore = defineStore("map", () => {
 			throw new Error("GeoJSON data required to add GeoJSON layers");
 		}
 		const styling = generateStyling(layerType, layerStyle);
-		const source =
-			sourceIdentifier ??
-			(sourceType === "geojson" && params.isFilterLayer
-				? `drawn-${identifier}`
-				: identifier);
+		const source = sourceIdentifier ?? identifier;
 
 		const layerObject: CustomAddLayerObject = {
 			id: identifier,
 			source,
+			sourceType,
 			type: layerType,
 			showOnLayerList,
 			...styling,
@@ -333,7 +324,11 @@ export const useMapStore = defineStore("map", () => {
 			...(sourceType === "geojson" && params.isFilterLayer
 				? 	{
 						filterLayer: params.isFilterLayer,
-						filterLayerData: params.geoJSONSrc,
+					}
+				: {}),
+			...(sourceType === "geojson" && (params.isFilterLayer || (params.isDrawnLayer !== undefined && params.isDrawnLayer))
+				? 	{
+						layerData: params.geoJSONSrc,
 					}
 				: {}),
 			...(displayName !== undefined && displayName !== ""
