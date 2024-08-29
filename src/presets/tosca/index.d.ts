@@ -7,6 +7,7 @@ export interface Preset {
     radiobutton: any;
     overlaypanel: any;
     inputtext: any;
+    inputnumber: any;
     panel: any;
     colorpicker: any;
     slider: any;
