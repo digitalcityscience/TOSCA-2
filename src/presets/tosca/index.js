@@ -6,6 +6,7 @@ import card from "./card/index.js";
 import radiobutton from "./radiobutton/index.js";
 import overlaypanel from "./overlaypanel/index.js";
 import inputtext from "./inputtext/index.js";
+import inputnumber from "./inputnumber/index.js";
 import panel from "./panel/index.js";
 import colorpicker from "./colorpicker/index.js";
 import slider from "./slider/index.js";
@@ -29,6 +30,7 @@ export default {
     radiobutton,
     overlaypanel,
     inputtext,
+    inputnumber,
     panel,
     colorpicker,
     slider,
