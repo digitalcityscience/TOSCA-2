@@ -54,7 +54,7 @@ import bboxPolygon from "@turf/bbox-polygon"
 import { type FeatureCollection, type Feature } from "geojson";
 import { isNullOrEmpty } from "@helpers/functions";
 import { type GeometryFilterItem, useFilterStore } from "@store/filter";
-import { type GeoServerFeatureTypeAttribute } from "@store/geoserver";
+import { type GeoServerVectorTypeLayerDetail, type GeoServerFeatureTypeAttribute } from "@store/geoserver";
 import { type LngLatBounds } from "maplibre-gl";
 import booleanWithin from "@turf/boolean-within";
 import { useToast } from "primevue/usetoast";
@@ -81,7 +81,7 @@ const isPolygonTiles = computed(()=>{
 })
 function dropdownFitter(event: DropdownChangeEvent): void{
     if (!isNullOrEmpty(event.value)){
-        fitToFilterLayer((event.value as CustomAddLayerObject).filterLayerData!).then(
+        fitToFilterLayer((event.value as CustomAddLayerObject).layerData!).then(
             () => {},
             () => {},
         )
@@ -91,9 +91,9 @@ function dropdownFitter(event: DropdownChangeEvent): void{
  * Gets target layer, creates bbox and fits map to this bbox
  * @param layerName
  */
-async function fitToFilterLayer(filterLayerData: FeatureCollection): Promise<void>{
-    if (filterLayerData.features.length > 0){
-        const box = bbox(filterLayerData)
+async function fitToFilterLayer(layerData: FeatureCollection): Promise<void>{
+    if (layerData.features.length > 0){
+        const box = bbox(layerData)
         mapStore.map.fitBounds(box, { padding: { top: 40, bottom:40, left: 40, right: 40 }, minZoom:16 })
         await new Promise<void>((resolve) => {
             mapStore.map.once("moveend", () => {
@@ -105,13 +105,13 @@ async function fitToFilterLayer(filterLayerData: FeatureCollection): Promise<voi
 /**
 Checks if the geometry of a filter layer is currently visible
 within the map bounds.
-@param {FeatureCollection} filterLayerData - The filter layer data
+@param {FeatureCollection} layerData - The filter layer data
 @returns {boolean} True if the layer is within the bounds, false otherwise
 */
-function isFilterLayerInView(filterLayerData: FeatureCollection): boolean{
+function isFilterLayerInView(layerData: FeatureCollection): boolean{
     const mapBounds: LngLatBounds = mapStore.map.getBounds()
     const screenBox: Feature = bboxPolygon([mapBounds.getWest(), mapBounds.getSouth(), mapBounds.getEast(), mapBounds.getNorth()])
-    for (const feature of filterLayerData.features) {
+    for (const feature of layerData.features) {
         const featureBox: Feature = bboxPolygon(bbox(feature))
         if (booleanWithin(featureBox, screenBox)){
             return true
@@ -126,7 +126,7 @@ function isFilterLayerInView(filterLayerData: FeatureCollection): boolean{
  */
 const filterStore = useFilterStore()
 const filteredAttributes = computed(() => {
-    return props.layer.details?.featureType.attributes.attribute.filter(attr => filterStore.allowedIDBindings.includes(attr.binding))
+    return (props.layer.details as GeoServerVectorTypeLayerDetail)?.featureType.attributes.attribute.filter(attr => filterStore.allowedIDBindings.includes(attr.binding))
 })
 onMounted(()=>{
     identifierChecker()
@@ -140,13 +140,13 @@ accordingly.
 */
 function identifierChecker(): void{
     if (props.layer.details !== undefined) {
-        const hasGID = props.layer.details?.featureType.attributes.attribute.some(attr => {
+        const hasGID = (props.layer.details as GeoServerVectorTypeLayerDetail)?.featureType.attributes.attribute.some(attr => {
             if (attr.name === "gid"){
                 return true
             }
             return false
         })
-        const hasID = props.layer.details?.featureType.attributes.attribute.some(attr => {
+        const hasID = (props.layer.details as GeoServerVectorTypeLayerDetail)?.featureType.attributes.attribute.some(attr => {
             if (attr.name === "id"){
                 return true
             }
@@ -166,9 +166,9 @@ const selectedProperty = ref<GeoServerFeatureTypeAttribute>()
  * Checks geometry filter result array and other variables. If all variables checks populates geometry filter. Otherwise deletes filter.
  */
 function applyGeometryFilter(): void{
-    if (selectedFilterLayer.value?.filterLayerData != null && ((selectedProperty.value?.name != null && selectedProperty.value.name !== "" && props.layer.type === "fill") || props.layer.type === "circle" || props.layer.type ==="line")){
-        if (!isFilterLayerInView(selectedFilterLayer.value.filterLayerData)){
-            fitToFilterLayer(selectedFilterLayer.value.filterLayerData).then(() => {
+    if (selectedFilterLayer.value?.layerData != null && ((selectedProperty.value?.name != null && selectedProperty.value.name !== "" && props.layer.type === "fill") || props.layer.type === "circle" || props.layer.type ==="line")){
+        if (!isFilterLayerInView(selectedFilterLayer.value.layerData)){
+            fitToFilterLayer(selectedFilterLayer.value.layerData).then(() => {
                 geomFilterApplier()
             }).catch((error)=>{
                 toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
@@ -188,14 +188,14 @@ function geomFilterApplier(): void{
     console.log("applying geom filter")
     console.log("layer type is: ", props.layer.type)
     if (props.layer.type === "fill"){
-        if (selectedFilterLayer.value?.filterLayerData != null && selectedProperty.value?.name != null && selectedProperty.value.name !== ""){
+        if (selectedFilterLayer.value?.layerData != null && selectedProperty.value?.name != null && selectedProperty.value.name !== ""){
             const filterArray: Array<string|number> = filterStore.createGeometryFilter(props.layer.id, {
-                filterGeoJSON: selectedFilterLayer.value.filterLayerData,
+                filterGeoJSON: selectedFilterLayer.value.layerData,
                 identifier: selectedProperty.value?.name
             })
             if (filterArray.length > 0){
                 const item: GeometryFilterItem = {
-                    filterGeoJSON: selectedFilterLayer.value.filterLayerData,
+                    filterGeoJSON: selectedFilterLayer.value.layerData,
                     targetLayerSourceType: props.layer.type,
                     identifier: selectedProperty.value?.name,
                     filterArray
@@ -220,9 +220,9 @@ function geomFilterApplier(): void{
         }
     }
     if (props.layer.type === "circle" || props.layer.type === "line"){
-        if (selectedFilterLayer.value?.filterLayerData != null){
+        if (selectedFilterLayer.value?.layerData != null){
             const item: GeometryFilterItem = {
-                filterGeoJSON: selectedFilterLayer.value.filterLayerData,
+                filterGeoJSON: selectedFilterLayer.value.layerData,
                 targetLayerSourceType: props.layer.type
             }
             filterStore.addGeometryFilter(props.layer.id, item).then((response)=>{
