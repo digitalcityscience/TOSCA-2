@@ -147,11 +147,14 @@ defineExpose({
 }
 .sidebar.sidebar-left.collapsed {
     transform: translateX(var(--width4Vertical));
+    display: none;
 }
 .sidebar.sidebar-right.collapsed {
     transform: translateX(var(--width4Vertical));
+    display: none;
 }
 .sidebar.sidebar-bottom.collapsed {
     transform: translateY(var(--height4Horizontal));
+    display: none;
 }
 </style>
