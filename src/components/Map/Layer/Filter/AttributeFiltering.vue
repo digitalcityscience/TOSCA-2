@@ -88,7 +88,7 @@ import Column from "primevue/column";
 import InlineMessage from "primevue/inlinemessage";
 import InputText from "primevue/inputtext";
 import { computed, ref } from "vue";
-import { type GeoServerFeatureTypeAttribute } from "@store/geoserver";
+import { type GeoServerVectorTypeLayerDetail, type GeoServerFeatureTypeAttribute } from "@store/geoserver";
 import { type IntegerFilters, type StringFilters, useFilterStore, type RelationTypes, type AttributeFilterItem } from "@store/filter";
 import { type LayerObjectWithAttributes, useMapStore } from "@store/map";
 import { isNullOrEmpty } from "@helpers/functions"
@@ -125,7 +125,7 @@ const selectedAttribute = ref<GeoServerFeatureTypeAttribute>()
 const selectedOperand = ref<IntegerFilters | StringFilters>()
 const filterValue = ref<any>("")
 const filteredAttributes = computed(() => {
-    return props.layer.details?.featureType.attributes.attribute.filter(attr => filterStore.allowedBindings.includes(attr.binding))
+    return (props.layer.details as GeoServerVectorTypeLayerDetail)?.featureType.attributes.attribute.filter(attr => filterStore.allowedBindings.includes(attr.binding))
 })
 /**
  * Create current filters list then push this list to apply attribute filter function in filter store. wait for response
