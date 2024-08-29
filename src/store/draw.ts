@@ -141,13 +141,14 @@ export const useDrawStore = defineStore("draw", () => {
                         layerType:geomType,
                         geoJSONSrc:geoJsonSnapshot,
                         isFilterLayer,
+                        isDrawnLayer:true,
                         displayName:layerName.value,
                     }
                     mapStore.addMapLayer(layerParams)
                         .then(() => {
                             stopDrawMode()
                         }).catch(error => {
-                            mapStore.map.value.removeSource(isFilterLayer ? `drawn-${processedLayerName}` : processedLayerName)
+                            mapStore.map.value.removeSource(processedLayerName)
                             toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
                         })
                 }).catch((error) => {
