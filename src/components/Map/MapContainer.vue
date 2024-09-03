@@ -23,6 +23,22 @@ onMounted(() => {
         zoom: 15 // starting zoom
     })
     if (mapStore.map !== undefined) {
+        /**
+         * Initialize TerraDraw after the map is loaded. This is necessary to ensure that the map object is available.
+         */
+        try {
+            const terraDraw = useDrawStore().initializeTerraDraw(mapStore.map as Map, ["point", "linestring", "polygon", "select"]);
+            console.log(terraDraw);
+            useDrawStore().terraDraw = terraDraw;
+        } catch (error) {
+            console.error("Failed to initialize TerraDraw:", error);
+        }
+        /**
+         * Add a click event listener to the map to show the attribute dialog for the clicked feature.
+         * Ignore the click event if the draw or edit mode is active. This is necessary to avoid conflicts with the draw and edit tools.
+         * The attribute dialog is only shown if the clicked feature is part of a layer that is currently displayed on the map.
+         * The attribute dialog is populated with the attributes of the clicked feature. Features are grouped by layer.
+         */
         mapStore.map.on("click", (e: MapMouseEvent)=>{
             if (!(useDrawStore().drawOnProgress || useDrawStore().editOnProgress || useParticipationStore().locationSelectionOnProgress)) {
                 const clickedFeatures: any[] = mapStore.map.queryRenderedFeatures(e.point)
@@ -57,7 +73,7 @@ onMounted(() => {
             }
         })
     }
-    // Add zoom and rotation controls to the map.
+    // Add zoom controls to the map.
     const zoomControl = new maplibre.NavigationControl()
     mapStore.map.addControl(zoomControl, "top-right");
 })

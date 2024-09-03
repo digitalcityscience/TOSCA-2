@@ -1,14 +1,9 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
-import { type FeatureCollection, type Feature } from "geojson";
+import { type FeatureCollection, type Feature, type Point } from "geojson";
 import { type GeoJSONSourceParams, type LayerParams, useMapStore } from "./map";
 import { type Map } from "maplibre-gl";
-import {
-    TerraDraw,
-    TerraDrawMapLibreGLAdapter,
-    TerraDrawPointMode,
-} from "terra-draw";
-import { useDrawStore } from "./draw";
+import { type DrawMode, useDrawStore } from "./draw";
 export interface CenterLocation {
     lng: number;
     lat: number;
@@ -40,6 +35,9 @@ export interface CampaignDetail {
     category_type: number;
     categories: string[];
 }
+/**
+ * @todo Find better naming for post interfaces
+ */
 // Interface for POST1: Only Rating
 export interface PostRating {
     type: "POST1";
@@ -48,7 +46,6 @@ export interface PostRating {
         rating: number;
     };
 }
-
 // Interface for POST2: Only Feedback
 export interface PostFeedback {
     type: "POST2";
@@ -60,7 +57,6 @@ export interface PostFeedback {
         feedback_geometry?: FeatureCollection; // Optional, assuming FeatureCollection is defined elsewhere
     };
 }
-
 // Interface for POST3: Feedback + Rating
 export interface PostFeedbackRating {
     type: "POST3";
@@ -85,7 +81,7 @@ export const useParticipationStore = defineStore("participation", () => {
 
     const mapStore = useMapStore();
     const drawTool = useDrawStore();
-    const drawMode = ref("polygon");
+    const drawMode = ref<DrawMode>("polygon");
     // DRAWN GEOMETRY
     const selectedDrawnGeometry = ref<Feature[]>([]);
     /**
@@ -277,69 +273,67 @@ export const useParticipationStore = defineStore("participation", () => {
     // Feedback Location Selector
     const locationSelectionOnProgress = ref<boolean>(false);
     const pointOfInterest = ref<CenterLocation>();
-    const centerSelectDrawer = new TerraDraw({
-        adapter: new TerraDrawMapLibreGLAdapter({
-            map: mapStore.map as unknown as Map,
-        }),
-        modes: [
-            new TerraDrawPointMode({
-                styles: {
-                    pointColor: "#f20acf",
-                    pointWidth: 12,
-                },
-            }),
-        ],
-    });
+
     function startCenterSelection(): void {
-        feedbackStep.value = "location";
-        locationSelectionOnProgress.value = true;
-        drawTool.stopDrawMode();
-        centerSelectDrawer.start();
-        centerSelectDrawer.setMode("point");
-        centerSelectDrawer.on("change", centerSelector);
-        const src: FeatureCollection = {
-            type: "FeatureCollection",
-            features: [],
-        }
-        const layerStylePoint: Record<string, any> = {
-            paint: {
-                "circle-color": "#f20acf",
-                "circle-radius": 12,
-            },
-        };
-        // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-        if (!mapStore.map.getSource("centerSelectionLayer")) {
-            const centerSelectionSourceParams: GeoJSONSourceParams = {
-                sourceType:"geojson",
-                identifier:"centerSelectionLayer",
-                isFilterLayer:false,
-                geoJSONSrc:src
+        try {
+            if (drawTool.terraDraw === undefined) {
+                const terra = drawTool.initializeTerraDraw(mapStore.map as Map, ["point", "linestring", "polygon", "select"])
+                drawTool.terraDraw = terra
             }
-            mapStore.addMapDataSource(centerSelectionSourceParams).then(()=>{
-                const layerParams: LayerParams = {
+            feedbackStep.value = "location";
+            locationSelectionOnProgress.value = true;
+            drawTool.externalAppOnProgress = true;
+            drawTool.stopDrawMode();
+            drawTool.initDrawMode();
+            drawTool.changeMode("point");
+            drawTool.terraDraw.on("change", centerSelector);
+            const src: FeatureCollection = {
+                type: "FeatureCollection",
+                features: [],
+            }
+            const layerStylePoint: Record<string, any> = {
+                paint: {
+                    "circle-color": "#f20acf",
+                    "circle-radius": 12,
+                },
+            };
+            // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
+            if (!mapStore.map.getSource("centerSelectionLayer")) {
+                const centerSelectionSourceParams: GeoJSONSourceParams = {
                     sourceType:"geojson",
                     identifier:"centerSelectionLayer",
-                    layerType:"circle",
-                    layerStyle:layerStylePoint,
-                    geoJSONSrc:src,
                     isFilterLayer:false,
-                    showOnLayerList:false
+                    geoJSONSrc:src
                 }
-                mapStore.addMapLayer(layerParams).then(()=>{}).catch((error)=>{
+                mapStore.addMapDataSource(centerSelectionSourceParams).then(()=>{
+                    const layerParams: LayerParams = {
+                        sourceType:"geojson",
+                        identifier:"centerSelectionLayer",
+                        layerType:"circle",
+                        layerStyle:layerStylePoint,
+                        geoJSONSrc:src,
+                        isFilterLayer:false,
+                        showOnLayerList:false
+                    }
+                    mapStore.addMapLayer(layerParams).then(()=>{}).catch((error)=>{
+                        console.error(error)
+                    })
+                }).catch((error)=>{
                     console.error(error)
                 })
-            }).catch((error)=>{
-                console.error(error)
-            })
+            }
+        } catch (error) {
+            console.error(error);
         }
     }
     function cancelCenterSelection(): void {
         console.log("canceling center selection");
         locationSelectionOnProgress.value = false;
-        if (centerSelectDrawer.enabled) {
-            centerSelectDrawer.setMode("static");
-            centerSelectDrawer.off("change", centerSelector);
-            centerSelectDrawer.stop();
+        drawTool.externalAppOnProgress = false;
+        if (drawTool.terraDraw!.enabled) {
+            drawTool.changeMode("static");
+            drawTool.terraDraw!.off("change", centerSelector);
+            drawTool.stopTerradraw();
         }
         // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
         if (mapStore.map.getSource("centerSelectionLayer")){
@@ -357,27 +351,28 @@ export const useParticipationStore = defineStore("participation", () => {
             feedbackStep.value = "feedback";
         }
         locationSelectionOnProgress.value = false;
-        centerSelectDrawer.setMode("static");
-        centerSelectDrawer.off("change", centerSelector);
-        const features = centerSelectDrawer.getSnapshot()[0]
+        drawTool.externalAppOnProgress = false;
+        drawTool.changeMode("static");
+        drawTool.terraDraw!.off("change", centerSelector);
+        const features = drawTool.getSnapshot()[0]
         const src: FeatureCollection = {
             type: "FeatureCollection",
             features: [features],
         }
         mapStore.map.getSource("centerSelectionLayer").setData(src)
-        centerSelectDrawer.stop();
+        drawTool.stopTerradraw();
     }
     function centerSelector(): void {
-        const snap = centerSelectDrawer.getSnapshot();
+        const snap = drawTool.getSnapshot();
         if (snap.length > 1) {
-            centerSelectDrawer.removeFeatures([
+            drawTool.terraDraw!.removeFeatures([
                 snap[0].id !== undefined ? String(snap[0].id) : "",
             ]);
         }
         pointOfInterest.value = {
             ...{
-                lng: snap[0].geometry.coordinates[0] as number,
-                lat: snap[0].geometry.coordinates[1] as number,
+                lng: (snap[0].geometry as Point).coordinates[0],
+                lat: (snap[0].geometry as Point).coordinates[1],
             },
         };
         isLocationSelected.value = true
@@ -414,8 +409,6 @@ export const useParticipationStore = defineStore("participation", () => {
      */
     function populateCampaignList(): void {
         getActiveCampaigns().then((campaigns) => {
-            console.log(campaigns);
-            console.log("Campaigns fetched");
             activeCampaigns.value = campaigns;
         }).catch((error) => {
             console.error(error);
@@ -442,6 +435,7 @@ export const useParticipationStore = defineStore("participation", () => {
     async function sendFeedback(feed: PostRating|PostFeedback|PostFeedbackRating): Promise<void> {
         feedbackOnProgress.value = false;
         locationSelectionOnProgress.value = false;
+        drawTool.externalAppOnProgress = false;
         const url = `${import.meta.env.VITE_GEONODE_REST_URL}/v2/cpt/feedback/`;
         const feedback = await fetch(url, {
             method: "POST",
@@ -462,7 +456,6 @@ export const useParticipationStore = defineStore("participation", () => {
         isLocationSelected,
         isCampaignRated,
         locationSelectionOnProgress,
-        centerSelectDrawer,
         pointOfInterest,
         startCenterSelection,
         cancelCenterSelection,

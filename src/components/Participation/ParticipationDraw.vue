@@ -21,7 +21,7 @@
 		<div v-if="(drawTool.drawOnProgress || drawTool.editOnProgress)">
 			<div class="p-1" >
 				<Button class="w-full" size="small" :disabled="!(drawTool.drawOnProgress || drawTool.editOnProgress)"
-					@click="drawTool.stopDrawMode">Cancel Drawing</Button>
+					@click="cancelDrawing">Cancel Drawing</Button>
 			</div>
 			<div class="p-1">
 				<Button class="w-full" size="small" @click="addToDrawnArea">Add to Items</Button>
@@ -34,32 +34,42 @@
 import Button from "primevue/button"
 import RadioButton from "primevue/radiobutton";
 import ChipWrapper from "@components/Base/ChipWrapper.vue"
-import { useDrawStore } from "@store/draw"
+import { type DrawMode, useDrawStore } from "@store/draw"
 import { useParticipationStore } from "@store/participation";
 import { type Feature } from "geojson"
 import { ref } from "vue";
 
 const participation = useParticipationStore()
 const drawTool = useDrawStore()
-const drawMode = ref("polygon")
+const drawMode = ref<DrawMode>("polygon")
 function startDraw(): void{
     drawTool.drawMode = drawMode.value
     drawTool.initDrawMode()
+    drawTool.externalAppOnProgress = true;
 }
 function addToDrawnArea(): void{
-    const drawnAreas = drawTool.getSnapshot()
-    if (drawnAreas.length > 0) {
-        drawnAreas.forEach((feature)=> {
-            try {
-                participation.addToSelectedDrawnGeometry(feature)
-            } catch (error) {
-                console.error(error)
-            }
-        })
-        drawTool.stopDrawMode()
-    } else {
-        console.error("there is no polygon to add")
+    try {
+        const drawnAreas = drawTool.getSnapshot()
+        if (drawnAreas.length > 0) {
+            drawnAreas.forEach((feature)=> {
+                try {
+                    participation.addToSelectedDrawnGeometry(feature)
+                } catch (error) {
+                    console.error(error)
+                }
+            })
+            drawTool.stopDrawMode()
+        } else {
+            console.error("there is no polygon to add")
+        }
+        drawTool.externalAppOnProgress = false;
+    } catch (error) {
+        console.error(error)
     }
+}
+function cancelDrawing(): void{
+    drawTool.stopDrawMode()
+    drawTool.externalAppOnProgress = false;
 }
 function removeFromSelectedDrawnGeometries(item: Feature): void {
     try {

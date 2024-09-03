@@ -151,9 +151,6 @@ export const useMapStore = defineStore("map", () => {
 			if (params.sourceProtocol !== undefined || params.sourceProtocol !== "") {
 				if (params.sourceProtocol === "wms") {
 					if (params.sourceDataType === "raster") {
-						/**
-						 * @todo Add raster source handling
-						 */
 						map.value.addSource(identifier, {
 							type: "raster",
 							tiles: [
@@ -174,26 +171,29 @@ export const useMapStore = defineStore("map", () => {
 						});
 					}
 					if (params.sourceDataType === "vector") {
-						map.value.addSource(identifier, {
-							type: "vector",
-							tiles: [
-								`${import.meta.env.VITE_GEOSERVER_BASE_URL}/gwc/service/wmts
-								?REQUEST=GetTile&SERVICE=WMTS&VERSION=1.0.0
-								&LAYER=${params.workspaceName}:${(params.layer as GeoServerVectorTypeLayerDetail).featureType.name}
-								&STYLE=
-								&TILEMATRIX=EPSG:900913:{z}
-								&TILEMATRIXSET=EPSG:900913
-								&TILECOL={x}
-								&TILEROW={y}
-								&format=application/vnd.mapbox-vector-tile`,
-							],
-						});
+						/**
+						 * @todo Add WMS Vector source handling
+						 */
+						// map.value.addSource(identifier, {
+						// 	type: "vector",
+						// 	tiles: [
+						// 		`${import.meta.env.VITE_GEOSERVER_BASE_URL}/gwc/service/wmts
+						// 		?REQUEST=GetTile&SERVICE=WMTS&VERSION=1.0.0
+						// 		&LAYER=${params.workspaceName}:${(params.layer as GeoServerVectorTypeLayerDetail).featureType.name}
+						// 		&STYLE=
+						// 		&TILEMATRIX=EPSG:900913:{z}
+						// 		&TILEMATRIXSET=EPSG:900913
+						// 		&TILECOL={x}
+						// 		&TILEROW={y}
+						// 		&format=application/vnd.mapbox-vector-tile`,
+						// 	],
+						// });
 					}
 				}
 				if (params.sourceProtocol === "wmts") {
 					if (params.sourceDataType === "raster") {
 						/**
-						 * @todo Return error, because raster cannot be added as WMTS
+						 * @todo Add WMTS Raster source handling
 						 */
 					}
 					if (params.sourceDataType === "vector") {
