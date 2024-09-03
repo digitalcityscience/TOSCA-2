@@ -21,7 +21,9 @@ import AccordionTab from "primevue/accordiontab";
 const participation = useParticipationStore();
 
 onMounted(()=>{
-    participation.populateCampaignList();
+    if (participation.activeCampaigns.length === 0) {
+        participation.populateCampaignList();
+    }
 })
 </script>
 
