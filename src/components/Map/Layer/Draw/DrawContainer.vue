@@ -1,7 +1,10 @@
 <template>
     <div>
         <OverlayPanel ref="op" :dismissable="false" showCloseIcon :pt="closeButtonStyles">
-            <div class="flex flex-col min-w-72 max-h-[90vh] overflow-y-auto">
+            <div v-if="drawTool.externalAppOnProgress" class="flex flex-col min-w-72 max-h-[90vh] overflow-y-auto py-6">
+                <InlineMessage class="w-full" severity="info">Drawing tool currently in use.</InlineMessage>
+            </div>
+            <div v-else class="flex flex-col min-w-72 max-h-[90vh] overflow-y-auto">
                 <div class="w-full">
                     <Card>
                         <template #title>Create</template>
@@ -16,12 +19,12 @@
                         </template>
                         <template #footer>
                             <div class="w-full flex justify-between">
-                                <Button size="small" class="col" :disabled="drawTool.drawOnProgress" @click="drawTool.initDrawMode">
+                                <Button size="small" class="col" :disabled="drawTool.drawOnProgress" @click="drawTool.changeMode(drawTool.drawMode)">
                                     <span v-if="!(drawTool.drawOnProgress || drawTool.editOnProgress)">Start Drawing</span>
                                     <span v-else>Continue</span>
                                 </Button>
-                                <Button size="small" v-if="(drawTool.drawOnProgress||drawTool.editOnProgress)" :disabled="!drawTool.drawOnProgress" @click="drawTool.editMode">Edit</Button>
-                                <Button size="small" v-if="(drawTool.drawOnProgress || drawTool.editOnProgress)" :disabled="!(drawTool.drawOnProgress || drawTool.editOnProgress)" @click="drawTool.stopDrawMode">Cancel</Button>
+                                <Button size="small" v-if="(drawTool.drawOnProgress||drawTool.editOnProgress)" :disabled="!drawTool.drawOnProgress" @click="drawTool.changeMode('select')">Edit</Button>
+                                <Button size="small" v-if="(drawTool.drawOnProgress || drawTool.editOnProgress)" :disabled="!(drawTool.drawOnProgress || drawTool.editOnProgress)" @click="drawTool.stopTerradraw">Cancel</Button>
                             </div>
                         </template>
                     </Card>
@@ -49,6 +52,7 @@ import RadioButton from "primevue/radiobutton";
 import OverlayPanel from "primevue/overlaypanel";
 import Button from "primevue/button";
 import InputText from "primevue/inputtext";
+import InlineMessage from "primevue/inlinemessage";
 import { ref } from "vue";
 import { useDrawStore } from "@store/draw"
 import { useMapStore } from "@store/map";

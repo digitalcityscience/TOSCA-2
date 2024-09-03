@@ -1,86 +1,161 @@
 import { defineStore, acceptHMRUpdate } from "pinia"
-import { TerraDraw, TerraDrawLineStringMode, TerraDrawMapLibreGLAdapter, TerraDrawPointMode, TerraDrawPolygonMode, TerraDrawRectangleMode, TerraDrawSelectMode } from "terra-draw"
+import { TerraDraw, TerraDrawLineStringMode, TerraDrawMapLibreGLAdapter, TerraDrawPointMode, TerraDrawPolygonMode, TerraDrawSelectMode } from "terra-draw"
 import { ref } from "vue";
 import { type GeoJSONSourceParams, type LayerParams, useMapStore } from "./map";
 import { type Map } from "maplibre-gl"
 import { type Feature, type FeatureCollection } from "geojson";
 import { useToast } from "primevue/usetoast";
-import { useParticipationStore } from "./participation";
 
+export type DrawMode = "point" | "linestring" | "polygon" | "select" | "static";
+type DrawTypes = Array<{ mode: string, name: DrawMode }>
 export const useDrawStore = defineStore("draw", () => {
     const mapStore = useMapStore()
     const toast = useToast()
-    const drawTypes = ref([{ name: "point", mode: "Point" }, { name: "linestring", mode: "Line" }, { name: "polygon", mode: "Polygon" }])
-    const drawMode = ref("polygon")
+    const drawTypes = ref<DrawTypes>([{ name: "point", mode: "Point" }, { name: "linestring", mode: "Line" }, { name: "polygon", mode: "Polygon" }])
+    const drawMode = ref<DrawMode>("polygon")
     const drawOnProgress = ref(false)
     const editOnProgress = ref(false)
-    const terraMap = mapStore.map as unknown as Map
-    const draw = new TerraDraw({
-        adapter: new TerraDrawMapLibreGLAdapter({ map: terraMap }),
-        modes: [
-            new TerraDrawRectangleMode({
-                styles: {
-                    fillColor: "#454545",
-                    fillOpacity: 0.6,
-                    outlineColor: "#ff0000",
-                    outlineWidth: 2
-                }
-            }),
-            new TerraDrawLineStringMode(),
-            new TerraDrawPointMode({
-                styles: {
-                    pointColor: "#AA4545",
-                    pointWidth: 6
-                }
-            }),
-            new TerraDrawPolygonMode(),
-            new TerraDrawSelectMode({
-                flags: {
-                    point: {
-                        feature: {
-                            draggable: true,
-                            coordinates: {
-                                deletable: true
+    /**
+     * Use this flag to indicate that an external application is currently using terra draw instance. This is use to prevent default drawing tool from being used.
+     *
+     */
+    const externalAppOnProgress = ref(false)
+    const terraDraw = ref<TerraDraw>()
+    /**
+     * Initializes the TerraDraw object with the given map and draw modes.
+     *
+     * @param map - The map object to be used by TerraDraw.
+     * @param modes - An array of draw modes to be selected.
+     * @returns A new instance of TerraDraw with the specified map and selected draw modes.
+     */
+    function initializeTerraDraw(map: Map, modes: DrawMode[]): TerraDraw {
+        console.log("Initializing TerraDraw")
+        try {
+            const selectedModes: Array<TerraDrawPointMode | TerraDrawLineStringMode | TerraDrawPolygonMode | TerraDrawSelectMode> = [];
+            const draggableFeatureConfig = {
+                feature: {
+                    draggable: true,
+                    coordinates: {
+                        midpoints: true,
+                        draggable: true,
+                        deletable: true,
+                    },
+                },
+            };
+            for (const mode of modes) {
+                switch (mode) {
+                    case "point":
+                        selectedModes.push(new TerraDrawPointMode({
+                            styles: {
+                                pointColor: "#AA4545",
+                                pointWidth: 6
                             }
-                        },
-                    },
-                    polygon: {
-                        feature: {
-                            draggable: true,
-                            coordinates: {
-                                midpoints: true,
-                                draggable: true,
-                                deletable: true,
-                            },
-                        },
-                    },
-                    linestring: {
-                        feature: {
-                            draggable: true,
-                            coordinates: {
-                                midpoints: true,
-                                draggable: true,
-                                deletable: true,
-                            },
-                        },
-                    }
+                        }));
+                        break;
+                    case "linestring":
+                        selectedModes.push(new TerraDrawLineStringMode());
+                        break;
+                    case "polygon":
+                        selectedModes.push(new TerraDrawPolygonMode());
+                        break;
+                    case "select":
+                        selectedModes.push(new TerraDrawSelectMode({
+                            flags: {
+                                point: {
+                                    feature: {
+                                        draggable: true,
+                                        coordinates: {
+                                            deletable: true
+                                        }
+                                    },
+                                },
+                                polygon: draggableFeatureConfig,
+                                linestring: draggableFeatureConfig
+                            }
+                        }));
+                        break;
+                    default:
+                        console.warn(`Unsupported mode: ${mode as string}`);
+                        break;
                 }
-            })
-        ]
-    })
-    function initDrawMode(): void {
-        if (useParticipationStore().centerSelectDrawer !== null) {
-            useParticipationStore().centerSelectDrawer.stop()
+            }
+            console.log("TerraDraw initialized")
+            return new TerraDraw({
+                adapter: new TerraDrawMapLibreGLAdapter({ map }),
+                modes: selectedModes
+            });
+        } catch (error) {
+            console.error("Failed to initialize TerraDraw:", error);
+            throw new Error("TerraDraw initialization failed");
         }
-        if (draw !== null) {
+    }
+    /**
+     * Destroys the TerraDraw instance.
+     */
+    function destroyTerraDraw(): void {
+        if (terraDraw.value !== undefined) {
+            terraDraw.value.stop()
+            terraDraw.value = undefined
+        }
+    }
+    /**
+     * Changes the draw mode of the TerraDraw instance.
+     *
+     * @param mode - The new draw mode to be set.
+     */
+    function changeMode(mode: DrawMode): void {
+        try {
+            if (terraDraw.value !== undefined) {
+                if (!terraDraw.value.enabled) {
+                    terraDraw.value.start()
+                }
+                if (mode === "select") {
+                    drawOnProgress.value = false;
+                    editOnProgress.value = true;
+                } else if (mode === "static") {
+                    drawOnProgress.value = false;
+                    editOnProgress.value = false;
+                } else if (mode === "point" || mode === "linestring" || mode === "polygon") {
+                    drawOnProgress.value = true;
+                    editOnProgress.value = false;
+                }
+                terraDraw.value.setMode(mode)
+            } else {
+                console.error("TerraDraw instance is not initialized")
+            }
+        } catch (error) {
+            console.error("An error occurred while changing draw mode:", error);
+        }
+    }
+    function stopTerradraw(): void {
+        if (terraDraw.value !== undefined && terraDraw.value.enabled) {
+            terraDraw.value.setMode("static")
+            terraDraw.value.stop()
+            drawOnProgress.value = false
+            editOnProgress.value = false
+            layerName.value = ""
+        }
+    }
+    /**
+     * Initializes the draw mode.
+     *
+     * This function checks if the `terraDraw` value is defined. If it is, it checks if the draw is not already in progress. If the draw is not in progress, it checks if editing is in progress. If editing is in progress, it sets the draw mode and updates the progress flags accordingly. If editing is not in progress, it starts the draw, sets the draw mode, and updates the progress flags.
+     *
+     * @remarks
+     * This function assumes that the `terraDraw` value is a valid drawing instance. If the `terraDraw` value is not defined, an error message is logged.
+     *
+     * @returns void
+     */
+    function initDrawMode(): void {
+        if (terraDraw.value !== undefined) {
             if (!drawOnProgress.value){
                 if (editOnProgress.value) {
-                    draw.setMode(drawMode.value)
+                    terraDraw.value.setMode(drawMode.value)
                     editOnProgress.value = false
                     drawOnProgress.value = true
                 } else {
-                    draw.start();
-                    draw.setMode(drawMode.value);
+                    terraDraw.value.start();
+                    terraDraw.value.setMode(drawMode.value);
                     drawOnProgress.value = true
                     editOnProgress.value = false
                 }
@@ -89,19 +164,37 @@ export const useDrawStore = defineStore("draw", () => {
             console.error("Could not find drawing instance")
         }
     }
+    /**
+     * Sets the edit mode for the drawing.
+     * If a drawing instance is available, it sets the mode to "select".
+     * It also updates the state variables `drawOnProgress` and `editOnProgress`.
+     * If no drawing instance is found, it logs an error message.
+     */
     function editMode(): void {
-        if (draw !== null) {
-            draw.setMode("select");
+        if (terraDraw.value !== undefined) {
+            terraDraw.value.setMode("select");
             drawOnProgress.value = false
             editOnProgress.value = true
         } else {
             console.error("Could not find drawing instance")
         }
     }
+    /**
+     * Stops the draw mode.
+     *
+     * This function checks if the draw mode is enabled and stops it if it is. It also resets the draw and edit progress flags, as well as the layer name.
+     *
+     * @remarks
+     * This function requires the `terraDraw` object to be defined. If the `terraDraw` object is not found, an error message will be logged to the console.
+     *
+     * @returns void
+     */
     function stopDrawMode(): void {
-        if (draw !== null && draw.enabled) {
-            draw.setMode("static")
-            draw.stop()
+        if (terraDraw.value !== undefined) {
+            if (terraDraw.value.enabled) {
+                terraDraw.value.setMode("static")
+                terraDraw.value.stop()
+            }
             drawOnProgress.value = false
             editOnProgress.value = false
             layerName.value = ""
@@ -110,67 +203,98 @@ export const useDrawStore = defineStore("draw", () => {
         }
     }
     function getSnapshot(): Feature[]{
-        return draw.getSnapshot()
+        if (terraDraw.value !== undefined) {
+            return terraDraw.value.getSnapshot()
+        } else {
+            console.error("Could not find drawing instance")
+            return [];
+        }
     }
     function clearSnapshot(): void {
-        draw.clear()
+        if (terraDraw.value !== undefined) {
+            terraDraw.value.clear()
+        } else {
+            console.error("Could not find drawing instance")
+        }
     }
-    // Saving draw result as a layer
+    /**
+     * Saves the current drawing as a layer.
+     *
+     * This function saves the current drawing as a layer on the map. It checks if there is a drawing available,
+     * and if so, converts it to a GeoJSON snapshot. It then adds the GeoJSON data as a map data source and
+     * creates a map layer using the provided layer parameters. If successful, it stops the draw mode.
+     *
+     * @remarks
+     * This function requires the `terraDraw` and `mapStore` variables to be defined.
+     *
+     * @throws {Error} If there is an error adding the map data source or map layer.
+     *
+     * @returns {void}
+     */
     function saveAsLayer(): void {
-        const featureList = draw.getSnapshot()
-        const processedLayerName = layerName.value.trim().toLowerCase().replaceAll(" ", "_")
-        const isOnMap = mapStore.layersOnMap.filter((layer) => layer.id === processedLayerName).length > 0
-        if (!isOnMap) {
-            if ((featureList.length > 0)) {
-                const geoJsonSnapshot: FeatureCollection = {
-                    type: "FeatureCollection",
-                    features: featureList
-                }
-                const geomType = mapStore.geometryConversion(featureList[0].geometry.type)
-                const isFilterLayer = featureList[0].geometry.type === "Polygon"
-                const sourceParams: GeoJSONSourceParams={
-                    sourceType:"geojson",
-                    identifier:processedLayerName,
-                    isFilterLayer,
-                    geoJSONSrc:geoJsonSnapshot
-                }
-                mapStore.addMapDataSource(sourceParams).then(() => {
-                    const layerParams: LayerParams = {
+        if (terraDraw.value !== undefined) {
+            const featureList = terraDraw.value.getSnapshot()
+            const processedLayerName = layerName.value.trim().toLowerCase().replaceAll(" ", "_")
+            const isOnMap = mapStore.layersOnMap.filter((layer) => layer.id === processedLayerName).length > 0
+            if (!isOnMap) {
+                if ((featureList.length > 0)) {
+                    const geoJsonSnapshot: FeatureCollection = {
+                        type: "FeatureCollection",
+                        features: featureList
+                    }
+                    const geomType = mapStore.geometryConversion(featureList[0].geometry.type)
+                    const isFilterLayer = featureList[0].geometry.type === "Polygon"
+                    const sourceParams: GeoJSONSourceParams={
                         sourceType:"geojson",
                         identifier:processedLayerName,
-                        layerType:geomType,
-                        geoJSONSrc:geoJsonSnapshot,
                         isFilterLayer,
-                        isDrawnLayer:true,
-                        displayName:layerName.value,
+                        geoJSONSrc:geoJsonSnapshot
                     }
-                    mapStore.addMapLayer(layerParams)
-                        .then(() => {
-                            stopDrawMode()
-                        }).catch(error => {
-                            mapStore.map.value.removeSource(processedLayerName)
-                            toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
-                        })
-                }).catch((error) => {
-                    toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
-                })
+                    mapStore.addMapDataSource(sourceParams).then(() => {
+                        const layerParams: LayerParams = {
+                            sourceType:"geojson",
+                            identifier:processedLayerName,
+                            layerType:geomType,
+                            geoJSONSrc:geoJsonSnapshot,
+                            isFilterLayer,
+                            isDrawnLayer:true,
+                            displayName:layerName.value,
+                        }
+                        mapStore.addMapLayer(layerParams)
+                            .then(() => {
+                                stopDrawMode()
+                            }).catch(error => {
+                                mapStore.map.value.removeSource(processedLayerName)
+                                toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
+                            })
+                    }).catch((error) => {
+                        toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
+                    })
+                } else {
+                    toast.add({ severity: "error", summary: "Error", detail: "There is no feature drawn on map!", life: 3000 });
+                }
             } else {
-                toast.add({ severity: "error", summary: "Error", detail: "There is no feature drawn on map!", life: 3000 });
+                toast.add({ severity: "error", summary: "Error", detail: "Layer name already in use!", life: 3000 });
             }
-        } else {
-            toast.add({ severity: "error", summary: "Error", detail: "Layer name already in use!", life: 3000 });
         }
     }
     const layerName = ref("")
 
     return {
+        // refactored
+        externalAppOnProgress,
+        terraDraw,
+        initializeTerraDraw,
+        destroyTerraDraw,
+        changeMode,
+        stopTerradraw,
+        // old fn
         initDrawMode,
         editMode,
         stopDrawMode,
         saveAsLayer,
         getSnapshot,
         clearSnapshot,
-        draw,
         drawMode,
         drawTypes,
         drawOnProgress,
