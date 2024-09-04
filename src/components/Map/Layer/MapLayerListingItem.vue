@@ -2,13 +2,15 @@
     <div class="py-1">
         <Panel :collapsed="true" @update:collapsed="collapsedState" toggleable>
             <template #header>
-                <InputSwitch v-model="checked" @update:model-value="changeLayerVisibility" />
-                <h3 v-if="props.layer.displayName" class="capitalize mr-auto ml-2">{{ props.layer.displayName.replaceAll("_", " ") }}</h3>
-                <h3 v-else class="capitalize mr-auto ml-2">{{ props.layer.source.replaceAll("_", " ") }}</h3>
+                <div class="flex">
+                    <InputSwitch v-model="checked" @update:model-value="changeLayerVisibility" />
+                </div>
+                <span v-if="props.layer.displayName" class="capitalize mr-auto ml-2 truncate ...">{{ props.layer.displayName.replaceAll("_", " ") }}</span>
+                <span v-else class="capitalize mr-auto ml-2 truncate ...">{{ props.layer.source.replaceAll("_", " ") }}</span>
                 <Button class="w-8 h-8 p-0 mr-1" icon="pi pi-trash" severity="danger" text rounded aria-label="Delete"
                     @click="confirmDialogVisibility = true"></Button>
-                <Button class="w-8 h-8 p-0 mr-1" icon="pi pi-search" text rounded aria-label="Zoom"
-                    @click="zoomToLayer"></Button>
+                    <Button class="w-8 h-8 p-0 mr-1" icon="pi pi-search" text rounded aria-label="Zoom"
+                        @click="zoomToLayer"></Button>
                 <Dialog v-model:visible="confirmDialogVisibility" modal header="Delete Map Layer" :style="{ width: '25rem' }">
                     <span class="p-text-secondary block mb-5">Are you sure want to delete {{ props.layer.displayName ?? props.layer.source }} layer?</span>
                     <div class="flex justify-content-end gap-2">
@@ -57,9 +59,6 @@ import { useToast } from "primevue/usetoast";
 import AttributeFiltering from "./Filter/AttributeFiltering.vue";
 import { isNullOrEmpty } from "@helpers/functions";
 import type { GeoserverRasterTypeLayerDetail, GeoServerVectorTypeLayerDetail } from "@store/geoserver";
-import bboxPolygon from "@turf/bbox-polygon";
-import bbox from "@turf/bbox";
-import type { FeatureCollection } from "geojson";
 
 const GeometryFiltering = defineAsyncComponent(async () => await import("@components/Map/Layer/Filter/GeometryFiltering.vue"));
 
@@ -153,18 +152,13 @@ function deleteLayerConfirmation(layer: LayerObjectWithAttributes): void {
     confirmDialogVisibility.value = false
 }
 function zoomToLayer(): void {
-    const layerBboxPolygons: FeatureCollection = {
-        type: "FeatureCollection",
-        features: []
-    }
     if (props.layer.type === "raster") {
         const bbox = (props.layer.details as GeoserverRasterTypeLayerDetail).coverage.latLonBoundingBox;
-        layerBboxPolygons.features.push(bboxPolygon([bbox.minx, bbox.miny, bbox.maxx, bbox.maxy]))
+        mapStore.map.fitBounds([[bbox.minx, bbox.miny], [bbox.maxx, bbox.maxy]], { padding: 20 });
     } else {
         const bbox = (props.layer.details as GeoServerVectorTypeLayerDetail).featureType.latLonBoundingBox;
-        layerBboxPolygons.features.push(bboxPolygon([bbox.minx, bbox.miny, bbox.maxx, bbox.maxy]))
+        mapStore.map.fitBounds([[bbox.minx, bbox.miny], [bbox.maxx, bbox.maxy]], { padding: 20 });
     }
-    mapStore.map.fitBounds(bbox(layerBboxPolygons), { padding: 20 });
 }
 </script>
 
