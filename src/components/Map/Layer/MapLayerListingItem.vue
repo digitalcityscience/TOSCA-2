@@ -9,7 +9,7 @@
                 <span v-else class="capitalize mr-auto ml-2 truncate ...">{{ props.layer.source.replaceAll("_", " ") }}</span>
                 <Button class="w-8 h-8 p-0 mr-1" icon="pi pi-trash" severity="danger" text rounded aria-label="Delete"
                     @click="confirmDialogVisibility = true"></Button>
-                    <Button class="w-8 h-8 p-0 mr-1" icon="pi pi-search" text rounded aria-label="Zoom"
+                    <Button class="w-8 h-8 p-0 mr-1" icon="pi pi-search-plus" text rounded aria-label="Zoom"
                         @click="zoomToLayer"></Button>
                 <Dialog v-model:visible="confirmDialogVisibility" modal header="Delete Map Layer" :style="{ width: '25rem' }">
                     <span class="p-text-secondary block mb-5">Are you sure want to delete {{ props.layer.displayName ?? props.layer.source }} layer?</span>
