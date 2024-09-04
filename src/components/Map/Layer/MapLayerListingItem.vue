@@ -7,6 +7,8 @@
                 <h3 v-else class="capitalize mr-auto ml-2">{{ props.layer.source.replaceAll("_", " ") }}</h3>
                 <Button class="w-8 h-8 p-0 mr-1" icon="pi pi-trash" severity="danger" text rounded aria-label="Delete"
                     @click="confirmDialogVisibility = true"></Button>
+                <Button class="w-8 h-8 p-0 mr-1" icon="pi pi-search" text rounded aria-label="Zoom"
+                    @click="zoomToLayer"></Button>
                 <Dialog v-model:visible="confirmDialogVisibility" modal header="Delete Map Layer" :style="{ width: '25rem' }">
                     <span class="p-text-secondary block mb-5">Are you sure want to delete {{ props.layer.displayName ?? props.layer.source }} layer?</span>
                     <div class="flex justify-content-end gap-2">
@@ -18,13 +20,13 @@
             <div>
                 <div v-if="props.layer.type !== 'raster'">
                     <label class="flex w-full leading-none pointer-events-none items-baseline">
-                        <span class="mt-2 min-w-[25%]">Color</span>
+                        <span class="font-bold mt-2 min-w-[25%]">Color</span>
                         <ColorPicker aria-label="Change Color" class="pointer-events-auto" format="hex" v-model="color"
                             :baseZIndex="10" @update:model-value="changeLayerColor"></ColorPicker>
                     </label>
                 </div>
                     <label class="flex w-full leading-none items-center mt-2">
-                        <span class="mt-2 min-w-[25%]">Opacity</span>
+                        <span class="font-bold mt-2 min-w-[25%]">Opacity</span>
                         <Slider aria-label="Change Opacity" class="mt-2 ml-2 flex-grow" v-model="opacity" :step="0.1" :min=0
                             :max=1 @update:model-value="changeLayerOpac" :pt="{
                                 range: { style: { 'background': `#${color}` } },
@@ -54,6 +56,10 @@ import Dialog from "primevue/dialog";
 import { useToast } from "primevue/usetoast";
 import AttributeFiltering from "./Filter/AttributeFiltering.vue";
 import { isNullOrEmpty } from "@helpers/functions";
+import type { GeoserverRasterTypeLayerDetail, GeoServerVectorTypeLayerDetail } from "@store/geoserver";
+import bboxPolygon from "@turf/bbox-polygon";
+import bbox from "@turf/bbox";
+import type { FeatureCollection } from "geojson";
 
 const GeometryFiltering = defineAsyncComponent(async () => await import("@components/Map/Layer/Filter/GeometryFiltering.vue"));
 
@@ -145,6 +151,20 @@ function deleteLayerConfirmation(layer: LayerObjectWithAttributes): void {
         toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
     })
     confirmDialogVisibility.value = false
+}
+function zoomToLayer(): void {
+    const layerBboxPolygons: FeatureCollection = {
+        type: "FeatureCollection",
+        features: []
+    }
+    if (props.layer.type === "raster") {
+        const bbox = (props.layer.details as GeoserverRasterTypeLayerDetail).coverage.latLonBoundingBox;
+        layerBboxPolygons.features.push(bboxPolygon([bbox.minx, bbox.miny, bbox.maxx, bbox.maxy]))
+    } else {
+        const bbox = (props.layer.details as GeoServerVectorTypeLayerDetail).featureType.latLonBoundingBox;
+        layerBboxPolygons.features.push(bboxPolygon([bbox.minx, bbox.miny, bbox.maxx, bbox.maxy]))
+    }
+    mapStore.map.fitBounds(bbox(layerBboxPolygons), { padding: 20 });
 }
 </script>
 
