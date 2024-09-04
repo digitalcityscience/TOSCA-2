@@ -335,8 +335,21 @@ export const useMapStore = defineStore("map", () => {
 				? { displayName }
 				: {}),
 		};
+		// check if layer is raster type and add before vector layers
+		let beforeId
+		let index
+		if (layerType === "raster") {
+			const firstVectorLayer = layersOnMap.value.find((layer)=> { return layer.type !== "raster" });
+			const indexOfFirstVectorLayer = layersOnMap.value.findIndex((layer)=> { return layer.type !== "raster" });
+			if (indexOfFirstVectorLayer !== -1) {
+				index = indexOfFirstVectorLayer;
+			}
+			if (firstVectorLayer !== undefined) {
+				beforeId = firstVectorLayer.id;
+			}
+		}
 		// add layer object to map
-		map.value.addLayer(layerObject as AddLayerObject);
+		map.value.addLayer(layerObject as AddLayerObject, beforeId);
 		if (map.value.getLayer(identifier) === undefined) {
 			throw new Error(`Couldn't add requested layer: ${identifier}`);
 		}
@@ -344,7 +357,7 @@ export const useMapStore = defineStore("map", () => {
 			(layerObject as LayerObjectWithAttributes).details =
 				params.geoserverLayerDetails;
 		}
-		add2MapLayerList(layerObject as LayerObjectWithAttributes);
+		add2MapLayerList(layerObject as LayerObjectWithAttributes, index);
 		return await Promise.resolve(map.value.getLayer(identifier));
 	}
 	/**
@@ -447,8 +460,12 @@ export const useMapStore = defineStore("map", () => {
 	 * Adds layers on map to a layerlist for layer listing
 	 * @param layerObject detailed layer information
 	 */
-	function add2MapLayerList(layerObject: LayerObjectWithAttributes): void {
-		layersOnMap.value.push(layerObject);
+	function add2MapLayerList(layerObject: LayerObjectWithAttributes, index?: number): void {
+		if (index !== undefined) {
+			layersOnMap.value.splice(index, 0, layerObject);
+		} else {
+			layersOnMap.value.push(layerObject);
+		}
 		if (
 			layerObject.showOnLayerList !== undefined &&
 			layerObject.showOnLayerList
