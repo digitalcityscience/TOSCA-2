@@ -76,6 +76,7 @@ export interface GeoServerSourceParams extends BaseDataSourceParams {
 	layer: GeoServerVectorTypeLayerDetail|GeoserverRasterTypeLayerDetail;
 	sourceDataType: "vector" | "raster";
 	sourceProtocol?: "wms" | "wmts";
+	token?: string;
 }
 export interface GeoJSONSourceParams extends BaseDataSourceParams {
 	sourceType: "geojson";
@@ -198,19 +199,23 @@ export const useMapStore = defineStore("map", () => {
 					}
 					if (params.sourceDataType === "vector") {
 						map.value.addSource(identifier, {
-							type: "vector",
-							tiles: [
-								`${import.meta.env.VITE_GEOSERVER_BASE_URL}/gwc/service/wmts
+              type: "vector",
+              tiles: [
+                `${import.meta.env.VITE_GEOSERVER_BASE_URL}/gwc/service/wmts
 								?REQUEST=GetTile&SERVICE=WMTS&VERSION=1.0.0
-								&LAYER=${params.workspaceName}:${(params.layer as GeoServerVectorTypeLayerDetail).featureType.name}
+								&LAYER=${params.workspaceName}:${
+                  (params.layer as GeoServerVectorTypeLayerDetail).featureType
+                    .name
+                }
 								&STYLE=
 								&TILEMATRIX=EPSG:900913:{z}
 								&TILEMATRIXSET=EPSG:900913
 								&TILECOL={x}
 								&TILEROW={y}
-								&format=application/vnd.mapbox-vector-tile`,
-							],
-						});
+								&format=application/vnd.mapbox-vector-tile
+								&access_token=${params.token}`,
+              ],
+            });
 					}
 				}
 			}
