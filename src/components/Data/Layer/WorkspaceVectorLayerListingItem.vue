@@ -5,18 +5,28 @@
                 <span class="capitalize">{{ cleanLayerName }}</span>
             </template>
             <template #subtitle v-if="layerDetail && layerDetail?.featureType.abstract?.length > 0">
-                <span class="line-clamp-3 hover:line-clamp-none xl:line-clamp-none">{{ layerDetail.featureType.abstract }}</span></template>
+                <span class="line-clamp-3 hover:line-clamp-none xl:line-clamp-none">{{ layerDetail.featureType.abstract
+                    }}</span></template>
             <template #content v-if="layerDetail">
                 <div class="grid grid-cols-4 w-full pt-1">
-                    <span class="font-bold lg:col-span-2 2xl:col-span-2 3xl:col-span-2 4xl:col-span-1 self-center">Keywords:</span>
+                    <span
+                        class="font-bold lg:col-span-2 2xl:col-span-2 3xl:col-span-2 4xl:col-span-1 self-center">Keywords:</span>
                     <span class="lg:col-span-2 2xl:col-span-2 3xl:col-span-2 4xl:col-span-3 pl-1">
-                        <Tag class="mb-1 mr-1 last:mr-0" severity="primary" v-for="(keyword,index) in layerDetail.featureType.keywords.string" :key="index" :value="keyword"></Tag>
+                        <Tag class="mb-1 mr-1 last:mr-0" severity="primary"
+                            v-for="(keyword,index) in layerDetail.featureType.keywords.string" :key="index"
+                            :value="keyword"></Tag>
                     </span>
                 </div>
                 <div class="grid grid-cols-4 w-full pt-1" v-if="dataType">
                     <span class="font-bold lg:col-span-2 2xl:col-span-1">Data Type:</span>
                     <span class="lg:col-span-2 2xl:col-span-3 pl-1">{{ dataType }}</span>
                 </div>
+                <div class="grid grid-cols-4 w-full pt-1" v-if="dataType">
+                    <span class="font-bold lg:col-span-2 2xl:col-span-1">Access Token:</span>
+                    <span class="lg:col-span-2 2xl:col-span-3 pl-1"> <input type="text" v-model="token" class="w-full"
+                            placeholder="Enter token" /></span>
+                </div>
+
             </template>
             <template #footer>
                 <Button size="small" @click="add2Map">Add to map</button>
@@ -55,6 +65,7 @@ const cleanLayerName = computed(() => {
 const geoserver = useGeoserverStore()
 const layerDetail = ref<GeoServerVectorTypeLayerDetail>()
 const layerStyling = ref<LayerStyleOptions>()
+const token = ref<string>("")
 geoserver.getLayerInformation(props.item, props.workspace).then((response) => {
     // Currently we are just picking styles which has include mbstyle in name. Further optimization needed after some period
     // TODO: remove mbstyle selector
@@ -112,7 +123,8 @@ function add2Map(): void{
             workspaceName:props.workspace,
             layer:layerDetail.value!,
             sourceDataType:"vector",
-            sourceProtocol:"wmts"
+            sourceProtocol: "wmts",
+            token:token.value
         }
         mapStore.addMapDataSource(sourceParams).then(() => {
             if (!isNullOrEmpty(dataType) && !isNullOrEmpty(layerDetail.value)) {
