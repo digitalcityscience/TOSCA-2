@@ -5,7 +5,7 @@
         <MapLayerListing></MapLayerListing>
         <DrawContainer></DrawContainer>
         <BufferContainer></BufferContainer>
-        <Toast/>
+        <Toast position="bottom-right"></Toast>
     </div>
 </template>
 
