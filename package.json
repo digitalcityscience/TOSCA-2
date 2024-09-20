@@ -16,10 +16,11 @@
     "@turf/buffer": "^7.1.0",
     "@turf/flatten": "^7.1.0",
     "@types/geojson": "^7946.0.14",
+    "@vueuse/integrations": "^11.1.0",
     "maplibre-gl": "^3.6.1",
     "pinia": "^2.1.7",
     "primeicons": "^6.0.1",
-    "primevue": "^3.49.1",
+    "primevue": "^3.53.0",
     "terra-draw": "^0.0.1-alpha.53",
     "vue": "^3.4.35",
     "vue-router": "^4.3.3"

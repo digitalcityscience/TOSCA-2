@@ -20,6 +20,8 @@ import toast from "./toast/index.js"
 import tag from "./tag/index.js"
 import textarea from "./textarea/index.js"
 import rating from "./rating/index.js"
+import datatable from "./datatable/index.js";
+import paginator from "./paginator/index.js";
 
 export default {
     global,
@@ -43,5 +45,7 @@ export default {
     toast,
     tag,
     textarea,
-    rating
+    rating,
+    datatable,
+    paginator
 }

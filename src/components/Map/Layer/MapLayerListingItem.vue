@@ -42,6 +42,9 @@
                 <GeometryFiltering :layer="props.layer"></GeometryFiltering>
             </div>
             <div class="py-1" v-else></div>
+            <div v-if="props.layer.type !== 'raster'" class="w-full py-3">
+                <MapLayerResultTable :layer="props.layer"></MapLayerResultTable>
+            </div>
         </Panel>
     </div>
 </template>
@@ -58,7 +61,8 @@ import Dialog from "primevue/dialog";
 import { useToast } from "primevue/usetoast";
 import AttributeFiltering from "./Filter/AttributeFiltering.vue";
 import { isNullOrEmpty } from "@helpers/functions";
-import type { GeoserverRasterTypeLayerDetail, GeoServerVectorTypeLayerDetail } from "@store/geoserver";
+import { type GeoserverRasterTypeLayerDetail, type GeoServerVectorTypeLayerDetail } from "@store/geoserver";
+import MapLayerResultTable from "./MapLayerResultTable.vue";
 
 const GeometryFiltering = defineAsyncComponent(async () => await import("@components/Map/Layer/Filter/GeometryFiltering.vue"));
 

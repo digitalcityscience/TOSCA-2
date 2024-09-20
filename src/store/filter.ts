@@ -17,6 +17,7 @@ export interface AppliedFiltersListItem {
   layerName: string,
   attributeFilters?: AttributeFilterItem[],
   geometryFilters?: GeometryFilterItem,
+  attributeRelation?: RelationTypes
 }
 export interface GeometryFilterTargetItem {
   filterGeoJSON: FeatureCollection,
@@ -62,7 +63,7 @@ export const useFilterStore = defineStore("filter", () => {
    * @param attributeFilter  - Filter information
    * @returns - Filterlist to apply to specified layer
    */
-  async function addAttributeFilter(layername: string, attributeFilter: AttributeFilterItem): Promise<AppliedFiltersListItem> {
+  async function addAttributeFilter(layername: string, attributeFilter: AttributeFilterItem, relationType: RelationTypes = "AND"): Promise<AppliedFiltersListItem> {
     const layerFilters = appliedFiltersList.value.find((item) => { return item.layerName === layername })
     if (appliedFiltersList.value.length > 0 && layerFilters !== undefined){
         if (layerFilters.attributeFilters !== undefined){
@@ -84,7 +85,8 @@ export const useFilterStore = defineStore("filter", () => {
     } else {
       const newFilter: AppliedFiltersListItem = {
         layerName: layername,
-        attributeFilters: [attributeFilter]
+        attributeFilters: [attributeFilter],
+        attributeRelation: relationType
       }
       appliedFiltersList.value.push(newFilter)
       return await Promise.resolve(newFilter)
@@ -106,6 +108,10 @@ async function removeAttributeFilter(layername: string, attributeFilter: Attribu
       if (filterIndex !== -1) {
         // Remove the filter from the list
         appliedFiltersList.value[layerFiltersIndex].attributeFilters!.splice(filterIndex, 1)
+        if (layerFilters.attributeFilters.length === 0) {
+          delete layerFilters.attributeFilters;
+          delete layerFilters.attributeRelation;
+        }
         return await Promise.resolve(appliedFiltersList.value[layerFiltersIndex]);
       } else {
         throw new Error(`Filter not found: ${attributeFilter.attribute.name} ${filterNames[attributeFilter.operand]} ${attributeFilter.value}`);
@@ -134,14 +140,12 @@ async function removeAttributeFilter(layername: string, attributeFilter: Attribu
     if (geometryFilter.filterGeoJSON.features.length<1){
       throw new Error("There is no geometry feature")
     }
-    if (geometryFilter.targetLayerSourceType === "fill") {
-      // create id list for filtering
-      if (isNullOrEmpty(geometryFilter.identifier)){
-        throw new Error("There is no identifier")
-      }
-      if (geometryFilter.filterArray?.length === 0){
-        throw new Error("There is no array of identifiers")
-      }
+    // create id list for filtering
+    if (isNullOrEmpty(geometryFilter.identifier)){
+      throw new Error("There is no identifier")
+    }
+    if (geometryFilter.filterArray?.length === 0){
+      throw new Error("There is no array of identifiers")
     }
     const layerFilters = appliedFiltersList.value.find((item) => { return item.layerName === layername })
       if (layerFilters !== undefined){
@@ -207,15 +211,11 @@ async function removeAttributeFilter(layername: string, attributeFilter: Attribu
       }
     }
     if (appliedFilters.geometryFilters !== undefined){
-      if (appliedFilters.geometryFilters.targetLayerSourceType === "fill"){
+      if (appliedFilters.geometryFilters.targetLayerSourceType === "fill"||appliedFilters.geometryFilters.targetLayerSourceType === "circle" || appliedFilters.geometryFilters.targetLayerSourceType === "line"){
         if (appliedFilters.geometryFilters.filterArray!.length>0){
           const geomFiltetExpression = ["in", ["get", appliedFilters.geometryFilters.identifier], ["literal", appliedFilters.geometryFilters.filterArray]]
           expressionBlock.push(geomFiltetExpression)
         }
-      }
-      if (appliedFilters.geometryFilters.targetLayerSourceType === "circle" || appliedFilters.geometryFilters.targetLayerSourceType === "line"){
-        const geomFiltetExpression = ["within", appliedFilters.geometryFilters.filterGeoJSON]
-        expressionBlock.push(geomFiltetExpression)
       }
     }
     if (expressionBlock.length>1){
@@ -232,7 +232,7 @@ async function removeAttributeFilter(layername: string, attributeFilter: Attribu
    */
   function createGeometryFilter(layerName: string, geometryFilter: GeometryFilterTargetItem): Array<string|number> {
     const mapFeatureList: MapGeoJSONFeature[] = mapStore.map.queryRenderedFeatures({ layers:[layerName] })
-    if (mapFeatureList.length>0){
+    if (geometryFilter.identifier !== undefined && mapFeatureList.length>0){
       const filteredMapFeatureList = mapFeatureList.filter((feature)=>{
         if (feature.geometry.type === "MultiPolygon"){
           const polygons = flatten(feature.geometry)

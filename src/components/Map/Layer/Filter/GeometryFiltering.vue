@@ -14,7 +14,7 @@
                             <InlineMessage class="w-full" severity="info">There is no layer for filter. Draw a layer first!</InlineMessage>
                         </div>
 					</div>
-					<div v-if="selectedFilterLayer && props.layer.type==='fill'"  class="identifier-dropdown w-full py-2">
+					<div v-if="selectedFilterLayer"  class="identifier-dropdown w-full py-2">
 							<Dropdown class="w-full" v-model="selectedProperty" :options="filteredAttributes" option-label="name" show-clear placeholder="Select Identifier">
 							</Dropdown>
 					</div>
@@ -156,7 +156,7 @@ function identifierChecker(): void{
             selectedProperty.value = filteredAttributes.value?.filter((attr) => { return attr.name === "gid" })[0]
         } else {
             if (hasID) {
-                selectedProperty.value = filteredAttributes.value?.filter((attr) => { return attr.name === "gid" })[0]
+                selectedProperty.value = filteredAttributes.value?.filter((attr) => { return attr.name === "id" })[0]
             }
         }
     }
@@ -187,7 +187,7 @@ a filter to the store, then setting the filter on the map.
 function geomFilterApplier(): void{
     console.log("applying geom filter")
     console.log("layer type is: ", props.layer.type)
-    if (props.layer.type === "fill"){
+    if (props.layer.type === "fill"||props.layer.type === "circle" || props.layer.type === "line"){
         if (selectedFilterLayer.value?.layerData != null && selectedProperty.value?.name != null && selectedProperty.value.name !== ""){
             const filterArray: Array<string|number> = filterStore.createGeometryFilter(props.layer.id, {
                 filterGeoJSON: selectedFilterLayer.value.layerData,
@@ -217,30 +217,6 @@ function geomFilterApplier(): void{
                     toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
                 })
             }
-        }
-    }
-    if (props.layer.type === "circle" || props.layer.type === "line"){
-        if (selectedFilterLayer.value?.layerData != null){
-            const item: GeometryFilterItem = {
-                filterGeoJSON: selectedFilterLayer.value.layerData,
-                targetLayerSourceType: props.layer.type
-            }
-            filterStore.addGeometryFilter(props.layer.id, item).then((response)=>{
-                console.log("geom filter added to list proceeding to apply filter", response)
-                filterStore.populateLayerFilter(response, "AND").then((expression)=> {
-                    console.log("expression is :", expression)
-                    if (expression.length > 1){
-                        mapStore.map.setFilter(props.layer.id, expression)
-                    } else {
-                        mapStore.map.setFilter(props.layer.id, null)
-                    }
-                }).catch((error)=>{
-                    mapStore.map.setFilter(props.layer.id, null)
-                    toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
-                })
-            }).catch((error)=>{
-                toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
-            })
         }
     }
 }

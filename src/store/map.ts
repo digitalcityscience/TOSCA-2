@@ -29,6 +29,7 @@ export interface CustomAddLayerObject {
 }
 export interface LayerObjectWithAttributes extends CustomAddLayerObject {
 	details?: GeoServerVectorTypeLayerDetail|GeoserverRasterTypeLayerDetail;
+	workspaceName?: string;
 }
 type SourceType = "geojson" | "geoserver";
 export type MapLibreLayerTypes =
@@ -63,6 +64,7 @@ interface GeoServerLayerParams extends BaseLayerParams {
 	sourceLayer?: string;
 	sourceDataType: "vector" | "raster";
 	sourceProtocol?: "wms" | "wmts";
+	workspaceName?: string;
 }
 export type LayerParams = GeoJSONLayerParams | GeoServerLayerParams;
 export interface BaseDataSourceParams {
@@ -356,6 +358,10 @@ export const useMapStore = defineStore("map", () => {
 		if (sourceType === "geoserver") {
 			(layerObject as LayerObjectWithAttributes).details =
 				params.geoserverLayerDetails;
+			if (params.workspaceName !== undefined) {
+				(layerObject as LayerObjectWithAttributes).workspaceName =
+					params.workspaceName;
+			}
 		}
 		add2MapLayerList(layerObject as LayerObjectWithAttributes, index);
 		return await Promise.resolve(map.value.getLayer(identifier));
@@ -546,6 +552,10 @@ export const useMapStore = defineStore("map", () => {
 			return "circle";
 		}
 		if (
+			geometry === "Curve" ||
+			geometry === "MultiCurve" ||
+			geometry === "LineCurve" ||
+			geometry === "Line" ||
 			geometry === "LineString" ||
 			geometry === "LinearRing" ||
 			geometry === "MultiLineString"
@@ -555,7 +565,8 @@ export const useMapStore = defineStore("map", () => {
 		if (
 			geometry === "Polygon" ||
 			geometry === "MultiPolygon" ||
-			geometry === "Geometry"
+			geometry === "Geometry" ||
+			geometry === "GeometryCollection"
 		) {
 			return "fill";
 		} else {

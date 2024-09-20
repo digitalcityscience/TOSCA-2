@@ -249,6 +249,9 @@ export const useGeoserverStore = defineStore("geoserver", () => {
     layer: GeoserverLayerListItem,
     workspace: string
   ): Promise<GeoserverLayerInfoResponse> {
+    console.log("***---");
+    console.log(layer);
+    console.log("---***");
     const url = new URL(
       `${
         import.meta.env.VITE_GEOSERVER_REST_URL
@@ -281,6 +284,21 @@ export const useGeoserverStore = defineStore("geoserver", () => {
     });
     return await response.json();
   }
+  async function getGeoJSONLayerSource(layer: string, workspace: string, bbox?:string, cqlFilter?:string): Promise<any> {
+    const url = new URL(
+      `${import.meta.env.VITE_GEOSERVER_BASE_URL}/${workspace}/wms?service=WMS&version=1.1.0&request=GetMap&layers=${workspace}:${layer}&bbox=${bbox ?? ""}&width=512&height=512&srs=EPSG:4326&format=geojson&CQL_FILTER=${cqlFilter ?? ""}&styles=`
+    );
+    console.log(url);
+    const response = await fetch(url, {
+      method: "GET",
+      redirect: "follow",
+      headers: new Headers({
+        "Content-Type": "application/geojson",
+        Authorization: `Basic ${auth}`,
+      }),
+    });
+    return await response.json();
+  }
   /**
    * Retrieves layer styling object from geoserver
    * @param url - url of style from geoserver
@@ -305,6 +323,7 @@ export const useGeoserverStore = defineStore("geoserver", () => {
     getWorkspaceList,
     getLayerInformation,
     getLayerDetail,
+    getGeoJSONLayerSource,
     getLayerStyling
   };
 });
