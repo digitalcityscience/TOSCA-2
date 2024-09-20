@@ -7,7 +7,7 @@
         <h1 class="text-2xl font-bold uppercase">{{ campaignDetail.campaign_name }}</h1>
         <p class="whitespace-pre-wrap py-2">{{ campaignDetail.campaing_detailed_description }}</p>
         <div v-if="campaignDetail" class="pt-2">
-            <ParticipationForm :campaign="campaignDetail"></ParticipationForm>
+            <ParticipationForm :campaign="campaignDetail" @cycleReset="loadCampaignLayers"></ParticipationForm>
         </div>
     </div>
 </template>

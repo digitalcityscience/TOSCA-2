@@ -14,16 +14,16 @@
 			<label :for="draw.name" class="ml-2">{{ draw.mode }}</label>
 		</div>
 	</div>
-	<div class="w-full grid lg:grid-cols-1 2xl:grid-cols-2 pt-2">
-		<div class="p-1" v-if="!drawTool.drawOnProgress && !drawTool.editOnProgress">
+	<div class="w-full grid lg:grid-cols-1 pt-2">
+		<div class="py-1" v-if="!drawTool.drawOnProgress && !drawTool.editOnProgress">
 			<Button class="w-full" size="small" @click="startDraw">Start Drawing</Button>
 		</div>
-		<div v-if="(drawTool.drawOnProgress || drawTool.editOnProgress)">
-			<div class="p-1" >
+		<div class="" v-if="(drawTool.drawOnProgress || drawTool.editOnProgress)">
+			<div class="py-1" >
 				<Button class="w-full" size="small" :disabled="!(drawTool.drawOnProgress || drawTool.editOnProgress)"
 					@click="cancelDrawing">Cancel Drawing</Button>
 			</div>
-			<div class="p-1">
+			<div class="py-1">
 				<Button class="w-full" size="small" @click="addToDrawnArea">Add to Items</Button>
 			</div>
 		</div>

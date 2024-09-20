@@ -1,10 +1,10 @@
 <template>
     <div>
         <div class="w-full 2xl:flex 2xl:justify-between 2xl:grid-cols-none lg:grid lg:grid-cols-4 lg:gap-2 2xl:gap-0 py-1 ">
-            <div class="w-full lg:col-span-2">
+            <div class="w-full lg:col-span-2 2xl:pr-2">
                 <Button class="w-full" size="small" @click="createTable">Get Table</Button>
             </div>
-            <div class="w-full lg:col-span-2">
+            <div class="w-full lg:col-span-2 2xl:pl -2">
                 <Button class="w-full" v-if="tableData" size="small" @click="isOpen = true">Open Table</Button>
             </div>
         </div>
@@ -70,7 +70,7 @@
                 <div class="w-full lg:col-span-2">
                 </div>
                 <div class="w-full flex lg:col-span-2">
-                    <InputText class="h-10 mr-4" type="text" v-model="fileName" placeholder="File name"></InputText>
+                    <InputText class="h-10 mr-4 ml-auto" type="text" v-model="fileName" placeholder="File name"></InputText>
                     <Button @click="downloadAsGeojson" :disabled="fileName.length === 0" class="lg:w-full 2xl:w-auto"
                         size="small">Download as GeoJSON</Button>
                 </div>

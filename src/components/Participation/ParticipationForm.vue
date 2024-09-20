@@ -13,16 +13,20 @@
                 </div>
                 <div v-if="campaign.form_enabled && (participation.feedbackStep === 'feedback'||participation.feedbackStep === 'location')" class="form">
                     <div v-if="participation.feedbackStep === 'location'" class="w-full grid lg:grid-cols-1 2xl:grid-cols-2 pt-2">
-                        <p class="text-sm font-light mb-1">Choose the location where you want to give your feedback.
-                        </p>
-                        <Button v-if="!participation.locationSelectionOnProgress" size="small"
-                            @click="participation.startCenterSelection">
-                            Start selection
-                        </Button>
-                        <Button v-else :disabled="!participation.isLocationSelected" size="small"
-                            @click="selectCenter">
-                            Finish selection
-                        </Button>
+                        <div class="w-full col-span-2">
+                            <p class="text-sm font-light pb-4">Choose the location where you want to give your feedback.
+                            </p>
+                        </div>
+                        <div class="w-full col-span-2">
+                            <Button v-if="!participation.locationSelectionOnProgress" size="small"
+                                @click="participation.startCenterSelection">
+                                Start selection
+                            </Button>
+                            <Button v-else :disabled="!participation.isLocationSelected" size="small"
+                                @click="selectCenter">
+                                Finish selection
+                            </Button>
+                        </div>
                     </div>
                     <div v-else class="form">
                         <div class="pt-3 w-full flex flex-col">
@@ -105,6 +109,7 @@ function startSubmission(): void {
         participation.feedbackStep = "location"
     }
 }
+const emit = defineEmits(["cycleReset"])
 function resetFeedbackCycle(): void {
     participation.feedbackOnProgress = false
     participation.isLocationSelected = false
@@ -115,7 +120,9 @@ function resetFeedbackCycle(): void {
     rating.value = 0
     participation.deleteSelectedAreasTempLayer()
     participation.cancelCenterSelection()
-    mapStore.resetMapData().then(() => { }).catch((error) => {
+    mapStore.resetMapData().then(() => {
+        emit("cycleReset")
+    }).catch((error) => {
         console.error(error)
     })
 }
