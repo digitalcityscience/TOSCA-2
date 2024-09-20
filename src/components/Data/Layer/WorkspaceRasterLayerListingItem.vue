@@ -88,7 +88,8 @@ function add2Map(): void{
                     sourceLayer:`${layerDetail.value!.coverage.name}`,
                     displayName:layerDetail.value?.coverage.title ?? undefined,
                     sourceDataType:"raster",
-                    sourceProtocol:"wms"
+                    sourceProtocol:"wms",
+                    workspaceName:props.workspace,
                 }
                 mapStore.addMapLayer(layerParams).then(()=>{
                 }).catch(error => {

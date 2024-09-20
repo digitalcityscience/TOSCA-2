@@ -4,14 +4,14 @@
         <template #subtitle>Select an attribute and operand to filter this layer</template>
         <template #content>
             <div class="current-filters" v-if="filterStore.appliedFiltersList.find((listItem)=>{return listItem.layerName === props.layer.id && ((listItem.attributeFilters !== undefined && listItem.attributeFilters?.length > 0) || listItem.geometryFilters !== undefined)})">
-                <DataTable :value="currentFilters" class="w-full" size="small" table-class="w-full">
+                <DataTable :value="currentFilters" stripedRows class="w-full" size="small" table-class="w-full">
                     <template #header></template>
-                    <Column>
+                    <Column header="">
                         <template #body="filter">
                             <span>{{ filter.data.attribute.name }} {{ filterStore.filterNames[filter.data.operand as IntegerFilters | StringFilters] }} {{ filter.data.value }}</span>
                         </template>
                     </Column>
-                    <Column>
+                    <Column header="">
                         <template #body="filter">
                             <div class="w-full flex flex-row-reverse">
                                 <Button @click="deleteAttributeFilter(filter.data)" severity="danger" text rounded>
@@ -27,7 +27,7 @@
             <div class="w-full no-current-filter py-1" v-else>
                 <InlineMessage class="w-full" severity="info">You have no filter</InlineMessage>
             </div>
-            <div class="filter-control">
+            <div class="filter-control py-1">
                 <div v-if="currentFilters.length" class="relation-control w-full flex flex-row ml-auto py-1 justify-between">
                     <span class="self-center" v-if="relationType==='AND'">(Match all selections)</span>
                     <span class="self-center" v-else>(Match at least one selection)</span>
@@ -138,7 +138,7 @@ async function applyAttributeFilter(): Promise<void> {
             operand: selectedOperand.value!,
             value: filterValue.value.toString()
         }
-        await filterStore.addAttributeFilter(props.layer.id, filter).then((response)=>{
+        await filterStore.addAttributeFilter(props.layer.id, filter, relationType.value).then((response)=>{
             if (response.attributeFilters !== undefined || response.geometryFilters !== undefined) {
                 filterStore.populateLayerFilter(response, relationType.value).then((expression)=>{
                     if (expression.length > 1){
@@ -206,4 +206,10 @@ async function deleteAttributeFilter(targetFilter: AppliedFilter): Promise<void>
 </script>
 
 <style scoped>
+.current-filters:deep([data-pc-section="header"]){
+    display: none
+}
+.current-filters:deep([data-pc-section="headerrow"]){
+    display: none
+}
 </style>

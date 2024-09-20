@@ -21,6 +21,8 @@ export interface Preset {
     tag: any;
     textarea: any;
     rating: any;
+    datatable: any;
+    paginator: any;
 }
 declare const toscaPresets: Preset;
 export default toscaPresets;

@@ -55,39 +55,8 @@ const cleanLayerName = computed(() => {
 const geoserver = useGeoserverStore()
 const layerDetail = ref<GeoServerVectorTypeLayerDetail>()
 const layerStyling = ref<LayerStyleOptions>()
-geoserver.getLayerInformation(props.item, props.workspace).then((response) => {
-    // Currently we are just picking styles which has include mbstyle in name. Further optimization needed after some period
-    // TODO: remove mbstyle selector
-    if (response.layer.defaultStyle.href.includes("mbstyle")){
-        const regex = /\.json\b/;
-        const url = response.layer.defaultStyle.href.replace(regex, ".mbstyle")
-        geoserver.getLayerStyling(url).then(style => {
-            if (style.layers.length > 0){
-                const obj: LayerStyleOptions = {
-                    paint:{ ...style.layers[0].paint }
-                }
-                if (Object.prototype.hasOwnProperty.call(style.layers[0] as LayerStyleOptions, "layout")){
-                    obj.layout = style.layers[0].layout
-                }
-                if (Object.prototype.hasOwnProperty.call(style.layers[0] as LayerStyleOptions, "minzoom")){
-                    obj.minzoom = style.layers[0].minzoom
-                }
-                if (Object.prototype.hasOwnProperty.call(style.layers[0] as LayerStyleOptions, "maxzoom")){
-                    obj.maxzoom = style.layers[0].maxzoom
-                }
-                layerStyling.value = obj
-            }
-        }).catch((error) => {
-            toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
-        })
-    }
-    if (props.layerInformation !== undefined) {
-        geoserver.getLayerDetail(props.layerInformation.resource.href).then((detail) => {
-            layerDetail.value = detail as GeoServerVectorTypeLayerDetail
-        }).catch(err => {
-            toast.add({ severity: "error", summary: "Error", detail: err, life: 3000 });
-        })
-    }
+geoserver.getLayerDetail(props.layerInformation.resource.href).then((detail) => {
+    layerDetail.value = detail as GeoServerVectorTypeLayerDetail
 }).catch(err => {
     toast.add({ severity: "error", summary: "Error", detail: err, life: 3000 });
 })
@@ -125,7 +94,8 @@ function add2Map(): void{
                     sourceLayer:`${layerDetail.value!.featureType.name}`,
                     displayName:layerDetail.value?.featureType.title ?? undefined,
                     sourceDataType:"vector",
-                    sourceProtocol:"wmts"
+                    sourceProtocol:"wmts",
+                    workspaceName:props.workspace,
                 }
                 mapStore.addMapLayer(layerParams).then(()=>{
                 }).catch(error => {
