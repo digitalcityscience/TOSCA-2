@@ -55,7 +55,7 @@
                     </Dropdown>
                     <Dropdown
                         class="min-w-32 w-full h-10"
-                        v-else-if="selectedAttribute && (selectedAttribute.binding == 'java.lang.Integer' || selectedAttribute.binding == 'java.lang.Long' || selectedAttribute.binding == 'java.lang.Double')"
+                        v-else-if="selectedAttribute && (selectedAttribute.binding == 'java.lang.Integer' || selectedAttribute.binding == 'java.lang.Long' || selectedAttribute.binding == 'java.lang.Double' || selectedAttribute.binding == 'java.lang.BigDecimal')"
                         v-model="selectedOperand" :options="filterStore.integerFilters" show-clear
                         placeholder="Select an operand">
                         <template #option="slotProps">

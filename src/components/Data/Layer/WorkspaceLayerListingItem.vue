@@ -4,7 +4,7 @@
             <WorkspaceRasterLayerListingItem :item="props.item" :workspace="props.workspace" :layerInformation="layerInformation"></WorkspaceRasterLayerListingItem>
         </div>
         <div v-if="layerInformation.type ==='VECTOR'">
-            <WorkspaceVectorLayerListingItem :item="props.item" :workspace="props.workspace" :layerInformation="layerInformation"></WorkspaceVectorLayerListingItem>
+            <WorkspaceVectorLayerListingItem :item="props.item" :workspace="props.workspace" :layerInformation="layerInformation" :layerStyling="layerStyling"></WorkspaceVectorLayerListingItem>
         </div>
     </div>
     <div v-else class="first:pt-0 pt-1 w-full">
