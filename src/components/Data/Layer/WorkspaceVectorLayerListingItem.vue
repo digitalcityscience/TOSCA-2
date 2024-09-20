@@ -42,7 +42,8 @@ import { useToast } from "primevue/usetoast";
 export interface Props {
     item: GeoserverLayerListItem
     workspace: string
-    layerInformation: GeoserverLayerInfo
+    layerInformation: GeoserverLayerInfo,
+    layerStyling?: LayerStyleOptions
 }
 export interface LayerStylingPaint {
     paint: object
@@ -54,7 +55,6 @@ const cleanLayerName = computed(() => {
 })
 const geoserver = useGeoserverStore()
 const layerDetail = ref<GeoServerVectorTypeLayerDetail>()
-const layerStyling = ref<LayerStyleOptions>()
 geoserver.getLayerDetail(props.layerInformation.resource.href).then((detail) => {
     layerDetail.value = detail as GeoServerVectorTypeLayerDetail
 }).catch(err => {
@@ -89,7 +89,7 @@ function add2Map(): void{
                     sourceType:"geoserver",
                     identifier:layerDetail.value!.featureType.name,
                     layerType:mapStore.geometryConversion(dataType.value),
-                    layerStyle:!isNullOrEmpty(layerStyling.value) ? { ...layerStyling.value }: undefined,
+                    layerStyle:!isNullOrEmpty(props.layerStyling) ? { ...props.layerStyling }: undefined,
                     geoserverLayerDetails:layerDetail.value!,
                     sourceLayer:`${layerDetail.value!.featureType.name}`,
                     displayName:layerDetail.value?.featureType.title ?? undefined,
