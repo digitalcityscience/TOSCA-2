@@ -57,12 +57,16 @@ export const useFilterStore = defineStore("filter", () => {
     "java.lang.Integer",
   ]
   const appliedFiltersList = ref<AppliedFiltersListItem[]>([])
-  /**
-   * Verify whether a filter with an identical attribute and operand already exists in the filter list. If not, append the new filter to the layer's filter list.
-   * @param layername - Target layer for filter
-   * @param attributeFilter  - Filter information
-   * @returns - Filterlist to apply to specified layer
-   */
+/**
+ * Adds a new attribute filter to the specified layer.
+ * If a filter with the same attribute and operand already exists, it will throw an error.
+ *
+ * @param layername - The name of the target layer for the filter.
+ * @param attributeFilter - The filter object containing attribute, operand, and value.
+ * @param relationType - The relation type between the filters (default is "AND").
+ * @returns A Promise that resolves to the updated applied filter list for the specified layer.
+ * @throws {Error} If the filter is already applied to the layer.
+ */
   async function addAttributeFilter(layername: string, attributeFilter: AttributeFilterItem, relationType: RelationTypes = "AND"): Promise<AppliedFiltersListItem> {
     const layerFilters = appliedFiltersList.value.find((item) => { return item.layerName === layername })
     if (appliedFiltersList.value.length > 0 && layerFilters !== undefined){
@@ -92,11 +96,13 @@ export const useFilterStore = defineStore("filter", () => {
       return await Promise.resolve(newFilter)
     }
   }
-  /**
- * Removes a filter with a specific attribute and operand from the filter list of a given layer.
- * @param layername - Target layer for filter removal
- * @param attributeFilter  - Filter information to remove
- * @returns - Updated filter list for the specified layer
+/**
+ * Removes an attribute filter from the specified layer's filter list.
+ *
+ * @param layername - The name of the target layer from which to remove the filter.
+ * @param attributeFilter - The filter object to remove.
+ * @returns A Promise that resolves to the updated applied filter list for the specified layer.
+ * @throws {Error} If the filter is not found or the layer does not exist.
  */
 async function removeAttributeFilter(layername: string, attributeFilter: AttributeFilterItem): Promise<AppliedFiltersListItem> {
   const layerFiltersIndex = appliedFiltersList.value.findIndex(item => item.layerName === layername);
@@ -124,12 +130,14 @@ async function removeAttributeFilter(layername: string, attributeFilter: Attribu
   }
 }
 
-  /**
-   * Verify whether a filter with an identical attribute and operand already exists in the filter list. If not, append the new filter to the layer's filter list.
-   * @param layername - Target layer for filter
-   * @param attributeFilter  - Filter information
-   * @returns - Filterlist to apply to specified layer
-   */
+/**
+ * Adds a geometry filter to the specified layer.
+ *
+ * @param layername - The name of the target layer for the geometry filter.
+ * @param geometryFilter - The geometry filter object containing filter information and source type.
+ * @returns A Promise that resolves to the updated applied filter list for the specified layer.
+ * @throws {Error} If the filterGeoJSON is not a valid FeatureCollection or the identifier is missing.
+ */
   async function addGeometryFilter(layername: string, geometryFilter: GeometryFilterItem): Promise<AppliedFiltersListItem> {
     if (geometryFilter.targetLayerSourceType === undefined) {
       throw new Error("There is no target layer source type")
@@ -160,11 +168,13 @@ async function removeAttributeFilter(layername: string, attributeFilter: Attribu
         return await Promise.resolve(appliedFiltersList.value.find((item) => { return item.layerName === layername })!)
       }
   }
-  /**
-   * Removes geometry filter from specified layer
-   * @param layername target layer
-   * @returns sth
-   */
+/**
+ * Removes the geometry filter from the specified layer.
+ *
+ * @param layername - The name of the target layer from which to remove the geometry filter.
+ * @returns A Promise that resolves to the updated applied filter list for the specified layer.
+ * @throws {Error} If the layer or geometry filter is not found or couldn't be deleted.
+ */
   async function removeGeometryFilter(layername: string): Promise<AppliedFiltersListItem> {
     const layerFiltersIndex = appliedFiltersList.value.findIndex(item => item.layerName === layername)
     if (layerFiltersIndex !== -1) {
@@ -182,12 +192,13 @@ async function removeAttributeFilter(layername: string, attributeFilter: Attribu
       throw new Error(`Layer not found: ${layername}`);
     }
   }
-  /**
-   * Creates maplibre expression based on specified filters on layer
-   * @param appliedFilters
-   * @param attributeRelation
-   * @returns maplibre expression for filtering
-   */
+/**
+ * Generates a MapLibre expression based on the specified filters applied to a layer.
+ *
+ * @param appliedFilters - The filters applied to the layer.
+ * @param attributeRelation - The relation type between the attribute filters ("AND" or "OR").
+ * @returns A Promise that resolves to a MapLibre filter expression for the specified layer.
+ */
   async function populateLayerFilter(appliedFilters: AppliedFiltersListItem, attributeRelation: RelationTypes): Promise<any[]> {
     const expressionBlock: any[] = ["all"]
     if (appliedFilters.attributeFilters !== undefined){
@@ -224,12 +235,13 @@ async function removeAttributeFilter(layername: string, attributeFilter: Attribu
       return await Promise.resolve(expressionBlock)
     }
   }
-  /**
-   * This function retrieves all features currently rendered on the map for a specified layer. It then evaluates each feature to determine whether it lies within a provided GeoJSON geometry. Finally, the function compiles a list of identifiers for those features that are found to be within the given geometry.
-   * @param layerName layer to filter
-   * @param geometryFilter geometryfilteritem object
-   * @returns list of identifier
-   */
+/**
+ * Creates a list of identifiers for features that fall within the specified geometry filter on a given layer.
+ *
+ * @param layerName - The name of the target layer to apply the geometry filter.
+ * @param geometryFilter - The geometry filter object containing the target GeoJSON and identifier.
+ * @returns An array of feature identifiers that are within the given geometry.
+ */
   function createGeometryFilter(layerName: string, geometryFilter: GeometryFilterTargetItem): Array<string|number> {
     const mapFeatureList: MapGeoJSONFeature[] = mapStore.map.queryRenderedFeatures({ layers:[layerName] })
     if (geometryFilter.identifier !== undefined && mapFeatureList.length>0){
