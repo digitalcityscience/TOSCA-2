@@ -74,21 +74,38 @@ export interface PostFeedbackRating {
 }
 export const useParticipationStore = defineStore("participation", () => {
     // Feedback Progression
+    /**
+     * Flag to indicate whether the feedback process is currently in progress.
+     */
     const feedbackOnProgress = ref<boolean>(false)
+    /**
+     * The current step of the feedback process, can be "idle", "location", "feedback", or "rating".
+     */
     const feedbackStep = ref<FeedbackStep>("location")
+    /**
+     * Flag indicating whether a location has been selected during the feedback process.
+     */
     const isLocationSelected = ref<boolean>(false)
+    /**
+     * Flag indicating whether the campaign has been rated.
+     */
     const isCampaignRated = ref<boolean>(false)
 
     const mapStore = useMapStore();
     const drawTool = useDrawStore();
+    /**
+     * Current drawing mode, such as "polygon", which determines how the drawing tool behaves.
+     */
     const drawMode = ref<DrawMode>("polygon");
     // DRAWN GEOMETRY
     const selectedDrawnGeometry = ref<Feature[]>([]);
     /**
-	 * Adds an administrative feature to the selected administrative features list.
-	 * @param item - The feature to add to the list.
-	 * @returns A boolean indicating whether the feature was successfully added (`true`) or not (`false`).
-	 */
+     * Adds a drawn feature to the selected drawn geometry list.
+     * If the feature is already selected, it throws an error.
+     * @param {Feature} item - The feature to add.
+     * @returns {boolean} - `true` if the feature is successfully added.
+     * @throws {Error} - Throws if the feature is already selected.
+     */
     function addToSelectedDrawnGeometry(item: Feature): boolean {
         if (selectedDrawnGeometry.value.length > 0) {
             let alreadySelected = false;
@@ -113,10 +130,10 @@ export const useParticipationStore = defineStore("participation", () => {
         return true;
     }
     /**
-	 * Removes an administrative feature from the selected administrative features list.
-	 * @param item - The feature to remove from the list.
-	 * @returns A boolean indicating whether the feature was successfully removed (`true`) or not (`false`).
-	 */
+     * Removes a drawn feature from the selected drawn geometry list.
+     * @param {Feature} item - The feature to remove.
+     * @returns {boolean} - `true` if the feature is successfully removed.
+     */
     function removeFromSelectedDrawnGeometry(item: Feature): boolean {
         const index = selectedDrawnGeometry.value.findIndex(
             (feature) => feature.id === item.id
@@ -128,6 +145,10 @@ export const useParticipationStore = defineStore("participation", () => {
             return false;
         }
     }
+    /**
+     * Creates a GeoJSON FeatureCollection from the selected drawn geometry.
+     * @returns {FeatureCollection} - The generated GeoJSON feature collection.
+     */
     function createSelectedGeometryGeoJSON(): FeatureCollection {
         const allSelectedFeatures: Feature[] = [];
         selectedDrawnGeometry.value.forEach((feature) => {
@@ -139,6 +160,10 @@ export const useParticipationStore = defineStore("participation", () => {
         };
         return featureCollection;
     }
+    /**
+     * Creates a temporary layer on the map to visualize the selected areas.
+     * This function adds polygon, line, and point layers based on the selected geometry.
+     */
     function createSelectedAreasTempLayer(): void {
         const features: FeatureCollection = createSelectedGeometryGeoJSON();
         const layerStylePolygon: Record<string, any> = {
@@ -239,6 +264,9 @@ export const useParticipationStore = defineStore("participation", () => {
                 console.error(error);
             });
     }
+    /**
+     * Updates the temporary layer on the map with the newly selected areas.
+     */
     function updateSelectedAreasTempLayer(): void {
         // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
         if (!mapStore.map.getSource("selectedAreasTempLayer-polygon")) {
@@ -248,6 +276,10 @@ export const useParticipationStore = defineStore("participation", () => {
             .getSource("selectedAreasTempLayer")
             .setData(createSelectedGeometryGeoJSON());
     }
+    /**
+     * Deletes the temporary layer that displays the selected areas from the map.
+     * It removes all layers associated with the selected geometry and clears the selected features.
+     */
     function deleteSelectedAreasTempLayer(): void {
         // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
         if (mapStore.map.getLayer("selectedAreasTempLayer-polygon")) {
@@ -273,7 +305,10 @@ export const useParticipationStore = defineStore("participation", () => {
     // Feedback Location Selector
     const locationSelectionOnProgress = ref<boolean>(false);
     const pointOfInterest = ref<CenterLocation>();
-
+    /**
+     * Starts the center selection process on the map.
+     * Initializes TerraDraw for point selection and creates a temporary layer for visualizing the selection.
+     */
     function startCenterSelection(): void {
         try {
             if (drawTool.terraDraw === undefined) {
@@ -326,6 +361,10 @@ export const useParticipationStore = defineStore("participation", () => {
             console.error(error);
         }
     }
+    /**
+     * Cancels the center selection process.
+     * This function stops the drawing mode, clears the selected center point, and resets the selection process.
+     */
     function cancelCenterSelection(): void {
         console.log("canceling center selection");
         locationSelectionOnProgress.value = false;
@@ -344,6 +383,13 @@ export const useParticipationStore = defineStore("participation", () => {
         }
         pointOfInterest.value = undefined;
     }
+    /**
+     * Finishes the center selection process and proceeds to the next step based on the campaign settings.
+     * If rating is enabled in the campaign, the feedback step moves to "rating"; otherwise, it moves to "feedback".
+     * The selected center point is finalized and saved in the temporary layer.
+     *
+     * @param {CampaignDetail} campaign - The campaign details, including settings for rating and feedback.
+     */
     function finishCenterSelection(campaign: CampaignDetail): void {
         if (campaign.rate_enabled) {
             feedbackStep.value = "rating";
@@ -362,6 +408,11 @@ export const useParticipationStore = defineStore("participation", () => {
         mapStore.map.getSource("centerSelectionLayer").setData(src)
         drawTool.stopTerradraw();
     }
+    /**
+     * Handles the center point selection process by monitoring changes in TerraDraw.
+     * Ensures that only one center point is selected at a time by removing any extra points from the map.
+     * Updates the `pointOfInterest` value with the selected location's coordinates.
+     */
     function centerSelector(): void {
         const snap = drawTool.getSnapshot();
         if (snap.length > 1) {
@@ -378,7 +429,10 @@ export const useParticipationStore = defineStore("participation", () => {
         isLocationSelected.value = true
     }
 
-    // reset selected areas
+    /**
+     * Resets the selected areas by clearing the `selectedDrawnGeometry` array and updating the temporary layer on the map.
+     * This effectively clears any previously selected drawn features from the map.
+     */
     function resetSelectedAreas(): void {
         selectedDrawnGeometry.value = [];
         updateSelectedAreasTempLayer();
