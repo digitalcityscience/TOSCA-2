@@ -86,7 +86,15 @@ export interface GeoJSONSourceParams extends BaseDataSourceParams {
 export type SourceParams = GeoJSONSourceParams | GeoServerSourceParams;
 export const useMapStore = defineStore("map", () => {
 	const toast = useToast();
+	/**
+     * Reference to the map instance, which will be assigned once a MapLibre map is initialized.
+     * This will be used to interact with the MapLibre map for adding, removing, and manipulating layers and sources.
+     */
 	const map = ref<any>();
+	/**
+     * An array containing detailed information about all the layers currently added to the map.
+     * Each object in the array represents a layer with its attributes, such as its source type, display name, styling, etc.
+     */
 	const layersOnMap = ref<LayerObjectWithAttributes[]>([]);
 	/**
 	 * Asynchronously adds a new data source to Maplibre map sources. The source can be either GeoJSON data or a Geoserver vector tile source.
@@ -463,8 +471,9 @@ export const useMapStore = defineStore("map", () => {
 		return styling;
 	}
 	/**
-	 * Adds layers on map to a layerlist for layer listing
-	 * @param layerObject detailed layer information
+	 * Adds a new layer to the map's layer list.
+	 * @param {LayerObjectWithAttributes} layerObject - Object containing detailed layer information, including its attributes, source, and styling.
+	 * @param {number} [index] - Optional index for inserting the layer at a specific position within the layer list.
 	 */
 	function add2MapLayerList(layerObject: LayerObjectWithAttributes, index?: number): void {
 		if (index !== undefined) {
@@ -487,8 +496,9 @@ export const useMapStore = defineStore("map", () => {
 		}
 	}
 	/**
-	 * Removes a layer from the layersOnMap list based on its identifier.
+	 * Removes a layer from the `layersOnMap` list based on its identifier.
 	 * @param {string} identifier - The unique identifier for the layer to remove.
+	 * @param {boolean} [information] - Optional flag to trigger an information toast message when the layer is removed.
 	 * @throws {Error} Throws an error if the layer cannot be found in the list.
 	 */
 	function removeFromMapLayerList(identifier: string, information?: boolean): void {
@@ -516,6 +526,12 @@ export const useMapStore = defineStore("map", () => {
 			);
 		}
 	}
+	/**
+	 * Creates a random paint object for styling layers based on their type.
+	 * This function assigns a random color to the layers to differentiate them visually.
+	 * @param {MapLibreLayerTypes} type - The type of layer (e.g., "circle", "fill", "line") to determine the default paint properties.
+	 * @returns {Record<string, any>} - A paint object with properties specific to the layer type.
+	 */
 	function createRandomPaintObj(
 		type: MapLibreLayerTypes
 	): Record<string, any> {
@@ -547,6 +563,12 @@ export const useMapStore = defineStore("map", () => {
 				};
 		}
 	}
+	/**
+	 * Converts a GeoJSON geometry type to a MapLibre layer type.
+	 * This function maps different geometry types (e.g., "Point", "LineString", "Polygon") to corresponding MapLibre layer types (e.g., "circle", "line", "fill").
+	 * @param {string} geometry - The GeoJSON geometry type (e.g., "Point", "Polygon").
+	 * @returns {MapLibreLayerTypes} - The MapLibre layer type that corresponds to the input geometry.
+	 */
 	function geometryConversion(geometry: string): MapLibreLayerTypes {
 		if (geometry === "Point" || geometry === "MultiPoint") {
 			return "circle";
