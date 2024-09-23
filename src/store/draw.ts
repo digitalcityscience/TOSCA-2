@@ -127,6 +127,16 @@ export const useDrawStore = defineStore("draw", () => {
             console.error("An error occurred while changing draw mode:", error);
         }
     }
+    /**
+     * Stops the TerraDraw instance if it is enabled and sets the mode to "static".
+     * Resets the drawing and editing progress flags and clears the layer name.
+     *
+     * @remarks
+     * This function requires the `terraDraw` instance to be defined and enabled.
+     * If the instance is undefined, an error is logged.
+     *
+     * @returns {void}
+     */
     function stopTerradraw(): void {
         if (terraDraw.value !== undefined && terraDraw.value.enabled) {
             terraDraw.value.setMode("static")
@@ -137,14 +147,15 @@ export const useDrawStore = defineStore("draw", () => {
         }
     }
     /**
-     * Initializes the draw mode.
-     *
-     * This function checks if the `terraDraw` value is defined. If it is, it checks if the draw is not already in progress. If the draw is not in progress, it checks if editing is in progress. If editing is in progress, it sets the draw mode and updates the progress flags accordingly. If editing is not in progress, it starts the draw, sets the draw mode, and updates the progress flags.
+     * Initializes the drawing mode for the TerraDraw instance.
      *
      * @remarks
-     * This function assumes that the `terraDraw` value is a valid drawing instance. If the `terraDraw` value is not defined, an error message is logged.
+     * This function starts the drawing mode if it's not already in progress. If the drawing is
+     * already in progress, it does nothing. If editing is in progress, it switches to drawing.
+     * If no drawing or editing is in progress, it starts the drawing process with the selected mode.
+     * Logs an error if the `terraDraw` instance is not found.
      *
-     * @returns void
+     * @returns {void}
      */
     function initDrawMode(): void {
         if (terraDraw.value !== undefined) {
@@ -202,6 +213,16 @@ export const useDrawStore = defineStore("draw", () => {
             console.error("Could not find drawing instance")
         }
     }
+    /**
+     * Gets a snapshot of the current drawn features from the TerraDraw instance.
+     *
+     * @remarks
+     * This function retrieves the current features being drawn on the map.
+     * If the `terraDraw` instance is not initialized, it returns an empty array
+     * and logs an error to the console.
+     *
+     * @returns {Feature[]} An array of GeoJSON features drawn on the map.
+     */
     function getSnapshot(): Feature[]{
         if (terraDraw.value !== undefined) {
             return terraDraw.value.getSnapshot()
@@ -210,6 +231,16 @@ export const useDrawStore = defineStore("draw", () => {
             return [];
         }
     }
+    /**
+     * Clears all drawn features from the TerraDraw instance.
+     *
+     * @remarks
+     * This function requires the `terraDraw` instance to be defined.
+     * It removes all currently drawn features from the map.
+     * Logs an error if `terraDraw` is not initialized.
+     *
+     * @returns {void}
+     */
     function clearSnapshot(): void {
         if (terraDraw.value !== undefined) {
             terraDraw.value.clear()
