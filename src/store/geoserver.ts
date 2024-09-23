@@ -195,8 +195,11 @@ export const useGeoserverStore = defineStore("geoserver", () => {
   const layerList = ref<GeoserverLayerListItem[]>();
   const workspaceList = ref<WorkspaceListItem[]>();
   /**
-   * Gets layer list from geoserver. If optional workspace argument used it returns only layer list under this workspace.
-   * @returns
+   * Retrieves a list of layers from GeoServer.
+   * If a workspace name is provided, it returns the layers from that specific workspace.
+   *
+   * @param workspaceName - Optional workspace name to filter the layers.
+   * @returns A Promise resolving to a GeoServerLayerListResponse containing the list of layers.
    */
   async function getLayerList(
     workspaceName?: string
@@ -221,8 +224,9 @@ export const useGeoserverStore = defineStore("geoserver", () => {
     return await response.json();
   }
   /**
-   * Lists all workspaces user has access in geoserver.
-   * @returns
+   * Retrieves a list of all workspaces the user has access to in GeoServer.
+   *
+   * @returns A Promise resolving to a WorkspaceListResponse containing the list of workspaces.
    */
   async function getWorkspaceList(): Promise<WorkspaceListResponse> {
     const url = new URL(
@@ -239,11 +243,11 @@ export const useGeoserverStore = defineStore("geoserver", () => {
     return await response.json();
   }
   /**
-   * Retrieves layer information based on GeoserverLayerInfo.
+   * Retrieves information about a specific layer within a given workspace.
    *
    * @param layer - The layer for which to retrieve information.
-   * @param workspace - The workspace in which the layer is located.
-   * @returns - A Promise resolving to the JSON representation of the layer information.
+   * @param workspace - The workspace containing the layer.
+   * @returns A Promise resolving to a GeoserverLayerInfoResponse containing layer information.
    */
   async function getLayerInformation(
     layer: GeoserverLayerListItem,
@@ -268,10 +272,10 @@ export const useGeoserverStore = defineStore("geoserver", () => {
     return await response.json();
   }
   /**
-   * Retrieves detailed layer information.
+   * Retrieves detailed information about a specific vector or raster layer from GeoServer.
    *
-   * @param url - Resource.href from GeoserverLayerInfo
-   * @returns - A Promise resolving to the JSON representation of the layer detailed information.
+   * @param url - The URL to the resource containing the layer details.
+   * @returns A Promise resolving to a GeoServerVectorTypeLayerDetail or GeoserverRasterTypeLayerDetail.
    */
   async function getLayerDetail(url: string): Promise<GeoServerVectorTypeLayerDetail|GeoserverRasterTypeLayerDetail> {
     const response = await fetch(url, {
@@ -284,6 +288,15 @@ export const useGeoserverStore = defineStore("geoserver", () => {
     });
     return await response.json();
   }
+  /**
+   * Retrieves a GeoJSON layer source from GeoServer using the WMS service.
+   *
+   * @param layer - The name of the layer to retrieve.
+   * @param workspace - The name of the workspace containing the layer.
+   * @param bbox - Optional bounding box to filter the data.
+   * @param cqlFilter - Optional CQL filter to apply to the data.
+   * @returns A Promise resolving to the GeoJSON object containing the requested layer data.
+   */
   async function getGeoJSONLayerSource(layer: string, workspace: string, bbox?:string, cqlFilter?:string): Promise<any> {
     const url = new URL(
       `${import.meta.env.VITE_GEOSERVER_BASE_URL}/${workspace}/wms?service=WMS&version=1.1.0&request=GetMap&layers=${workspace}:${layer}&bbox=${bbox ?? ""}&width=512&height=512&srs=EPSG:4326&format=geojson&CQL_FILTER=${cqlFilter ?? ""}&styles=`
@@ -300,9 +313,10 @@ export const useGeoserverStore = defineStore("geoserver", () => {
     return await response.json();
   }
   /**
-   * Retrieves layer styling object from geoserver
-   * @param url - url of style from geoserver
-   * @returns - Style object
+   * Retrieves the layer's styling information from GeoServer.
+   *
+   * @param url - The URL to the style resource on GeoServer.
+   * @returns A Promise resolving to the style object for the layer.
    */
   async function getLayerStyling(url:string):Promise<any> {
     const response = await fetch(url,{
