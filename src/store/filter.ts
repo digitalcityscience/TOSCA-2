@@ -50,11 +50,15 @@ export const useFilterStore = defineStore("filter", () => {
     "java.lang.String",
     "java.lang.Integer",
     "java.lang.Long",
+    "java.lang.Short",
     "java.lang.Double",
+    "java.lang.Float",
   ];
   const allowedIDBindings = [
     "java.lang.String",
     "java.lang.Integer",
+    "java.lang.Long",
+    "java.lang.Short",
   ]
   const appliedFiltersList = ref<AppliedFiltersListItem[]>([])
 /**
