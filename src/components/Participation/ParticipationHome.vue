@@ -4,7 +4,7 @@
             <h1 class="font-bold text-xl text-center">Welcome to Digital City Science Citizen Participation Portal</h1>
         </div>
         <div class="welcome-content w-full px-2">
-            Lorem, ipsum dolor sit amet consectetur adipisicing elit. Recusandae eum perspiciatis tempore veniam vero eius totam voluptatum sed molestiae non rerum rem, error magnam omnis labore quam incidunt voluptatibus neque?
+            Join us in shaping the future of our urban spaces. This platform empowers you to share your ideas, insights, and feedback on key developments in your city. Together, we can create a smarter, greener, and more inclusive urban environment. Explore our latest campaign, contribute to discussions, and help design the urban context that works for everyone. Your voice matters—let's build the city of tomorrow, today!
         </div>
         <div class="w-full grid lg:grid-cols-1 2xl:grid-cols-2 p-2 pt-3">
             <RouterLink :to="{ name:'active-campaigns' }">
