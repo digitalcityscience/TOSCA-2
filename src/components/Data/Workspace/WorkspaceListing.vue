@@ -44,6 +44,6 @@ const sidebarID = "workspaceListing"
 const iconElement = document.createElement("span")
 iconElement.classList.add("material-icons-outlined")
 iconElement.textContent = "sd_storage"
-const sidebarControl = new SidebarControl("", sidebarID, document.createElement("div"), iconElement)
+const sidebarControl = new SidebarControl("", sidebarID, document.createElement("div"), iconElement, 1)
 mapStore.map.addControl(sidebarControl, "top-left")
 </script>
