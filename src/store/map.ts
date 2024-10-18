@@ -414,7 +414,7 @@ export const useMapStore = defineStore("map", () => {
 	 *
 	 * @throws {Error} Throws an error if the map is not initialized.
 	 */
-	async function resetMapData(): Promise<void> {
+	async function resetMapData(information?: boolean): Promise<void> {
 		if (isNullOrEmpty(map.value)) {
 			throw new Error("There is no map to reset");
 		}
@@ -428,7 +428,7 @@ export const useMapStore = defineStore("map", () => {
 		await Promise.all(
 			layersToDelete.map(async (layer) => {
 				try {
-					await deleteMapLayer(layer.id);
+					await deleteMapLayer(layer.id, information);
 				} catch (error) {
 					console.error(`Error deleting layer ${layer.id}: `, error);
 				}
