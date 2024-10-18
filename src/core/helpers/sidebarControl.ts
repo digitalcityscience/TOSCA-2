@@ -5,9 +5,11 @@ export class SidebarControl implements IControl {
     _sidebarID: string;
     _container: HTMLDivElement;
     _map: any;
-    _icon: HTMLSpanElement
+    _icon: HTMLSpanElement;
+    _order: number;
 
-    constructor(className = "", sidebarID = "", container: HTMLDivElement, icon?: HTMLSpanElement) {
+    constructor(className = "", sidebarID = "", container: HTMLDivElement, icon?: HTMLSpanElement, order = 0) {
+        this._order = order;
         this._className = className;
         this._sidebarID = sidebarID;
         this._container = container;
@@ -22,7 +24,7 @@ export class SidebarControl implements IControl {
 
     onAdd(map: any): HTMLDivElement {
         this._map = map;
-        this._container.className = "maplibregl-ctrl maplibregl-ctrl-group mapboxgl-ctrl mapboxgl-ctrl-group";
+        this._container.className = `maplibregl-ctrl maplibregl-ctrl-group mapboxgl-ctrl mapboxgl-ctrl-group order-${this._order}`;
         const btn = this.createButton();
         this._container.addEventListener("contextmenu", function (e: Event) {
             e.preventDefault();
