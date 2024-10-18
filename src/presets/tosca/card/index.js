@@ -6,7 +6,7 @@ export default {
             "shadow-md",
 
             // Color
-            "bg-slate-0 dark:bg-slate-900",
+            "bg-slate-50 dark:bg-slate-900",
             "text-slate-800 dark:text-slate-0"
         ]
     },
