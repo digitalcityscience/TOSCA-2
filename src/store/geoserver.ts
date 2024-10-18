@@ -253,9 +253,6 @@ export const useGeoserverStore = defineStore("geoserver", () => {
     layer: GeoserverLayerListItem,
     workspace: string
   ): Promise<GeoserverLayerInfoResponse> {
-    console.log("***---");
-    console.log(layer);
-    console.log("---***");
     const url = new URL(
       `${
         import.meta.env.VITE_GEOSERVER_REST_URL
@@ -323,11 +320,14 @@ export const useGeoserverStore = defineStore("geoserver", () => {
       method: "GET",
       redirect: "follow",
       headers: new Headers({
-        "Content-Type": "application/mbstyle",
+        "Content-Type": "application/vnd.geoserver.mbstyle+json",
         Authorization: `Basic ${auth}`,
       }),
-    })
-    return await response.json()
+    });
+    if (!response.ok) {
+      throw new Error("Failed to fetch layer styling.");
+    }
+    return response.json();
   }
   return {
     pointData,
