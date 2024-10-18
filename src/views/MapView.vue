@@ -2,6 +2,7 @@
     <div class="mapview">
         <MapContainer></MapContainer>
         <WorkspaceListing :workspaces="geoserverStore.workspaceList"></WorkspaceListing>
+        <FloodSidebar></FloodSidebar>
         <MapLayerListing></MapLayerListing>
         <DrawContainer></DrawContainer>
         <BufferContainer></BufferContainer>
@@ -18,6 +19,7 @@ const WorkspaceListing = defineAsyncComponent(async () => await import("@compone
 const MapLayerListing = defineAsyncComponent(async () => await import("@components/Map/Layer/MapLayerListing.vue"));
 const DrawContainer = defineAsyncComponent(async () => await import("@components/Map/Layer/Draw/DrawContainer.vue"))
 const BufferContainer = defineAsyncComponent(async () => await import("@components/Map/Buffer/BufferContainer.vue"))
+const FloodSidebar = defineAsyncComponent(async () => await import("@components/Geostories/FloodSidebar.vue"))
 const Toast = defineAsyncComponent(async () => await import("primevue/toast"))
 const geoserverStore = useGeoserverStore()
 onMounted(()=>{
