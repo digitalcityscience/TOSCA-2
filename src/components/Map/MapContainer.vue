@@ -16,7 +16,7 @@ const clickedLayers = ref()
 onMounted(() => {
     const lng = Number(import.meta.env.VITE_MAP_START_LNG) ?? 9.993163
     const lat = Number(import.meta.env.VITE_MAP_START_LAT) ?? 53.552123
-    const zoom = Number(import.meta.env.VITE_MAP_START_ZOOM) ?? 15
+    const zoom = Number.isNaN(Number(import.meta.env.VITE_MAP_START_ZOOM)) ? 15 : Number(import.meta.env.VITE_MAP_START_ZOOM);
     mapStore.map = new maplibre.Map({
         container: "map",
         style: `https://api.maptiler.com/maps/${import.meta.env.VITE_MAPTILER_API_MAP_ID}/style.json?key=${import.meta.env.VITE_MAPTILER_API_KEY}`, // stylesheet location
