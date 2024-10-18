@@ -95,3 +95,7 @@ html, body {
     focus:ring-primary-400 dark:focus:ring-primary-300
     focus:outline-none focus:outline-offset-0 focus:ring text-2xl py-2 px-4 font-extrabold
   }
+
+  .maplibregl-ctrl-top-left {
+    display: grid;
+  }
