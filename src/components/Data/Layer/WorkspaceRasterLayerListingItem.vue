@@ -56,7 +56,7 @@ export interface LayerStylingPaint {
 const props = defineProps<Props>()
 const toast = useToast()
 const cleanLayerName = computed(() => {
-    return ((layerDetail.value?.coverage.title) != null) ? layerDetail.value?.coverage.title.replaceAll("_", " ") : props.item.name.replaceAll("_", " ")
+    return ((layerDetail.value?.coverage.title) != null) ? String(layerDetail.value?.coverage.title).replaceAll("_", " ") : String(props.item.name).replaceAll("_", " ")
 })
 const geoserver = useGeoserverStore()
 const layerDetail = ref<GeoserverRasterTypeLayerDetail>()
