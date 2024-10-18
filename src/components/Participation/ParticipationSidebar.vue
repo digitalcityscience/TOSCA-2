@@ -27,7 +27,7 @@ const sidebarID = "participation"
 const iconElement = document.createElement("span")
 iconElement.classList.add("material-icons-outlined")
 iconElement.textContent = "analytics"
-const sidebarControl = new SidebarControl("", sidebarID, document.createElement("div"), iconElement)
+const sidebarControl = new SidebarControl("", sidebarID, document.createElement("div"), iconElement, 2)
 mapStore.map.addControl(sidebarControl, "top-left")
 </script>
 
