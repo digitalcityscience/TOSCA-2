@@ -99,3 +99,18 @@ html, body {
   .maplibregl-ctrl-top-left {
     display: grid;
   }
+  .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group {
+    display: grid;
+  }
+  .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group .maplibregl-ctrl-compass {
+    order: 0;
+    border: 0;
+  }
+  .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group .maplibregl-ctrl-zoom-in {
+    order: 1;
+    border-top: 1px solid #ddd;
+  }
+  .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group .maplibregl-ctrl-zoom-out {
+    order: 2;
+    border-top: 1px solid #ddd;
+  }

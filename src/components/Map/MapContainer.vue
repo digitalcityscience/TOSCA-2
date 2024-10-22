@@ -76,7 +76,7 @@ onMounted(() => {
     }
     // Add zoom controls to the map.
     const zoomControl = new maplibre.NavigationControl()
-    mapStore.map.addControl(zoomControl, "top-right");
+    mapStore.map.addControl(zoomControl, "bottom-right");
 })
 </script>
 
