@@ -2,7 +2,7 @@
     <Card>
         <template #title>
             <h2 class="text-xl font-bold flex items-center">Give Feedback <Button severity="danger" text size="small"
-                    @click="resetFeedbackCycle">Reset</Button></h2>
+                    @click="resetFeedbackCycle(false)">Reset</Button></h2>
         </template>
         <template #content>
             <div v-if="participation.feedbackOnProgress" class="w-full relative">
@@ -110,7 +110,7 @@ function startSubmission(): void {
     }
 }
 const emit = defineEmits(["cycleReset"])
-function resetFeedbackCycle(): void {
+function resetFeedbackCycle(afterFeedback = false): void {
     participation.feedbackOnProgress = false
     participation.isLocationSelected = false
     participation.feedbackStep = "idle"
@@ -121,7 +121,9 @@ function resetFeedbackCycle(): void {
     participation.deleteSelectedAreasTempLayer()
     participation.cancelCenterSelection()
     mapStore.resetMapData().then(() => {
-        emit("cycleReset")
+        if (!afterFeedback) {
+            emit("cycleReset")
+        }
     }).catch((error) => {
         console.error(error)
     })
@@ -168,14 +170,15 @@ function sendFeedback(send: FeedbackMode): void {
             }
         }
         participation.sendFeedback(feedback).then(() => {
-            resetFeedbackCycle()
+            resetFeedbackCycle(true)
             toast.add({ severity: "success", summary: "Feedback sent", detail: "Your feedback has been sent successfully.", life: 10000 });
             router.push({ name: "participation-home" }).then(() => { }).catch((error) => {
                 console.error(error)
             })
         }).catch((error) => {
             console.error(error)
-            resetFeedbackCycle()
+            resetFeedbackCycle(true)
+            toast.add({ severity: "error", summary: "Feedback couldn't sent", detail: "There was an error while sending your feedback.", life: 10000 });
             router.push({ name: "participation-home" }).then(() => { }).catch((error) => {
                 console.error(error)
             })
@@ -205,14 +208,14 @@ function sendFeedback(send: FeedbackMode): void {
             }
         }
         participation.sendFeedback(feedback).then(() => {
-            resetFeedbackCycle()
+            resetFeedbackCycle(true)
             toast.add({ severity: "success", summary: "Feedback sent", detail: "Your feedback has been sent successfully.", life: 10000 });
             router.push({ name: "participation-home" }).then(() => { }).catch((error) => {
                 console.error(error)
             })
         }).catch((error) => {
             console.error(error)
-            resetFeedbackCycle()
+            resetFeedbackCycle(true)
             router.push({ name: "participation-home" }).then(() => { }).catch((error) => {
                 console.error(error)
             })
@@ -246,14 +249,14 @@ function sendFeedback(send: FeedbackMode): void {
             }
         }
         participation.sendFeedback(feedback).then(() => {
-            resetFeedbackCycle()
+            resetFeedbackCycle(true)
             toast.add({ severity: "success", summary: "Feedback sent", detail: "Your feedback has been sent successfully.", life: 10000 });
             router.push({ name: "participation-home" }).then(() => { }).catch((error) => {
                 console.error(error)
             })
         }).catch((error) => {
             console.error(error)
-            resetFeedbackCycle()
+            resetFeedbackCycle(true)
             router.push({ name: "participation-home" }).then(() => { }).catch((error) => {
                 console.error(error)
             })
@@ -261,7 +264,7 @@ function sendFeedback(send: FeedbackMode): void {
     }
 }
 onBeforeRouteLeave(() => {
-    resetFeedbackCycle()
+    resetFeedbackCycle(true)
 })
 </script>
 
