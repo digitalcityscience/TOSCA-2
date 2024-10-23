@@ -12,7 +12,7 @@
             <div class="w-full">
                 <div v-if="tableData !== undefined">
                     <div v-if="tableData?.features.length > 0">
-                        <DataTable :value="tableData.features" paginator :rows="10" :rowsPerPageOptions="[10, 20, 50]"
+                        <DataTable showGridlines :value="tableData.features" paginator :rows="10" :rowsPerPageOptions="[10, 20, 50]"
                             class="w-full" size="small" table-class="w-full"
                             paginatorTemplate="RowsPerPageDropdown FirstPageLink PrevPageLink NextPageLink LastPageLink">
                             <template #header>
@@ -180,7 +180,6 @@ function createTableHeaderList(tableData: FeatureCollection): TableHeader[] {
             });
         }
     });
-    console.log(uniqueProperties)
     return Array.from(uniqueProperties).map(prop => ({
         name: prop,
         value: prop,
@@ -227,9 +226,17 @@ function applyFilters(): void {
 function applyGeometryFilter(data: FeatureCollection, aoi: FeatureCollection): FeatureCollection {
     const filteredData = data.features.filter((feature) => {
         const featureGeometry = feature.geometry;
-        return aoi.features.some((polygon) => {
-            return booleanWithin(featureGeometry, polygon.geometry);
-        });
+        if (featureGeometry.type === "MultiPolygon") {
+            return featureGeometry.coordinates.some((polygon) => {
+                return aoi.features.some((aoiPolygon) => {
+                    return booleanWithin({ type: "Polygon", coordinates: polygon }, aoiPolygon.geometry);
+                });
+            });
+        } else {
+            return aoi.features.some((polygon) => {
+                return booleanWithin(featureGeometry, polygon.geometry);
+            });
+        }
     })
     return {
         type: "FeatureCollection",
@@ -273,10 +280,20 @@ function applyOperator(
         case "<=":
             return attributeValue <= filterValue;
         case "==":
+            if (typeof attributeValue === "string" && typeof filterValue === "string") {
+                return attributeValue.toLowerCase() === filterValue.toLowerCase();
+            }
             return attributeValue === filterValue;
         case "!=":
+            if (typeof attributeValue === "string" && typeof filterValue === "string") {
+                return attributeValue.toLowerCase() !== filterValue.toLowerCase();
+            }
             return attributeValue !== filterValue;
         case "in":
+            if (Array.isArray(filterValue) && typeof attributeValue === "string") {
+                const lowerCaseAttributeValue = attributeValue.toLowerCase();
+                return filterValue.some(value => value.toLowerCase() === lowerCaseAttributeValue);
+            }
             return Array.isArray(filterValue) && filterValue.includes(attributeValue);
         default:
             return false;
