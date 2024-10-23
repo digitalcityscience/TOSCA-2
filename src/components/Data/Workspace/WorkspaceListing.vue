@@ -33,7 +33,8 @@ import { type WorkspaceListItem } from "@store/geoserver";
 
 import { SidebarControl } from "@helpers/sidebarControl";
 import { useMapStore } from "@store/map";
-import { RouterLink } from "vue-router";
+import { RouterLink, useRoute } from "vue-router";
+import { onMounted } from "vue";
 export interface Props {
     workspaces: WorkspaceListItem[] | undefined
 }
@@ -46,4 +47,30 @@ iconElement.classList.add("material-icons-outlined")
 iconElement.textContent = "sd_storage"
 const sidebarControl = new SidebarControl("", sidebarID, document.createElement("div"), iconElement, 1)
 mapStore.map.addControl(sidebarControl, "top-left")
+
+const route = useRoute()
+onMounted(()=>{
+    setupSidebarVisibility()
+})
+function setupSidebarVisibility(): void {
+    const routeMeta = route.meta;
+    if (routeMeta !== undefined && routeMeta.sidebar !== undefined && routeMeta.sidebar !== "" && routeMeta.sidebar !== null) {
+        const sidebarId = routeMeta.sidebar as string;
+        const position = routeMeta.sidebarPosition as string;
+        const sidebars = document.getElementsByClassName(`sidebar-${position}`)
+        if (sidebars.length > 0){
+            for (let i = 0; i < sidebars.length; i++) {
+                if (sidebars[i].id === sidebarId) {
+                    sidebars[i].classList.remove("collapsed");
+                } else {
+                    sidebars[i].classList.add("collapsed");
+                }
+            }
+        }
+        const sidebarElement = document.getElementById(sidebarId);
+        if (sidebarElement != null) {
+            sidebarElement.classList.remove("collapsed");
+        }
+    }
+}
 </script>

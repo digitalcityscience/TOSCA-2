@@ -11,6 +11,10 @@ const router = createRouter({
             name: "home",
             components: {
                 default: MapView
+            },
+            meta:{
+                sidebar:"workspaceListing",
+                sidebarPosition:"left"
             }
         },
         {
@@ -24,7 +28,11 @@ const router = createRouter({
                 { path: "", name:"participation-home", component: async () => await import("../components/Participation/ParticipationHome.vue") },
                 { path: "active-campaigns", name: "active-campaigns", component: async () => await import("../components/Participation/CampaignList.vue") },
                 { path: "campaign-detail/:campaignURL", name:"campaign-details", component: async () => await import("../components/Participation/CampaignDetail.vue"), props: true }
-            ]
+            ],
+            meta: {
+                sidebar:"participation",
+                sidebarPosition:"left"
+            }
         },
         {
             path: "/:catchAll(.*)",
