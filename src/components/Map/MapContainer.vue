@@ -10,6 +10,7 @@ import { useMapStore } from "@store/map";
 import MapAttributeDialog from "./MapAttributeDialog.vue"
 import { useDrawStore } from "@store/draw";
 import { useParticipationStore } from "@store/participation";
+import { BaseMapControl, type BaseMapControlOptions } from "@helpers/baseMapControl";
 
 const mapStore = useMapStore()
 const clickedLayers = ref()
@@ -19,7 +20,11 @@ onMounted(() => {
     const zoom = Number.isNaN(Number(import.meta.env.VITE_MAP_START_ZOOM)) ? 15 : Number(import.meta.env.VITE_MAP_START_ZOOM);
     mapStore.map = new maplibre.Map({
         container: "map",
-        style: `https://api.maptiler.com/maps/${import.meta.env.VITE_MAPTILER_API_MAP_ID}/style.json?key=${import.meta.env.VITE_MAPTILER_API_KEY}`, // stylesheet location
+        style: {
+            version: 8,
+            sources: {},
+            layers: []
+        },
         center: [lng, lat], // starting position [lng, lat]
         zoom // starting zoom
     })
@@ -77,6 +82,27 @@ onMounted(() => {
     // Add zoom controls to the map.
     const zoomControl = new maplibre.NavigationControl()
     mapStore.map.addControl(zoomControl, "bottom-right");
+
+    const options: BaseMapControlOptions = {
+        maps:[
+            {
+                id:"streets-v2",
+                title:"Streets",
+                tiles: [
+                    `https://api.maptiler.com/maps/${import.meta.env.VITE_MAPTILER_API_MAP_ID}/{z}/{x}/{y}.png?key=${import.meta.env.VITE_MAPTILER_API_KEY}`
+                ]
+            },
+            {
+                id:"satellite",
+                title:"Satellite",
+                tiles: [
+                    `https://api.maptiler.com/maps/satellite/{z}/{x}/{y}.jpg?key=${import.meta.env.VITE_MAPTILER_API_KEY}`
+                ]
+            }
+        ],
+        initialBasemap: "satellite"
+    }
+    mapStore.map.addControl(new BaseMapControl(options), "bottom-left");
 })
 </script>
 
