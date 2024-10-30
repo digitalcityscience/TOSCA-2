@@ -100,7 +100,7 @@ onMounted(() => {
                 ]
             }
         ],
-        initialBasemap: "satellite"
+        initialBasemap: "streets-v2"
     }
     mapStore.map.addControl(new BaseMapControl(options), "bottom-left");
 })
