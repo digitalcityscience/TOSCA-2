@@ -1,5 +1,5 @@
 <template>
-    <BaseSidebarComponent :id="sidebarID" position="left" :collapsed=false>
+    <BaseSidebarComponent :id="sidebarID" position="left" :collapsed=true>
         <template #header>
             <RouterLink to="/participation">
             <p>{{title}}</p>
