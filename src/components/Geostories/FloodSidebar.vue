@@ -159,22 +159,32 @@ interface Scenario {
     layers: string[]
 }
 const title: string = "Flood Scenarios"
-const information: string = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+const information: string = "This map illustrates areas in an urban setting, likely Hamburg based on  the geographic features, where rainwater can accumulate or flow during  heavy rainfall events. By leveraging detailed topographic data, the map  identifies low-lying depressions and delineates potential water flow  paths through the city. These highlighted zones indicate where rainwater  is most likely to pool and flow, marking them as high-risk for flood  accumulation."
 const scenarios: Scenario[] = [
     {
-        name: "Scenario 1",
-        description: "This is a description of scenario 1",
-        layers: ["Hamburg:Hamburg_SRTM_Elevation", "Hamburg:apotheken"]
+        name: "Current Situation",
+        description: "This map represents Hamburg's current drainage capacity  without any enhancements. It highlights areas where rainwater is likely  to accumulate or flow during heavy rainfall events, showing zones most  vulnerable to flooding. With no additional drainage improvements, these  flood-prone areas remain at high risk, as the current infrastructure may  struggle to handle significant stormwater volumes. This map underscores  the need for drainage upgrades to mitigate flood risks, improve urban  resilience, and protect infrastructure and public safety from potential  flood events.",
+        layers: ["HH_Drainage_Capacity:Drainage Capacity Default"]
     },
     {
-        name: "Scenario 2",
-        description: "This is a description of scenario 2",
-        layers: ["Hamburg:Hamburg_Sentinel2-RGB", "Hamburg:apotheken"]
+        name: "Expanded Drainage Network: 25%",
+        description: "This map represents the impact of  increasing Hamburg's drainage capacity by 25%. By analyzing the drainage  data, this simulation demonstrates how enhancing the drainage  infrastructure could reduce flood-prone areas. Compared to the original  flood risk map, the highlighted water accumulation zones have visibly  decreased.",
+        layers: ["HH_Drainage_Capacity:Drainage Capacity 025"]
     },
     {
-        name: "Scenario 3",
-        description: "This is a description of scenario 3",
-        layers: ["Hamburg:Hamburg_SRTM_Elevation", "Hamburg:Hamburg_Sentinel2-RGB", "Hamburg:apotheken"]
+        name: "Expanded Drainage Network: 50%",
+        description: "This map represents the impact of  increasing Hamburg's drainage capacity by 50%. With this enhancement,  the map demonstrates a further reduction in flood-prone areas compared  to a 25% increase. By doubling the drainage improvement, more water is  effectively managed during heavy rainfall, leading to fewer areas of  water accumulation. This map highlights the benefits of a significant  upgrade, showing an even greater decrease in areas at risk of flooding.",
+        layers: ["HH_Drainage_Capacity:Drainage Capacity 050"]
+    },
+    {
+        name: "Expanded Drainage Network: 75%",
+        description: "This map represents the effect of a  75% increase in Hamburg's drainage capacity. With this substantial  improvement, the map reveals a considerable reduction in flood-prone  zones, indicating that most areas can now efficiently manage stormwater  runoff. This enhanced drainage capacity offers a high level of  protection for urban infrastructure, suggesting that a threefold upgrade  in drainage could make a significant impact on flood mitigation.",
+        layers: ["HH_Drainage_Capacity:Drainage Capacity 075"]
+    },
+    {
+        name: "Expanded Drainage Network: 100%",
+        description: "This map illustrates the impact of  doubling Hamburg's drainage capacity, with a 100% increase. Under this  scenario, the map shows a dramatic reduction in water accumulation  areas, as the drainage infrastructure now handles nearly all stormwater  effectively. Such an improvement nearly eliminates high-risk zones for  flooding, indicating that a complete overhaul in drainage capacity could  provide maximum protection against flood risks, securing urban  resilience even in extreme weather events.",
+        layers: ["HH_Drainage_Capacity:Drainage Capacity 100"]
     }
 ]
 </script>
