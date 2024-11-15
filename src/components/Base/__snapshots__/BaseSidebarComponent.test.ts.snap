@@ -1,0 +1,14 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`should produce the correct html 1`] = `
+"<div data-v-494e5ea0="" data-position="left" class="sidebar-left collapsed bg-primary-900 sidebar group flex grow-0 justify-between absolute rounded-lg p-1 lg:w-[400px] 2xl:w-[450px] 3xl:w-[450px] duration-1000" id="testId" style="--width4Vertical: calc(0px - calc(50px + 30vw));">
+  <div data-v-494e5ea0="" class="header w-full flex group-[.sidebar-left]:flex-row-reverse group-[.sidebar-right]:flex-row group-[.sidebar-bottom]:flex-row-reverse p-1">
+    <div data-v-494e5ea0="" class="close-button"><button data-v-494e5ea0="" class="p-button p-component p-button-icon-only p-button-rounded p-button-outlined text-white" type="button" data-pc-name="button" data-pc-section="root"><i data-v-494e5ea0="" class="pi pi-angle-double-left font-bold text-lg hover:text-2xl"></i><span class="p-button-label" data-pc-section="label">&nbsp;</span>
+        <!---->
+      </button></div>
+    <div data-v-494e5ea0="" class="header-content grow text-2xl text-white font-bold self-center"></div>
+  </div>
+  <div data-v-494e5ea0="" class="content-body grow p-1 overflow-y-scroll"></div>
+  <div data-v-494e5ea0="" class="footer"></div>
+</div>"
+`;
