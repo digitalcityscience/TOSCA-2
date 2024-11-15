@@ -244,9 +244,8 @@ export const useMapStore = defineStore("map", () => {
         }
     }
     /**
-   * Asynchronously deletes a data source from the Maplibre map.
+   * Deletes a data source from the Maplibre map.
    * @param {string} identifier - The unique identifier for the source to delete.
-   * @returns {Promise<void>} A promise that resolves if the source is successfully deleted, or rejects with an error.
    * @throws {Error} Throws an error if the map is not initialized or if the source cannot be found.
    */
     function deleteMapDataSource(identifier: string): void {
