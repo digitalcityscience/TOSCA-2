@@ -1,7 +1,10 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
-import { type GeoserverRasterTypeLayerDetail, type GeoServerVectorTypeLayerDetail } from "./geoserver";
-import { type SourceSpecification, type AddLayerObject, type Map } from "maplibre-gl";
+import {
+    type GeoserverRasterTypeLayerDetail,
+    type GeoServerVectorTypeLayerDetail,
+} from "./geoserver";
+import { type SourceSpecification, type AddLayerObject } from "maplibre-gl";
 import { getRandomHexColor, isNullOrEmpty } from "../core/helpers/functions";
 import { type FeatureCollection } from "geojson";
 import { useToast } from "primevue/usetoast";
@@ -26,20 +29,20 @@ export interface CustomAddLayerObject {
     showOnLayerList?: boolean;
 }
 export interface LayerObjectWithAttributes extends CustomAddLayerObject {
-    details?: GeoServerVectorTypeLayerDetail|GeoserverRasterTypeLayerDetail;
+    details?: GeoServerVectorTypeLayerDetail | GeoserverRasterTypeLayerDetail;
     workspaceName?: string;
 }
 type SourceType = "geojson" | "geoserver";
 export type MapLibreLayerTypes =
-	| "fill"
-	| "line"
-	| "symbol"
-	| "circle"
-	| "heatmap"
-	| "fill-extrusion"
-	| "raster"
-	| "hillshade"
-	| "background";
+  | "fill"
+  | "line"
+  | "symbol"
+  | "circle"
+  | "heatmap"
+  | "fill-extrusion"
+  | "raster"
+  | "hillshade"
+  | "background";
 
 interface BaseLayerParams {
     sourceType: SourceType;
@@ -58,7 +61,9 @@ export interface GeoJSONLayerParams extends BaseLayerParams {
 }
 interface GeoServerLayerParams extends BaseLayerParams {
     sourceType: "geoserver";
-    geoserverLayerDetails: GeoServerVectorTypeLayerDetail|GeoserverRasterTypeLayerDetail;
+    geoserverLayerDetails:
+    | GeoServerVectorTypeLayerDetail
+    | GeoserverRasterTypeLayerDetail;
     sourceLayer?: string;
     sourceDataType: "vector" | "raster";
     sourceProtocol?: "wms" | "wmts";
@@ -73,7 +78,7 @@ export interface BaseDataSourceParams {
 export interface GeoServerSourceParams extends BaseDataSourceParams {
     sourceType: "geoserver";
     workspaceName: string;
-    layer: GeoServerVectorTypeLayerDetail|GeoserverRasterTypeLayerDetail;
+    layer: GeoServerVectorTypeLayerDetail | GeoserverRasterTypeLayerDetail;
     sourceDataType: "vector" | "raster";
     sourceProtocol?: "wms" | "wmts";
 }
@@ -88,7 +93,7 @@ export const useMapStore = defineStore("map", () => {
    * Reference to the map instance, which will be assigned once a MapLibre map is initialized.
    * This will be used to interact with the MapLibre map for adding, removing, and manipulating layers and sources.
    */
-    const map = ref<Map>();
+    const map = ref<any>();
     /**
    * An array containing detailed information about all the layers currently added to the map.
    * Each object in the array represents a layer with its attributes, such as its source type, display name, styling, etc.
@@ -244,21 +249,16 @@ export const useMapStore = defineStore("map", () => {
    * @returns {Promise<void>} A promise that resolves if the source is successfully deleted, or rejects with an error.
    * @throws {Error} Throws an error if the map is not initialized or if the source cannot be found.
    */
-    async function deleteMapDataSource(identifier: string): Promise<void> {
-        await new Promise<void>((resolve, reject) => {
-            if (isNullOrEmpty(map.value)) {
-                reject(new Error("There is no map to delete source from"));
-                return;
-            }
-            const source = map.value?.getSource(identifier);
-            if (source === undefined) {
-                reject(new Error(`Source with identifier ${identifier} not found`));
-                return;
-            }
-            map.value?.removeSource(identifier);
-            console.log(`Source ${identifier} deleted successfully`);
-            resolve();
-        });
+    function deleteMapDataSource(identifier: string): void {
+        if (isNullOrEmpty(map.value)) {
+            throw new Error("There is no map to delete source from");
+        }
+        const source = map.value?.getSource(identifier);
+        if (source === undefined) {
+            throw new Error(`Source with identifier ${identifier} not found`);
+        }
+        map.value?.removeSource(identifier);
+        console.log(`Source ${identifier} deleted successfully`);
     }
     /**
    * Asynchronously adds a new layer to a Maplibre map based on the provided parameters. This function supports adding
@@ -433,15 +433,13 @@ export const useMapStore = defineStore("map", () => {
             })
         );
         // Delete all sources on the map
-        await Promise.all(
-            Array.from(layerSources).map(async (source) => {
-                try {
-                    await deleteMapDataSource(source);
-                } catch (error) {
-                    console.error(`Error deleting source ${source}: `, error);
-                }
-            })
-        );
+        Array.from(layerSources).forEach((source) => {
+            try {
+                deleteMapDataSource(source);
+            } catch (error) {
+                console.error(`Error deleting source ${source}: `, error);
+            }
+        });
         // Clear the layersOnMap array
         layersOnMap.value = [];
     }
@@ -611,5 +609,5 @@ export const useMapStore = defineStore("map", () => {
 });
 /* eslint-disable */
 if (import.meta.hot) {
-	import.meta.hot.accept(acceptHMRUpdate(useMapStore, import.meta.hot));
+  import.meta.hot.accept(acceptHMRUpdate(useMapStore, import.meta.hot));
 }

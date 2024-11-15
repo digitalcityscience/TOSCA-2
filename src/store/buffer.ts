@@ -83,14 +83,15 @@ export const useBufferStore = defineStore("buffer", () => {
      */
     function clearTmpBufferLayer(): void {
         mapStore.deleteMapLayer("tmpBufferLayer").then(() => {
-            mapStore.deleteMapDataSource("tmpBufferSource").then(() => {
+            try {
+                mapStore.deleteMapDataSource("tmpBufferSource");
                 isTmpDataCreated.value = false;
                 selectedLayer.value = null;
                 bufferLayerName.value = "";
                 bufferRadius.value = 0;
-            }).catch((error) => {
+            } catch (error){
                 console.error(error);
-            })
+            }
         }).catch((error) => {
             console.error(error);
         })
