@@ -1,5 +1,3 @@
-/* eslint "@typescript-eslint/indent": "off" */
-/* eslint "no-tabs": "off" */
 /* eslint "@typescript-eslint/no-unsafe-argument": "off" */
 import { createApp } from "vue"
 import { createPinia } from "pinia"
