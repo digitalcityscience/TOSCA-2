@@ -1,5 +1,5 @@
 import { expect, test, describe } from "vitest";
-import { isNullOrEmpty } from "./functions";
+import { getRandomHexColor, isNullOrEmpty } from "./functions";
 
 describe("functions.isNullOrEmpty", () => {
     test("should be true for undefined", () => {
@@ -21,5 +21,14 @@ describe("functions.isNullOrEmpty", () => {
         const result = isNullOrEmpty(obj);
         // Assert
         expect(result).toBe(false);
+    });
+});
+
+describe("getRandomHexColor", () => {
+    test("should return a string", () => {
+        const result = getRandomHexColor();
+        const hexColorRegex = /^#[0-9a-f]{6}$/i;
+        expect(typeof result).toBe("string");
+        expect(result).toMatch(hexColorRegex);
     });
 });
