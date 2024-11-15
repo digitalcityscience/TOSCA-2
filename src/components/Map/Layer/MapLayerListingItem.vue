@@ -146,10 +146,12 @@ function collapsedState(isCollapsed: boolean): void {
 const confirmDialogVisibility = ref<boolean>(false)
 const toast = useToast();
 function deleteLayerConfirmation(layer: LayerObjectWithAttributes): void {
-    mapStore.deleteMapLayer(layer.id, true).then(()=>{
-        mapStore.deleteMapDataSource(layer.source).then(()=>{}).catch((error)=>{
-            toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
-        })
+    mapStore.deleteMapLayer(layer.id, true).then(() => {
+        try {
+            mapStore.deleteMapDataSource(layer.source)
+        } catch (error) {
+            toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 })
+        }
     }).catch((error)=>{
         toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
     })
