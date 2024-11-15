@@ -22,10 +22,6 @@ describe("functions.isNullOrEmpty", () => {
         // Assert
         expect(result).toBe(false);
     });
-
-    test("should fail on the github ci", () => {
-        expect(isNullOrEmpty("")).toBe(false);
-    });
 });
 
 describe("getRandomHexColor", () => {
