@@ -16,3 +16,21 @@ If the standalone TypeScript plugin doesn't feel fast enough to you, Volar has a
    1. Run `Extensions: Show Built-in Extensions` from VSCode's command palette
    2. Find `TypeScript and JavaScript Language Features`, right click and select `Disable (Workspace)`
 2. Reload the VSCode window by running `Developer: Reload Window` from the command palette.
+
+
+### Accessing private content from the Geoserver
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant SPA as Vue3 SPA
+    participant GN as GeonodeOAuth2
+    participant GS as Geoserver
+    U->>SPA: Wants to see private content
+    SPA->>GN: Redirect to o/authorize
+    GN->>SPA: authorization code
+    SPA->>GN: authorization code + client_id + client_secret
+    GN->>SPA: access token
+    SPA->>GS: access token
+    GS->>SPA: private content
+    SPA->>U: private content on the map
+```
