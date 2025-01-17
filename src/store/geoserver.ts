@@ -202,7 +202,8 @@ export const useGeoserverStore = defineStore("geoserver", () => {
    * @returns A Promise resolving to a GeoServerLayerListResponse containing the list of layers.
    */
   async function getLayerList(
-    workspaceName?: string
+    accessToken: string,
+    workspaceName?: string,
   ): Promise<GeoserverLayerListResponse> {
     let url = new URL(`${import.meta.env.VITE_GEOSERVER_REST_URL}/layers`);
     /* eslint-disable */
@@ -218,7 +219,7 @@ export const useGeoserverStore = defineStore("geoserver", () => {
       redirect: "follow",
       headers: new Headers({
         "Content-Type": "application/json",
-        Authorization: `Basic ${auth}`,
+        Authorization: `Bearer ${accessToken}`,
       }),
     });
     return await response.json();
