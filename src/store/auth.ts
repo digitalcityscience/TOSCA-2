@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 
 export const useAuthStore = defineStore("auth", {
     state: () => ({
-        accessToken: ""
+        accessToken: "",
     }),
     actions: {
         setAccessToken(token: string) {
@@ -10,11 +10,12 @@ export const useAuthStore = defineStore("auth", {
         },
         clearAccessToken() {
             this.accessToken = "";
-        }
+        },
     },
     getters: {
-        isAuthenticated: (state) => state.accessToken !== ""
-    }
+        isAuthenticated: (state) => state.accessToken !== "",
+        getAccessToken: (state) => state.accessToken,
+    },
 });
 
 export async function exchangeAuthzCodeForAccessToken(

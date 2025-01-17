@@ -12,11 +12,9 @@
 
 <script setup lang="ts">
 
+import MapContainer from "@components/Map/MapContainer.vue";
 import { defineAsyncComponent, onMounted } from "vue";
 import { useGeoserverStore } from "../store/geoserver";
-import { useAuthStore, exchangeAuthzCodeForAccessToken } from "../store/auth";
-import MapContainer from "@components/Map/MapContainer.vue";
-import { useRoute } from "vue-router";
 const WorkspaceListing = defineAsyncComponent(async () => await import("@components/Data/Workspace/WorkspaceListing.vue"));
 const MapLayerListing = defineAsyncComponent(async () => await import("@components/Map/Layer/MapLayerListing.vue"));
 const DrawContainer = defineAsyncComponent(async () => await import("@components/Map/Layer/Draw/DrawContainer.vue"))
@@ -25,15 +23,6 @@ const FloodSidebar = defineAsyncComponent(async () => await import("@components/
 const Toast = defineAsyncComponent(async () => await import("primevue/toast"))
 const geoserverStore = useGeoserverStore()
 onMounted(async () => {
-    const route = useRoute();
-    const code = route.query.code as string;
-    if (code !== undefined && code !== null && code !== "") {
-        const accessToken = await exchangeAuthzCodeForAccessToken(code)
-        if (accessToken !== undefined) {
-            const authStore = useAuthStore()
-            authStore.setAccessToken(accessToken)
-        }
-    }
     geoserverStore.getWorkspaceList().then((data) => {
         geoserverStore.workspaceList = data.workspaces.workspace
     }).catch((error) => { console.error(error) })

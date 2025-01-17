@@ -1,7 +1,8 @@
-import { createRouter, createWebHistory } from "vue-router"
-import MapView from "../views/MapView.vue"
-import { useParticipationStore } from "@store/participation"
-import { useMapStore } from "@store/map"
+import { createRouter, createWebHistory } from "vue-router";
+import MapView from "../views/MapView.vue";
+import { useParticipationStore } from "@store/participation";
+import { useMapStore } from "@store/map";
+import { exchangeAuthzCodeForAccessToken, useAuthStore } from "@store/auth";
 
 const router = createRouter({
     history: createWebHistory(String(import.meta.env.VITE_BASE_URL)),
@@ -10,51 +11,88 @@ const router = createRouter({
             path: "/",
             name: "home",
             components: {
-                default: MapView
+                default: MapView,
             },
-            meta:{
-                sidebar:"workspaceListing",
-                sidebarPosition:"left"
-            }
+            meta: {
+                sidebar: "workspaceListing",
+                sidebarPosition: "left",
+            },
         },
         {
             path: "/participation",
             name: "participation",
             components: {
                 default: MapView,
-                participation: async () => await import("../components/Participation/ParticipationSidebar.vue")
+                participation: async () =>
+                    await import("../components/Participation/ParticipationSidebar.vue"),
             },
             children: [
-                { path: "", name:"participation-home", component: async () => await import("../components/Participation/ParticipationHome.vue") },
-                { path: "active-campaigns", name: "active-campaigns", component: async () => await import("../components/Participation/CampaignList.vue") },
-                { path: "campaign-detail/:campaignURL", name:"campaign-details", component: async () => await import("../components/Participation/CampaignDetail.vue"), props: true }
+                {
+                    path: "",
+                    name: "participation-home",
+                    component: async () =>
+                        await import("../components/Participation/ParticipationHome.vue"),
+                },
+                {
+                    path: "active-campaigns",
+                    name: "active-campaigns",
+                    component: async () =>
+                        await import("../components/Participation/CampaignList.vue"),
+                },
+                {
+                    path: "campaign-detail/:campaignURL",
+                    name: "campaign-details",
+                    component: async () =>
+                        await import("../components/Participation/CampaignDetail.vue"),
+                    props: true,
+                },
             ],
             meta: {
-                sidebar:"participation",
-                sidebarPosition:"left"
-            }
+                sidebar: "participation",
+                sidebarPosition: "left",
+            },
         },
         {
             path: "/:catchAll(.*)",
-            redirect: "/"
-        }
-    ]
-})
-router.beforeEach((to, _from, next) => {
-    console.log("Navigation guard")
+            redirect: "/",
+        },
+    ],
+});
+router.beforeEach(async (to, _from, next) => {
+    console.log("Navigation guard");
     if (to.name === "active-campaigns") {
-        const participationStore = useParticipationStore()
-        console.log("Active campaigns length: ", participationStore.activeCampaigns.length)
-        if (participationStore.activeCampaigns.length < 1){
-            console.log("Populating active campaigns from navigation guard")
-            participationStore.populateCampaignList()
+        const participationStore = useParticipationStore();
+        console.log(
+            "Active campaigns length: ",
+            participationStore.activeCampaigns.length
+        );
+        if (participationStore.activeCampaigns.length < 1) {
+            console.log("Populating active campaigns from navigation guard");
+            participationStore.populateCampaignList();
         }
     }
-    if (to.name === "campaign-details"){
-        const mapStore = useMapStore()
-        mapStore.resetMapData().then(() => { }, () => { })
+    if (to.name === "campaign-details") {
+        const mapStore = useMapStore();
+        mapStore.resetMapData().then(
+            () => {},
+            () => {}
+        );
     }
-    next()
-})
 
-export default router
+    if (to.query.code !== undefined) {
+        const { code, ...queryWithoutCode } = to.query;
+        const accessToken = await exchangeAuthzCodeForAccessToken(
+            to.query.code as string
+        );
+        if (accessToken !== undefined) {
+            const authStore = useAuthStore();
+            authStore.setAccessToken(accessToken);
+        }
+
+        next({ path: to.path, query: queryWithoutCode });
+    }
+
+    next();
+});
+
+export default router;

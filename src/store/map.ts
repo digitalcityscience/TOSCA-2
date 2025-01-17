@@ -220,8 +220,7 @@ export const useMapStore = defineStore("map", () => {
 								&TILEMATRIXSET=EPSG:900913
 								&TILECOL={x}
 								&TILEROW={y}
-								&format=application/vnd.mapbox-vector-tile
-                                &access_token=${params.accessToken}`,
+								&format=application/vnd.mapbox-vector-tile&access_token=${params.accessToken}`,
                             ],
                         });
                     }
