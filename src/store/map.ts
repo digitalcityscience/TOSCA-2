@@ -1,13 +1,13 @@
-import { defineStore, acceptHMRUpdate } from "pinia";
+import { type FeatureCollection } from "geojson";
+import { type AddLayerObject, type SourceSpecification } from "maplibre-gl";
+import { acceptHMRUpdate, defineStore } from "pinia";
+import { useToast } from "primevue/usetoast";
 import { ref } from "vue";
+import { getRandomHexColor, isNullOrEmpty } from "../core/helpers/functions";
 import {
     type GeoserverRasterTypeLayerDetail,
     type GeoServerVectorTypeLayerDetail,
 } from "./geoserver";
-import { type SourceSpecification, type AddLayerObject } from "maplibre-gl";
-import { getRandomHexColor, isNullOrEmpty } from "../core/helpers/functions";
-import { type FeatureCollection } from "geojson";
-import { useToast } from "primevue/usetoast";
 export interface LayerStyleOptions {
     paint?: Record<string, unknown>;
     layout?: Record<string, unknown>;
@@ -81,6 +81,7 @@ export interface GeoServerSourceParams extends BaseDataSourceParams {
     layer: GeoServerVectorTypeLayerDetail | GeoserverRasterTypeLayerDetail;
     sourceDataType: "vector" | "raster";
     sourceProtocol?: "wms" | "wmts";
+    accessToken?: string;
 }
 export interface GeoJSONSourceParams extends BaseDataSourceParams {
     sourceType: "geojson";
@@ -219,7 +220,8 @@ export const useMapStore = defineStore("map", () => {
 								&TILEMATRIXSET=EPSG:900913
 								&TILECOL={x}
 								&TILEROW={y}
-								&format=application/vnd.mapbox-vector-tile`,
+								&format=application/vnd.mapbox-vector-tile
+                                &access_token=${params.accessToken}`,
                             ],
                         });
                     }
