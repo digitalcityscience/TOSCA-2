@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "docs": "typedoc",
     "dev": "vite --mode development",
     "test": "vitest",
     "build": "vue-tsc && vite build --mode production",
@@ -45,6 +46,8 @@
     "jsdom": "^25.0.1",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
+    "typedoc": "^0.27.7",
+    "typedoc-plugin-vue": "^1.4.0",
     "typescript": "^5.3.3",
     "vite": "^5.0.13",
     "vitest": "^2.1.9",
