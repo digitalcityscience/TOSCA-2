@@ -20,7 +20,7 @@
                 </Dialog>
             </template>
             <div>
-                <div v-if="props.layer.type !== 'raster'">
+                <div v-if="props.layer.type !== 'raster' && props.layer.type !== 'heatmap' && (typeof mapStore.map.getPaintProperty(props.layer.id, props.layer.type ==='circle' ? 'circle-color' : props.layer.type === 'fill' ? 'fill-color' : 'line-color') === 'string')">
                     <label class="flex w-full leading-none pointer-events-none items-baseline">
                         <span class="font-bold mt-2 min-w-[25%]">Color</span>
                         <ColorPicker aria-label="Change Color" class="pointer-events-auto" format="hex" v-model="color"
@@ -76,7 +76,7 @@ const color = ref<string>("000000")
 const opacity = ref<number>(1)
 const checked = ref<boolean>(true)
 onMounted(() => {
-    if (props.layer.type !== "raster"){
+    if (props.layer.type !== "raster" && props.layer.type !== "heatmap" && (typeof mapStore.map.getPaintProperty(props.layer.id, props.layer.type ==="circle" ? "circle-color" : props.layer.type === "fill" ? "fill-color" : "line-color") === "string")) {
         let prop = ""
         let opac = ""
         if (props.layer.type === "circle") {
