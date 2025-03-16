@@ -47,7 +47,10 @@ onMounted(() => {
          */
         mapStore.map.on("click", (e: MapMouseEvent)=>{
             if (!(useDrawStore().drawOnProgress || useDrawStore().editOnProgress || useParticipationStore().locationSelectionOnProgress)) {
-                const clickedFeatures: any[] = mapStore.map.queryRenderedFeatures(e.point)
+                const interactiveLayers = mapStore.map.getStyle().layers
+                    .filter((layer: { type: string; }) => layer.type !== "heatmap")
+                    .map((layer: { id: any; }) => layer.id);
+                const clickedFeatures: any[] = mapStore.map.queryRenderedFeatures(e.point, { layers: interactiveLayers })
                 if (clickedFeatures.length > 0) {
                     const matchedFeatures = clickedFeatures.filter((clickedLayer)=>{ return mapStore.layersOnMap.some((l)=>{ return l.source === clickedLayer.source }) })
                     if (matchedFeatures.length > 0){
