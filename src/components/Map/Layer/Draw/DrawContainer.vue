@@ -2,7 +2,7 @@
     <div>
         <OverlayPanel ref="op" :dismissable="false" showCloseIcon :pt="closeButtonStyles">
             <div v-if="drawTool.externalAppOnProgress" class="flex flex-col min-w-72 max-h-[90vh] overflow-y-auto py-6">
-                <InlineMessage class="w-full" severity="info">Drawing tool currently in use.</InlineMessage>
+                <Message class="w-full" severity="info">Drawing tool currently in use.</Message>
             </div>
             <div v-else class="flex flex-col min-w-72 max-h-[90vh] overflow-y-auto">
                 <div class="w-full">
@@ -52,7 +52,7 @@ import RadioButton from "primevue/radiobutton";
 import OverlayPanel from "primevue/overlaypanel";
 import Button from "primevue/button";
 import InputText from "primevue/inputtext";
-import InlineMessage from "primevue/inlinemessage";
+import Message from "primevue/message";
 import { ref } from "vue";
 import { useDrawStore } from "@store/draw"
 import { useMapStore } from "@store/map";

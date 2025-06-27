@@ -61,7 +61,7 @@
                         </DataTable>
                     </div>
                     <div class="w-full flex justify-around" v-else>
-                        <InlineMessage severity="info">There is no result</InlineMessage>
+                        <Message severity="info">There is no result</Message>
                     </div>
                 </div>
             </div>
@@ -85,7 +85,7 @@ import Button from "primevue/button";
 import Dialog from "primevue/dialog";
 import DataTable from "primevue/datatable";
 import Column from "primevue/column";
-import InlineMessage from "primevue/inlinemessage";
+import Message from "primevue/message";
 import InputText from "primevue/inputtext";
 import Chip from "primevue/chip";
 import { type FeatureCollection } from "geojson";
