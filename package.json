@@ -23,9 +23,9 @@
     "maplibre-gl": "^3.6.1",
     "pinia": "^2.1.7",
     "primeicons": "^6.0.1",
-    "primevue": "^3.53.0",
+    "primevue": "^4.3.5",
     "terra-draw": "^0.0.1-alpha.53",
-    "vue": "^3.4.35",
+    "vue": "^3.5.17",
     "vue-router": "^4.3.3"
   },
   "devDependencies": {
@@ -50,7 +50,7 @@
     "typedoc": "^0.27.7",
     "typedoc-plugin-vue": "^1.4.0",
     "typescript": "^5.3.3",
-    "vite": "^5.0.13",
+    "vite": "^5.4.19",
     "vitest": "^2.1.9",
     "vue-tsc": "^2.0.29"
   }
