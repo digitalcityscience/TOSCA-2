@@ -3,7 +3,7 @@
         <Panel :collapsed="true" @update:collapsed="collapsedState" toggleable>
             <template #header>
                 <div class="flex">
-                    <InputSwitch v-model="checked" @update:model-value="changeLayerVisibility" />
+                    <ToggleSwitch v-model="checked" @update:model-value="changeLayerVisibility" />
                 </div>
                 <span v-if="props.layer.displayName" class="capitalize mr-auto ml-2 truncate ...">{{ props.layer.displayName.replaceAll("_", " ") }}</span>
                 <span v-else class="capitalize mr-auto ml-2 truncate ...">{{ props.layer.source.replaceAll("_", " ") }}</span>
@@ -55,7 +55,7 @@ import { type LayerObjectWithAttributes, useMapStore } from "@store/map"
 import Panel from "primevue/panel";
 import ColorPicker from "primevue/colorpicker";
 import Slider from "primevue/slider";
-import InputSwitch from "primevue/inputswitch";
+import ToggleSwitch from "primevue/toggleswitch";
 import Button from "primevue/button"
 import Dialog from "primevue/dialog";
 import { useToast } from "primevue/usetoast";
