@@ -39,12 +39,12 @@
                     <p>Add new attribute filter</p>
                 </div>
                 <div class="attribute w-full">
-                    <Dropdown class="min-w-32 w-full h-10" v-model="selectedAttribute" :options="filteredAttributes" option-label="name" filter show-clear
+                    <Select class="min-w-32 w-full h-10" v-model="selectedAttribute" :options="filteredAttributes" option-label="name" filter show-clear
                         placeholder="Select an attribute" :virtual-scroller-options="{ itemSize: 30 }" @change="clearOperand">
-                    </Dropdown>
+                    </Select>
                 </div>
                 <div class="operand w-full pt-2">
-                    <Dropdown class="min-w-32 w-full h-10" v-if="selectedAttribute && selectedAttribute.binding == 'java.lang.String'"
+                    <Select class="min-w-32 w-full h-10" v-if="selectedAttribute && selectedAttribute.binding == 'java.lang.String'"
                         v-model="selectedOperand" :options="filterStore.stringFilters" show-clear
                         placeholder="Select an operand">
                         <template #option="slotProps">
@@ -52,8 +52,8 @@
                                 <div>{{ filterStore.filterNames[slotProps.option as OptionKey] }}</div>
                             </div>
                         </template>
-                    </Dropdown>
-                    <Dropdown
+                    </Select>
+                    <Select
                         class="min-w-32 w-full h-10"
                         v-else-if="selectedAttribute && (selectedAttribute.binding == 'java.lang.Integer' || selectedAttribute.binding == 'java.lang.Long' || selectedAttribute.binding == 'java.lang.Double' || selectedAttribute.binding == 'java.lang.BigDecimal')"
                         v-model="selectedOperand" :options="filterStore.integerFilters" show-clear
@@ -63,7 +63,7 @@
                                 <div>{{ filterStore.filterNames[slotProps.option as OptionKey] }}</div>
                             </div>
                         </template>
-                    </Dropdown>
+                    </Select>
                 </div>
                 <div class="value w-full pt-2" v-if="selectedOperand">
                     <InputText class="min-w-32 w-full h-10" v-if="selectedAttribute && selectedAttribute.binding == 'java.lang.String'" type="text"
@@ -79,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import Dropdown from "primevue/dropdown";
+import Select from "primevue/select";
 import Button from "primevue/button";
 import SelectButton from "primevue/selectbutton";
 import Card from "primevue/card"

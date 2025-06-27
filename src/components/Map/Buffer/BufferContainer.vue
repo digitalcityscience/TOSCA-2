@@ -12,7 +12,7 @@
                                     <label id="label_targetLayer" class="font-bold">Select target Layer</label>
                                     <p class="text-sm font-light italic">Your selection will be used to create buffer areas</p>
                                     <div class="pt-2 w-full flex">
-                                        <Dropdown class="w-full max-w-64" aria-labelledby="label_targetLayer" :disabled="bufferStore.isTmpDataCreated" v-model="bufferStore.selectedLayer" :options="filteredLayers" optionLabel="displayName" placeholder="Select a layer" showClear></Dropdown>
+                                        <Select class="w-full max-w-64" aria-labelledby="label_targetLayer" :disabled="bufferStore.isTmpDataCreated" v-model="bufferStore.selectedLayer" :options="filteredLayers" optionLabel="displayName" placeholder="Select a layer" showClear></Select>
                                     </div>
                                 </div>
                                 <div class="buffer-radius pt-4">
@@ -57,7 +57,7 @@
 <script setup lang="ts">
 import Card from "primevue/card";
 import OverlayPanel from "primevue/overlaypanel";
-import Dropdown from "primevue/dropdown";
+import Select from "primevue/select";
 import Button from "primevue/button";
 import InputNumber from "primevue/inputnumber";
 import InputText from "primevue/inputtext";

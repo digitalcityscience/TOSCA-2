@@ -35,8 +35,8 @@
                         </div>
                         <p class="text-sm font-light mb-1">Choose the category of your suggestion if applicable.</p>
                         <div class="pt-3 w-full flex flex-col relative">
-                            <Dropdown v-model="category" :options="campaign.categories" class="max-w-full relative"
-                                :virtual-scroller-options="{ itemSize: 35 }"></Dropdown>
+                            <Select v-model="category" :options="campaign.categories" class="max-w-full relative"
+                                :virtual-scroller-options="{ itemSize: 35 }"></Select>
                         </div>
                         <div v-if="campaign.allow_drawings" class="pt-3 w-full">
                             <ParticipationDraw></ParticipationDraw>
@@ -76,7 +76,7 @@
 <script setup lang="ts">
 import Button from "primevue/button"
 import Textarea from "primevue/textarea"
-import Dropdown from "primevue/dropdown"
+import Select from "primevue/select"
 import Card from "primevue/card"
 import Rating from "primevue/rating"
 import Dialog from "primevue/dialog"
