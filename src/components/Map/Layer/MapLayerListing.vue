@@ -10,13 +10,13 @@
             </div>
         </div>
         <div class="w-full" v-else>
-            <InlineMessage class="w-full" severity="info">There is no layer on map</InlineMessage>
+            <Message class="w-full" severity="info">There is no layer on map</Message>
         </div>
     </BaseSidebarComponent>
 </template>
 
 <script setup lang="ts">
-import InlineMessage from "primevue/inlinemessage";
+import Message from "primevue/message";
 // components
 import BaseSidebarComponent from "../../Base/BaseSidebarComponent.vue";
 import MapLayerListingItem from "./MapLayerListingItem.vue";

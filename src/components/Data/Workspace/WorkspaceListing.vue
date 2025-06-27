@@ -16,7 +16,7 @@
                 </Accordion>
             </div>
             <div class="w-full" v-else>
-                <InlineMessage class="w-full" severity="info">No workspace found</InlineMessage>
+                <Message class="w-full" severity="info">No workspace found</Message>
             </div>
         </BaseSidebarComponent>
 </template>
@@ -25,7 +25,7 @@
 // Components
 import Accordion from "primevue/accordion";
 import AccordionTab from "primevue/accordiontab";
-import InlineMessage from "primevue/inlinemessage";
+import Message from "primevue/message";
 import BaseSidebarComponent from "@components/Base/BaseSidebarComponent.vue";
 import WorkspaceListingItem from "./WorkspaceListingItem.vue";
 // JS-TS imports

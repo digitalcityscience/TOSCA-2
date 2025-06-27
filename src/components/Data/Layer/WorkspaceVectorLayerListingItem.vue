@@ -24,7 +24,7 @@
         </Card>
     </div>
     <div v-else class="first:pt-0 pt-1 w-full">
-        <InlineMessage class="w-full" severity="info">No information about layer.</InlineMessage>
+        <Message class="w-full" severity="info">No information about layer.</Message>
     </div>
 </template>
 
@@ -32,7 +32,7 @@
 import { computed, ref } from "vue";
 import Tag from "primevue/tag";
 import Button from "primevue/button"
-import InlineMessage from "primevue/inlinemessage";
+import Message from "primevue/message";
 import { type GeoServerVectorTypeLayerDetail, type GeoserverLayerInfo, type GeoserverLayerListItem, useGeoserverStore } from "@store/geoserver";
 import { type GeoServerSourceParams, type LayerParams, type LayerStyleOptions, useMapStore } from "@store/map";
 import Card from "primevue/card";

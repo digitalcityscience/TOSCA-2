@@ -3,12 +3,12 @@
         <WorkspaceLayerListingItem v-for="(layer,index) in props.list" :key="index" :item="layer" :workspace="workspaceName"></WorkspaceLayerListingItem>
     </div>
     <div v-else>
-        <InlineMessage class="w-full" severity="info">There is no layer in this workspace</InlineMessage>
+        <Message class="w-full" severity="info">There is no layer in this workspace</Message>
     </div>
 </template>
 
 <script setup lang="ts">
-import InlineMessage from "primevue/inlinemessage";
+import Message from "primevue/message";
 // Components
 import WorkspaceLayerListingItem from "./WorkspaceLayerListingItem.vue";
 import { type GeoserverLayerListItem } from "@store/geoserver";

@@ -11,7 +11,7 @@
 							placeholder="Select a filter layer"></Select>
 						</div>
                         <div class="w-full no-current-filter py-2" v-else>
-                            <InlineMessage class="w-full" severity="info">There is no layer for filter. Draw a layer first!</InlineMessage>
+                            <Message class="w-full" severity="info">There is no layer for filter. Draw a layer first!</Message>
                         </div>
 					</div>
 					<div v-if="selectedFilterLayer"  class="identifier-dropdown w-full py-2">
@@ -46,7 +46,7 @@
 import Select, { type SelectChangeEvent } from "primevue/select";
 import Card from "primevue/card";
 import Button from "primevue/button";
-import InlineMessage from "primevue/inlinemessage";
+import Message from "primevue/message";
 import { type CustomAddLayerObject, useMapStore, type LayerObjectWithAttributes } from "@store/map";
 import { computed, onMounted, ref } from "vue";
 import bbox from "@turf/bbox"

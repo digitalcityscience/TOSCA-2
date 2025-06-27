@@ -8,13 +8,13 @@
         </div>
     </div>
     <div v-else class="first:pt-0 pt-1 w-full">
-        <InlineMessage class="w-full" severity="info">No information about layer.</InlineMessage>
+        <Message class="w-full" severity="info">No information about layer.</Message>
     </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from "vue";
-import InlineMessage from "primevue/inlinemessage";
+import Message from "primevue/message";
 import { type GeoServerVectorTypeLayerDetail, type GeoserverLayerInfo, type GeoserverLayerListItem, useGeoserverStore } from "@store/geoserver";
 import { type LayerStyleOptions } from "@store/map";
 import { useToast } from "primevue/usetoast";

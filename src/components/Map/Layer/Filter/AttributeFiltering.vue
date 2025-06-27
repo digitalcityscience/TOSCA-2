@@ -25,7 +25,7 @@
                 </DataTable>
             </div>
             <div class="w-full no-current-filter py-1" v-else>
-                <InlineMessage class="w-full" severity="info">You have no filter</InlineMessage>
+                <Message class="w-full" severity="info">You have no filter</Message>
             </div>
             <div class="filter-control py-1">
                 <div v-if="currentFilters.length" class="relation-control w-full flex flex-row ml-auto py-1 justify-between">
@@ -85,7 +85,7 @@ import SelectButton from "primevue/selectbutton";
 import Card from "primevue/card"
 import DataTable from "primevue/datatable";
 import Column from "primevue/column";
-import InlineMessage from "primevue/inlinemessage";
+import Message from "primevue/message";
 import InputText from "primevue/inputtext";
 import { computed, ref } from "vue";
 import { type GeoServerVectorTypeLayerDetail, type GeoServerFeatureTypeAttribute } from "@store/geoserver";
