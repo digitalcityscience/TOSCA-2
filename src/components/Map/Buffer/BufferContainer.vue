@@ -1,6 +1,6 @@
 <template>
     <div>
-        <OverlayPanel ref="op" :dismissable="false" showCloseIcon :pt="closeButtonStyles">
+        <Popover ref="op" :dismissable="false" >
             <div class="block min-w-72 max-h-[90vh] overflow-y-auto">
                 <div class="w-full">
                     <Card>
@@ -50,13 +50,13 @@
                     </Card>
                 </div>
             </div>
-        </OverlayPanel>
+        </Popover>
     </div>
 </template>
 
 <script setup lang="ts">
 import Card from "primevue/card";
-import OverlayPanel from "primevue/overlaypanel";
+import Popover from "primevue/popover";
 import Select from "primevue/select";
 import Button from "primevue/button";
 import InputNumber from "primevue/inputnumber";
@@ -77,18 +77,6 @@ function toggle(event: Event): void {
 const bufferControl = new BufferControl(toggle)
 if (mapStore.map !== null || mapStore.map !== undefined) {
     mapStore.map.addControl(bufferControl, "top-right")
-}
-const closeButtonStyles= {
-    closeButton:{
-        class: [
-            "absolute top-2 left-2 p-2",
-            "rounded-full",
-            "bg-transparent",
-            "text-primary-500 dark:text-primary-400",
-            "hover:bg-primary-600 dark:hover:bg-primary-300 hover:text-white hover:border-primary-600 dark:hover:border-primary-300 text-primary-300 dark:text-primary-600",
-            "focus:ring-primary-400/50 dark:focus:ring-primary-300/50"
-        ]
-    }
 }
 const filteredLayers = computed(() => {
     if (mapStore.layersOnMap.length > 0) {
