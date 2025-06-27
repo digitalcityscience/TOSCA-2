@@ -7,16 +7,16 @@
 				<template #content>
 					<div class="filterlayer-dropdown w-full">
 						<div v-if="filterLayerList.length>0">
-							<Dropdown class="w-full" v-model="selectedFilterLayer" @change="dropdownFitter" :options="filterLayerList" option-label="source" show-clear
-							placeholder="Select a filter layer"></Dropdown>
+							<Select class="w-full" v-model="selectedFilterLayer" @change="dropdownFitter" :options="filterLayerList" option-label="source" show-clear
+							placeholder="Select a filter layer"></Select>
 						</div>
                         <div class="w-full no-current-filter py-2" v-else>
                             <InlineMessage class="w-full" severity="info">There is no layer for filter. Draw a layer first!</InlineMessage>
                         </div>
 					</div>
 					<div v-if="selectedFilterLayer"  class="identifier-dropdown w-full py-2">
-							<Dropdown class="w-full" v-model="selectedProperty" :options="filteredAttributes" option-label="name" show-clear placeholder="Select Identifier">
-							</Dropdown>
+							<Select class="w-full" v-model="selectedProperty" :options="filteredAttributes" option-label="name" show-clear placeholder="Select Identifier">
+							</Select>
 					</div>
 				</template>
 				<template #footer>
@@ -43,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import Dropdown, { type DropdownChangeEvent } from "primevue/dropdown";
+import Select, { type SelectChangeEvent } from "primevue/select";
 import Card from "primevue/card";
 import Button from "primevue/button";
 import InlineMessage from "primevue/inlinemessage";
@@ -79,7 +79,7 @@ const isPolygonTiles = computed(()=>{
         return false
     }
 })
-function dropdownFitter(event: DropdownChangeEvent): void{
+function dropdownFitter(event: SelectChangeEvent): void{
     if (!isNullOrEmpty(event.value)){
         fitToFilterLayer((event.value as CustomAddLayerObject).layerData!).then(
             () => {},
