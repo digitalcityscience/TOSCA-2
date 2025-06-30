@@ -20,11 +20,12 @@
             </div>
             <div class="py-1">
                 <Accordion :activeIndex="[]">
-                    <AccordionTab headerClass="rounded-lg" v-for="(scenario, index) in scenarios" :key="index">
-                        <template #header>
+                    <AccordionPanel v-for="(scenario, index) in scenarios" :key="index" :value="index">
+                        <AccordionHeader>
                             <h2 class="text-xl font-semibold capitalize">{{ scenario.title.replace(/[_-]/g, ' ') }}</h2>
-                        </template>
-                        <div class="w-full flex flex-row-reverse pt-2">
+                        </AccordionHeader>
+                        <AccordionContent>
+                            <div class="w-full flex flex-row-reverse pt-2">
                             <Button @click="startScenario(scenario)" size="small">Run Scenario</Button>
                         </div>
                             <section class="mb-6">
@@ -60,7 +61,8 @@
                                 Utilize this layer to assess community health needs and plan interventions or healthcare resources accordingly.
                             </p>
                         </section>
-                    </AccordionTab>
+                        </AccordionContent>
+                    </AccordionPanel>
                 </Accordion>
             </div>
         </div>
@@ -70,7 +72,9 @@
 <script setup lang="ts">
 // Components
 import Accordion from "primevue/accordion";
-import AccordionTab from "primevue/accordiontab";
+import AccordionPanel from "primevue/accordionpanel";
+import AccordionHeader from "primevue/accordionheader";
+import AccordionContent from "primevue/accordioncontent";
 import Card from "primevue/card";
 import BaseSidebarComponent from "@components/Base/BaseSidebarComponent.vue";
 import Button from "primevue/button";
