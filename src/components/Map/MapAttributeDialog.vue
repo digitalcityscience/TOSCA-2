@@ -1,8 +1,8 @@
 <template>
     <div class="w-full text-base">
-        <Card class="w-72 h-72 overflow-y-auto" :pt="cardPTOptions">
+        <Card class="w-72 h-72 overflow-y-auto">
             <template v-if="props.features !== undefined" #content>
-                <Accordion :multiple="true" :activeIndex="[]" :pt="accordPTOptions">
+                <Accordion :multiple="true" :activeIndex="[]">
                     <AccordionPanel v-for="(source, index) in Object.entries(mergedFeatures).map(([name, value]) => ({ name, value }))"
                     :key="index" :value="index">
                         <AccordionHeader>
@@ -33,8 +33,6 @@ import AccordionPanel from "primevue/accordionpanel";
 import AccordionHeader from "primevue/accordionheader";
 import AccordionContent from "primevue/accordioncontent";
 import { useMapStore } from "@store/map"
-import cardPTOptions from "@presets/tosca/card/index.ts"
-import accordPTOptions from "@presets/tosca/accordion/index.ts"
 import { computed } from "vue";
 import { type MapGeoJSONFeature } from "maplibre-gl";
 
