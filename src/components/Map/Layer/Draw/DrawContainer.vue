@@ -1,6 +1,6 @@
 <template>
     <div>
-        <OverlayPanel ref="op" :dismissable="false" showCloseIcon :pt="closeButtonStyles">
+        <Popover ref="op" :dismissable="false" showCloseIcon :pt="closeButtonStyles">
             <div v-if="drawTool.externalAppOnProgress" class="flex flex-col min-w-72 max-h-[90vh] overflow-y-auto py-6">
                 <Message class="w-full" severity="info">Drawing tool currently in use.</Message>
             </div>
@@ -42,14 +42,14 @@
                     </Card>
                 </div>
             </div>
-        </OverlayPanel>
+        </Popover>
     </div>
 </template>
 
 <script setup lang="ts">
 import Card from "primevue/card";
 import RadioButton from "primevue/radiobutton";
-import OverlayPanel from "primevue/overlaypanel";
+import Popover from "primevue/popover";
 import Button from "primevue/button";
 import InputText from "primevue/inputtext";
 import Message from "primevue/message";
