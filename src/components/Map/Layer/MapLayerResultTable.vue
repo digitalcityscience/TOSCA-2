@@ -88,7 +88,7 @@ import Column from "primevue/column";
 import Message from "primevue/message";
 import InputText from "primevue/inputtext";
 import Chip from "primevue/chip";
-import { type FeatureCollection } from "geojson";
+import { type FeatureCollection } from "@helpers/geojson";
 import { computed, ref } from "vue";
 import { type AttributeFilterItem, useFilterStore, type AppliedFiltersListItem, type IntegerFilters, type StringFilters, type RelationTypes } from "@store/filter";
 import { type LayerObjectWithAttributes } from "@store/map";

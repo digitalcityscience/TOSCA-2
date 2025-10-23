@@ -6,7 +6,7 @@ import {
 } from "./geoserver";
 import { type SourceSpecification, type AddLayerObject } from "maplibre-gl";
 import { getRandomHexColor, isNullOrEmpty } from "../core/helpers/functions";
-import { type FeatureCollection } from "geojson";
+import { type FeatureCollection } from "@helpers/geojson";
 import { useToast } from "primevue/usetoast";
 export interface LayerStyleOptions {
     paint?: Record<string, unknown>;

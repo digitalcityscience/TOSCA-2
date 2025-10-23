@@ -4,7 +4,7 @@
             <p>Layers</p>
         </template>
         <div class="w-full" v-if="mapStore.layersOnMap.length > 0">
-            <div v-for="(layer, index) in mapStore.layersOnMap" :key="index">
+            <div v-for="(layer) in mapStore.layersOnMap" :key="layer.id">
                 <MapLayerListingItem v-if="layer.showOnLayerList !== false" :layer="layer">
                 </MapLayerListingItem>
             </div>

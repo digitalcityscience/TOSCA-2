@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "engines": {
+    "node": ">=22.19.0"
+  },
   "scripts": {
     "docs": "typedoc",
     "dev": "vite --mode development",
@@ -34,7 +37,7 @@
     "@types/node": "^20.14.11",
     "@typescript-eslint/eslint-plugin": "^6.14.0",
     "@typescript-eslint/parser": "^6.14.0",
-    "@vitejs/plugin-vue": "^4.5.0",
+    "@vitejs/plugin-vue": "^6.0.1",
     "@vue/eslint-config-typescript": "^12.0.0",
     "@vue/test-utils": "^2.4.6",
     "autoprefixer": "^10.4.17",
@@ -51,8 +54,8 @@
     "typedoc": "^0.27.7",
     "typedoc-plugin-vue": "^1.4.0",
     "typescript": "^5.3.3",
-    "vite": "^5.4.19",
-    "vitest": "^2.1.9",
+    "vite": "^7.1.12",
+    "vitest": "^4.0.1",
     "vue-tsc": "^2.0.29"
   }
 }

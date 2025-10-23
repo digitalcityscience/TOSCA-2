@@ -21,7 +21,7 @@ import { useToast } from "primevue/usetoast";
 import { type GeoserverRasterTypeLayerDetail, type GeoServerVectorTypeLayerDetail, useGeoserverStore } from "@store/geoserver";
 import { type LayerParams, useMapStore, type GeoServerSourceParams } from "@store/map";
 import { isNullOrEmpty } from "@helpers/functions";
-import { type FeatureCollection } from "geojson";
+import { type FeatureCollection } from "@helpers/geojson";
 import bboxPolygon from "@turf/bbox-polygon";
 import bbox from "@turf/bbox";
 

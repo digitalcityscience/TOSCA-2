@@ -83,7 +83,7 @@ import Dialog from "primevue/dialog"
 import ParticipationDraw from "./ParticipationDraw.vue"
 import { ref } from "vue";
 import { type CampaignDetail, useParticipationStore, type CenterLocation, type PostRating, type PostFeedback, type PostFeedbackRating } from "@store/participation";
-import { type Feature, type FeatureCollection } from "geojson";
+import { type Feature, type FeatureCollection } from "@helpers/geojson";
 import { useMapStore } from "@store/map";
 import { onBeforeRouteLeave, useRouter } from "vue-router"
 import { useToast } from "primevue/usetoast"

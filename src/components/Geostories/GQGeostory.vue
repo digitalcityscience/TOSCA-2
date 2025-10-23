@@ -82,7 +82,7 @@ import Button from "primevue/button";
 import { SidebarControl } from "@helpers/sidebarControl";
 import { type GeoServerSourceParams, type LayerParams, type LayerStyleOptions, useMapStore } from "@store/map";
 import { RouterLink } from "vue-router";
-import { type FeatureCollection } from "geojson";
+import { type FeatureCollection } from "@helpers/geojson";
 import bbox from "@turf/bbox";
 import { useGeoserverStore, type GeoserverRasterTypeLayerDetail, type GeoServerVectorTypeLayerDetail } from "@store/geoserver";
 import bboxPolygon from "@turf/bbox-polygon";
