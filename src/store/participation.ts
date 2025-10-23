@@ -1,6 +1,6 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
-import { type FeatureCollection, type Feature, type Point } from "geojson";
+import { type FeatureCollection, type Feature, type Point } from "@helpers/geojson";
 import { type GeoJSONSourceParams, type LayerParams, useMapStore } from "./map";
 import { type Map } from "maplibre-gl";
 import { type DrawMode, useDrawStore } from "./draw";

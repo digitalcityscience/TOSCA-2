@@ -1,7 +1,7 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
 import { type GeoJSONSourceParams, type LayerObjectWithAttributes, type GeoJSONLayerParams, useMapStore } from "./map";
 import buffer from "@turf/buffer";
-import { type FeatureCollection } from "geojson";
+import { type FeatureCollection } from "@helpers/geojson";
 import flatten from "@turf/flatten";
 import { ref } from "vue";
 

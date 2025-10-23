@@ -36,7 +36,7 @@ import RadioButton from "primevue/radiobutton";
 import ChipWrapper from "@components/Base/ChipWrapper.vue"
 import { type DrawMode, useDrawStore } from "@store/draw"
 import { useParticipationStore } from "@store/participation";
-import { type Feature } from "geojson"
+import { type Feature } from "@helpers/geojson"
 import { ref } from "vue";
 
 const participation = useParticipationStore()
