@@ -25,7 +25,10 @@
                 </div>
             </template>
             <template #footer>
-                <Button size="small" @click="add2Map">Add to map</button>
+                <div class="flex gap-2">
+                    <Button size="small" @click="add2Map">Add to map</Button>
+                    <Button size="small" severity="secondary" @click="startComparison">Compare</Button>
+                </div>
             </template>
         </Card>
     </div>
@@ -41,6 +44,7 @@ import Button from "primevue/button"
 import Message from "primevue/message";
 import { type GeoserverRasterTypeLayerDetail, type GeoserverLayerInfo, type GeoserverLayerListItem, useGeoserverStore } from "@store/geoserver";
 import { type GeoServerSourceParams, type LayerParams, useMapStore } from "@store/map";
+import { useComparisonStore } from "@store/comparison";
 import Card from "primevue/card";
 import { isNullOrEmpty } from "../../../core/helpers/functions";
 import { useToast } from "primevue/usetoast";
@@ -67,38 +71,79 @@ geoserver.getLayerDetail(props.layerInformation.resource.href).then((detail) => 
 })
 
 const mapStore = useMapStore()
-function add2Map(): void{
-    if (!isNullOrEmpty(layerDetail.value)) {
-        const sourceParams: GeoServerSourceParams = {
-            sourceType:"geoserver",
-            identifier:layerDetail.value!.coverage.name,
-            isFilterLayer:false,
-            workspaceName:props.workspace,
-            layer:layerDetail.value!,
-            sourceDataType:"raster",
-            sourceProtocol:"wms"
-        }
-        mapStore.addMapDataSource(sourceParams).then(() => {
-            if (!isNullOrEmpty(layerDetail.value)) {
-                const layerParams: LayerParams = {
-                    sourceType:"geoserver",
-                    identifier:layerDetail.value!.coverage.name,
-                    layerType:"raster",
-                    geoserverLayerDetails:layerDetail.value!,
-                    sourceLayer:`${layerDetail.value!.coverage.name}`,
-                    displayName:layerDetail.value?.coverage.title ?? undefined,
-                    sourceDataType:"raster",
-                    sourceProtocol:"wms",
-                    workspaceName:props.workspace,
-                }
-                mapStore.addMapLayer(layerParams).then(()=>{
-                }).catch(error => {
-                    toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
-                })
-            }
-        }).catch(error => {
-            toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
+const comparisonStore = useComparisonStore()
+
+function resolveComparisonContainer(): HTMLElement | null {
+    return document.querySelector(".mapview")
+}
+
+function buildLayerPayload(): { source: GeoServerSourceParams, layer: LayerParams } | undefined {
+    if (isNullOrEmpty(layerDetail.value)) return undefined
+    const detail = layerDetail.value!
+    const sourceParams: GeoServerSourceParams = {
+        sourceType: "geoserver",
+        identifier: detail.coverage.name,
+        isFilterLayer: false,
+        workspaceName: props.workspace,
+        layer: detail,
+        sourceDataType: "raster",
+        sourceProtocol: "wms",
+    }
+    const layerParams: LayerParams = {
+        sourceType: "geoserver",
+        identifier: detail.coverage.name,
+        layerType: "raster",
+        geoserverLayerDetails: detail,
+        sourceLayer: `${detail.coverage.name}`,
+        displayName: detail.coverage.title ?? undefined,
+        sourceDataType: "raster",
+        sourceProtocol: "wms",
+        workspaceName: props.workspace,
+    }
+    return { source: sourceParams, layer: layerParams }
+}
+
+function add2Map(): void {
+    const payload = buildLayerPayload()
+    if (payload === undefined) {
+        return
+    }
+    const { source: sourceParams, layer: layerParams } = payload
+    mapStore.addMapDataSource(sourceParams).then(() => {
+        mapStore.addMapLayer(layerParams).catch(error => {
+            toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 })
         })
+    }).catch(error => {
+        toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 })
+    })
+}
+
+async function startComparison(): Promise<void> {
+    const payload = buildLayerPayload()
+    if (payload === undefined) {
+        toast.add({ severity: "warn", summary: "Comparison", detail: "Layer details are not ready yet.", life: 3000 })
+        return
+    }
+    const container = resolveComparisonContainer()
+    if (container === null) {
+        toast.add({ severity: "error", summary: "Comparison", detail: "Comparison map container not found.", life: 3000 })
+        return
+    }
+    const mainMap = mapStore.map
+    if (mainMap === undefined) {
+        toast.add({ severity: "error", summary: "Comparison", detail: "Main map is not ready yet.", life: 3000 })
+        return
+    }
+    try {
+        await comparisonStore.startComparison({
+            mainMap,
+            container,
+            source: payload.source,
+            layer: payload.layer,
+        })
+        toast.add({ severity: "success", summary: "Comparison", detail: "Layer loaded in comparison map.", life: 3000 })
+    } catch (error) {
+        toast.add({ severity: "error", summary: "Comparison", detail: String(error), life: 3000 })
     }
 }
 
