@@ -2,6 +2,155 @@
 /* eslint "no-tabs": "off" */
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
+
+const CATALOG_API_PATH = "/api/v1/catalog";
+
+function trimTrailingSlash(value: string): string {
+  return value.replace(/\/+$/, "");
+}
+
+function normalizeRootUrl(value: string): string {
+  const trimmedValue = trimTrailingSlash(value.trim());
+  if (trimmedValue === "") {
+    return "";
+  }
+  if (/^https?:\/\//i.test(trimmedValue)) {
+    return trimmedValue;
+  }
+
+  throw new Error(
+    `VITE_BACKEND_ROOT_URL must be an absolute URL including protocol, for example http://localhost:8000. Received: ${value}`
+  );
+}
+
+function getEnvValue(key: string): string {
+  return String(import.meta.env[key] ?? "").trim();
+}
+
+function getBackendRootUrl(): string {
+  const backendRoot = normalizeRootUrl(getEnvValue("VITE_BACKEND_ROOT_URL"));
+  if (backendRoot !== "") {
+    return backendRoot;
+  }
+
+  const geonodeRestUrl = normalizeRootUrl(getEnvValue("VITE_GEONODE_REST_URL"));
+  if (geonodeRestUrl !== "") {
+    return geonodeRestUrl.replace(/\/api$/, "");
+  }
+
+  return trimTrailingSlash(window.location.origin);
+}
+
+export function buildCatalogUrl(pathSegments: string[] = []): URL {
+  const encodedPath = pathSegments
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+
+  return new URL(
+    `${CATALOG_API_PATH}${encodedPath === "" ? "" : `/${encodedPath}`}`,
+    getBackendRootUrl()
+  );
+}
+
+function resolveApiUrl(urlOrHref: string): URL {
+  return new URL(urlOrHref, getBackendRootUrl());
+}
+
+function buildJsonHeaders(contentType = "application/json"): Headers {
+  return new Headers({
+    "Content-Type": contentType,
+  });
+}
+
+function logCatalogTiming(message: string, details?: Record<string, unknown>): void {
+  console.log(
+    `[tosca-perf ${new Date().toISOString()} +${performance.now().toFixed(1)}ms] catalog:${message}`,
+    details ?? ""
+  );
+}
+
+async function fetchJson<T>(
+  url: URL,
+  contentType = "application/json"
+): Promise<T> {
+  const startedAt = performance.now();
+  logCatalogTiming("request:start", {
+    url: url.toString(),
+    contentType,
+  });
+  const response = await fetch(url, {
+    method: "GET",
+    redirect: "follow",
+    headers: buildJsonHeaders(contentType),
+  });
+  logCatalogTiming("response:headers", {
+    url: url.toString(),
+    status: response.status,
+    durationMs: Math.round(performance.now() - startedAt),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    const message = body === "" ? response.statusText : body;
+    throw new Error(
+      `Catalog request failed (${response.status} ${response.statusText}): ${message}`
+    );
+  }
+
+  const bodyReadStartedAt = performance.now();
+  const responseText = await response.text();
+  logCatalogTiming("response:body-read", {
+    url: url.toString(),
+    bytes: responseText.length,
+    bodyReadMs: Math.round(performance.now() - bodyReadStartedAt),
+    totalMs: Math.round(performance.now() - startedAt),
+  });
+
+  const jsonParseStartedAt = performance.now();
+  const body = JSON.parse(responseText) as T;
+  logCatalogTiming("response:json-parse", {
+    url: url.toString(),
+    parseMs: Math.round(performance.now() - jsonParseStartedAt),
+    totalMs: Math.round(performance.now() - startedAt),
+  });
+  return body;
+}
+
+type CatalogRequestCache = Map<string, Promise<unknown>>;
+
+async function fetchCachedJson<T>(
+  cache: CatalogRequestCache,
+  url: URL,
+  contentType = "application/json"
+): Promise<T> {
+  const cacheKey = `${contentType}:${url.toString()}`;
+  const cachedRequest = cache.get(cacheKey);
+  if (cachedRequest !== undefined) {
+    logCatalogTiming("cache:hit", {
+      url: url.toString(),
+      contentType,
+    });
+    return await cachedRequest as T;
+  }
+
+  logCatalogTiming("cache:miss", {
+    url: url.toString(),
+    contentType,
+  });
+  const request = fetchJson<T>(url, contentType).catch((error) => {
+    cache.delete(cacheKey);
+    logCatalogTiming("cache:evict-error", {
+      url: url.toString(),
+      contentType,
+      error: String(error),
+    });
+    throw error;
+  });
+  cache.set(cacheKey, request);
+
+  return await request;
+}
+
 export interface GeoServerVectorTypeLayerDetail {
   featureType: {
     name: string;
@@ -185,15 +334,9 @@ export interface WorkspaceListResponse {
 }
 export const useGeoserverStore = defineStore("geoserver", () => {
   const pointData = ref();
-  const auth = btoa(
-    `${
-      import.meta.env.VITE_GEOSERVER_USERNAME +
-      ":" +
-      import.meta.env.VITE_GEOSERVER_PASSWORD
-    }`
-  );
   const layerList = ref<GeoserverLayerListItem[]>();
   const workspaceList = ref<WorkspaceListItem[]>();
+  const catalogRequestCache: CatalogRequestCache = new Map();
   /**
    * Retrieves a list of layers from GeoServer.
    * If a workspace name is provided, it returns the layers from that specific workspace.
@@ -204,24 +347,11 @@ export const useGeoserverStore = defineStore("geoserver", () => {
   async function getLayerList(
     workspaceName?: string
   ): Promise<GeoserverLayerListResponse> {
-    let url = new URL(`${import.meta.env.VITE_GEOSERVER_REST_URL}/layers`);
-    /* eslint-disable */
-    if (workspaceName) {
-      url = new URL(
-        `${
-          import.meta.env.VITE_GEOSERVER_REST_URL
-        }/workspaces/${workspaceName}/layers`
-      );
-    }
-    const response = await fetch(url, {
-      method: "GET",
-      redirect: "follow",
-      headers: new Headers({
-        "Content-Type": "application/json",
-        Authorization: `Basic ${auth}`,
-      }),
-    });
-    return await response.json();
+    const url = workspaceName === undefined
+      ? buildCatalogUrl(["layers"])
+      : buildCatalogUrl(["workspaces", workspaceName, "layers"]);
+
+    return await fetchCachedJson<GeoserverLayerListResponse>(catalogRequestCache, url);
   }
   /**
    * Retrieves a list of all workspaces the user has access to in GeoServer.
@@ -229,18 +359,7 @@ export const useGeoserverStore = defineStore("geoserver", () => {
    * @returns A Promise resolving to a WorkspaceListResponse containing the list of workspaces.
    */
   async function getWorkspaceList(): Promise<WorkspaceListResponse> {
-    const url = new URL(
-      `${import.meta.env.VITE_GEOSERVER_REST_URL}/workspaces`
-    );
-    const response = await fetch(url, {
-      method: "GET",
-      redirect: "follow",
-      headers: new Headers({
-        "Content-Type": "application/json",
-        Authorization: `Basic ${auth}`,
-      }),
-    });
-    return await response.json();
+    return await fetchCachedJson<WorkspaceListResponse>(catalogRequestCache, buildCatalogUrl(["workspaces"]));
   }
   /**
    * Retrieves information about a specific layer within a given workspace.
@@ -253,20 +372,10 @@ export const useGeoserverStore = defineStore("geoserver", () => {
     layer: GeoserverLayerListItem,
     workspace: string
   ): Promise<GeoserverLayerInfoResponse> {
-    const url = new URL(
-      `${
-        import.meta.env.VITE_GEOSERVER_REST_URL
-      }/workspaces/${workspace}/layers/${layer.name}`
+    return await fetchCachedJson<GeoserverLayerInfoResponse>(
+      catalogRequestCache,
+      buildCatalogUrl(["workspaces", workspace, "layers", layer.name])
     );
-    const response = await fetch(url, {
-      method: "GET",
-      redirect: "follow",
-      headers: new Headers({
-        "Content-Type": "application/json",
-        Authorization: `Basic ${auth}`,
-      }),
-    });
-    return await response.json();
   }
   /**
    * Retrieves detailed information about a specific vector or raster layer from GeoServer.
@@ -275,15 +384,10 @@ export const useGeoserverStore = defineStore("geoserver", () => {
    * @returns A Promise resolving to a GeoServerVectorTypeLayerDetail or GeoserverRasterTypeLayerDetail.
    */
   async function getLayerDetail(url: string): Promise<GeoServerVectorTypeLayerDetail|GeoserverRasterTypeLayerDetail> {
-    const response = await fetch(url, {
-      method: "GET",
-      redirect: "follow",
-      headers: new Headers({
-        "Content-Type": "application/json",
-        Authorization: `Basic ${auth}`,
-      }),
-    });
-    return await response.json();
+    return await fetchCachedJson<GeoServerVectorTypeLayerDetail|GeoserverRasterTypeLayerDetail>(
+      catalogRequestCache,
+      resolveApiUrl(url)
+    );
   }
   /**
    * Retrieves a GeoJSON layer source from GeoServer using the WMS service.
@@ -296,17 +400,30 @@ export const useGeoserverStore = defineStore("geoserver", () => {
    */
   async function getGeoJSONLayerSource(layer: string, workspace: string, bbox?:string, cqlFilter?:string): Promise<any> {
     const url = new URL(
-      `${import.meta.env.VITE_GEOSERVER_BASE_URL}/${workspace}/wms?service=WMS&version=1.1.0&request=GetMap&layers=${workspace}:${layer}&bbox=${bbox ?? ""}&width=512&height=512&srs=EPSG:4326&format=geojson&CQL_FILTER=${cqlFilter ?? ""}&styles=`
+      `${trimTrailingSlash(String(import.meta.env.VITE_GEOSERVER_BASE_URL))}/${encodeURIComponent(workspace)}/wms`
     );
-    console.log(url);
+    url.search = new URLSearchParams({
+      service: "WMS",
+      version: "1.1.0",
+      request: "GetMap",
+      layers: `${workspace}:${layer}`,
+      bbox: bbox ?? "",
+      width: "512",
+      height: "512",
+      srs: "EPSG:4326",
+      format: "geojson",
+      CQL_FILTER: cqlFilter ?? "",
+      styles: "",
+    }).toString();
+
     const response = await fetch(url, {
       method: "GET",
       redirect: "follow",
-      headers: new Headers({
-        "Content-Type": "application/geojson",
-        Authorization: `Basic ${auth}`,
-      }),
+      headers: buildJsonHeaders("application/geojson"),
     });
+    if (!response.ok) {
+      throw new Error("Failed to fetch GeoJSON layer source.");
+    }
     return await response.json();
   }
   /**
@@ -316,18 +433,11 @@ export const useGeoserverStore = defineStore("geoserver", () => {
    * @returns A Promise resolving to the style object for the layer.
    */
   async function getLayerStyling(url:string):Promise<any> {
-    const response = await fetch(url,{
-      method: "GET",
-      redirect: "follow",
-      headers: new Headers({
-        "Content-Type": "application/vnd.geoserver.mbstyle+json",
-        Authorization: `Basic ${auth}`,
-      }),
-    });
-    if (!response.ok) {
-      throw new Error("Failed to fetch layer styling.");
-    }
-    return response.json();
+    return await fetchCachedJson<any>(
+      catalogRequestCache,
+      resolveApiUrl(url),
+      "application/vnd.geoserver.mbstyle+json"
+    );
   }
   return {
     pointData,
