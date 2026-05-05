@@ -79,7 +79,6 @@ import Card from "primevue/card";
 import BaseSidebarComponent from "@components/Base/BaseSidebarComponent.vue";
 import Button from "primevue/button";
 
-import { SidebarControl } from "@helpers/sidebarControl";
 import { type GeoServerSourceParams, type LayerParams, type LayerStyleOptions, useMapStore } from "@store/map";
 import { RouterLink } from "vue-router";
 import { type FeatureCollection } from "@helpers/geojson";
@@ -95,11 +94,6 @@ const mapStore = useMapStore()
 const geoserver = useGeoserverStore()
 const toast = useToast()
 const sidebarID = "gq-geostory-sidebar"
-
-const iconElement = document.createElement("span")
-iconElement.classList.add("material-icons-outlined")
-iconElement.textContent = "health_and_safety"
-const sidebarControl = new SidebarControl("", sidebarID, document.createElement("div"), iconElement, 3)
 const statisticalUnitStyle = ref<LayerStyleOptions>(
     {
         paint: {
@@ -159,7 +153,6 @@ const heatmapStyle = ref<LayerStyleOptions>({
         ]
     }
 })
-mapStore.map.addControl(sidebarControl, "top-left")
 onMounted(() => {
     // eslint-disable-next-line no-new
     new Chart(document.getElementById("ppmMeanChart")! as HTMLCanvasElement, {

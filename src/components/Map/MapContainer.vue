@@ -5,7 +5,7 @@
 
 <script setup lang="ts">
 import maplibre, { type MapMouseEvent, type Map } from "maplibre-gl"
-import { h, nextTick, onMounted, ref, render } from "vue";
+import { h, markRaw, nextTick, onMounted, ref, render } from "vue";
 import { useMapStore } from "@store/map";
 import MapAttributeDialog from "./MapAttributeDialog.vue"
 import { useDrawStore } from "@store/draw";
@@ -14,11 +14,16 @@ import { BaseMapControl, type BaseMapControlOptions } from "@helpers/baseMapCont
 
 const mapStore = useMapStore()
 const clickedLayers = ref()
+const emit = defineEmits<{
+    ready: []
+}>()
 onMounted(() => {
+    logMapInitTiming("mounted:start")
     const lng = Number(import.meta.env.VITE_MAP_START_LNG) ?? 9.993163
     const lat = Number(import.meta.env.VITE_MAP_START_LAT) ?? 53.552123
     const zoom = Number.isNaN(Number(import.meta.env.VITE_MAP_START_ZOOM)) ? 15 : Number(import.meta.env.VITE_MAP_START_ZOOM);
-    mapStore.map = new maplibre.Map({
+    const mapCreateStartedAt = performance.now()
+    mapStore.map = markRaw(new maplibre.Map({
         container: "map",
         style: {
             version: 8,
@@ -27,15 +32,21 @@ onMounted(() => {
         },
         center: [lng, lat], // starting position [lng, lat]
         zoom // starting zoom
+    }))
+    logMapInitTiming("map-created", {
+        durationMs: Math.round(performance.now() - mapCreateStartedAt),
     })
     if (mapStore.map !== undefined) {
         /**
          * Initialize TerraDraw after the map is loaded. This is necessary to ensure that the map object is available.
          */
         try {
+            const terraStartedAt = performance.now()
             const terraDraw = useDrawStore().initializeTerraDraw(mapStore.map as Map, ["point", "linestring", "polygon", "select"]);
-            console.log(terraDraw);
             useDrawStore().terraDraw = terraDraw;
+            logMapInitTiming("terradraw-ready", {
+                durationMs: Math.round(performance.now() - terraStartedAt),
+            })
         } catch (error) {
             console.error("Failed to initialize TerraDraw:", error);
         }
@@ -81,10 +92,12 @@ onMounted(() => {
                 }
             }
         })
+        logMapInitTiming("click-handler-installed")
     }
     // Add zoom controls to the map.
     const zoomControl = new maplibre.NavigationControl()
     mapStore.map.addControl(zoomControl, "bottom-right");
+    logMapInitTiming("navigation-control-added")
 
     const options: BaseMapControlOptions = {
         maps:[
@@ -106,7 +119,16 @@ onMounted(() => {
         initialBasemap: "streets-v2"
     }
     mapStore.map.addControl(new BaseMapControl(options), "bottom-left");
+    logMapInitTiming("basemap-control-added")
+    emit("ready")
+    logMapInitTiming("ready-emitted")
 })
+function logMapInitTiming(message: string, details?: Record<string, unknown>): void {
+    console.log(
+        `[tosca-perf ${new Date().toISOString()} +${performance.now().toFixed(1)}ms] map-init:${message}`,
+        details ?? ""
+    )
+}
 </script>
 
 <style scoped>

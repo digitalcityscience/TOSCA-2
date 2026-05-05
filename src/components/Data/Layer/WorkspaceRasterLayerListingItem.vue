@@ -60,8 +60,19 @@ const cleanLayerName = computed(() => {
 })
 const geoserver = useGeoserverStore()
 const layerDetail = ref<GeoserverRasterTypeLayerDetail>()
+const detailStartedAt = performance.now()
+logWorkspaceTiming("raster-detail:request", {
+    workspace: props.workspace,
+    layer: props.item.name,
+    url: props.layerInformation.resource.href,
+})
 geoserver.getLayerDetail(props.layerInformation.resource.href).then((detail) => {
     layerDetail.value = detail as GeoserverRasterTypeLayerDetail
+    logWorkspaceTiming("raster-detail:loaded", {
+        workspace: props.workspace,
+        layer: props.item.name,
+        durationMs: Math.round(performance.now() - detailStartedAt),
+    })
 }).catch(err => {
     toast.add({ severity: "error", summary: "Error", detail: err, life: 3000 });
 })
@@ -102,6 +113,12 @@ function add2Map(): void{
     }
 }
 
+function logWorkspaceTiming(message: string, details?: Record<string, unknown>): void {
+    console.log(
+        `[tosca-perf ${new Date().toISOString()} +${performance.now().toFixed(1)}ms] workspace:${message}`,
+        details ?? ""
+    )
+}
 </script>
 <style scoped>
 </style>

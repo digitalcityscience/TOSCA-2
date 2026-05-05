@@ -7,12 +7,14 @@ export class SidebarControl implements IControl {
     _map: any;
     _icon: HTMLSpanElement;
     _order: number;
+    _onBeforeToggle?: () => void | Promise<void>;
 
-    constructor(className = "", sidebarID = "", container: HTMLDivElement, icon?: HTMLSpanElement, order = 0) {
+    constructor(className = "", sidebarID = "", container: HTMLDivElement, icon?: HTMLSpanElement, order = 0, onBeforeToggle?: () => void | Promise<void>) {
         this._order = order;
         this._className = className;
         this._sidebarID = sidebarID;
         this._container = container;
+        this._onBeforeToggle = onBeforeToggle;
         if (icon === undefined){
             const el = document.createElement("span")
             el.classList.add("pi", "pi-database")
@@ -30,9 +32,13 @@ export class SidebarControl implements IControl {
             e.preventDefault();
         });
         this._container.appendChild(btn);
-        btn.addEventListener("click", (e) => {
+        btn.addEventListener("click", async (e) => {
             e.preventDefault()
+            await this._onBeforeToggle?.()
             const sidebar: HTMLElement = document.getElementById(this._sidebarID)!
+            if (sidebar === null) {
+                return;
+            }
             if (sidebar !== null){
                 const position = sidebar.dataset.position
                 if (position !== undefined){
@@ -53,6 +59,11 @@ export class SidebarControl implements IControl {
             } else {
                 sidebar.classList.add("collapsed")
             }
+            sidebar.dispatchEvent(new CustomEvent("tosca:sidebar-toggle", {
+                detail: {
+                    expanded: !sidebar.classList.contains("collapsed"),
+                },
+            }));
         }
         );
         return this._container;
