@@ -35,6 +35,22 @@ const router = createRouter({
             }
         },
         {
+            path: "/geostories",
+            name: "geostories",
+            components: {
+                default: async () => await import("../views/MapView.vue"),
+                geostories: async () => await import("../components/Geostories/GeoStorySidebar.vue")
+            },
+            children: [
+                { path: "", name: "geostory-list", component: async () => await import("../components/Geostories/GeoStoryList.vue") },
+                { path: ":storyId", name: "geostory-detail", component: async () => await import("../components/Geostories/GeoStoryDetail.vue"), props: true }
+            ],
+            meta: {
+                sidebar: "geostories",
+                sidebarPosition: "left"
+            }
+        },
+        {
             path: "/:catchAll(.*)",
             redirect: "/"
         }
