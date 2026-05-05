@@ -1,6 +1,6 @@
 import { defineStore, acceptHMRUpdate } from "pinia"
 import { TerraDraw, TerraDrawLineStringMode, TerraDrawMapLibreGLAdapter, TerraDrawPointMode, TerraDrawPolygonMode, TerraDrawSelectMode } from "terra-draw"
-import { ref } from "vue";
+import { markRaw, ref, shallowRef } from "vue";
 import { type GeoJSONSourceParams, type LayerParams, useMapStore } from "./map";
 import { type Map } from "maplibre-gl"
 import { type Feature, type FeatureCollection } from "@helpers/geojson";
@@ -20,7 +20,7 @@ export const useDrawStore = defineStore("draw", () => {
      *
      */
     const externalAppOnProgress = ref(false)
-    const terraDraw = ref<TerraDraw>()
+    const terraDraw = shallowRef<TerraDraw>()
     /**
      * Initializes the TerraDraw object with the given map and draw modes.
      *
@@ -80,10 +80,10 @@ export const useDrawStore = defineStore("draw", () => {
                 }
             }
             console.log("TerraDraw initialized")
-            return new TerraDraw({
+            return markRaw(new TerraDraw({
                 adapter: new TerraDrawMapLibreGLAdapter({ map }),
                 modes: selectedModes
-            });
+            }));
         } catch (error) {
             console.error("Failed to initialize TerraDraw:", error);
             throw new Error("TerraDraw initialization failed");

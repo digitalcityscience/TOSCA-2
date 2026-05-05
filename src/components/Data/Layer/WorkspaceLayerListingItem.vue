@@ -15,7 +15,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import Message from "primevue/message";
-import { type GeoServerVectorTypeLayerDetail, type GeoserverLayerInfo, type GeoserverLayerListItem, useGeoserverStore } from "@store/geoserver";
+import { type GeoserverLayerInfo, type GeoserverLayerListItem, useGeoserverStore } from "@store/geoserver";
 import { type LayerStyleOptions } from "@store/map";
 import { useToast } from "primevue/usetoast";
 import WorkspaceRasterLayerListingItem from "./WorkspaceRasterLayerListingItem.vue";
@@ -32,15 +32,35 @@ const props = defineProps<Props>()
 const toast = useToast()
 const geoserver = useGeoserverStore()
 const layerInformation = ref<GeoserverLayerInfo>()
-const layerDetail = ref<GeoServerVectorTypeLayerDetail>()
 const layerStyling = ref<LayerStyleOptions>()
+logWorkspaceTiming("layer-item:setup", {
+    workspace: props.workspace,
+    layer: props.item.name,
+})
+const layerInfoStartedAt = performance.now()
+logWorkspaceTiming("layer-info:request", {
+    workspace: props.workspace,
+    layer: props.item.name,
+})
 geoserver.getLayerInformation(props.item, props.workspace).then((response) => {
     layerInformation.value = response.layer
+    logWorkspaceTiming("layer-info:loaded", {
+        workspace: props.workspace,
+        layer: props.item.name,
+        type: response.layer?.type,
+        durationMs: Math.round(performance.now() - layerInfoStartedAt),
+    })
     // Currently we are just picking styles which has include mbstyle in name. Further optimization needed after some period
     // TODO: remove mbstyle selector
     if (response.layer.defaultStyle.href.includes("mbstyle")){
         const regex = /\.json\b/;
         const url = response.layer.defaultStyle.href.replace(regex, ".mbstyle")
+        const styleStartedAt = performance.now()
+        logWorkspaceTiming("layer-style:request", {
+            workspace: props.workspace,
+            layer: props.item.name,
+            url,
+        })
         geoserver.getLayerStyling(url).then(style => {
             if (style.layers.length > 0){
                 const obj: LayerStyleOptions = {
@@ -57,18 +77,22 @@ geoserver.getLayerInformation(props.item, props.workspace).then((response) => {
                 }
                 layerStyling.value = obj
             }
+            logWorkspaceTiming("layer-style:loaded", {
+                workspace: props.workspace,
+                layer: props.item.name,
+                durationMs: Math.round(performance.now() - styleStartedAt),
+            })
         }).catch((error) => {
             toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
-        })
-    }
-    if (layerInformation.value !== undefined) {
-        geoserver.getLayerDetail(layerInformation.value?.resource.href).then((detail) => {
-            layerDetail.value = detail as GeoServerVectorTypeLayerDetail
-        }).catch(err => {
-            toast.add({ severity: "error", summary: "Error", detail: err, life: 3000 });
         })
     }
 }).catch(err => {
     toast.add({ severity: "error", summary: "Error", detail: err, life: 3000 });
 })
+function logWorkspaceTiming(message: string, details?: Record<string, unknown>): void {
+    console.log(
+        `[tosca-perf ${new Date().toISOString()} +${performance.now().toFixed(1)}ms] workspace:${message}`,
+        details ?? ""
+    )
+}
 </script>

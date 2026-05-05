@@ -3,7 +3,7 @@
         <template #header>
             <p>Layers</p>
         </template>
-        <div class="w-full" v-if="visibleLayers.length > 0">
+        <div class="w-full" v-if="contentLoaded && visibleLayers.length > 0">
             <draggable
                 :model-value="visibleLayers"
                 item-key="id"
@@ -16,24 +16,25 @@
                 </template>
             </draggable>
         </div>
-        <div class="w-full" v-else>
+        <div class="w-full" v-else-if="contentLoaded">
             <Message class="w-full" severity="info">There is no layer on map</Message>
         </div>
     </BaseSidebarComponent>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { defineAsyncComponent, onMounted, ref, computed } from "vue";
 import Message from "primevue/message";
 import draggable from "vuedraggable";
 // components
 import BaseSidebarComponent from "../../Base/BaseSidebarComponent.vue";
-import MapLayerListingItem from "./MapLayerListingItem.vue";
 // JS imports
 import { useMapStore } from "@store/map";
 import { SidebarControl } from "@helpers/sidebarControl"
+const MapLayerListingItem = defineAsyncComponent(async () => await import("./MapLayerListingItem.vue"));
 
 const mapStore = useMapStore()
+const contentLoaded = ref(false)
 const visibleLayers = computed(() => mapStore.getReorderableVisibleLayersTopToBottom())
 
 const sidebarID = "maplayerListing"
@@ -42,6 +43,14 @@ iconElement.classList.add("material-icons-outlined")
 iconElement.textContent = "layers"
 const sidebarControl = new SidebarControl("", sidebarID, document.createElement("div"), iconElement)
 mapStore.map.addControl(sidebarControl, "top-right")
+
+onMounted(() => {
+    document.getElementById(sidebarID)?.addEventListener("tosca:sidebar-toggle", (event) => {
+        if ((event as CustomEvent<{ expanded: boolean }>).detail.expanded) {
+            contentLoaded.value = true
+        }
+    });
+})
 
 interface DraggableChangeEvent {
     moved?: {

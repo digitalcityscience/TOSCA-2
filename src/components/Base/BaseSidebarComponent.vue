@@ -40,6 +40,9 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
     collapsed: true
 })
+const emit = defineEmits<{
+    toggle: [expanded: boolean]
+}>()
 const sidebarStatusClasses = computed(() => {
     return `sidebar-${props.position} ${props.collapsed ? "collapsed":""}`
 })
@@ -102,6 +105,13 @@ function toggleSidebar(event: MouseEvent): void {
         } else {
             el!.classList.add("collapsed")
         }
+        const expanded = !el!.classList.contains("collapsed");
+        emit("toggle", expanded)
+        el!.dispatchEvent(new CustomEvent("tosca:sidebar-toggle", {
+            detail: {
+                expanded,
+            },
+        }));
     }
 }
 defineExpose({

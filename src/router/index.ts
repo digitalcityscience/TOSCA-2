@@ -1,5 +1,4 @@
 import { createRouter, createWebHistory } from "vue-router"
-import MapView from "../views/MapView.vue"
 import { useParticipationStore } from "@store/participation"
 import { useMapStore } from "@store/map"
 
@@ -10,7 +9,7 @@ const router = createRouter({
             path: "/",
             name: "home",
             components: {
-                default: MapView
+                default: async () => await import("../views/HomeMapView.vue")
             },
             meta:{
                 sidebar:"workspaceListing",
@@ -21,7 +20,7 @@ const router = createRouter({
             path: "/participation",
             name: "participation",
             components: {
-                default: MapView,
+                default: async () => await import("../views/MapView.vue"),
                 participation: async () => await import("../components/Participation/ParticipationSidebar.vue")
             },
             children: [

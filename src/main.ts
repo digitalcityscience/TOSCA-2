@@ -10,6 +10,31 @@ import { definePreset } from "@primeuix/themes";
 import App from "./App.vue"
 import "@material-design-icons/font";
 
+function installLongTaskLogger(): void {
+    if (typeof PerformanceObserver === "undefined") {
+        return
+    }
+
+    try {
+        const observer = new PerformanceObserver((list) => {
+            for (const entry of list.getEntries()) {
+                console.log(
+                    `[tosca-perf ${new Date().toISOString()} +${performance.now().toFixed(1)}ms] browser:long-task`,
+                    {
+                        startMs: Math.round(entry.startTime),
+                        durationMs: Math.round(entry.duration),
+                    }
+                )
+            }
+        })
+        observer.observe({ entryTypes: ["longtask"] })
+    } catch (error) {
+        console.debug("Long task timing is not available.", error)
+    }
+}
+
+installLongTaskLogger()
+
 const pinia = createPinia()
 
 const toscaPresets = definePreset(Lara, {
