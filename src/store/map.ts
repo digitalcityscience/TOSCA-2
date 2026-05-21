@@ -27,6 +27,7 @@ export interface CustomAddLayerObject {
     layerData?: FeatureCollection;
     displayName?: string;
     showOnLayerList?: boolean;
+    keepOnTop?: boolean;
 }
 export interface LayerObjectWithAttributes extends CustomAddLayerObject {
     details?: GeoServerVectorTypeLayerDetail | GeoserverRasterTypeLayerDetail;
@@ -52,6 +53,7 @@ interface BaseLayerParams {
     displayName?: string;
     sourceIdentifier?: string;
     showOnLayerList?: boolean;
+    keepOnTop?: boolean;
 }
 export interface GeoJSONLayerParams extends BaseLayerParams {
     sourceType: "geojson";
@@ -278,6 +280,7 @@ export const useMapStore = defineStore("map", () => {
    * @param {string} [params.displayName] - Optional display name for the layer, used for UI purposes.
    * @param {string} [params.sourceIdentifier] - Optional source identifier if the source is already added to the map.
    * @param {boolean} [params.showOnLayerList=true] - If true, the layer will be shown in the layer list UI. Default is true.
+   * @param {boolean} [params.keepOnTop=false] - If true, reorder operations keep this layer above visible user layers.
    * @returns {Promise<AddLayerObject | undefined>} A promise that resolves with the added layer object if the addition is successful, or rejects with an error message if it fails.
    * @throws {Error} Throws an error if the map is not initialized, if required parameters are missing, or if the layer cannot be added.
    */
@@ -292,6 +295,7 @@ export const useMapStore = defineStore("map", () => {
             displayName,
             sourceIdentifier,
             showOnLayerList = true,
+            keepOnTop = false,
         } = params;
         if (isNullOrEmpty(map.value)) {
             throw new Error("There is no map to add layer");
@@ -316,6 +320,7 @@ export const useMapStore = defineStore("map", () => {
             sourceType,
             type: layerType,
             showOnLayerList,
+            keepOnTop,
             ...styling,
             // Conditional properties
             ...(sourceType === "geoserver" && params.sourceLayer != null
@@ -494,6 +499,136 @@ export const useMapStore = defineStore("map", () => {
         }
     }
     /**
+   * Moves a visible layer to a new sidebar position and mirrors that single
+   * movement in the MapLibre layer stack.
+   *
+   * The sidebar displays layers from top to bottom, while MapLibre stores and
+   * renders layers from bottom to top. The target index therefore uses the
+   * sidebar order, and this function converts it to the corresponding
+   * `moveLayer` `beforeId` without reconciling every layer.
+   *
+   * @param {string} identifier - The layer ID moved by the drag interaction.
+   * @param {number} targetVisibleTopIndex - The target index in the visible sidebar list.
+   * @throws {Error} Throws if the layer is missing or cannot be reordered.
+   */
+    function reorderVisibleMapLayer(
+        identifier: string,
+        targetVisibleTopIndex: number
+    ): void {
+        const currentVisibleLayers = getReorderableVisibleLayersTopToBottom();
+        const currentVisibleIndex = currentVisibleLayers.findIndex(
+            (layer) => layer.id === identifier
+        );
+
+        if (currentVisibleIndex === -1) {
+            throw new Error(`Layer with identifier ${identifier} is not reorderable`);
+        }
+
+        const nextVisibleLayers = [...currentVisibleLayers];
+        const [movedLayer] = nextVisibleLayers.splice(currentVisibleIndex, 1);
+        nextVisibleLayers.splice(targetVisibleTopIndex, 0, movedLayer);
+
+        const beforeId = getMapLibreBeforeIdForVisibleMove(
+            nextVisibleLayers,
+            targetVisibleTopIndex
+        );
+
+        if (beforeId === identifier) {
+            return;
+        }
+
+        moveMapLibreLayer(identifier, beforeId);
+        moveLayerInState(identifier, beforeId);
+    }
+
+    /**
+   * Returns user-visible layers in the same order shown by the sidebar.
+   *
+   * @returns {LayerObjectWithAttributes[]} Visible, reorderable layers from top to bottom.
+   */
+    function getReorderableVisibleLayersTopToBottom(): LayerObjectWithAttributes[] {
+        return layersOnMap.value
+            .filter((layer) => layer.showOnLayerList !== false && layer.keepOnTop !== true)
+            .slice()
+            .reverse();
+    }
+
+    /**
+   * Resolves the MapLibre insertion target for a sidebar move.
+   *
+   * @param {LayerObjectWithAttributes[]} visibleLayersTopToBottom - Visible layers after the drag move.
+   * @param {number} targetVisibleTopIndex - The moved layer's target index in the sidebar list.
+   * @returns {string | undefined} The layer ID that the moved layer should be inserted before.
+   */
+    function getMapLibreBeforeIdForVisibleMove(
+        visibleLayersTopToBottom: LayerObjectWithAttributes[],
+        targetVisibleTopIndex: number
+    ): string | undefined {
+        if (targetVisibleTopIndex > 0) {
+            return visibleLayersTopToBottom[targetVisibleTopIndex - 1]?.id;
+        }
+
+        return layersOnMap.value.find((layer) => layer.keepOnTop === true)?.id;
+    }
+
+    /**
+   * Applies a single MapLibre layer-stack move when the map layer exists.
+   *
+   * @param {string} identifier - The layer ID to move.
+   * @param {string} [beforeId] - Optional layer ID that receives the moved layer below it.
+   */
+    function moveMapLibreLayer(identifier: string, beforeId?: string): void {
+        if (isNullOrEmpty(map.value) || map.value?.getLayer(identifier) === undefined) {
+            return;
+        }
+
+        if (beforeId !== undefined && map.value?.getLayer(beforeId) === undefined) {
+            map.value?.moveLayer(identifier);
+            return;
+        }
+
+        if (beforeId === undefined) {
+            map.value?.moveLayer(identifier);
+            return;
+        }
+
+        map.value?.moveLayer(identifier, beforeId);
+    }
+
+    /**
+   * Mirrors a MapLibre move in the local layer state with one remove/insert.
+   *
+   * @param {string} identifier - The layer ID to move.
+   * @param {string} [beforeId] - Optional target layer ID for insertion.
+   */
+    function moveLayerInState(identifier: string, beforeId?: string): void {
+        const currentIndex = layersOnMap.value.findIndex(
+            (layer) => layer.id === identifier
+        );
+
+        if (currentIndex === -1) {
+            throw new Error(`Layer with identifier ${identifier} not found in layer list`);
+        }
+
+        const [movedLayer] = layersOnMap.value.splice(currentIndex, 1);
+
+        if (beforeId === undefined) {
+            layersOnMap.value.push(movedLayer);
+            return;
+        }
+
+        const targetIndex = layersOnMap.value.findIndex(
+            (layer) => layer.id === beforeId
+        );
+
+        if (targetIndex === -1) {
+            layersOnMap.value.push(movedLayer);
+            return;
+        }
+
+        layersOnMap.value.splice(targetIndex, 0, movedLayer);
+    }
+    /**
    * Removes a layer from the `layersOnMap` list based on its identifier.
    * @param {string} identifier - The unique identifier for the layer to remove.
    * @param {boolean} [information] - Optional flag to trigger an information toast message when the layer is removed.
@@ -602,6 +737,8 @@ export const useMapStore = defineStore("map", () => {
         addMapLayer,
         deleteMapLayer,
         removeFromMapLayerList,
+        reorderVisibleMapLayer,
+        getReorderableVisibleLayersTopToBottom,
         resetMapData,
         geometryConversion,
     };
