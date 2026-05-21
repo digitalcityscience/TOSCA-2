@@ -1,5 +1,5 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
-import { ref } from "vue";
+import { ref, shallowRef } from "vue";
 import {
     type GeoserverRasterTypeLayerDetail,
     type GeoServerVectorTypeLayerDetail,
@@ -95,7 +95,7 @@ export const useMapStore = defineStore("map", () => {
    * Reference to the map instance, which will be assigned once a MapLibre map is initialized.
    * This will be used to interact with the MapLibre map for adding, removing, and manipulating layers and sources.
    */
-    const map = ref<any>();
+    const map = shallowRef<any>();
     /**
    * An array containing detailed information about all the layers currently added to the map.
    * Each object in the array represents a layer with its attributes, such as its source type, display name, styling, etc.
