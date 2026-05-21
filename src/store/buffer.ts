@@ -27,6 +27,7 @@ export const useBufferStore = defineStore("buffer", () => {
         layerType: "fill",
         sourceIdentifier: "tmpBufferSource",
         showOnLayerList: false,
+        keepOnTop: true,
         geoJSONSrc: {
             type: "FeatureCollection",
             features: []

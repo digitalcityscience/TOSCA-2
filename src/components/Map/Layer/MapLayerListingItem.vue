@@ -2,6 +2,8 @@
     <div class="py-1">
         <Panel :collapsed="true" @update:collapsed="collapsedState" toggleable>
             <template #header>
+                <Button class="layer-drag-handle w-8 h-8 p-0 mr-1 cursor-move" icon="pi pi-bars" text rounded aria-label="Reorder layer"
+                    @click.stop></Button>
                 <div class="flex">
                     <ToggleSwitch v-model="checked" @update:model-value="changeLayerVisibility" />
                 </div>

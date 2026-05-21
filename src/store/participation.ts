@@ -202,7 +202,8 @@ export const useParticipationStore = defineStore("participation", () => {
                     geoJSONSrc:features,
                     isFilterLayer:false,
                     sourceIdentifier:"selectedAreasTempLayer",
-                    showOnLayerList:false
+                    showOnLayerList:false,
+                    keepOnTop:true
                 }
                 mapStore
                     .addMapLayer(layerParamsPolygon)
@@ -223,7 +224,8 @@ export const useParticipationStore = defineStore("participation", () => {
                     geoJSONSrc:features,
                     isFilterLayer:false,
                     sourceIdentifier:"selectedAreasTempLayer",
-                    showOnLayerList:false
+                    showOnLayerList:false,
+                    keepOnTop:true
                 }
                 mapStore
                     .addMapLayer(layerParamsLine)
@@ -245,7 +247,8 @@ export const useParticipationStore = defineStore("participation", () => {
                     geoJSONSrc:features,
                     isFilterLayer:false,
                     sourceIdentifier:"selectedAreasTempLayer",
-                    showOnLayerList:false
+                    showOnLayerList:false,
+                    keepOnTop:true
                 }
                 mapStore
                     .addMapLayer(layerParamsPoint)
@@ -348,7 +351,8 @@ export const useParticipationStore = defineStore("participation", () => {
                         layerStyle:layerStylePoint,
                         geoJSONSrc:src,
                         isFilterLayer:false,
-                        showOnLayerList:false
+                        showOnLayerList:false,
+                        keepOnTop:true
                     }
                     mapStore.addMapLayer(layerParams).then(()=>{}).catch((error)=>{
                         console.error(error)
