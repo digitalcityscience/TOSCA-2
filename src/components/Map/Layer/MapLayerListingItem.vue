@@ -62,18 +62,18 @@
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref } from "vue";
 import { type LayerObjectWithAttributes, type MapLibreLayerTypes, useMapStore } from "@store/map"
 import Panel from "primevue/panel";
-import ColorPicker from "primevue/colorpicker";
 import Slider from "primevue/slider";
 import ToggleSwitch from "primevue/toggleswitch";
 import Button from "primevue/button"
-import Dialog from "primevue/dialog";
 import { useToast } from "primevue/usetoast";
-import AttributeFiltering from "./Filter/AttributeFiltering.vue";
 import { isNullOrEmpty } from "@helpers/functions";
 import { type GeoserverRasterTypeLayerDetail, type GeoServerVectorTypeLayerDetail } from "@store/geoserver";
-import MapLayerResultTable from "./MapLayerResultTable.vue";
 
+const ColorPicker = defineAsyncComponent(async () => await import("primevue/colorpicker"));
+const Dialog = defineAsyncComponent(async () => await import("primevue/dialog"));
+const AttributeFiltering = defineAsyncComponent(async () => await import("./Filter/AttributeFiltering.vue"));
 const GeometryFiltering = defineAsyncComponent(async () => await import("@components/Map/Layer/Filter/GeometryFiltering.vue"));
+const MapLayerResultTable = defineAsyncComponent(async () => await import("./MapLayerResultTable.vue"));
 
 export interface Props {
     layer: LayerObjectWithAttributes
