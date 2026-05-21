@@ -23,15 +23,15 @@
 </template>
 
 <script setup lang="ts">
-import { defineAsyncComponent, onMounted, ref, computed } from "vue";
+import { onMounted, ref, computed } from "vue";
 import Message from "primevue/message";
 import draggable from "vuedraggable";
 // components
 import BaseSidebarComponent from "../../Base/BaseSidebarComponent.vue";
+import MapLayerListingItem from "./MapLayerListingItem.vue";
 // JS imports
 import { useMapStore } from "@store/map";
 import { SidebarControl } from "@helpers/sidebarControl"
-const MapLayerListingItem = defineAsyncComponent(async () => await import("./MapLayerListingItem.vue"));
 
 const mapStore = useMapStore()
 const contentLoaded = ref(false)
