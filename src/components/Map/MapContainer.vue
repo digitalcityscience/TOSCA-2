@@ -27,6 +27,7 @@ onMounted(() => {
         container: "map",
         style: {
             version: 8,
+            glyphs: "/fonts/{fontstack}/{range}.pbf",
             sources: {},
             layers: []
         },
@@ -37,6 +38,14 @@ onMounted(() => {
         durationMs: Math.round(performance.now() - mapCreateStartedAt),
     })
     if (mapStore.map !== undefined) {
+        /**
+         * Bump `paintVersion` on every style data change so Vue computeds that
+         * read paint/layout properties (e.g. the layer color rail) re-evaluate
+         * after `setPaintProperty` / `setLayoutProperty` / `addLayer` calls.
+         */
+        mapStore.map.on("styledata", () => {
+            mapStore.paintVersion++;
+        });
         /**
          * Initialize TerraDraw after the map is loaded. This is necessary to ensure that the map object is available.
          */

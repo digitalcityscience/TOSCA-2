@@ -114,13 +114,17 @@ const namedColorLiterals = new Set([
 ]);
 
 const layerHeaderIndicator = computed<LayerHeaderIndicator>(() => {
+    // Touch paintVersion so the rail re-evaluates whenever any
+    // setPaintProperty / addLayer / removeLayer call fires `styledata`.
+    void mapStore.paintVersion;
+    void initialLayerHeaderIndicator.value;
     const editableColorProperty = getEditableColorPaintProperty(props.layer.type);
     if (editableColorProperty !== "" && initialLayerHeaderIndicator.value?.kind === "single") {
         return { kind: "single", colors: [`#${color.value}`] };
     }
 
     if (initialLayerHeaderIndicator.value !== undefined) {
-        return initialLayerHeaderIndicator.value;
+        return resolveLayerHeaderIndicator(props.layer.type);
     }
 
     return resolveLayerHeaderIndicator(props.layer.type);
@@ -145,9 +149,24 @@ const layerHeaderIndicatorTitle = computed<string>(() => {
     }
 })
 const hasEditableLayerColor = computed<boolean>(() => {
+    void mapStore.paintVersion;
     return getEditableColorPaintProperty(props.layer.type) !== "" &&
         typeof getLayerPaintProperty(getEditableColorPaintProperty(props.layer.type)) === "string";
 })
+/**
+ * Exposes the editable color paint property when it is an expression (array).
+ * Reserved for a future legend component; consumers can read this via
+ * `defineExpose` if/when an MBStyleLegend is added to this repo.
+ */
+const _layerLegendStyle = computed<unknown[] | undefined>(() => {
+    void mapStore.paintVersion;
+    const prop = getEditableColorPaintProperty(props.layer.type);
+    if (prop === "") return undefined;
+    const value = getLayerPaintProperty(prop);
+    if (!Array.isArray(value)) return undefined;
+    return value as unknown[];
+})
+void _layerLegendStyle;
 
 onMounted(() => {
     const colorProperty = getEditableColorPaintProperty(props.layer.type);
@@ -212,11 +231,15 @@ function changeLayerOpac(layerOpacity: any): void {
     mapStore.map.setPaintProperty(props.layer.id, opac, layerOpacity)
 }
 function changeLayerVisibility(layerVisibility: boolean): void {
-    if (layerVisibility) {
-        mapStore.map.setLayoutProperty(props.layer.id, "visibility", "visible")
-    } else {
-        mapStore.map.setLayoutProperty(props.layer.id, "visibility", "none")
-    }
+    const value = layerVisibility ? "visible" : "none";
+    mapStore.map.setLayoutProperty(props.layer.id, "visibility", value);
+    // Mirror visibility on every companion so children (outlines, labels,
+    // cluster counts, etc.) hide and show with their parent.
+    props.layer.companionLayerIds?.forEach((companionId: string) => {
+        if (mapStore.map.getLayer(companionId) !== undefined) {
+            mapStore.map.setLayoutProperty(companionId, "visibility", value);
+        }
+    });
 }
 function collapsedState(isCollapsed: boolean): void {
     collapsed.value = isCollapsed
