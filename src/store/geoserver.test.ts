@@ -1,6 +1,6 @@
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import { buildCatalogUrl, useGeoserverStore } from "./geoserver";
+import { buildCatalogUrl, buildProviderCatalogUrl, useGeoserverStore } from "./geoserver";
 
 function jsonResponse(body: unknown, init?: ResponseInit): Response {
     return new Response(JSON.stringify(body), {
@@ -22,8 +22,30 @@ describe("geoserver catalog migration", () => {
             "VITE_GEOSERVER_BASE_URL",
             "https://geo.example.test/geoserver"
         );
-        fetchMock = vi.fn().mockImplementation(async () => {
-            return jsonResponse({});
+        fetchMock = vi.fn().mockImplementation(async (url: URL | string) => {
+            const value = String(url);
+            if (value.endsWith("/api/v1/catalog/providers")) {
+                return jsonResponse([
+                    {
+                        id: "provider-1",
+                        name: "Provider One",
+                        base_url: "https://provider-one.example.test/geoserver",
+                    },
+                ]);
+            }
+            if (value.includes("/workspaces") && !value.includes("/layers")) {
+                return jsonResponse({ workspaces: { workspace: [] } });
+            }
+            if (value.includes("/layers") && !value.includes("/resources")) {
+                return jsonResponse({ layers: { layer: [] } });
+            }
+            if (value.includes("/resources")) {
+                return jsonResponse({});
+            }
+            if (value.includes("/styles")) {
+                return jsonResponse({ layers: [] });
+            }
+            return jsonResponse({ layer: { name: "roads", type: "VECTOR", resource: { href: "" }, defaultStyle: { href: "" } } });
         });
         vi.stubGlobal("fetch", fetchMock);
     });
@@ -40,14 +62,14 @@ describe("geoserver catalog migration", () => {
 
     test("builds encoded catalog URLs from the backend root", () => {
         expect(
-            buildCatalogUrl([
+            buildProviderCatalogUrl("provider-1", [
                 "workspaces",
                 "city space",
                 "layers",
                 "roads/paths",
             ]).toString()
         ).toBe(
-            "https://api.example.test/api/v1/catalog/workspaces/city%20space/layers/roads%2Fpaths"
+            "https://api.example.test/api/v1/catalog/providers/provider-1/workspaces/city%20space/layers/roads%2Fpaths"
         );
     });
 
@@ -55,8 +77,8 @@ describe("geoserver catalog migration", () => {
         vi.stubEnv("VITE_BACKEND_ROOT_URL", "");
         vi.stubEnv("VITE_GEONODE_REST_URL", "http://localhost:8000/api");
 
-        expect(buildCatalogUrl(["workspaces"]).toString()).toBe(
-            "http://localhost:8000/api/v1/catalog/workspaces"
+        expect(buildProviderCatalogUrl("provider-1", ["workspaces"]).toString()).toBe(
+            "http://localhost:8000/api/v1/catalog/providers/provider-1/workspaces"
         );
     });
 
@@ -73,34 +95,34 @@ describe("geoserver catalog migration", () => {
 
         await geoserver.getWorkspaceList();
         expect(lastFetchUrl()).toBe(
-            "https://api.example.test/api/v1/catalog/workspaces"
+            "https://api.example.test/api/v1/catalog/providers/provider-1/workspaces"
         );
 
         await geoserver.getLayerList();
         expect(lastFetchUrl()).toBe(
-            "https://api.example.test/api/v1/catalog/layers"
+            "https://api.example.test/api/v1/catalog/providers/provider-1/layers"
         );
 
         await geoserver.getLayerList("city space");
         expect(lastFetchUrl()).toBe(
-            "https://api.example.test/api/v1/catalog/workspaces/city%20space/layers"
+            "https://api.example.test/api/v1/catalog/providers/provider-1/workspaces/city%20space/layers"
         );
 
         await geoserver.getLayerInformation({ name: "roads/paths", href: "" }, "city space");
         expect(lastFetchUrl()).toBe(
-            "https://api.example.test/api/v1/catalog/workspaces/city%20space/layers/roads%2Fpaths"
+            "https://api.example.test/api/v1/catalog/providers/provider-1/workspaces/city%20space/layers/roads%2Fpaths"
         );
 
         await geoserver.getLayerDetail(
-            "/api/v1/catalog/workspaces/city%20space/resources/roads%2Fpaths"
+            "/api/v1/catalog/providers/provider-1/workspaces/city%20space/resources/roads%2Fpaths"
         );
         expect(lastFetchUrl()).toBe(
-            "https://api.example.test/api/v1/catalog/workspaces/city%20space/resources/roads%2Fpaths"
+            "https://api.example.test/api/v1/catalog/providers/provider-1/workspaces/city%20space/resources/roads%2Fpaths"
         );
 
-        await geoserver.getLayerStyling("/api/v1/catalog/styles/default.mbstyle");
+        await geoserver.getLayerStyling("/api/v1/catalog/providers/provider-1/styles/default.mbstyle");
         expect(lastFetchUrl()).toBe(
-            "https://api.example.test/api/v1/catalog/styles/default.mbstyle"
+            "https://api.example.test/api/v1/catalog/providers/provider-1/styles/default.mbstyle"
         );
     });
 
@@ -110,8 +132,8 @@ describe("geoserver catalog migration", () => {
         await geoserver.getWorkspaceList();
         await geoserver.getLayerList("city");
         await geoserver.getLayerInformation({ name: "roads", href: "" }, "city");
-        await geoserver.getLayerDetail("/api/v1/catalog/workspaces/city/resources/roads");
-        await geoserver.getLayerStyling("/api/v1/catalog/styles/default.mbstyle");
+        await geoserver.getLayerDetail("/api/v1/catalog/providers/provider-1/workspaces/city/resources/roads");
+        await geoserver.getLayerStyling("/api/v1/catalog/providers/provider-1/styles/default.mbstyle");
 
         for (const call of fetchMock.mock.calls) {
             const headers = call[1].headers as Headers;
@@ -122,8 +144,8 @@ describe("geoserver catalog migration", () => {
     test("deduplicates repeated catalog metadata requests", async () => {
         const geoserver = useGeoserverStore();
 
-        await geoserver.getLayerDetail("/api/v1/catalog/workspaces/city/resources/roads");
-        await geoserver.getLayerDetail("/api/v1/catalog/workspaces/city/resources/roads");
+        await geoserver.getLayerDetail("/api/v1/catalog/providers/provider-1/workspaces/city/resources/roads");
+        await geoserver.getLayerDetail("/api/v1/catalog/providers/provider-1/workspaces/city/resources/roads");
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
     });
@@ -134,7 +156,7 @@ describe("geoserver catalog migration", () => {
         await geoserver.getGeoJSONLayerSource("roads", "city", "1,2,3,4");
 
         expect(lastFetchUrl()).toContain(
-            "https://geo.example.test/geoserver/city/wms?"
+            "https://provider-one.example.test/geoserver/city/wms?"
         );
         expect(lastFetchHeaders().get("Authorization")).toBeNull();
     });

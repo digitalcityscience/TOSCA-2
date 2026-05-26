@@ -83,6 +83,7 @@ export async function loadGeostoryLayersOnMap(
             }
 
             const detail = await catalogStore.getLayerDetail(response.layer.resource.href);
+            const providerBaseUrl = response.layer.providerBaseUrl;
 
             if (response.layer.type === "VECTOR") {
                 const vectorDetail = detail as GeoServerVectorTypeLayerDetail;
@@ -99,6 +100,7 @@ export async function loadGeostoryLayersOnMap(
                     isFilterLayer: false,
                     workspaceName,
                     layer: vectorDetail,
+                    providerBaseUrl,
                 };
                 await mapStore.addMapDataSource(sourceParams);
 
@@ -111,6 +113,7 @@ export async function loadGeostoryLayersOnMap(
                     geoserverLayerDetails: vectorDetail,
                     sourceLayer: vectorDetail.featureType.name,
                     displayName: vectorDetail.featureType.title ?? undefined,
+                    providerBaseUrl,
                 };
                 await mapStore.addMapLayer(layerParams);
 
@@ -135,6 +138,7 @@ export async function loadGeostoryLayersOnMap(
                     isFilterLayer: false,
                     workspaceName,
                     layer: rasterDetail,
+                    providerBaseUrl,
                 };
                 await mapStore.addMapDataSource(sourceParams);
 
@@ -147,6 +151,7 @@ export async function loadGeostoryLayersOnMap(
                     geoserverLayerDetails: rasterDetail,
                     sourceLayer: rasterDetail.coverage.name,
                     displayName: rasterDetail.coverage.title ?? undefined,
+                    providerBaseUrl,
                 };
                 await mapStore.addMapLayer(layerParams);
 

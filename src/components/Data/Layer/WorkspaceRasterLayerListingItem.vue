@@ -87,7 +87,8 @@ function add2Map(): void{
             workspaceName:props.workspace,
             layer:layerDetail.value!,
             sourceDataType:"raster",
-            sourceProtocol:"wms"
+            sourceProtocol:"wms",
+            providerBaseUrl:props.item.providerBaseUrl,
         }
         mapStore.addMapDataSource(sourceParams).then(() => {
             if (!isNullOrEmpty(layerDetail.value)) {
@@ -101,6 +102,7 @@ function add2Map(): void{
                     sourceDataType:"raster",
                     sourceProtocol:"wms",
                     workspaceName:props.workspace,
+                    providerBaseUrl:props.item.providerBaseUrl,
                 }
                 mapStore.addMapLayer(layerParams).then(()=>{
                 }).catch(error => {

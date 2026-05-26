@@ -52,6 +52,13 @@ export function buildCatalogUrl(pathSegments: string[] = []): URL {
   );
 }
 
+export function buildProviderCatalogUrl(
+  providerId: string,
+  pathSegments: string[] = []
+): URL {
+  return buildCatalogUrl(["providers", providerId, ...pathSegments]);
+}
+
 function resolveApiUrl(urlOrHref: string): URL {
   return new URL(urlOrHref, getBackendRootUrl());
 }
@@ -295,6 +302,8 @@ export interface GeoServerFeatureTypeAttribute {
 export interface GeoserverLayerInfo {
   name: string;
   type: string;
+  providerId?: string;
+  providerBaseUrl?: string;
   defaultStyle: {
     name: string;
     href: string;
@@ -317,6 +326,8 @@ export interface GeoserverLayerInfoResponse {
 export interface GeoserverLayerListItem {
   name: string;
   href: string;
+  providerId?: string;
+  providerBaseUrl?: string;
 }
 export interface GeoserverLayerListResponse {
   layers: {
@@ -326,17 +337,107 @@ export interface GeoserverLayerListResponse {
 export interface WorkspaceListItem {
   name: string;
   href: string;
+  providerId?: string;
+  providerBaseUrl?: string;
 }
 export interface WorkspaceListResponse {
   workspaces: {
     workspace: WorkspaceListItem[];
   };
 }
+export interface CatalogProvider {
+  id: string;
+  name: string;
+  base_url: string;
+}
 export const useGeoserverStore = defineStore("geoserver", () => {
   const pointData = ref();
   const layerList = ref<GeoserverLayerListItem[]>();
   const workspaceList = ref<WorkspaceListItem[]>();
+  const providerList = ref<CatalogProvider[]>();
+  const selectedProvider = ref<CatalogProvider>();
   const catalogRequestCache: CatalogRequestCache = new Map();
+
+  async function getProviderList(): Promise<CatalogProvider[]> {
+    const providers = await fetchCachedJson<CatalogProvider[]>(
+      catalogRequestCache,
+      buildCatalogUrl(["providers"])
+    );
+    providerList.value = providers;
+    if (
+      selectedProvider.value !== undefined &&
+      !providers.some((provider) => provider.id === selectedProvider.value?.id)
+    ) {
+      selectedProvider.value = undefined;
+      workspaceList.value = undefined;
+      layerList.value = undefined;
+    }
+    return providers;
+  }
+
+  async function ensureSelectedProvider(): Promise<CatalogProvider> {
+    if (selectedProvider.value !== undefined) {
+      return selectedProvider.value;
+    }
+
+    const providers = providerList.value ?? await getProviderList();
+    const provider = providers[0];
+    if (provider === undefined) {
+      throw new Error("No active catalog provider is available.");
+    }
+    selectedProvider.value = provider;
+    return provider;
+  }
+
+  function selectProvider(providerId: string): void {
+    const provider = providerList.value?.find((item) => item.id === providerId);
+    if (provider === undefined) {
+      throw new Error(`Catalog provider ${providerId} is not loaded.`);
+    }
+    if (selectedProvider.value?.id !== provider.id) {
+      selectedProvider.value = provider;
+      workspaceList.value = undefined;
+      layerList.value = undefined;
+      catalogRequestCache.clear();
+    }
+  }
+
+  function attachProviderToWorkspaceResponse(
+    response: WorkspaceListResponse,
+    provider: CatalogProvider
+  ): WorkspaceListResponse {
+    response.workspaces.workspace = response.workspaces.workspace.map((workspace) => ({
+      ...workspace,
+      providerId: provider.id,
+      providerBaseUrl: provider.base_url,
+    }));
+    return response;
+  }
+
+  function attachProviderToLayerResponse(
+    response: GeoserverLayerListResponse,
+    provider: CatalogProvider
+  ): GeoserverLayerListResponse {
+    response.layers.layer = response.layers.layer.map((layer) => ({
+      ...layer,
+      providerId: provider.id,
+      providerBaseUrl: provider.base_url,
+    }));
+    return response;
+  }
+
+  async function getPublicGeoserverBaseUrl(providerId?: string): Promise<string> {
+    if (providerId !== undefined) {
+      const providers = providerList.value ?? await getProviderList();
+      const provider = providers.find((item) => item.id === providerId);
+      if (provider === undefined) {
+        throw new Error(`Catalog provider ${providerId} is not loaded.`);
+      }
+      return trimTrailingSlash(provider.base_url);
+    }
+    const provider = await ensureSelectedProvider();
+    return trimTrailingSlash(provider.base_url);
+  }
   /**
    * Retrieves a list of layers from GeoServer.
    * If a workspace name is provided, it returns the layers from that specific workspace.
@@ -347,11 +448,13 @@ export const useGeoserverStore = defineStore("geoserver", () => {
   async function getLayerList(
     workspaceName?: string
   ): Promise<GeoserverLayerListResponse> {
+    const provider = await ensureSelectedProvider();
     const url = workspaceName === undefined
-      ? buildCatalogUrl(["layers"])
-      : buildCatalogUrl(["workspaces", workspaceName, "layers"]);
+      ? buildProviderCatalogUrl(provider.id, ["layers"])
+      : buildProviderCatalogUrl(provider.id, ["workspaces", workspaceName, "layers"]);
 
-    return await fetchCachedJson<GeoserverLayerListResponse>(catalogRequestCache, url);
+    const response = await fetchCachedJson<GeoserverLayerListResponse>(catalogRequestCache, url);
+    return attachProviderToLayerResponse(response, provider);
   }
   /**
    * Retrieves a list of all workspaces the user has access to in GeoServer.
@@ -359,7 +462,12 @@ export const useGeoserverStore = defineStore("geoserver", () => {
    * @returns A Promise resolving to a WorkspaceListResponse containing the list of workspaces.
    */
   async function getWorkspaceList(): Promise<WorkspaceListResponse> {
-    return await fetchCachedJson<WorkspaceListResponse>(catalogRequestCache, buildCatalogUrl(["workspaces"]));
+    const provider = await ensureSelectedProvider();
+    const response = await fetchCachedJson<WorkspaceListResponse>(
+      catalogRequestCache,
+      buildProviderCatalogUrl(provider.id, ["workspaces"])
+    );
+    return attachProviderToWorkspaceResponse(response, provider);
   }
   /**
    * Retrieves information about a specific layer within a given workspace.
@@ -372,10 +480,17 @@ export const useGeoserverStore = defineStore("geoserver", () => {
     layer: GeoserverLayerListItem,
     workspace: string
   ): Promise<GeoserverLayerInfoResponse> {
-    return await fetchCachedJson<GeoserverLayerInfoResponse>(
+    const provider = await ensureSelectedProvider();
+    const response = await fetchCachedJson<GeoserverLayerInfoResponse>(
       catalogRequestCache,
-      buildCatalogUrl(["workspaces", workspace, "layers", layer.name])
+      buildProviderCatalogUrl(provider.id, ["workspaces", workspace, "layers", layer.name])
     );
+    response.layer = {
+      ...response.layer,
+      providerId: provider.id,
+      providerBaseUrl: provider.base_url,
+    };
+    return response;
   }
   /**
    * Retrieves detailed information about a specific vector or raster layer from GeoServer.
@@ -398,9 +513,18 @@ export const useGeoserverStore = defineStore("geoserver", () => {
    * @param cqlFilter - Optional CQL filter to apply to the data.
    * @returns A Promise resolving to the GeoJSON object containing the requested layer data.
    */
-  async function getGeoJSONLayerSource(layer: string, workspace: string, bbox?:string, cqlFilter?:string): Promise<any> {
+  async function getGeoJSONLayerSource(
+    layer: string,
+    workspace: string,
+    bbox?:string,
+    cqlFilter?:string,
+    providerBaseUrl?: string
+  ): Promise<any> {
+    const baseUrl = providerBaseUrl !== undefined
+      ? trimTrailingSlash(providerBaseUrl)
+      : await getPublicGeoserverBaseUrl();
     const url = new URL(
-      `${trimTrailingSlash(String(import.meta.env.VITE_GEOSERVER_BASE_URL))}/${encodeURIComponent(workspace)}/wms`
+      `${baseUrl}/${encodeURIComponent(workspace)}/wms`
     );
     url.search = new URLSearchParams({
       service: "WMS",
@@ -443,6 +567,12 @@ export const useGeoserverStore = defineStore("geoserver", () => {
     pointData,
     layerList,
     workspaceList,
+    providerList,
+    selectedProvider,
+    getProviderList,
+    selectProvider,
+    ensureSelectedProvider,
+    getPublicGeoserverBaseUrl,
     getLayerList,
     getWorkspaceList,
     getLayerInformation,

@@ -33,6 +33,7 @@ export interface CustomAddLayerObject {
 export interface LayerObjectWithAttributes extends CustomAddLayerObject {
     details?: GeoServerVectorTypeLayerDetail | GeoserverRasterTypeLayerDetail;
     workspaceName?: string;
+    providerBaseUrl?: string;
 }
 type SourceType = "geojson" | "geoserver";
 export type MapLibreLayerTypes =
@@ -71,6 +72,7 @@ interface GeoServerLayerParams extends BaseLayerParams {
     sourceDataType: "vector" | "raster";
     sourceProtocol?: "wms" | "wmts";
     workspaceName?: string;
+    providerBaseUrl?: string;
 }
 export type LayerParams = GeoJSONLayerParams | GeoServerLayerParams;
 export interface BaseDataSourceParams {
@@ -84,12 +86,56 @@ export interface GeoServerSourceParams extends BaseDataSourceParams {
     layer: GeoServerVectorTypeLayerDetail | GeoserverRasterTypeLayerDetail;
     sourceDataType: "vector" | "raster";
     sourceProtocol?: "wms" | "wmts";
+    providerBaseUrl?: string;
 }
 export interface GeoJSONSourceParams extends BaseDataSourceParams {
     sourceType: "geojson";
     geoJSONSrc: FeatureCollection;
 }
 export type SourceParams = GeoJSONSourceParams | GeoServerSourceParams;
+
+function trimTrailingSlash(value: string): string {
+    return value.replace(/\/+$/, "");
+}
+
+function getProviderBaseUrl(providerBaseUrl?: string): string {
+    if (providerBaseUrl !== undefined && providerBaseUrl.trim() !== "") {
+        return trimTrailingSlash(providerBaseUrl.trim());
+    }
+
+    throw new Error("Provider base URL is required for geoserver map sources.");
+}
+
+function buildWmsTileUrl(providerBaseUrl: string, workspaceName: string, layerName: string): string {
+    return `${getProviderBaseUrl(providerBaseUrl)}/wms`
+        + "?REQUEST=GetMap"
+        + "&SERVICE=WMS"
+        + "&VERSION=1.3.0"
+        + `&LAYERS=${encodeURIComponent(`${workspaceName}:${layerName}`)}`
+        + "&STYLES="
+        + "&CRS=EPSG:3857"
+        + "&WIDTH=256"
+        + "&HEIGHT=256"
+        + "&BBOX={bbox-epsg-3857}"
+        + "&transparent=true"
+        + "&format=image/png"
+        + "&TILED=true";
+}
+
+function buildWmtsTileUrl(providerBaseUrl: string, workspaceName: string, layerName: string): string {
+    return `${getProviderBaseUrl(providerBaseUrl)}/gwc/service/wmts`
+        + "?REQUEST=GetTile"
+        + "&SERVICE=WMTS"
+        + "&VERSION=1.0.0"
+        + `&LAYER=${encodeURIComponent(`${workspaceName}:${layerName}`)}`
+        + "&STYLE="
+        + "&TILEMATRIX=EPSG:900913:{z}"
+        + "&TILEMATRIXSET=EPSG:900913"
+        + "&TILECOL={x}"
+        + "&TILEROW={y}"
+        + "&format=application/vnd.mapbox-vector-tile";
+}
+
 export const useMapStore = defineStore("map", () => {
     const toast = useToast();
     /**
@@ -170,21 +216,11 @@ export const useMapStore = defineStore("map", () => {
                         map.value?.addSource(identifier, {
                             type: "raster",
                             tiles: [
-                                `${import.meta.env.VITE_GEOSERVER_BASE_URL}/wms
-								?REQUEST=GetMap
-								&SERVICE=WMS
-								&VERSION=1.3.0
-								&LAYERS=${params.workspaceName}:${
-    (params.layer as GeoserverRasterTypeLayerDetail).coverage.name
-}
-								&STYLES=
-								&CRS=EPSG:3857
-								&WIDTH=256
-								&HEIGHT=256
-								&BBOX={bbox-epsg-3857}
-								&transparent=true
-								&format=image/png
-								&TILED=true`,
+                                buildWmsTileUrl(
+                                    getProviderBaseUrl(params.providerBaseUrl),
+                                    params.workspaceName,
+                                    (params.layer as GeoserverRasterTypeLayerDetail).coverage.name
+                                ),
                             ],
                         });
                     }
@@ -195,7 +231,7 @@ export const useMapStore = defineStore("map", () => {
                         // map.value.addSource(identifier, {
                         // type: "vector",
                         // tiles: [
-                        // `${import.meta.env.VITE_GEOSERVER_BASE_URL}/gwc/service/wmts
+                        // `${params.providerBaseUrl}/gwc/service/wmts
                         // ?REQUEST=GetTile&SERVICE=WMTS&VERSION=1.0.0
                         // &LAYER=${params.workspaceName}:${(params.layer as GeoServerVectorTypeLayerDetail).featureType.name}
                         // &STYLE=
@@ -218,18 +254,11 @@ export const useMapStore = defineStore("map", () => {
                         map.value?.addSource(identifier, {
                             type: "vector",
                             tiles: [
-                                `${import.meta.env.VITE_GEOSERVER_BASE_URL}/gwc/service/wmts
-								?REQUEST=GetTile&SERVICE=WMTS&VERSION=1.0.0
-								&LAYER=${params.workspaceName}:${
-    (params.layer as GeoServerVectorTypeLayerDetail).featureType
-        .name
-}
-								&STYLE=
-								&TILEMATRIX=EPSG:900913:{z}
-								&TILEMATRIXSET=EPSG:900913
-								&TILECOL={x}
-								&TILEROW={y}
-								&format=application/vnd.mapbox-vector-tile`,
+                                buildWmtsTileUrl(
+                                    getProviderBaseUrl(params.providerBaseUrl),
+                                    params.workspaceName,
+                                    (params.layer as GeoServerVectorTypeLayerDetail).featureType.name
+                                ),
                             ],
                         });
                     }
@@ -378,6 +407,10 @@ export const useMapStore = defineStore("map", () => {
             if (params.workspaceName !== undefined) {
                 (layerObject as LayerObjectWithAttributes).workspaceName =
           params.workspaceName;
+            }
+            if (params.providerBaseUrl !== undefined) {
+                (layerObject as LayerObjectWithAttributes).providerBaseUrl =
+          params.providerBaseUrl;
             }
         }
         add2MapLayerList(layerObject as LayerObjectWithAttributes, index);

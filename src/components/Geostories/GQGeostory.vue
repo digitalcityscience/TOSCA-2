@@ -206,6 +206,7 @@ const loadScenarioLayers = async (scenario: Scenario): Promise<void> => {
                 const response = await geoserver.getLayerInformation({ name:item.split(":")[1], href:"" }, item.split(":")[0]);
                 if (response.layer !== undefined) {
                     const detail = await geoserver.getLayerDetail(response.layer?.resource.href);
+                    const providerBaseUrl = response.layer.providerBaseUrl;
                     if (response.layer.type === "VECTOR") {
                         const feature = (detail as GeoServerVectorTypeLayerDetail).featureType.attributes.attribute.filter((att) => att.name.includes("geom"));
                         const dataType = feature.length > 0 ? feature[0].binding.split(".").slice(-1)[0] : "";
@@ -218,6 +219,7 @@ const loadScenarioLayers = async (scenario: Scenario): Promise<void> => {
                                 isFilterLayer: false,
                                 workspaceName: item.split(":")[0],
                                 layer: detail,
+                                providerBaseUrl,
                             };
                             await mapStore.addMapDataSource(sourceParams);
                             if (!isNullOrEmpty(dataType) && !isNullOrEmpty(detail)) {
@@ -231,6 +233,7 @@ const loadScenarioLayers = async (scenario: Scenario): Promise<void> => {
                                     geoserverLayerDetails: detail,
                                     sourceLayer: `${(detail as GeoServerVectorTypeLayerDetail).featureType.name}`,
                                     displayName: (detail as GeoServerVectorTypeLayerDetail)?.featureType.title ?? undefined,
+                                    providerBaseUrl,
                                 };
                                 await mapStore.addMapLayer(layerParams);
                                 if (item==="GQ2:ppm_mean_point_values"){
@@ -245,6 +248,7 @@ const loadScenarioLayers = async (scenario: Scenario): Promise<void> => {
                                         sourceLayer: `${(detail as GeoServerVectorTypeLayerDetail).featureType.name}`,
                                         sourceIdentifier: `${(detail as GeoServerVectorTypeLayerDetail).featureType.name}`,
                                         displayName: (detail as GeoServerVectorTypeLayerDetail)?.featureType.title ?? undefined,
+                                        providerBaseUrl,
                                     }
                                     await mapStore.addMapLayer(lp)
                                 }
@@ -263,6 +267,7 @@ const loadScenarioLayers = async (scenario: Scenario): Promise<void> => {
                                 isFilterLayer: false,
                                 workspaceName: item.split(":")[0],
                                 layer: detail,
+                                providerBaseUrl,
                             };
                             await mapStore.addMapDataSource(sourceParams);
                             const layerParams: LayerParams = {
@@ -274,6 +279,7 @@ const loadScenarioLayers = async (scenario: Scenario): Promise<void> => {
                                 geoserverLayerDetails: detail,
                                 sourceLayer: `${(detail as GeoserverRasterTypeLayerDetail).coverage.name}`,
                                 displayName: (detail as GeoserverRasterTypeLayerDetail).coverage.title ?? undefined,
+                                providerBaseUrl,
                             };
                             await mapStore.addMapLayer(layerParams);
                             const bbox = (detail as GeoserverRasterTypeLayerDetail).coverage.latLonBoundingBox;

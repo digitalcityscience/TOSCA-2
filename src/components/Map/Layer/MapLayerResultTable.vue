@@ -147,7 +147,13 @@ async function getTableData(): Promise<void> {
         if (props.layer.workspaceName === undefined) {
             console.log("There is no workspace name to get table data")
         } else {
-            const data = await geoserverStore.getGeoJSONLayerSource(props.layer.id, props.layer.workspaceName, boundingbox)
+            const data = await geoserverStore.getGeoJSONLayerSource(
+                props.layer.id,
+                props.layer.workspaceName,
+                boundingbox,
+                undefined,
+                props.layer.providerBaseUrl
+            )
             tableData.value = data as FeatureCollection
             if (props.layer.type === "raster") {
                 tableHeaderList.value = createTableHeaderList(tableData.value)
