@@ -169,8 +169,7 @@ export const useParticipationStore = defineStore("participation", () => {
         const layerStylePolygon: Record<string, any> = {
             paint: {
                 "fill-color": "#FF0000",
-                "fill-opacity": 0.2,
-                "fill-outline-color": "#000000",
+                "fill-opacity": 0.05,
             },
         };
         const layerStyleLine: Record<string, any> = {
@@ -183,6 +182,31 @@ export const useParticipationStore = defineStore("participation", () => {
             paint: {
                 "circle-color": "#FF0000",
                 "circle-radius": 8,
+            },
+        };
+        // Companion outline drawn on top of the faint polygon fill so polygon
+        // boundaries stay legible on busy basemaps.
+        const outlineStyle: Record<string, any> = {
+            paint: {
+                "line-color": "#FF0000",
+                "line-width": 2,
+                "line-opacity": 1,
+            },
+        };
+        // Companion label layer. Falls back to empty string when `name` is
+        // missing on the feature so MapLibre still resolves the glyphs.
+        const labelStyle: Record<string, any> = {
+            layout: {
+                "text-field": ["coalesce", ["get", "name"], ""],
+                "text-font": ["Open Sans Regular"],
+                "text-size": 12,
+                "text-anchor": "center",
+                "text-allow-overlap": false,
+            },
+            paint: {
+                "text-color": "#000000",
+                "text-halo-color": "#ffffff",
+                "text-halo-width": 1.5,
             },
         };
         const tempAreaSourceParams: GeoJSONSourceParams={
@@ -212,6 +236,23 @@ export const useParticipationStore = defineStore("participation", () => {
                             "selectedAreasTempLayer-polygon",
                             ["==", "$type", "Polygon"]
                         );
+                        // Outline companion: registered first so it renders
+                        // just above the fill, below the labels.
+                        mapStore.addCompanionLayer("selectedAreasTempLayer-polygon", {
+                            id: "selectedAreasTempLayer-outline",
+                            type: "line",
+                            source: "selectedAreasTempLayer",
+                            filter: ["==", "$type", "Polygon"],
+                            paint: outlineStyle.paint,
+                        });
+                        // Label companion: registered second so it renders on top.
+                        mapStore.addCompanionLayer("selectedAreasTempLayer-polygon", {
+                            id: "selectedAreasTempLayer-label",
+                            type: "symbol",
+                            source: "selectedAreasTempLayer",
+                            layout: labelStyle.layout,
+                            paint: labelStyle.paint,
+                        });
                     })
                     .catch((error) => {
                         console.error(error);
@@ -284,23 +325,22 @@ export const useParticipationStore = defineStore("participation", () => {
      * It removes all layers associated with the selected geometry and clears the selected features.
      */
     function deleteSelectedAreasTempLayer(): void {
+        // Polygon deletion cascades through `companionLayerIds` (outline, label).
+        const layerIds = [
+            "selectedAreasTempLayer-polygon",
+            "selectedAreasTempLayer-line",
+            "selectedAreasTempLayer-point",
+        ];
+        layerIds.forEach((id) => {
+            // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
+            if (mapStore.map.getLayer(id)) {
+                mapStore.deleteMapLayer(id).catch((error: unknown) => {
+                    console.error(error);
+                });
+            }
+        });
         // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-        if (mapStore.map.getLayer("selectedAreasTempLayer-polygon")) {
-            mapStore.map.removeLayer("selectedAreasTempLayer-polygon");
-            mapStore.removeFromMapLayerList("selectedAreasTempLayer-polygon");
-        }
-        // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-        if (mapStore.map.getLayer("selectedAreasTempLayer-line")) {
-            mapStore.map.removeLayer("selectedAreasTempLayer-line");
-            mapStore.removeFromMapLayerList("selectedAreasTempLayer-line");
-        }
-        // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-        if (mapStore.map.getLayer("selectedAreasTempLayer-point")) {
-            mapStore.map.removeLayer("selectedAreasTempLayer-point");
-            mapStore.removeFromMapLayerList("selectedAreasTempLayer-point");
-        }
-        // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-        if (mapStore.map.getSource("selectedAreasTempLayer")){
+        if (mapStore.map.getSource("selectedAreasTempLayer")) {
             mapStore.map.removeSource("selectedAreasTempLayer");
         }
         selectedDrawnGeometry.value = [];
