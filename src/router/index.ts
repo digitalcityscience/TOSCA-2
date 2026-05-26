@@ -50,6 +50,22 @@ const router = createRouter({
             }
         },
         {
+            path: "/events",
+            name: "events",
+            components: {
+                default: async () => await import("../views/MapView.vue"),
+                events: async () => await import("../components/Events/EventsSidebar.vue")
+            },
+            children: [
+                { path: "", name: "event-list", component: async () => await import("../components/Events/EventList.vue") },
+                { path: ":eventId", name: "event-detail", component: async () => await import("../components/Events/EventDetail.vue"), props: true }
+            ],
+            meta: {
+                sidebar: "events",
+                sidebarPosition: "left"
+            }
+        },
+        {
             path: "/:catchAll(.*)",
             redirect: "/"
         }

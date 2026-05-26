@@ -8,6 +8,7 @@ import { useMapStore } from "./store/map";
     <RouterView name="default"></RouterView>
     <RouterView v-if="useMapStore().map" name="participation"></RouterView>
     <RouterView v-if="useMapStore().map" name="geostories"></RouterView>
+    <RouterView v-if="useMapStore().map" name="events"></RouterView>
 </div>
 </template>
 
