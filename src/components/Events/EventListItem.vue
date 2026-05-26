@@ -11,7 +11,17 @@
             </div>
         </template>
         <template #content>
-            <p class="text-sm leading-relaxed text-surface-700">{{ event.summary }}</p>
+            <div class="grid gap-3">
+                <p class="text-sm leading-relaxed text-surface-700">{{ event.summary }}</p>
+                <div v-if="taxonomyChips.length > 0" class="flex flex-wrap gap-2">
+                    <Tag
+                        v-for="chip in taxonomyChips"
+                        :key="chip"
+                        :value="chip"
+                        severity="secondary"
+                    />
+                </div>
+            </div>
         </template>
         <template #footer>
             <RouterLink :to="{ name: 'event-detail', params: { eventId: event.id } }">
@@ -66,5 +76,11 @@ const seriesLabel = computed(() => {
         return "";
     }
     return `${props.event.occurrence_index} / ${props.event.total_occurrences}`;
+});
+
+const taxonomyChips = computed(() => {
+    return props.event.taxonomy_assignments?.flatMap((assignment) => {
+        return assignment.terms.map((term) => term.label);
+    }) ?? [];
 });
 </script>

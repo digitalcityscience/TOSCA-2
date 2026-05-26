@@ -44,6 +44,14 @@ watch(
     { deep: true }
 );
 
+watch(
+    () => events.filters,
+    () => {
+        refreshFromViewport();
+    },
+    { deep: true }
+);
+
 async function setupOverlay(): Promise<void> {
     await waitForMapStyle();
     installOverlay();

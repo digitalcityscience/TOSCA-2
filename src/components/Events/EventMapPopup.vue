@@ -7,6 +7,14 @@
         <h3 class="text-base font-semibold leading-tight text-surface-900">{{ event.title }}</h3>
         <p class="text-sm leading-relaxed text-surface-700 mt-1">{{ event.summary }}</p>
         <p class="text-sm font-medium text-surface-800 mt-2">{{ dateLabel }}</p>
+        <div v-if="taxonomyChips.length > 0" class="mt-2 flex flex-wrap gap-1">
+            <Tag
+                v-for="chip in taxonomyChips"
+                :key="chip"
+                :value="chip"
+                severity="secondary"
+            />
+        </div>
         <Button
             class="mt-3"
             icon="pi pi-arrow-right"
@@ -63,6 +71,12 @@ const seriesLabel = computed(() => {
         return "";
     }
     return `${props.event.occurrence_index} / ${props.event.total_occurrences}`;
+});
+
+const taxonomyChips = computed(() => {
+    return props.event.taxonomy_assignments?.flatMap((assignment) => {
+        return assignment.terms.map((term) => term.label);
+    }) ?? [];
 });
 
 function openDetails(): void {

@@ -12,17 +12,60 @@ import { type FeatureCollection, type Point } from "@helpers/geojson";
 
 const EVENTS_API_PATH = "/api/v1/events";
 const EVENT_SERIES_API_PATH = "/api/v1/event-series";
+const EVENT_TYPES_API_PATH = "/api/v1/event-types";
+const EVENT_TAXONOMY_API_PATH = "/api/v1/event-taxonomy";
 
 type LocationMode = "physical" | "online" | "hybrid" | "by_arrangement" | "home_visit";
 
 export interface EventFilters {
     campaign_id?: string;
     event_type_id?: string;
+    profile_key?: string;
+    dimension_code?: string;
+    term_code?: string;
     dimension_id?: string;
     term_id?: string;
     include_past?: boolean;
     start_after?: string;
     start_before?: string;
+}
+
+export interface EventTypeRegistryItem {
+    id: string;
+    code: string;
+    label: string;
+    profile_mode: "core" | "extension";
+    profile_key: string;
+}
+
+export interface EventTaxonomyRegistryTerm {
+    id: string;
+    code: string;
+    label: string;
+    parent_id: string | null;
+    is_active: boolean;
+}
+
+export interface EventTaxonomyRegistryDimension {
+    id: string;
+    code: string;
+    label: string;
+    selection_mode: "single" | "multiple";
+    terms: EventTaxonomyRegistryTerm[];
+}
+
+export interface EventTaxonomyRegistry {
+    profile_key: string;
+    dimensions: EventTaxonomyRegistryDimension[];
+}
+
+export interface EventTaxonomyChipGroup {
+    dimension_code: string;
+    dimension_label: string;
+    terms: Array<{
+        code: string;
+        label: string;
+    }>;
 }
 
 export interface EventListItem {
@@ -32,6 +75,7 @@ export interface EventListItem {
     campaign: string;
     event_type: string;
     profile_key?: string;
+    taxonomy_assignments?: EventTaxonomyChipGroup[];
     start_datetime: string;
     end_datetime: string;
     location_mode: LocationMode;
@@ -155,6 +199,18 @@ export interface EventSeriesDetail {
     occurrences?: EventListItem[];
 }
 
+export function buildEventTypesUrl(): URL {
+    return new URL(`${EVENT_TYPES_API_PATH}/`, getBackendRootUrl());
+}
+
+export function buildEventTaxonomyUrl(profileKey = ""): URL {
+    const url = new URL(`${EVENT_TAXONOMY_API_PATH}/`, getBackendRootUrl());
+    if (profileKey !== "") {
+        url.searchParams.set("profile_key", profileKey);
+    }
+    return url;
+}
+
 export function buildEventListUrl(filters: EventFilters = {}): URL {
     const url = new URL(`${EVENTS_API_PATH}/`, getBackendRootUrl());
     appendEventFilters(url, filters);
@@ -196,6 +252,9 @@ function appendEventFilters(url: URL, filters: EventFilters): void {
         if (value === undefined || value === null || value === "") {
             return;
         }
+        if (key === "include_past" && value === false) {
+            return;
+        }
         url.searchParams.set(key, String(value));
     });
 }
@@ -234,9 +293,12 @@ export const useEventsStore = defineStore("events", () => {
     });
     const onlineEvents = ref<EventMapOnlineItem[]>([]);
     const selectedEvent = ref<EventDetail>();
+    const eventTypes = ref<EventTypeRegistryItem[]>([]);
+    const taxonomyRegistriesByProfile = ref<Record<string, EventTaxonomyRegistry>>({});
     const loadingList = ref(false);
     const loadingMap = ref(false);
     const loadingDetail = ref(false);
+    const loadingRegistries = ref(false);
     const error = ref("");
     const filters = ref<EventFilters>({
         include_past: false,
@@ -244,9 +306,43 @@ export const useEventsStore = defineStore("events", () => {
 
     function setFilters(nextFilters: EventFilters): void {
         filters.value = {
-            ...filters.value,
+            include_past: false,
             ...nextFilters,
         };
+    }
+
+    async function loadEventTypes(): Promise<void> {
+        loadingRegistries.value = true;
+        error.value = "";
+        try {
+            eventTypes.value = await fetchJson<EventTypeRegistryItem[]>(buildEventTypesUrl());
+        } catch (err) {
+            error.value = String(err);
+            throw err;
+        } finally {
+            loadingRegistries.value = false;
+        }
+    }
+
+    async function loadEventTaxonomy(profileKey = ""): Promise<EventTaxonomyRegistry> {
+        if (taxonomyRegistriesByProfile.value[profileKey] !== undefined) {
+            return taxonomyRegistriesByProfile.value[profileKey];
+        }
+
+        loadingRegistries.value = true;
+        error.value = "";
+        try {
+            const registry = await fetchJson<EventTaxonomyRegistry>(
+                buildEventTaxonomyUrl(profileKey)
+            );
+            taxonomyRegistriesByProfile.value[profileKey] = registry;
+            return registry;
+        } catch (err) {
+            error.value = String(err);
+            throw err;
+        } finally {
+            loadingRegistries.value = false;
+        }
     }
 
     async function loadEvents(): Promise<void> {
@@ -334,12 +430,17 @@ export const useEventsStore = defineStore("events", () => {
         spatialEvents,
         onlineEvents,
         selectedEvent,
+        eventTypes,
+        taxonomyRegistriesByProfile,
         loadingList,
         loadingMap,
         loadingDetail,
+        loadingRegistries,
         error,
         filters,
         setFilters,
+        loadEventTypes,
+        loadEventTaxonomy,
         loadEvents,
         loadMoreEvents,
         loadEventMap,
