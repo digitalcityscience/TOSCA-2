@@ -28,6 +28,7 @@ export interface CustomAddLayerObject {
     displayName?: string;
     showOnLayerList?: boolean;
     keepOnTop?: boolean;
+    companionLayerIds?: string[];
 }
 export interface LayerObjectWithAttributes extends CustomAddLayerObject {
     details?: GeoServerVectorTypeLayerDetail | GeoserverRasterTypeLayerDetail;
@@ -101,6 +102,13 @@ export const useMapStore = defineStore("map", () => {
    * Each object in the array represents a layer with its attributes, such as its source type, display name, styling, etc.
    */
     const layersOnMap = ref<LayerObjectWithAttributes[]>([]);
+    /**
+   * Monotonic counter that is incremented on every MapLibre `styledata` event.
+   * Vue computeds that read MapLibre paint/layout properties can dereference
+   * this ref to opt into reactivity, since the MapLibre style object itself is
+   * not a Vue ref.
+   */
+    const paintVersion = ref<number>(0);
     /**
    * Asynchronously adds a new data source to Maplibre map sources. The source can be either GeoJSON data or a Geoserver vector tile source.
    * @param {SourceParams} sourceParams - The parameters for the source to add.
@@ -399,6 +407,23 @@ export const useMapStore = defineStore("map", () => {
             }
 
             try {
+                // Remove companions before the parent so a missing child
+                // cannot poison the parent removal.
+                const parentRecord = layersOnMap.value.find(
+                    (l) => l.id === identifier
+                );
+                parentRecord?.companionLayerIds?.forEach((companionId) => {
+                    if (map.value?.getLayer(companionId) !== undefined) {
+                        try {
+                            map.value.removeLayer(companionId);
+                        } catch (err) {
+                            console.error(
+                                `Failed to remove companion ${companionId} of ${identifier}`,
+                                err
+                            );
+                        }
+                    }
+                });
                 map.value?.removeLayer(identifier);
                 removeFromMapLayerList(identifier, information);
                 resolve();
@@ -538,7 +563,52 @@ export const useMapStore = defineStore("map", () => {
         }
 
         moveMapLibreLayer(identifier, beforeId);
+        // Companions ride with their parent: re-issue moveLayer for each so
+        // they sit immediately above the parent in registration order.
+        const parent = layersOnMap.value.find((layer) => layer.id === identifier);
+        parent?.companionLayerIds?.forEach((companionId) => {
+            if (map.value?.getLayer(companionId) !== undefined) {
+                moveMapLibreLayer(companionId, beforeId);
+            }
+        });
         moveLayerInState(identifier, beforeId);
+    }
+
+    /**
+   * Adds a child MapLibre layer that is bound to an existing parent layer.
+   *
+   * Companion layers live on the MapLibre map but are NOT pushed into
+   * `layersOnMap` — they are not shown in the sidebar and do not participate in
+   * the reorder UI. Reorder and delete walk the parent's `companionLayerIds`
+   * so the children always travel with the parent.
+   *
+   * @param {string} parentId - The parent layer ID that already exists in `layersOnMap`.
+   * @param {AddLayerObject} layerSpec - MapLibre layer specification for the child layer.
+   */
+    function addCompanionLayer(parentId: string, layerSpec: AddLayerObject): void {
+        if (isNullOrEmpty(map.value)) {
+            return;
+        }
+        const parent = layersOnMap.value.find((layer) => layer.id === parentId);
+        if (parent === undefined) {
+            console.warn(`addCompanionLayer: parent layer "${parentId}" not found`);
+            return;
+        }
+        const parentIndex = layersOnMap.value.findIndex((layer) => layer.id === parentId);
+        const aboveLayer = parentIndex >= 0 ? layersOnMap.value[parentIndex + 1] : undefined;
+        const insertBeforeId = aboveLayer?.id;
+        try {
+            map.value.addLayer(layerSpec, insertBeforeId);
+        } catch (error) {
+            console.error(`addCompanionLayer: failed to add ${layerSpec.id}`, error);
+            return;
+        }
+        if (parent.companionLayerIds === undefined) {
+            parent.companionLayerIds = [];
+        }
+        if (!parent.companionLayerIds.includes(layerSpec.id)) {
+            parent.companionLayerIds.push(layerSpec.id);
+        }
     }
 
     /**
@@ -739,6 +809,8 @@ export const useMapStore = defineStore("map", () => {
         removeFromMapLayerList,
         reorderVisibleMapLayer,
         getReorderableVisibleLayersTopToBottom,
+        addCompanionLayer,
+        paintVersion,
         resetMapData,
         geometryConversion,
     };
