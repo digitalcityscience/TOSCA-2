@@ -13,11 +13,16 @@
         <template #content>
             <div class="grid gap-3">
                 <p class="text-sm leading-relaxed text-surface-700">{{ event.summary }}</p>
-                <div v-if="taxonomyChips.length > 0" class="flex flex-wrap gap-2">
+                <div v-if="taxonomyPreview.visible.length > 0" class="flex flex-wrap gap-2">
                     <Tag
-                        v-for="chip in taxonomyChips"
+                        v-for="chip in taxonomyPreview.visible"
                         :key="chip"
                         :value="chip"
+                        severity="secondary"
+                    />
+                    <Tag
+                        v-if="taxonomyPreview.hiddenCount > 0"
+                        :value="`+${taxonomyPreview.hiddenCount} more`"
                         severity="secondary"
                     />
                 </div>
@@ -38,6 +43,7 @@ import Button from "primevue/button";
 import Card from "primevue/card";
 import Tag from "primevue/tag";
 import { type EventListItem } from "@store/events";
+import { previewTaxonomyChips } from "./taxonomyChips";
 
 const props = defineProps<{
     event: EventListItem
@@ -72,15 +78,17 @@ const locationSeverity = computed(() => {
 });
 
 const seriesLabel = computed(() => {
-    if (props.event.series_id === null || props.event.occurrence_index === null || props.event.total_occurrences === null) {
+    if (
+        props.event.series_id == null ||
+        props.event.occurrence_index == null ||
+        props.event.total_occurrences == null
+    ) {
         return "";
     }
     return `${props.event.occurrence_index} / ${props.event.total_occurrences}`;
 });
 
-const taxonomyChips = computed(() => {
-    return props.event.taxonomy_assignments?.flatMap((assignment) => {
-        return assignment.terms.map((term) => term.label);
-    }) ?? [];
+const taxonomyPreview = computed(() => {
+    return previewTaxonomyChips(props.event.taxonomy_assignments, 5);
 });
 </script>

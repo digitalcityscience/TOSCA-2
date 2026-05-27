@@ -7,11 +7,16 @@
         <h3 class="text-base font-semibold leading-tight text-surface-900">{{ event.title }}</h3>
         <p class="text-sm leading-relaxed text-surface-700 mt-1">{{ event.summary }}</p>
         <p class="text-sm font-medium text-surface-800 mt-2">{{ dateLabel }}</p>
-        <div v-if="taxonomyChips.length > 0" class="mt-2 flex flex-wrap gap-1">
+        <div v-if="taxonomyPreview.visible.length > 0" class="mt-2 flex flex-wrap gap-1">
             <Tag
-                v-for="chip in taxonomyChips"
+                v-for="chip in taxonomyPreview.visible"
                 :key="chip"
                 :value="chip"
+                severity="secondary"
+            />
+            <Tag
+                v-if="taxonomyPreview.hiddenCount > 0"
+                :value="`+${taxonomyPreview.hiddenCount} more`"
                 severity="secondary"
             />
         </div>
@@ -20,23 +25,25 @@
             icon="pi pi-arrow-right"
             label="Open details"
             size="small"
-            @click="openDetails"
+            @click="emit('open-details')"
         />
     </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { useRouter } from "vue-router";
 import Button from "primevue/button";
 import Tag from "primevue/tag";
 import { type EventMapProperties } from "@store/events";
+import { previewTaxonomyChips } from "./taxonomyChips";
 
 const props = defineProps<{
     event: EventMapProperties
 }>();
 
-const router = useRouter();
+const emit = defineEmits<{
+    "open-details": []
+}>();
 
 const dateLabel = computed(() => {
     return new Intl.DateTimeFormat(undefined, {
@@ -67,21 +74,19 @@ const locationSeverity = computed(() => {
 });
 
 const seriesLabel = computed(() => {
-    if (props.event.series_id === null || props.event.occurrence_index === null || props.event.total_occurrences === null) {
+    if (
+        props.event.series_id == null ||
+        props.event.occurrence_index == null ||
+        props.event.total_occurrences == null
+    ) {
         return "";
     }
     return `${props.event.occurrence_index} / ${props.event.total_occurrences}`;
 });
 
-const taxonomyChips = computed(() => {
-    return props.event.taxonomy_assignments?.flatMap((assignment) => {
-        return assignment.terms.map((term) => term.label);
-    }) ?? [];
+const taxonomyPreview = computed(() => {
+    return previewTaxonomyChips(props.event.taxonomy_assignments, 4);
 });
-
-function openDetails(): void {
-    router.push({ name: "event-detail", params: { eventId: props.event.id } }).catch(() => {});
-}
 </script>
 
 <style scoped>

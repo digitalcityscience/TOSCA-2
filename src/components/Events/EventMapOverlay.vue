@@ -3,8 +3,9 @@
 </template>
 
 <script setup lang="ts">
-import maplibre, { type GeoJSONSource, type MapLayerMouseEvent, type Popup } from "maplibre-gl";
-import { h, nextTick, onBeforeUnmount, onMounted, render, watch } from "vue";
+import maplibre, { type GeoJSONSource, type MapMouseEvent, type Popup } from "maplibre-gl";
+import { h, onBeforeUnmount, onMounted, render, watch } from "vue";
+import { useRouter } from "vue-router";
 import { useToast } from "primevue/usetoast";
 import { useEventsStore, type EventMapProperties, getEventFeatureId } from "@store/events";
 import { useMapStore } from "@store/map";
@@ -13,9 +14,11 @@ import EventMapPopup from "./EventMapPopup.vue";
 const EVENT_SOURCE_ID = "events-route-source";
 const EVENT_LAYER_ID = "events-route-pins";
 const EVENT_HALO_LAYER_ID = "events-route-pin-halos";
+const EVENT_INTERACTIVE_LAYER_IDS = [EVENT_LAYER_ID, EVENT_HALO_LAYER_ID];
 
 const events = useEventsStore();
 const mapStore = useMapStore();
+const router = useRouter();
 const toast = useToast();
 let popup: Popup | undefined;
 
@@ -29,9 +32,11 @@ onBeforeUnmount(() => {
     popup?.remove();
     if (mapStore.map !== undefined) {
         mapStore.map.off("moveend", refreshFromViewport);
-        mapStore.map.off("click", EVENT_LAYER_ID, handlePinClick);
-        mapStore.map.off("mouseenter", EVENT_LAYER_ID, setPointerCursor);
-        mapStore.map.off("mouseleave", EVENT_LAYER_ID, clearPointerCursor);
+        mapStore.map.off("click", handleMapClick);
+        EVENT_INTERACTIVE_LAYER_IDS.forEach((layerId) => {
+            mapStore.map.off("mouseenter", layerId, setPointerCursor);
+            mapStore.map.off("mouseleave", layerId, clearPointerCursor);
+        });
         removeOverlay();
     }
 });
@@ -57,9 +62,11 @@ async function setupOverlay(): Promise<void> {
     installOverlay();
     refreshFromViewport();
     mapStore.map.on("moveend", refreshFromViewport);
-    mapStore.map.on("click", EVENT_LAYER_ID, handlePinClick);
-    mapStore.map.on("mouseenter", EVENT_LAYER_ID, setPointerCursor);
-    mapStore.map.on("mouseleave", EVENT_LAYER_ID, clearPointerCursor);
+    mapStore.map.on("click", handleMapClick);
+    EVENT_INTERACTIVE_LAYER_IDS.forEach((layerId) => {
+        mapStore.map.on("mouseenter", layerId, setPointerCursor);
+        mapStore.map.on("mouseleave", layerId, clearPointerCursor);
+    });
 }
 
 async function waitForMapStyle(): Promise<void> {
@@ -78,7 +85,7 @@ function installOverlay(): void {
     if (mapStore.map.getSource(EVENT_SOURCE_ID) === undefined) {
         mapStore.map.addSource(EVENT_SOURCE_ID, {
             type: "geojson",
-            data: events.spatialEvents,
+            data: normalizedSpatialEvents(),
         });
     }
 
@@ -132,7 +139,7 @@ function removeOverlay(): void {
 
 function updateSourceData(): void {
     const source = mapStore.map.getSource(EVENT_SOURCE_ID) as GeoJSONSource | undefined;
-    source?.setData(events.spatialEvents);
+    source?.setData(normalizedSpatialEvents());
 }
 
 function refreshFromViewport(): void {
@@ -147,8 +154,17 @@ function refreshFromViewport(): void {
     });
 }
 
-function handlePinClick(event: MapLayerMouseEvent): void {
-    const feature = event.features?.[0];
+function handleMapClick(event: MapMouseEvent): void {
+    const existingLayers = EVENT_INTERACTIVE_LAYER_IDS.filter((layerId) => {
+        return mapStore.map.getLayer(layerId) !== undefined;
+    });
+    if (existingLayers.length === 0) {
+        return;
+    }
+    const features = mapStore.map.queryRenderedFeatures(event.point, {
+        layers: existingLayers,
+    });
+    const feature = features[0];
     if (feature === undefined) {
         return;
     }
@@ -162,18 +178,37 @@ function handlePinClick(event: MapLayerMouseEvent): void {
         id: eventId,
     };
     popup?.remove();
-    popup = new maplibre.Popup({ maxWidth: "none" })
+    const popupContainer = document.createElement("div");
+    render(h(EventMapPopup, {
+        event: popupEvent,
+        onOpenDetails: () => {
+            popup?.remove();
+            router.push({ name: "event-detail", params: { eventId: popupEvent.id } }).catch(() => {});
+        },
+    }), popupContainer);
+    popup = new maplibre.Popup({ maxWidth: "none", closeButton: false })
         .setLngLat(event.lngLat)
-        .setHTML("<div id=\"event-map-popup-content\"></div>")
+        .setDOMContent(popupContainer)
         .addTo(mapStore.map);
+    popup.on("close", () => {
+        render(null, popupContainer);
+    });
+}
 
-    nextTick(() => {
-        const container = document.getElementById("event-map-popup-content");
-        if (container === null) {
-            return;
-        }
-        render(h(EventMapPopup, { event: popupEvent }), container);
-    }).catch(() => {});
+function normalizedSpatialEvents(): GeoJSON.FeatureCollection {
+    return {
+        ...events.spatialEvents,
+        features: events.spatialEvents.features.map((feature) => {
+            const id = getEventFeatureId(feature.id, feature.properties ?? undefined);
+            return {
+                ...feature,
+                properties: {
+                    ...(feature.properties ?? {}),
+                    id,
+                },
+            };
+        }),
+    };
 }
 
 function setPointerCursor(): void {
