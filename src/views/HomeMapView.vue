@@ -15,10 +15,9 @@
 </template>
 
 <script setup lang="ts">
-import { defineAsyncComponent, nextTick, ref } from "vue";
+import { defineAsyncComponent, ref } from "vue";
 import MapContainer from "@components/Map/MapContainer.vue";
 import WorkspaceListing from "@components/Data/Workspace/WorkspaceListing.vue";
-import { SidebarControl } from "@helpers/sidebarControl";
 import { useGeoserverStore } from "@store/geoserver";
 import { useMapStore } from "@store/map";
 
@@ -65,28 +64,6 @@ function installDeferredScenarioControls(): void {
         return
     }
     scenarioControlsInstalled = true
-
-    // mapStore.map.addControl(
-    //     new SidebarControl("", "floodScenarios", document.createElement("div"), createMaterialIcon("water"), 3, async () => {
-    //         loadFloodSidebar.value = true
-    //         await waitForElement("floodScenarios")
-    //     }),
-    //     "top-left"
-    // )
-    // mapStore.map.addControl(
-    //     new SidebarControl("", "gq-geostory-sidebar", document.createElement("div"), createMaterialIcon("health_and_safety"), 3, async () => {
-    //         loadGqGeostory.value = true
-    //         await waitForElement("gq-geostory-sidebar")
-    //     }),
-    //     "top-left"
-    // )
-}
-
-function createMaterialIcon(icon: string): HTMLSpanElement {
-    const iconElement = document.createElement("span")
-    iconElement.classList.add("material-icons-outlined")
-    iconElement.textContent = icon
-    return iconElement
 }
 
 function logHomeTiming(message: string, details?: Record<string, unknown>): void {
@@ -96,18 +73,6 @@ function logHomeTiming(message: string, details?: Record<string, unknown>): void
     )
 }
 
-async function waitForElement(id: string): Promise<void> {
-    const startedAt = performance.now()
-    while (document.getElementById(id) === null && performance.now() - startedAt < 3000) {
-        await nextTick()
-        await new Promise((resolve) => window.setTimeout(resolve, 16))
-    }
-    logHomeTiming("deferred-sidebar:element-ready", {
-        id,
-        found: document.getElementById(id) !== null,
-        durationMs: Math.round(performance.now() - startedAt),
-    })
-}
 </script>
 
 <style scoped>

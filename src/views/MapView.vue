@@ -56,20 +56,6 @@ function installDeferredScenarioControls(): void {
         }),
         "top-left"
     )
-    // mapStore.map.addControl(
-    //     new SidebarControl("", "floodScenarios", document.createElement("div"), createMaterialIcon("water"), 3, async () => {
-    //         loadFloodSidebar.value = true
-    //         await waitForElement("floodScenarios")
-    //     }),
-    //     "top-left"
-    // )
-    // mapStore.map.addControl(
-    //     new SidebarControl("", "gq-geostory-sidebar", document.createElement("div"), createMaterialIcon("health_and_safety"), 3, async () => {
-    //         loadGqGeostory.value = true
-    //         await waitForElement("gq-geostory-sidebar")
-    //     }),
-    //     "top-left"
-    // )
 }
 
 function createMaterialIcon(icon: string): HTMLSpanElement {
