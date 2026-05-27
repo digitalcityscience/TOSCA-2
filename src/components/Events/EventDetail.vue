@@ -81,8 +81,7 @@ async function loadEvent(eventId: string): Promise<void> {
 async function focusEventLocation(detail: EventDetail): Promise<void> {
     if (
         mapStore.map === undefined ||
-        !["physical", "hybrid"].includes(detail.location_mode) ||
-        detail.location === null
+        !["physical", "hybrid"].includes(detail.location_mode)
     ) {
         return;
     }
@@ -108,7 +107,13 @@ async function focusEventLocation(detail: EventDetail): Promise<void> {
     });
 }
 
-function parsePointLocation(value: string): [number, number] | undefined {
+function parsePointLocation(value: unknown): [number, number] | undefined {
+    if (isGeoJsonPoint(value)) {
+        return value.coordinates;
+    }
+    if (typeof value !== "string") {
+        return undefined;
+    }
     const match = value.match(/POINT\s*\(\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s*\)/i);
     if (match === null) {
         return undefined;
@@ -120,6 +125,20 @@ function parsePointLocation(value: string): [number, number] | undefined {
         return undefined;
     }
     return [longitude, latitude];
+}
+
+function isGeoJsonPoint(value: unknown): value is { type: "Point", coordinates: [number, number] } {
+    if (typeof value !== "object" || value === null || !("type" in value) || !("coordinates" in value)) {
+        return false;
+    }
+    const candidate = value as { type: unknown, coordinates: unknown };
+    return (
+        candidate.type === "Point" &&
+        Array.isArray(candidate.coordinates) &&
+        candidate.coordinates.length >= 2 &&
+        typeof candidate.coordinates[0] === "number" &&
+        typeof candidate.coordinates[1] === "number"
+    );
 }
 
 function createLocationBbox([longitude, latitude]: [number, number]): [number, number, number, number] {

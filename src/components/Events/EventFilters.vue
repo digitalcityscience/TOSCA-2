@@ -34,14 +34,14 @@
             <Accordion value="">
                 <AccordionPanel value="taxonomy">
                     <AccordionHeader>
-                        <span class="text-sm font-semibold">Taxonomy</span>
+                        <span class="text-sm font-semibold">Category Filter</span>
                     </AccordionHeader>
                     <AccordionContent>
                         <div class="grid gap-2 pt-2">
                             <label class="grid gap-1 text-sm text-surface-700">
-                                Dimension
+                                Category
                                 <select v-model="dimensionCode" class="event-filter-input">
-                                    <option value="">Any dimension</option>
+                                    <option value="">Any category</option>
                                     <option
                                         v-for="dimension in taxonomyDimensions"
                                         :key="dimension.code"
@@ -52,9 +52,9 @@
                                 </select>
                             </label>
                             <label class="grid gap-1 text-sm text-surface-700">
-                                Term
+                                Value
                                 <select v-model="termCode" class="event-filter-input" :disabled="taxonomyTerms.length === 0">
-                                    <option value="">Any term</option>
+                                    <option value="">Any value</option>
                                     <option
                                         v-for="term in taxonomyTerms"
                                         :key="term.id"
@@ -78,6 +78,7 @@
 </template>
 
 <script setup lang="ts">
+import bbox from "@turf/bbox";
 import { computed, onMounted, ref, watch } from "vue";
 import Accordion from "primevue/accordion";
 import AccordionContent from "primevue/accordioncontent";
@@ -87,8 +88,10 @@ import Button from "primevue/button";
 import Checkbox from "primevue/checkbox";
 import { useToast } from "primevue/usetoast";
 import { type EventFilters, useEventsStore } from "@store/events";
+import { useMapStore } from "@store/map";
 
 const events = useEventsStore();
+const mapStore = useMapStore();
 const toast = useToast();
 
 const includePast = ref(Boolean(events.filters.include_past));
@@ -143,7 +146,7 @@ function applyFilters(): void {
     events.loadEvents().catch(showError);
 }
 
-function resetFilters(): void {
+async function resetFilters(): Promise<void> {
     includePast.value = false;
     startAfter.value = "";
     startBefore.value = "";
@@ -152,7 +155,15 @@ function resetFilters(): void {
     dimensionCode.value = "";
     termCode.value = "";
     events.setFilters({ include_past: false });
-    events.loadEvents().catch(showError);
+    try {
+        await Promise.all([
+            events.loadEvents(),
+            events.loadEventMap(),
+        ]);
+        fitMapToEvents();
+    } catch (error) {
+        showError(error);
+    }
 }
 
 function handleEventTypeChange(): void {
@@ -191,6 +202,32 @@ function toDatetimeLocal(value?: string): string {
 
 function showError(error: unknown): void {
     toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
+}
+
+function fitMapToEvents(): void {
+    if (mapStore.map === undefined || events.spatialEvents.features.length === 0) {
+        return;
+    }
+
+    const bounds = bbox(events.spatialEvents);
+    if (!bounds.every(Number.isFinite)) {
+        return;
+    }
+
+    const [minLng, minLat, maxLng, maxLat] = bounds;
+    if (minLng === maxLng && minLat === maxLat) {
+        mapStore.map.flyTo({
+            center: [minLng, minLat],
+            zoom: 14,
+            essential: true,
+        });
+        return;
+    }
+
+    mapStore.map.fitBounds(bounds, {
+        padding: 80,
+        maxZoom: 14,
+    });
 }
 </script>
 
