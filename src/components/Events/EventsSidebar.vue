@@ -6,6 +6,7 @@
         width="620px"
         :style="'width: min(620px, calc(100vw - 80px)); max-width: calc(100vw - 80px);'"
     >
+        <EventMapOverlay />
         <template #header>
             <p>Calendar and Citizen Information</p>
         </template>
@@ -32,6 +33,7 @@ import Button from "primevue/button";
 import BaseSidebarComponent from "@components/Base/BaseSidebarComponent.vue";
 import { SidebarControl } from "@helpers/sidebarControl";
 import { useMapStore } from "@store/map";
+import EventMapOverlay from "./EventMapOverlay.vue";
 
 const mapStore = useMapStore();
 const route = useRoute();

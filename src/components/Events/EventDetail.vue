@@ -75,5 +75,60 @@ async function loadEvent(eventId: string): Promise<void> {
             });
         },
     });
+    await focusEventLocation(detail);
+}
+
+async function focusEventLocation(detail: EventDetail): Promise<void> {
+    if (
+        mapStore.map === undefined ||
+        !["physical", "hybrid"].includes(detail.location_mode) ||
+        detail.location === null
+    ) {
+        return;
+    }
+
+    const coordinates = parsePointLocation(detail.location);
+    if (coordinates === undefined) {
+        return;
+    }
+
+    await events.loadEventMap(createLocationBbox(coordinates)).catch((error) => {
+        toast.add({
+            severity: "error",
+            summary: "Error",
+            detail: error,
+            life: 3000,
+        });
+    });
+
+    mapStore.map.flyTo({
+        center: coordinates,
+        zoom: Math.max(mapStore.map.getZoom(), 14),
+        essential: true,
+    });
+}
+
+function parsePointLocation(value: string): [number, number] | undefined {
+    const match = value.match(/POINT\s*\(\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s*\)/i);
+    if (match === null) {
+        return undefined;
+    }
+
+    const longitude = Number(match[1]);
+    const latitude = Number(match[2]);
+    if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) {
+        return undefined;
+    }
+    return [longitude, latitude];
+}
+
+function createLocationBbox([longitude, latitude]: [number, number]): [number, number, number, number] {
+    const padding = 0.02;
+    return [
+        longitude - padding,
+        latitude - padding,
+        longitude + padding,
+        latitude + padding,
+    ];
 }
 </script>

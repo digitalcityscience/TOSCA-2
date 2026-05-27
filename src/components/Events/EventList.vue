@@ -1,6 +1,5 @@
 <template>
     <div class="event-list">
-        <EventMapOverlay />
         <EventFilters />
 
         <div v-if="events.loadingList && events.events.length === 0" class="flex justify-center py-8">
@@ -57,7 +56,6 @@ import { useEventsStore } from "@store/events";
 import EventCalendarView from "./EventCalendarView.vue";
 import EventFilters from "./EventFilters.vue";
 import EventListItem from "./EventListItem.vue";
-import EventMapOverlay from "./EventMapOverlay.vue";
 
 const events = useEventsStore();
 const toast = useToast();

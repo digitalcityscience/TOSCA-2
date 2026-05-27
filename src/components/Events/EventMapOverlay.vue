@@ -9,12 +9,16 @@ import { useRouter } from "vue-router";
 import { useToast } from "primevue/usetoast";
 import { useEventsStore, type EventMapProperties, getEventFeatureId } from "@store/events";
 import { useMapStore } from "@store/map";
+import EventClusterPopup from "./EventClusterPopup.vue";
 import EventMapPopup from "./EventMapPopup.vue";
 
 const EVENT_SOURCE_ID = "events-route-source";
 const EVENT_LAYER_ID = "events-route-pins";
-const EVENT_HALO_LAYER_ID = "events-route-pin-halos";
-const EVENT_INTERACTIVE_LAYER_IDS = [EVENT_LAYER_ID, EVENT_HALO_LAYER_ID];
+const EVENT_CLUSTER_COUNT_LAYER_ID = "events-route-cluster-count";
+const EVENT_INTERACTIVE_LAYER_IDS = [
+    EVENT_CLUSTER_COUNT_LAYER_ID,
+    EVENT_LAYER_ID,
+];
 
 const events = useEventsStore();
 const mapStore = useMapStore();
@@ -82,27 +86,14 @@ async function waitForMapStyle(): Promise<void> {
 }
 
 function installOverlay(): void {
-    if (mapStore.map.getSource(EVENT_SOURCE_ID) === undefined) {
-        mapStore.map.addSource(EVENT_SOURCE_ID, {
-            type: "geojson",
-            data: normalizedSpatialEvents(),
-        });
-    }
-
-    if (mapStore.map.getLayer(EVENT_HALO_LAYER_ID) === undefined) {
-        mapStore.map.addLayer({
-            id: EVENT_HALO_LAYER_ID,
-            type: "circle",
-            source: EVENT_SOURCE_ID,
-            paint: {
-                "circle-color": "#ffffff",
-                "circle-radius": 12,
-                "circle-opacity": 0.92,
-                "circle-stroke-color": "#127369",
-                "circle-stroke-width": 2,
-            },
-        });
-    }
+    removeOverlay();
+    mapStore.map.addSource(EVENT_SOURCE_ID, {
+        type: "geojson",
+        data: normalizedSpatialEvents(),
+        cluster: true,
+        clusterMaxZoom: 16,
+        clusterRadius: 100,
+    });
 
     if (mapStore.map.getLayer(EVENT_LAYER_ID) === undefined) {
         mapStore.map.addLayer({
@@ -111,15 +102,57 @@ function installOverlay(): void {
             source: EVENT_SOURCE_ID,
             paint: {
                 "circle-color": [
-                    "match",
-                    ["get", "location_mode"],
-                    "hybrid", "#f59e0b",
-                    "physical", "#127369",
-                    "#2563eb",
+                    "case",
+                    ["has", "point_count"],
+                    [
+                        "step",
+                        ["get", "point_count"],
+                        "#127369",
+                        10,
+                        "#f59e0b",
+                        25,
+                        "#4338ca",
+                    ],
+                    [
+                        "match",
+                        ["get", "location_mode"],
+                        "hybrid", "#f59e0b",
+                        "physical", "#127369",
+                        "#2563eb",
+                    ],
                 ],
-                "circle-radius": 6,
+                "circle-radius": [
+                    "case",
+                    ["has", "point_count"],
+                    [
+                        "step",
+                        ["get", "point_count"],
+                        18,
+                        10, 22,
+                        25, 28,
+                    ],
+                    8,
+                ],
+                "circle-opacity": 0.92,
                 "circle-stroke-color": "#ffffff",
-                "circle-stroke-width": 1.5,
+                "circle-stroke-width": 2,
+            },
+        });
+    }
+
+    if (mapStore.map.getLayer(EVENT_CLUSTER_COUNT_LAYER_ID) === undefined) {
+        mapStore.map.addLayer({
+            id: EVENT_CLUSTER_COUNT_LAYER_ID,
+            type: "symbol",
+            source: EVENT_SOURCE_ID,
+            filter: ["has", "point_count"],
+            layout: {
+                "text-field": "{point_count_abbreviated}",
+                "text-font": ["Open Sans Regular"],
+                "text-size": 13,
+            },
+            paint: {
+                "text-color": "#ffffff",
             },
         });
     }
@@ -129,8 +162,8 @@ function removeOverlay(): void {
     if (mapStore.map.getLayer(EVENT_LAYER_ID) !== undefined) {
         mapStore.map.removeLayer(EVENT_LAYER_ID);
     }
-    if (mapStore.map.getLayer(EVENT_HALO_LAYER_ID) !== undefined) {
-        mapStore.map.removeLayer(EVENT_HALO_LAYER_ID);
+    if (mapStore.map.getLayer(EVENT_CLUSTER_COUNT_LAYER_ID) !== undefined) {
+        mapStore.map.removeLayer(EVENT_CLUSTER_COUNT_LAYER_ID);
     }
     if (mapStore.map.getSource(EVENT_SOURCE_ID) !== undefined) {
         mapStore.map.removeSource(EVENT_SOURCE_ID);
@@ -168,6 +201,12 @@ function handleMapClick(event: MapMouseEvent): void {
     if (feature === undefined) {
         return;
     }
+    if (isClusterFeature(feature)) {
+        showClusterPopup(feature, event).catch((error) => {
+            toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
+        });
+        return;
+    }
     const properties = feature.properties as EventMapProperties | undefined;
     const eventId = getEventFeatureId(feature.id, properties);
     if (properties === undefined || eventId === "") {
@@ -195,20 +234,91 @@ function handleMapClick(event: MapMouseEvent): void {
     });
 }
 
+async function showClusterPopup(feature: maplibre.MapGeoJSONFeature, event: MapMouseEvent): Promise<void> {
+    const source = mapStore.map.getSource(EVENT_SOURCE_ID) as GeoJSONSource | undefined;
+    const clusterId = Number(feature.properties?.cluster_id);
+    const pointCount = Number(feature.properties?.point_count);
+    if (source === undefined || !Number.isFinite(clusterId) || !Number.isFinite(pointCount)) {
+        return;
+    }
+
+    const leaves = await source.getClusterLeaves(clusterId, pointCount, 0);
+    const clusterEvents = leaves
+        .map((leaf) => {
+            const properties = leaf.properties as EventMapProperties | undefined;
+            const eventId = getEventFeatureId(leaf.id, properties);
+            if (properties === undefined || eventId === "") {
+                return undefined;
+            }
+            return {
+                ...properties,
+                id: eventId,
+            };
+        })
+        .filter((item): item is EventMapProperties => item !== undefined);
+
+    if (clusterEvents.length === 0) {
+        return;
+    }
+
+    popup?.remove();
+    const popupContainer = document.createElement("div");
+    render(h(EventClusterPopup, {
+        events: clusterEvents,
+        onOpenDetails: (eventId: string) => {
+            popup?.remove();
+            router.push({ name: "event-detail", params: { eventId } }).catch(() => {});
+        },
+    }), popupContainer);
+    popup = new maplibre.Popup({ maxWidth: "none", closeButton: false })
+        .setLngLat(event.lngLat)
+        .setDOMContent(popupContainer)
+        .addTo(mapStore.map);
+    popup.on("close", () => {
+        render(null, popupContainer);
+    });
+}
+
+function isClusterFeature(feature: maplibre.MapGeoJSONFeature): boolean {
+    return feature.properties?.cluster === true || feature.properties?.cluster === 1;
+}
+
 function normalizedSpatialEvents(): GeoJSON.FeatureCollection {
     return {
         ...events.spatialEvents,
-        features: events.spatialEvents.features.map((feature) => {
-            const id = getEventFeatureId(feature.id, feature.properties ?? undefined);
-            return {
-                ...feature,
-                properties: {
-                    ...(feature.properties ?? {}),
-                    id,
-                },
-            };
-        }),
+        features: events.spatialEvents.features.map(normalizeSingleFeature),
     };
+}
+
+function normalizeSingleFeature(feature: GeoJSON.Feature): GeoJSON.Feature {
+    const id = getEventFeatureId(feature.id, feature.properties ?? undefined);
+    return {
+        ...feature,
+        properties: {
+            ...normalizeFeatureProperties(feature.properties ?? {}),
+            cluster: false,
+            id,
+        },
+    };
+}
+
+function normalizeFeatureProperties(properties: Record<string, unknown>): Record<string, string | number | boolean | null> {
+    return Object.fromEntries(
+        Object.entries(properties).map(([key, value]) => {
+            if (
+                value === null ||
+                typeof value === "string" ||
+                typeof value === "number" ||
+                typeof value === "boolean"
+            ) {
+                return [key, value];
+            }
+            if (value === undefined) {
+                return [key, null];
+            }
+            return [key, JSON.stringify(value)];
+        })
+    );
 }
 
 function setPointerCursor(): void {
