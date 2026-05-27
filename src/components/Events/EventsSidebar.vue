@@ -7,7 +7,7 @@
         :style="'width: min(620px, calc(100vw - 80px)); max-width: calc(100vw - 80px);'"
     >
         <template #header>
-            <p>Events</p>
+            <p>Calendar and Citizen Information</p>
         </template>
         <div class="nav w-full flex justify-end py-1">
             <Button

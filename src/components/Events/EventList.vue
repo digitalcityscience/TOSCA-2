@@ -32,16 +32,6 @@
                             :event="event"
                         />
                     </div>
-
-                    <div v-if="events.next !== null" class="flex justify-center py-4">
-                        <Button
-                            icon="pi pi-plus"
-                            label="Load more"
-                            severity="secondary"
-                            :loading="events.loadingList"
-                            @click="loadMore"
-                        />
-                    </div>
                 </TabPanel>
                 <TabPanel value="calendar">
                     <div class="pt-3">
@@ -55,7 +45,6 @@
 
 <script setup lang="ts">
 import { onMounted } from "vue";
-import Button from "primevue/button";
 import Message from "primevue/message";
 import ProgressSpinner from "primevue/progressspinner";
 import Tab from "primevue/tab";
@@ -78,10 +67,6 @@ onMounted(() => {
         events.loadEvents().catch(showError);
     }
 });
-
-function loadMore(): void {
-    events.loadMoreEvents().catch(showError);
-}
 
 function showError(error: unknown): void {
     toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });

@@ -96,7 +96,7 @@ describe("events store", () => {
         );
     });
 
-    test("loads first page and appends cursor pages", async () => {
+    test("loads every cursor page in one request cycle", async () => {
         fetchMock
             .mockResolvedValueOnce(jsonResponse({
                 next: "/api/v1/events/?cursor=next",
@@ -111,9 +111,9 @@ describe("events store", () => {
 
         const events = useEventsStore();
         await events.loadEvents();
-        await events.loadMoreEvents();
 
         expect(events.events.map((event) => event.id)).toEqual(["1", "2"]);
+        expect(events.next).toBeNull();
         expect(fetchMock.mock.calls[0][0].toString()).toBe(
             "http://localhost:8000/api/v1/events/"
         );

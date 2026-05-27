@@ -349,34 +349,20 @@ export const useEventsStore = defineStore("events", () => {
         loadingList.value = true;
         error.value = "";
         try {
-            const response = await fetchJson<EventListResponse>(
-                buildEventListUrl(filters.value)
-            );
-            events.value = response.results;
-            next.value = response.next;
-            previous.value = response.previous;
-        } catch (err) {
-            error.value = String(err);
-            throw err;
-        } finally {
-            loadingList.value = false;
-        }
-    }
+            const allEvents: EventListItem[] = [];
+            let pageUrl: URL | null = buildEventListUrl(filters.value);
+            let lastPrevious: string | null = null;
 
-    async function loadMoreEvents(): Promise<void> {
-        if (next.value === null) {
-            return;
-        }
+            while (pageUrl !== null) {
+                const response: EventListResponse = await fetchJson<EventListResponse>(pageUrl);
+                allEvents.push(...response.results);
+                lastPrevious = response.previous;
+                pageUrl = response.next === null ? null : resolveBackendUrl(response.next);
+            }
 
-        loadingList.value = true;
-        error.value = "";
-        try {
-            const response = await fetchJson<EventListResponse>(
-                resolveBackendUrl(next.value)
-            );
-            events.value = [...events.value, ...response.results];
-            next.value = response.next;
-            previous.value = response.previous;
+            events.value = allEvents;
+            next.value = null;
+            previous.value = lastPrevious;
         } catch (err) {
             error.value = String(err);
             throw err;
@@ -442,7 +428,6 @@ export const useEventsStore = defineStore("events", () => {
         loadEventTypes,
         loadEventTaxonomy,
         loadEvents,
-        loadMoreEvents,
         loadEventMap,
         getEventDetail,
         getSeriesDetail,
