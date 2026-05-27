@@ -164,8 +164,9 @@ h4.story-heading {
 
 .story-image-block :deep(.story-inline-image) {
     width: 100%;
-    max-height: 420px;
-    object-fit: cover;
+    height: auto;
+    max-height: none;
+    object-fit: contain;
     border-radius: 6px;
 }
 
