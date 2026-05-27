@@ -1,6 +1,6 @@
 <template>
     <section v-if="profile !== null" class="grid gap-3">
-        <h3 class="text-lg font-semibold text-surface-900">Public health details</h3>
+        <h3 class="text-lg font-semibold text-surface-900">More details</h3>
         <div class="grid gap-2">
             <div v-for="item in visibleItems" :key="item.label" class="flex justify-between gap-3 border-b border-surface-100 pb-2">
                 <span class="text-sm text-surface-500">{{ item.label }}</span>
