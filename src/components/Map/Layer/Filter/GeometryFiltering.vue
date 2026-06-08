@@ -1,7 +1,7 @@
 <template>
 	<div class="geometry-filter w-full" v-if="(props.layer.filterLayer === undefined && isPolygonTiles)">
 		<div class="new-filter w-full pt-2" v-if="!hasGeometryFilter">
-			<Card>
+			<Card class="geometry-filtering">
 				<template #title>Geometry Filtering</template>
 				<template #subtitle>Select geometry layer to filter this layer</template>
 				<template #content>
@@ -244,4 +244,16 @@ function removeGeometryFilter(): void{
 }
 </script>
 
-<style scoped></style>
+<style scoped>
+.geometry-filtering :deep(.p-card-title) {
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+.geometry-filtering :deep(.p-card-subtitle) {
+    font-size: 0.8rem;
+    margin-top: 0.15rem;
+}
+.geometry-filtering :deep(.p-card-body) {
+    padding: 0.75rem;
+}
+</style>
