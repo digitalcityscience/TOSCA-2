@@ -212,4 +212,15 @@ async function deleteAttributeFilter(targetFilter: AppliedFilter): Promise<void>
 .current-filters:deep([data-pc-section="headerrow"]){
     display: none
 }
+.attribute-filtering :deep(.p-card-title) {
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+.attribute-filtering :deep(.p-card-subtitle) {
+    font-size: 0.8rem;
+    margin-top: 0.15rem;
+}
+.attribute-filtering :deep(.p-card-body) {
+    padding: 0.75rem;
+}
 </style>

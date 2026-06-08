@@ -1,12 +1,8 @@
 <template>
     <div v-if="domain !== undefined" class="raster-time-control">
-        <div class="flex items-center justify-between mt-2">
-            <span class="font-bold">Time</span>
-            <span v-if="domain.source !== 'capabilities'" class="text-xs opacity-70" :title="`Time domain source: ${domain.source}`">{{ domain.source }}</span>
-        </div>
-        <div class="flex items-center gap-2 mt-2">
+        <div class="flex items-center gap-2">
             <Button
-                class="w-8 h-8 p-0 shrink-0"
+                class="w-7 h-7 p-0 shrink-0"
                 :icon="isPlaying ? 'pi pi-pause' : 'pi pi-play'"
                 :aria-label="isPlaying ? 'Pause time animation' : 'Play time animation'"
                 text
@@ -22,13 +18,14 @@
                 @update:model-value="onIndexChange"
             />
         </div>
-        <div class="flex justify-between text-xs opacity-70 mt-1">
+        <div class="flex justify-between text-xs opacity-60 mt-1">
             <span>{{ formatLabel(domain.values[0]) }}</span>
+            <span class="font-medium opacity-100" :title="domain.values[index]">{{ formatLabel(domain.values[index]) }}</span>
             <span>{{ formatLabel(domain.values[domain.values.length - 1]) }}</span>
         </div>
     </div>
-    <div v-else-if="loading" class="mt-2 text-xs opacity-70">Loading time domain…</div>
-    <div v-else-if="error !== undefined" class="mt-2 text-xs text-red-500">{{ error }}</div>
+    <div v-else-if="loading" class="text-xs opacity-70">Loading time domain…</div>
+    <div v-else-if="error !== undefined" class="text-xs text-red-500">{{ error }}</div>
 </template>
 
 <script setup lang="ts">

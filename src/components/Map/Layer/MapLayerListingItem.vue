@@ -9,18 +9,24 @@
                     :title="layerHeaderIndicatorTitle"
                     aria-hidden="true"
                 ></span>
-                <Button class="layer-drag-handle w-8 h-8 p-0 mr-1 cursor-move" icon="pi pi-bars" text rounded aria-label="Reorder layer"
+                <Button class="layer-drag-handle layer-icon-btn cursor-move" icon="pi pi-bars" text rounded aria-label="Reorder layer"
                     @click.stop></Button>
-                <div class="flex">
-                    <ToggleSwitch v-model="checked" @update:model-value="changeLayerVisibility" />
+                <ToggleSwitch class="shrink-0" v-model="checked" @update:model-value="changeLayerVisibility" />
+                <div class="layer-name-area">
+                    <span class="layer-name capitalize truncate">
+                        {{ (props.layer.displayName ?? props.layer.source).replaceAll("_", " ") }}
+                    </span>
+                    <i v-if="hasTimeDimension"
+                       class="pi pi-clock layer-time-badge"
+                       title="Temporal layer"
+                       aria-label="Temporal layer"></i>
                 </div>
-                <span v-if="props.layer.displayName" class="capitalize mr-auto ml-2 truncate ...">{{ props.layer.displayName.replaceAll("_", " ") }}</span>
-                <span v-else class="capitalize mr-auto ml-2 truncate ...">{{ props.layer.source.replaceAll("_", " ") }}</span>
-                <Tag v-if="hasTimeDimension" class="mr-1" severity="info" icon="pi pi-clock" value="Time" title="Temporal raster layer"></Tag>
-                <Button class="w-8 h-8 p-0 mr-1" icon="pi pi-trash" severity="danger" text rounded aria-label="Delete"
-                    @click="confirmDialogVisibility = true"></Button>
-                    <Button class="w-8 h-8 p-0 mr-1" icon="pi pi-search-plus" text rounded aria-label="Zoom"
+                <div class="layer-actions">
+                    <Button class="layer-icon-btn" icon="pi pi-trash" severity="danger" text rounded aria-label="Delete"
+                        @click="confirmDialogVisibility = true"></Button>
+                    <Button class="layer-icon-btn" icon="pi pi-search-plus" text rounded aria-label="Zoom"
                         @click="zoomToLayer"></Button>
+                </div>
                 <Dialog v-model:visible="confirmDialogVisibility" modal header="Delete Map Layer" :style="{ width: '25rem' }">
                     <span class="p-text-secondary block mb-5">Are you sure want to delete {{ props.layer.displayName ?? props.layer.source }} layer?</span>
                     <div class="flex justify-content-end gap-2">
@@ -29,32 +35,37 @@
                     </div>
                 </Dialog>
             </template>
-            <div>
-                <div v-if="hasEditableLayerColor">
-                    <label class="flex w-full leading-none pointer-events-none items-baseline">
-                        <span class="font-bold mt-2 min-w-[25%]">Color</span>
+            <div class="layer-panel-body">
+                <section class="layer-section">
+                    <h4 class="layer-section-title">Style</h4>
+                    <label v-if="hasEditableLayerColor" class="layer-row pointer-events-none">
+                        <span class="layer-row-label">Color</span>
                         <ColorPicker aria-label="Change Color" class="pointer-events-auto" format="hex" v-model="color"
                             :baseZIndex="10" @update:model-value="queueLayerColorChange" @hide="flushLayerColorChange"></ColorPicker>
                     </label>
-                </div>
-                    <label class="flex w-full leading-none items-center mt-2">
-                        <span class="font-bold mt-2 min-w-[25%]">Opacity</span>
-                        <Slider aria-label="Change Opacity" class="mt-2 ml-2 flex-grow" v-model="opacity" :step="0.1" :min=0
+                    <label class="layer-row">
+                        <span class="layer-row-label">Opacity</span>
+                        <Slider aria-label="Change Opacity" class="flex-grow" v-model="opacity" :step="0.1" :min=0
                             :max=1 @update:model-value="changeLayerOpac" :pt="{
                                 range: { style: { 'background': `#${color}` } },
                                 handle: { style: { 'background': `#${color}`, 'border-color': `#${color}` } }
                             }"
                         />
                     </label>
-                <RasterLayerTimeControl v-if="hasTimeDimension" :layer="props.layer" />
-            </div>
-            <div v-if="(props.layer.filterLayer == undefined || props.layer.filterLayer === false) && (props.layer.type !== 'raster')" class="py-2">
-                <AttributeFiltering :layer="props.layer"></AttributeFiltering>
-                <GeometryFiltering :layer="props.layer"></GeometryFiltering>
-            </div>
-            <div class="py-1" v-else></div>
-            <div v-if="props.layer.type !== 'raster'" class="w-full py-3">
-                <MapLayerResultTable :layer="props.layer"></MapLayerResultTable>
+                </section>
+                <section v-if="hasTimeDimension" class="layer-section">
+                    <h4 class="layer-section-title">Time</h4>
+                    <RasterLayerTimeControl :layer="props.layer" />
+                </section>
+                <section v-if="showFiltering" class="layer-section">
+                    <h4 class="layer-section-title">Filtering</h4>
+                    <AttributeFiltering :layer="props.layer"></AttributeFiltering>
+                    <GeometryFiltering :layer="props.layer"></GeometryFiltering>
+                </section>
+                <section v-if="props.layer.type !== 'raster'" class="layer-section">
+                    <h4 class="layer-section-title">Data</h4>
+                    <MapLayerResultTable :layer="props.layer"></MapLayerResultTable>
+                </section>
             </div>
         </Panel>
     </div>
@@ -70,7 +81,6 @@ import Button from "primevue/button"
 import { useToast } from "primevue/usetoast";
 import { isNullOrEmpty } from "@helpers/functions";
 import { type GeoserverRasterTypeLayerDetail, type GeoServerVectorTypeLayerDetail, getTimeDimension } from "@store/geoserver";
-import Tag from "primevue/tag";
 
 const ColorPicker = defineAsyncComponent(async () => await import("primevue/colorpicker"));
 const Dialog = defineAsyncComponent(async () => await import("primevue/dialog"));
@@ -162,6 +172,10 @@ const hasEditableLayerColor = computed<boolean>(() => {
     void mapStore.paintVersion;
     return getEditableColorPaintProperty(props.layer.type) !== "" &&
         typeof getLayerPaintProperty(getEditableColorPaintProperty(props.layer.type)) === "string";
+})
+const showFiltering = computed<boolean>(() => {
+    if (props.layer.type === "raster") return false
+    return props.layer.filterLayer === undefined || props.layer.filterLayer === false
 })
 /**
  * Exposes the editable color paint property when it is an expression (array).
@@ -463,5 +477,73 @@ function createLayerHeaderIndicatorBackground(indicator: LayerHeaderIndicator): 
 .layer-color-rail-raster,
 .layer-color-rail-unknown {
     border: 1px solid rgb(255 255 255 / 0.7);
+}
+
+.layer-panel-body {
+    display: flex;
+    flex-direction: column;
+}
+.layer-section {
+    padding: 0.5rem 0;
+}
+.layer-section + .layer-section {
+    border-top: 1px solid var(--p-content-border-color, rgb(0 0 0 / 0.08));
+}
+.layer-section-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    opacity: 0.6;
+    margin: 0 0 0.4rem 0;
+}
+.layer-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 1.75rem;
+    padding: 0.15rem 0;
+}
+.layer-row + .layer-row {
+    margin-top: 0.25rem;
+}
+.layer-row-label {
+    font-weight: 600;
+    min-width: 25%;
+}
+
+/* Header row: fixed-size controls so trash/zoom align across layers */
+.layer-icon-btn {
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    flex: 0 0 auto;
+}
+.map-layer-listing-panel :deep(.p-panel-header) {
+    gap: 0.25rem;
+}
+.layer-name-area {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-left: 0.25rem;
+}
+.layer-name {
+    min-width: 0;
+    flex: 0 1 auto;
+}
+.layer-time-badge {
+    flex: 0 0 auto;
+    font-size: 0.75rem;
+    opacity: 0.55;
+    cursor: default;
+}
+.layer-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+    flex: 0 0 auto;
 }
 </style>
