@@ -53,7 +53,7 @@
                         />
                     </label>
                 </section>
-                <section v-if="legendUrl !== undefined && !legendError" class="layer-section">
+                <section v-if="showServerLegend" class="layer-section">
                     <h4 class="layer-section-title">Legend</h4>
                     <div class="layer-legend-wrapper">
                         <img :src="legendUrl" alt="Layer legend" class="layer-legend-image" @error="legendError = true" />
@@ -187,6 +187,21 @@ const hasEditableLayerColor = computed<boolean>(() => {
     void mapStore.paintVersion;
     return getEditableColorPaintProperty(props.layer.type) !== "" &&
         typeof getLayerPaintProperty(getEditableColorPaintProperty(props.layer.type)) === "string";
+})
+/**
+ * Only show GeoServer's legend image when the rendered map color matches
+ * what the SLD describes. For vector layers whose single editable color we
+ * override client-side (circle/fill/line with a string color), the SLD
+ * swatch would lie about the on-map color — suppress it in that case. The
+ * header color rail already conveys the active color.
+ *
+ * Raster layers and layers with non-string color expressions keep using the
+ * server-rendered legend, since we don't repaint them.
+ */
+const showServerLegend = computed<boolean>(() => {
+    if (legendUrl.value === undefined || legendError.value) return false
+    if (hasEditableLayerColor.value) return false
+    return true
 })
 const showFiltering = computed<boolean>(() => {
     if (props.layer.type === "raster") return false
