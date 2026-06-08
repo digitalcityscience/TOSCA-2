@@ -229,6 +229,20 @@ export interface WmsBoundingBox {
   maxx: number;
   maxy: number;
 }
+export interface WmsLegendUrl {
+  /** Absolute URL to the legend graphic, as advertised by GeoServer. */
+  href: string;
+  /** MIME type of the legend image (e.g. "image/png"), when provided. */
+  format?: string;
+  width?: number;
+  height?: number;
+}
+export interface WmsStyle {
+  name: string;
+  title?: string;
+  abstract?: string;
+  legendUrls: WmsLegendUrl[];
+}
 export interface WmsCapabilitiesLayer {
   name: string;
   title: string;
@@ -240,11 +254,78 @@ export interface WmsCapabilitiesLayer {
   queryable: boolean;
   opaque: boolean;
   timeDimension?: WmsTimeDimension;
+  styles: WmsStyle[];
 }
 export interface WmsCapabilities {
   version: string;
   workspace: string;
   layers: Map<string, WmsCapabilitiesLayer>;
+}
+/**
+ * Builds a GetLegendGraphic URL as a fallback when GetCapabilities does not
+ * advertise a LegendURL for the layer's default style. GeoServer renders a
+ * PNG legend swatch from this endpoint without needing a style name.
+ */
+export function buildWmsLegendUrl(workspace: string, layerName: string): string {
+  const params = new URLSearchParams({
+    REQUEST: "GetLegendGraphic",
+    VERSION: "1.0.0",
+    FORMAT: "image/png",
+    LAYER: `${workspace}:${layerName}`,
+    TRANSPARENT: "true",
+    // Compact legend tuned for the side panel: drop empty/invisible rules so
+    // GeoServer doesn't pad the canvas, anti-alias labels, and stay
+    // transparent so any residual blank canvas blends into the wrapper.
+    LEGEND_OPTIONS: "fontAntiAliasing:true;fontSize:11;forceLabels:on;hideEmptyRules:true",
+  });
+  return `${import.meta.env.VITE_GEOSERVER_BASE_URL}/${workspace}/wms?${params.toString()}`;
+}
+/**
+ * If `url` already points at a GeoServer GetLegendGraphic endpoint, merge in
+ * the high-DPI rendering options we use for the constructed fallback so the
+ * advertised LegendURL renders crisp instead of blurry when scaled.
+ */
+export function enhanceLegendUrl(url: string): string {
+  if (!url.includes("GetLegendGraphic")) return url;
+  try {
+    const parsed = new URL(url);
+    if (!parsed.searchParams.has("LEGEND_OPTIONS")) {
+      parsed.searchParams.set(
+        "LEGEND_OPTIONS",
+        "fontAntiAliasing:true;fontSize:11;forceLabels:on;hideEmptyRules:true"
+      );
+    }
+    if (!parsed.searchParams.has("TRANSPARENT")) {
+      parsed.searchParams.set("TRANSPARENT", "true");
+    }
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+/**
+ * Resolves the best legend image URL for a WMS layer:
+ *   1. The first LegendURL advertised in GetCapabilities (matches the layer's
+ *      default style when present), or
+ *   2. A constructed GetLegendGraphic URL as a fallback.
+ *
+ * Returns undefined only if the capabilities document cannot be fetched and
+ * the caller wants to suppress a broken-image render.
+ */
+export async function resolveLegendUrl(
+  fetchCapabilities: (workspace: string) => Promise<WmsCapabilities>,
+  workspace: string,
+  layerName: string
+): Promise<string> {
+  try {
+    const caps = await fetchCapabilities(workspace);
+    const layer = caps.layers.get(layerName);
+    const advertised = layer?.styles.flatMap((s) => s.legendUrls)[0]?.href;
+    if (advertised !== undefined && advertised !== "") return enhanceLegendUrl(advertised);
+  } catch {
+    // fall through to the constructed URL
+  }
+  return buildWmsLegendUrl(workspace, layerName);
 }
 /**
  * Hard fallback bounds for the time slider when neither the coverage metadata
@@ -401,6 +482,33 @@ export function parseWmsCapabilities(
         };
       }
     }
+    const styles: WmsStyle[] = Array.from(el.querySelectorAll(":scope > Style")).map((styleEl) => {
+      const childText = (tag: string): string =>
+        Array.from(styleEl.children).find((c) => c.tagName === tag)?.textContent ?? "";
+      const legendUrls: WmsLegendUrl[] = Array.from(styleEl.querySelectorAll(":scope > LegendURL")).map((legendEl) => {
+        const resource = legendEl.querySelector(":scope > OnlineResource");
+        // xlink namespace is the canonical carrier, but some servers omit the prefix.
+        const href = resource?.getAttributeNS("http://www.w3.org/1999/xlink", "href")
+          ?? resource?.getAttribute("xlink:href")
+          ?? resource?.getAttribute("href")
+          ?? "";
+        const format = Array.from(legendEl.children).find((c) => c.tagName === "Format")?.textContent ?? undefined;
+        const widthAttr = legendEl.getAttribute("width");
+        const heightAttr = legendEl.getAttribute("height");
+        return {
+          href,
+          format,
+          width: widthAttr !== null ? Number(widthAttr) : undefined,
+          height: heightAttr !== null ? Number(heightAttr) : undefined,
+        };
+      }).filter((l) => l.href !== "");
+      return {
+        name: childText("Name"),
+        title: childText("Title") || undefined,
+        abstract: childText("Abstract") || undefined,
+        legendUrls,
+      };
+    });
     layers.set(name, {
       name,
       title: getChildText("Title"),
@@ -412,6 +520,7 @@ export function parseWmsCapabilities(
       queryable: el.getAttribute("queryable") === "1",
       opaque: el.getAttribute("opaque") === "1",
       timeDimension,
+      styles,
     });
   });
   return { version, workspace, layers };

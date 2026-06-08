@@ -53,6 +53,12 @@
                         />
                     </label>
                 </section>
+                <section v-if="legendUrl !== undefined && !legendError" class="layer-section">
+                    <h4 class="layer-section-title">Legend</h4>
+                    <div class="layer-legend-wrapper">
+                        <img :src="legendUrl" alt="Layer legend" class="layer-legend-image" @error="legendError = true" />
+                    </div>
+                </section>
                 <section v-if="hasTimeDimension" class="layer-section">
                     <h4 class="layer-section-title">Time</h4>
                     <RasterLayerTimeControl :layer="props.layer" />
@@ -80,7 +86,13 @@ import ToggleSwitch from "primevue/toggleswitch";
 import Button from "primevue/button"
 import { useToast } from "primevue/usetoast";
 import { isNullOrEmpty } from "@helpers/functions";
-import { type GeoserverRasterTypeLayerDetail, type GeoServerVectorTypeLayerDetail, getTimeDimension } from "@store/geoserver";
+import {
+    type GeoserverRasterTypeLayerDetail,
+    type GeoServerVectorTypeLayerDetail,
+    getTimeDimension,
+    resolveLegendUrl,
+    useGeoserverStore,
+} from "@store/geoserver";
 
 const ColorPicker = defineAsyncComponent(async () => await import("primevue/colorpicker"));
 const Dialog = defineAsyncComponent(async () => await import("primevue/dialog"));
@@ -94,6 +106,9 @@ export interface Props {
 }
 const props = defineProps<Props>()
 const mapStore = useMapStore()
+const geoserver = useGeoserverStore()
+const legendUrl = ref<string>()
+const legendError = ref<boolean>(false)
 const collapsed = ref<boolean>(false)
 const color = ref<string>("000000")
 const opacity = ref<number>(1)
@@ -206,7 +221,30 @@ onMounted(() => {
     if (mapStore.map.getLayoutProperty(props.layer.id, "visibility") === "none") {
         checked.value = false
     }
+    void loadLegend()
 })
+/**
+ * Resolves a legend image URL via WMS GetCapabilities (or the GetLegendGraphic
+ * fallback) for any layer bound to a GeoServer workspace. We render whatever
+ * GeoServer can produce — if the request 404s at the <img>, `legendError`
+ * suppresses the section so we don't show a broken icon.
+ */
+async function loadLegend(): Promise<void> {
+    if (props.layer.workspaceName === undefined) return
+    const details = props.layer.details
+    const layerName = (details as GeoserverRasterTypeLayerDetail | undefined)?.coverage?.name
+        ?? (details as GeoServerVectorTypeLayerDetail | undefined)?.featureType?.name
+    if (layerName === undefined || layerName === "") return
+    try {
+        legendUrl.value = await resolveLegendUrl(
+            async (ws) => await geoserver.fetchWmsCapabilities(ws),
+            props.layer.workspaceName,
+            layerName
+        )
+    } catch (error) {
+        console.error("Could not resolve legend URL", error)
+    }
+}
 function changeLayerColor(color: string): void {
     const prop = getEditableColorPaintProperty(props.layer.type);
     if (prop === "") {
@@ -539,6 +577,24 @@ function createLayerHeaderIndicatorBackground(indicator: LayerHeaderIndicator): 
     font-size: 0.75rem;
     opacity: 0.55;
     cursor: default;
+}
+.layer-legend-wrapper {
+    display: inline-block;
+    max-width: 100%;
+    overflow-x: auto;
+    /* No background — GeoServer renders the legend transparent so any residual
+       canvas padding blends with the side panel. */
+}
+.layer-legend-image {
+    display: block;
+    /* Constrain to a side-panel-friendly footprint while preserving aspect
+       ratio. `object-fit: contain` keeps the swatch sharp without cropping
+       when the natural image is larger than the box. */
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 200px;
+    object-fit: contain;
 }
 .layer-actions {
     display: flex;
