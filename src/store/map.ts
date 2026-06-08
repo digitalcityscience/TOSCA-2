@@ -33,6 +33,13 @@ export interface CustomAddLayerObject {
 export interface LayerObjectWithAttributes extends CustomAddLayerObject {
     details?: GeoServerVectorTypeLayerDetail | GeoserverRasterTypeLayerDetail;
     workspaceName?: string;
+    sourceProtocol?: "wms" | "wmts";
+    /**
+     * Currently selected time for a temporal raster layer. A single ISO 8601
+     * instant or a "start/end" range. Mirrors the WMS TIME parameter so the UI
+     * can render the active selection.
+     */
+    time?: string;
 }
 type SourceType = "geojson" | "geoserver";
 export type MapLibreLayerTypes =
@@ -71,6 +78,7 @@ interface GeoServerLayerParams extends BaseLayerParams {
     sourceDataType: "vector" | "raster";
     sourceProtocol?: "wms" | "wmts";
     workspaceName?: string;
+    time?: string;
 }
 export type LayerParams = GeoJSONLayerParams | GeoServerLayerParams;
 export interface BaseDataSourceParams {
@@ -84,12 +92,44 @@ export interface GeoServerSourceParams extends BaseDataSourceParams {
     layer: GeoServerVectorTypeLayerDetail | GeoserverRasterTypeLayerDetail;
     sourceDataType: "vector" | "raster";
     sourceProtocol?: "wms" | "wmts";
+    /** Single ISO 8601 instant or "start/end" range for the WMS TIME param. */
+    time?: string;
 }
 export interface GeoJSONSourceParams extends BaseDataSourceParams {
     sourceType: "geojson";
     geoJSONSrc: FeatureCollection;
 }
 export type SourceParams = GeoJSONSourceParams | GeoServerSourceParams;
+/**
+ * Builds a WMS GetMap tile URL for a raster source. MapLibre substitutes
+ * `{bbox-epsg-3857}` per tile, so the URL is a tile template, not a one-shot
+ * request. `time` is appended only when defined so callers can rely on the
+ * GeoServer-side default behaviour when no selection has been made.
+ */
+function buildWmsRasterTileUrl(opts: {
+    workspace: string
+    layerName: string
+    time?: string
+}): string {
+    const params = new URLSearchParams({
+        REQUEST: "GetMap",
+        SERVICE: "WMS",
+        VERSION: "1.3.0",
+        LAYERS: `${opts.workspace}:${opts.layerName}`,
+        STYLES: "",
+        CRS: "EPSG:3857",
+        WIDTH: "256",
+        HEIGHT: "256",
+        transparent: "true",
+        format: "image/png",
+        TILED: "true",
+    });
+    if (opts.time !== undefined && opts.time !== "") {
+        params.set("TIME", opts.time);
+    }
+    // BBOX must stay unencoded so MapLibre can substitute its tile token.
+    return `${import.meta.env.VITE_GEOSERVER_BASE_URL}/wms?${params.toString()}&BBOX={bbox-epsg-3857}`;
+}
 export const useMapStore = defineStore("map", () => {
     const toast = useToast();
     /**
@@ -170,21 +210,11 @@ export const useMapStore = defineStore("map", () => {
                         map.value?.addSource(identifier, {
                             type: "raster",
                             tiles: [
-                                `${import.meta.env.VITE_GEOSERVER_BASE_URL}/wms
-								?REQUEST=GetMap
-								&SERVICE=WMS
-								&VERSION=1.3.0
-								&LAYERS=${params.workspaceName}:${
-    (params.layer as GeoserverRasterTypeLayerDetail).coverage.name
-}
-								&STYLES=
-								&CRS=EPSG:3857
-								&WIDTH=256
-								&HEIGHT=256
-								&BBOX={bbox-epsg-3857}
-								&transparent=true
-								&format=image/png
-								&TILED=true`,
+                                buildWmsRasterTileUrl({
+                                    workspace: params.workspaceName,
+                                    layerName: (params.layer as GeoserverRasterTypeLayerDetail).coverage.name,
+                                    time: params.time,
+                                }),
                             ],
                         });
                     }
@@ -379,6 +409,8 @@ export const useMapStore = defineStore("map", () => {
                 (layerObject as LayerObjectWithAttributes).workspaceName =
           params.workspaceName;
             }
+            (layerObject as LayerObjectWithAttributes).sourceProtocol = params.sourceProtocol;
+            (layerObject as LayerObjectWithAttributes).time = params.time;
         }
         add2MapLayerList(layerObject as LayerObjectWithAttributes, index);
         return map.value.getLayer(identifier) as AddLayerObject;
@@ -799,6 +831,41 @@ export const useMapStore = defineStore("map", () => {
             return "heatmap";
         }
     }
+    /**
+     * Updates the WMS TIME parameter for an already-added raster layer in place.
+     * Rebuilds the source's tile URLs via setTiles, which triggers a refetch
+     * without removing or re-adding the layer, so z-order and any user-tweaked
+     * paint properties survive.
+     *
+     * @param identifier - The source identifier used when the layer was added.
+     * @param time - ISO 8601 instant, "start/end" range, or undefined to clear
+     *               the TIME param and fall back to the server's default.
+     */
+    function setRasterLayerTime(identifier: string, time: string | undefined): void {
+        if (isNullOrEmpty(map.value)) {
+            throw new Error("There is no map to update");
+        }
+        const source = map.value?.getSource(identifier);
+        if (source === undefined) {
+            throw new Error(`Source with identifier ${identifier} not found`);
+        }
+        const layer = layersOnMap.value.find((l) => l.id === identifier);
+        if (layer?.details === undefined || layer.workspaceName === undefined) {
+            throw new Error(`Layer ${identifier} is not a workspace-bound raster layer`);
+        }
+        const details = layer.details as GeoserverRasterTypeLayerDetail;
+        if (details.coverage === undefined) {
+            throw new Error(`Layer ${identifier} is not a raster layer`);
+        }
+        const url = buildWmsRasterTileUrl({
+            workspace: layer.workspaceName,
+            layerName: details.coverage.name,
+            time,
+        });
+        // MapLibre's raster source exposes setTiles at runtime; cast to access it.
+        (source as unknown as { setTiles: (tiles: string[]) => void }).setTiles([url]);
+        layer.time = time;
+    }
     return {
         map,
         layersOnMap,
@@ -813,6 +880,7 @@ export const useMapStore = defineStore("map", () => {
         paintVersion,
         resetMapData,
         geometryConversion,
+        setRasterLayerTime,
     };
 });
 /* eslint-disable */
