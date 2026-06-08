@@ -36,6 +36,12 @@
                                     <strong>{{ bullet.label }}</strong> {{ bullet.text }}
                                 </p>
                             </section>
+                            <section v-if="activeLayer !== undefined && legendUrl !== undefined && !legendError" class="mt-4">
+                                <h3 class="text-lg font-medium mb-2">Legend</h3>
+                                <div class="scenario-legend-wrapper">
+                                    <img :src="legendUrl" alt="Layer legend" class="scenario-legend-image" @error="legendError = true" />
+                                </div>
+                            </section>
                             <section v-if="activeLayer !== undefined" class="mt-4">
                                 <h3 class="text-lg font-medium mb-2">Time Series Slider</h3>
                                 <RasterLayerTimeControl :layer="activeLayer" :auto-play="true" />
@@ -47,6 +53,22 @@
         </div>
     </BaseSidebarComponent>
 </template>
+
+<style scoped>
+.scenario-legend-wrapper {
+    display: inline-block;
+    max-width: 100%;
+    overflow-x: auto;
+}
+.scenario-legend-image {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 200px;
+    object-fit: contain;
+}
+</style>
 
 <script setup lang="ts">
 import Accordion from "primevue/accordion";
@@ -71,6 +93,7 @@ import bbox from "@turf/bbox";
 import {
     useGeoserverStore,
     type GeoserverRasterTypeLayerDetail,
+    resolveLegendUrl,
 } from "@store/geoserver";
 import bboxPolygon from "@turf/bbox-polygon";
 import { isNullOrEmpty } from "@helpers/functions";
@@ -89,6 +112,8 @@ const sidebarControl = new SidebarControl("", sidebarID, document.createElement(
 mapStore.map.addControl(sidebarControl, "top-left");
 
 const activeLayer = ref<LayerObjectWithAttributes>();
+const legendUrl = ref<string>();
+const legendError = ref<boolean>(false);
 
 interface ScenarioBullet {
     label: string;
@@ -151,6 +176,8 @@ onMounted(() => {
 
 function startScenario(scenario: Scenario): void {
     activeLayer.value = undefined;
+    legendUrl.value = undefined;
+    legendError.value = false;
     mapStore.resetMapData(false).then(() => {
         switchToSatelliteBasemap();
         loadScenarioLayers(scenario).catch((error) => { console.error(error); });
@@ -198,6 +225,11 @@ const loadScenarioLayers = async (scenario: Scenario): Promise<void> => {
                 if (added !== undefined) {
                     activeLayer.value = added;
                 }
+                resolveLegendUrl(
+                    async (ws) => await geoserver.fetchWmsCapabilities(ws),
+                    workspace,
+                    rasterDetail.coverage.name
+                ).then((url) => { legendUrl.value = url; }).catch((err) => { console.error(err); });
                 const bb = rasterDetail.coverage.latLonBoundingBox;
                 layerBboxPolygons.features.push(bboxPolygon([bb.minx, bb.miny, bb.maxx, bb.maxy]));
                 if (layerBboxPolygons.features.length > 0) {
