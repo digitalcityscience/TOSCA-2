@@ -54,6 +54,35 @@ export interface GeoServerVectorTypeLayerDetail {
     };
   };
 }
+export interface CoverageTimeDimensionInfo {
+  enabled: boolean;
+  presentation?: string;
+  units?: string;
+  defaultValue?: {
+    strategy?: "MINIMUM" | "MAXIMUM" | "NEAREST" | "FIXED";
+    referenceValue?: string;
+  };
+  nearestMatchEnabled?: boolean;
+  rawNearestMatchEnabled?: boolean;
+  startValue?: string;
+  endValue?: string;
+}
+export interface CoverageMetadataTimeEntry {
+  "@key": "time";
+  dimensionInfo: CoverageTimeDimensionInfo;
+}
+export interface CoverageMetadataElevationEntry {
+  "@key": "elevation";
+  dimensionInfo: { enabled: boolean };
+}
+export interface CoverageMetadataStringEntry {
+  "@key": string;
+  $?: string;
+}
+export type CoverageMetadataEntry =
+  | CoverageMetadataTimeEntry
+  | CoverageMetadataElevationEntry
+  | CoverageMetadataStringEntry;
 export interface GeoserverRasterTypeLayerDetail {
   coverage: {
     name: string,
@@ -86,7 +115,7 @@ export interface GeoserverRasterTypeLayerDetail {
     projectionPolicy: string,
     enabled: boolean,
     metadata: {
-      entry: Array<Record<string, unknown>>
+      entry: CoverageMetadataEntry[]
     },
     store: {
       "@class": string,
@@ -216,6 +245,71 @@ export interface WmsCapabilities {
   version: string;
   workspace: string;
   layers: Map<string, WmsCapabilitiesLayer>;
+}
+/**
+ * Hard fallback bounds for the time slider when neither the coverage metadata
+ * nor GetCapabilities advertise a time domain. Picked as a wide but bounded
+ * range so the slider stays usable; refine once a real domain is available.
+ */
+export const RASTER_TIME_FALLBACK_START = "2000-01-01T00:00:00Z";
+export const RASTER_TIME_FALLBACK_END = new Date().toISOString();
+/**
+ * Returns the coverage's time dimension descriptor when one is enabled in the
+ * GeoServer coverage metadata, otherwise null. Used to detect whether a raster
+ * layer supports time-based queries before fetching GetCapabilities.
+ */
+export function getTimeDimension(
+  coverage: GeoserverRasterTypeLayerDetail["coverage"]
+): CoverageTimeDimensionInfo | null {
+  const entries = coverage.metadata?.entry ?? [];
+  const entry = entries.find(
+    (e): e is CoverageMetadataTimeEntry => e["@key"] === "time"
+  );
+  if (entry === undefined || !entry.dimensionInfo.enabled) return null;
+  return entry.dimensionInfo;
+}
+export interface ResolvedTimeDomain {
+  values: string[];
+  default: string;
+  /** Where the domain came from — useful for diagnostics and UI hints. */
+  source: "capabilities" | "metadata" | "fallback";
+}
+/**
+ * Resolves the discrete time domain for a raster layer using a priority chain:
+ *
+ *   1. WMS GetCapabilities <Dimension/Extent name="time"> — authoritative.
+ *   2. Coverage metadata startValue/endValue — synthesised 2-point list.
+ *   3. RASTER_TIME_FALLBACK_START / _END constants — last resort.
+ *
+ * Always returns a non-empty discrete value list so the slider can be index-based.
+ */
+export async function resolveTimeDomain(
+  fetchCapabilities: (workspace: string) => Promise<WmsCapabilities>,
+  workspace: string,
+  layerName: string,
+  coverage: GeoserverRasterTypeLayerDetail["coverage"]
+): Promise<ResolvedTimeDomain> {
+  try {
+    const caps = await fetchCapabilities(workspace);
+    const layer = caps.layers.get(layerName);
+    const td = layer?.timeDimension;
+    if (td !== undefined && td.values.length > 0) {
+      return { values: td.values, default: td.default, source: "capabilities" };
+    }
+  } catch {
+    // fall through to metadata / constants
+  }
+  const dim = getTimeDimension(coverage);
+  if (dim !== null) {
+    const start = dim.startValue ?? "";
+    const end = dim.endValue ?? "";
+    if (start !== "" && end !== "") {
+      const values = start === end ? [start] : [start, end];
+      return { values, default: end, source: "metadata" };
+    }
+  }
+  const values = [RASTER_TIME_FALLBACK_START, RASTER_TIME_FALLBACK_END];
+  return { values, default: RASTER_TIME_FALLBACK_END, source: "fallback" };
 }
 /**
  * Parses a WMS 1.1.1 GetCapabilities XML document into a flat lookup of

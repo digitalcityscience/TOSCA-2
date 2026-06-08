@@ -2,7 +2,10 @@
     <div v-if="props.item" class="layer-detail first:pt-0 pt-1">
         <Card>
             <template #title>
-                <span class="capitalize">{{ cleanLayerName }}</span>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="capitalize">{{ cleanLayerName }}</span>
+                    <Tag v-if="hasTimeDimension" severity="info" icon="pi pi-clock" value="Time" title="This layer supports time-based queries"></Tag>
+                </div>
             </template>
             <template #subtitle v-if="layerDetail">
                 <span v-if="layerDetail.coverage.description !== undefined && layerDetail.coverage.description.length > 0">
@@ -25,7 +28,10 @@
                 </div>
             </template>
             <template #footer>
-                <Button size="small" @click="add2Map">Add to map</button>
+                <div class="flex gap-2 flex-wrap">
+                    <Button size="small" @click="add2Map(false)">Add to map</Button>
+                    <Button v-if="hasTimeDimension" size="small" severity="secondary" @click="add2Map(true)">Add with time</Button>
+                </div>
             </template>
         </Card>
     </div>
@@ -39,7 +45,7 @@ import { computed, ref } from "vue";
 import Tag from "primevue/tag";
 import Button from "primevue/button"
 import Message from "primevue/message";
-import { type GeoserverRasterTypeLayerDetail, type GeoserverLayerInfo, type GeoserverLayerListItem, useGeoserverStore } from "@store/geoserver";
+import { type GeoserverRasterTypeLayerDetail, type GeoserverLayerInfo, type GeoserverLayerListItem, getTimeDimension, resolveTimeDomain, useGeoserverStore } from "@store/geoserver";
 import { type GeoServerSourceParams, type LayerParams, useMapStore } from "@store/map";
 import Card from "primevue/card";
 import { isNullOrEmpty } from "../../../core/helpers/functions";
@@ -58,6 +64,10 @@ const toast = useToast()
 const cleanLayerName = computed(() => {
     return ((layerDetail.value?.coverage.title) != null) ? String(layerDetail.value?.coverage.title).replaceAll("_", " ") : String(props.item.name).replaceAll("_", " ")
 })
+const hasTimeDimension = computed(() => {
+    if (layerDetail.value === undefined) return false
+    return getTimeDimension(layerDetail.value.coverage) !== null
+})
 const geoserver = useGeoserverStore()
 const layerDetail = ref<GeoserverRasterTypeLayerDetail>()
 geoserver.getLayerDetail(props.layerInformation.resource.href).then((detail) => {
@@ -67,38 +77,49 @@ geoserver.getLayerDetail(props.layerInformation.resource.href).then((detail) => 
 })
 
 const mapStore = useMapStore()
-function add2Map(): void{
-    if (!isNullOrEmpty(layerDetail.value)) {
-        const sourceParams: GeoServerSourceParams = {
-            sourceType:"geoserver",
-            identifier:layerDetail.value!.coverage.name,
-            isFilterLayer:false,
-            workspaceName:props.workspace,
-            layer:layerDetail.value!,
-            sourceDataType:"raster",
-            sourceProtocol:"wms"
+async function add2Map(withTime: boolean): Promise<void> {
+    if (isNullOrEmpty(layerDetail.value)) return
+    let initialTime: string | undefined
+    if (withTime && hasTimeDimension.value) {
+        try {
+            const domain = await resolveTimeDomain(
+                async (ws) => await geoserver.fetchWmsCapabilities(ws),
+                props.workspace,
+                layerDetail.value!.coverage.name,
+                layerDetail.value!.coverage
+            )
+            initialTime = domain.default
+        } catch (err) {
+            toast.add({ severity: "warn", summary: "Time domain", detail: "Could not resolve time domain; adding without time.", life: 3000 })
         }
-        mapStore.addMapDataSource(sourceParams).then(() => {
-            if (!isNullOrEmpty(layerDetail.value)) {
-                const layerParams: LayerParams = {
-                    sourceType:"geoserver",
-                    identifier:layerDetail.value!.coverage.name,
-                    layerType:"raster",
-                    geoserverLayerDetails:layerDetail.value!,
-                    sourceLayer:`${layerDetail.value!.coverage.name}`,
-                    displayName:layerDetail.value?.coverage.title ?? undefined,
-                    sourceDataType:"raster",
-                    sourceProtocol:"wms",
-                    workspaceName:props.workspace,
-                }
-                mapStore.addMapLayer(layerParams).then(()=>{
-                }).catch(error => {
-                    toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
-                })
-            }
-        }).catch(error => {
-            toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
-        })
+    }
+    const sourceParams: GeoServerSourceParams = {
+        sourceType: "geoserver",
+        identifier: layerDetail.value!.coverage.name,
+        isFilterLayer: false,
+        workspaceName: props.workspace,
+        layer: layerDetail.value!,
+        sourceDataType: "raster",
+        sourceProtocol: "wms",
+        time: initialTime,
+    }
+    try {
+        await mapStore.addMapDataSource(sourceParams)
+        const layerParams: LayerParams = {
+            sourceType: "geoserver",
+            identifier: layerDetail.value!.coverage.name,
+            layerType: "raster",
+            geoserverLayerDetails: layerDetail.value!,
+            sourceLayer: `${layerDetail.value!.coverage.name}`,
+            displayName: layerDetail.value?.coverage.title ?? undefined,
+            sourceDataType: "raster",
+            sourceProtocol: "wms",
+            workspaceName: props.workspace,
+            time: initialTime,
+        }
+        await mapStore.addMapLayer(layerParams)
+    } catch (error) {
+        toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 })
     }
 }
 

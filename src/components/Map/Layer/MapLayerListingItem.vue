@@ -16,6 +16,7 @@
                 </div>
                 <span v-if="props.layer.displayName" class="capitalize mr-auto ml-2 truncate ...">{{ props.layer.displayName.replaceAll("_", " ") }}</span>
                 <span v-else class="capitalize mr-auto ml-2 truncate ...">{{ props.layer.source.replaceAll("_", " ") }}</span>
+                <Tag v-if="hasTimeDimension" class="mr-1" severity="info" icon="pi pi-clock" value="Time" title="Temporal raster layer"></Tag>
                 <Button class="w-8 h-8 p-0 mr-1" icon="pi pi-trash" severity="danger" text rounded aria-label="Delete"
                     @click="confirmDialogVisibility = true"></Button>
                     <Button class="w-8 h-8 p-0 mr-1" icon="pi pi-search-plus" text rounded aria-label="Zoom"
@@ -45,6 +46,7 @@
                             }"
                         />
                     </label>
+                <RasterLayerTimeControl v-if="hasTimeDimension" :layer="props.layer" />
             </div>
             <div v-if="(props.layer.filterLayer == undefined || props.layer.filterLayer === false) && (props.layer.type !== 'raster')" class="py-2">
                 <AttributeFiltering :layer="props.layer"></AttributeFiltering>
@@ -67,13 +69,15 @@ import ToggleSwitch from "primevue/toggleswitch";
 import Button from "primevue/button"
 import { useToast } from "primevue/usetoast";
 import { isNullOrEmpty } from "@helpers/functions";
-import { type GeoserverRasterTypeLayerDetail, type GeoServerVectorTypeLayerDetail } from "@store/geoserver";
+import { type GeoserverRasterTypeLayerDetail, type GeoServerVectorTypeLayerDetail, getTimeDimension } from "@store/geoserver";
+import Tag from "primevue/tag";
 
 const ColorPicker = defineAsyncComponent(async () => await import("primevue/colorpicker"));
 const Dialog = defineAsyncComponent(async () => await import("primevue/dialog"));
 const AttributeFiltering = defineAsyncComponent(async () => await import("./Filter/AttributeFiltering.vue"));
 const GeometryFiltering = defineAsyncComponent(async () => await import("@components/Map/Layer/Filter/GeometryFiltering.vue"));
 const MapLayerResultTable = defineAsyncComponent(async () => await import("./MapLayerResultTable.vue"));
+const RasterLayerTimeControl = defineAsyncComponent(async () => await import("./RasterLayerTimeControl.vue"));
 
 export interface Props {
     layer: LayerObjectWithAttributes
@@ -147,6 +151,12 @@ const layerHeaderIndicatorTitle = computed<string>(() => {
         default:
             return "Layer style color unavailable";
     }
+})
+const hasTimeDimension = computed<boolean>(() => {
+    if (props.layer.type !== "raster") return false
+    const details = props.layer.details as GeoserverRasterTypeLayerDetail | undefined
+    if (details?.coverage === undefined) return false
+    return getTimeDimension(details.coverage) !== null
 })
 const hasEditableLayerColor = computed<boolean>(() => {
     void mapStore.paintVersion;
