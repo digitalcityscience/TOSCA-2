@@ -4,6 +4,7 @@
         <WorkspaceListing :workspaces="geoserverStore.workspaceList"></WorkspaceListing>
         <FloodSidebar></FloodSidebar>
         <GQGeostory></GQGeostory>
+        <DykeBreachSidebar></DykeBreachSidebar>
         <MapLayerListing></MapLayerListing>
         <DrawContainer></DrawContainer>
         <BufferContainer></BufferContainer>
@@ -22,6 +23,7 @@ const DrawContainer = defineAsyncComponent(async () => await import("@components
 const BufferContainer = defineAsyncComponent(async () => await import("@components/Map/Buffer/BufferContainer.vue"))
 const FloodSidebar = defineAsyncComponent(async () => await import("@components/Geostories/FloodSidebar.vue"))
 const GQGeostory = defineAsyncComponent(async () => await import("@components/Geostories/GQGeostory.vue"))
+const DykeBreachSidebar = defineAsyncComponent(async () => await import("@components/Geostories/DykeBreachSidebar.vue"))
 const Toast = defineAsyncComponent(async () => await import("primevue/toast"))
 const geoserverStore = useGeoserverStore()
 onMounted(()=>{

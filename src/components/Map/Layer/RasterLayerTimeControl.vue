@@ -23,13 +23,16 @@
             <span class="font-medium opacity-100" :title="domain.values[index]">{{ formatLabel(domain.values[index]) }}</span>
             <span>{{ formatLabel(domain.values[domain.values.length - 1]) }}</span>
         </div>
+        <div v-if="sharedDate !== undefined" class="text-xs opacity-60 mt-1">
+            Date: <span class="font-medium">{{ sharedDate }}</span>
+        </div>
     </div>
     <div v-else-if="loading" class="text-xs opacity-70">Loading time domain…</div>
     <div v-else-if="error !== undefined" class="text-xs text-red-500">{{ error }}</div>
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from "vue"
+import { computed, onBeforeUnmount, ref, watch } from "vue"
 import Slider from "primevue/slider"
 import Button from "primevue/button"
 import {
@@ -42,6 +45,7 @@ import { type LayerObjectWithAttributes, useMapStore } from "@store/map"
 
 interface Props {
     layer: LayerObjectWithAttributes
+    autoPlay?: boolean
 }
 const props = defineProps<Props>()
 const geoserver = useGeoserverStore()
@@ -58,10 +62,40 @@ const DRAG_DEBOUNCE_MS = 200
 let playTimer: ReturnType<typeof setInterval> | undefined
 let dragTimer: ReturnType<typeof setTimeout> | undefined
 
+function splitIso(iso: string): { date: string, time: string } {
+    const tIndex = iso.indexOf("T")
+    if (tIndex === -1) return { date: iso, time: "" }
+    const date = iso.slice(0, tIndex)
+    // Strip trailing zone marker ("Z") and milliseconds for compact display.
+    let time = iso.slice(tIndex + 1).replace(/Z$/, "")
+    const dotIndex = time.indexOf(".")
+    if (dotIndex !== -1) time = time.slice(0, dotIndex)
+    // Trim seconds when they add no information ("HH:MM:00" -> "HH:MM").
+    time = time.replace(/:00$/, "")
+    return { date, time }
+}
+
+/** When every value in the domain shares the same calendar date, surface that
+ *  date once outside the slider and reduce per-tick labels to the time-of-day.
+ *  Otherwise, fall back to date-only labels (the slider would be too cramped
+ *  for full timestamps). */
+const sharedDate = computed<string | undefined>(() => {
+    if (domain.value === undefined || domain.value.values.length === 0) return undefined
+    const first = splitIso(domain.value.values[0]).date
+    if (first === "") return undefined
+    for (const v of domain.value.values) {
+        if (splitIso(v).date !== first) return undefined
+    }
+    // Only meaningful if at least one value carries a time component.
+    const anyTime = domain.value.values.some((v) => splitIso(v).time !== "")
+    return anyTime ? first : undefined
+})
+
 function formatLabel(iso: string | undefined): string {
     if (iso === undefined) return ""
-    const tIndex = iso.indexOf("T")
-    return tIndex === -1 ? iso : iso.slice(0, tIndex)
+    const { date, time } = splitIso(iso)
+    if (sharedDate.value !== undefined) return time
+    return time === "" ? date : `${date} ${time}`
 }
 
 function applyTime(i: number): void {
@@ -119,6 +153,11 @@ async function load(): Promise<void> {
             : resolved.default
         const seedIdx = resolved.values.indexOf(seedIso)
         index.value = seedIdx >= 0 ? seedIdx : resolved.values.length - 1
+        if (props.autoPlay === true && !isPlaying.value) {
+            index.value = 0
+            applyTime(0)
+            togglePlay()
+        }
     } catch (e) {
         error.value = `Could not load time domain: ${(e as Error).message}`
     } finally {
