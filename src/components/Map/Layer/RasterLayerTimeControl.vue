@@ -15,7 +15,10 @@
                 :min="0"
                 :max="domain.values.length - 1"
                 :step="1"
+                @mousedown.capture="beginPointerInteraction"
+                @touchstart.capture="beginPointerInteraction"
                 @update:model-value="onIndexChange"
+                @slideend="onSlideEnd"
             />
         </div>
         <div class="flex justify-between text-xs opacity-60 mt-1">
@@ -32,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from "vue"
+import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue"
 import Slider from "primevue/slider"
 import Button from "primevue/button"
 import {
@@ -57,10 +60,9 @@ const error = ref<string>()
 const isPlaying = ref(false)
 /** Milliseconds between auto-advance steps when playing. */
 const PLAY_INTERVAL_MS = 800
-/** Debounce window for manual slider drags so we don't refetch every step. */
-const DRAG_DEBOUNCE_MS = 200
 let playTimer: ReturnType<typeof setInterval> | undefined
-let dragTimer: ReturnType<typeof setTimeout> | undefined
+let commitTimer: ReturnType<typeof setTimeout> | undefined
+let isPointerInteracting = false
 
 function splitIso(iso: string): { date: string, time: string } {
     const tIndex = iso.indexOf("T")
@@ -98,15 +100,70 @@ function formatLabel(iso: string | undefined): string {
     return time === "" ? date : `${date} ${time}`
 }
 
+function clampIndex(i: number): number {
+    if (domain.value === undefined) return 0
+    const max = domain.value.values.length - 1
+    return Math.min(Math.max(Math.round(i), 0), max)
+}
+
+function previewIndex(i: number): void {
+    index.value = clampIndex(i)
+}
+
 function applyTime(i: number): void {
     if (domain.value === undefined) return
-    mapStore.setRasterLayerTime(props.layer.id, domain.value.values[i])
+    const nextIndex = clampIndex(i)
+    const nextTime = domain.value.values[nextIndex]
+    index.value = nextIndex
+    if (props.layer.time === nextTime) return
+    mapStore.setRasterLayerTime(props.layer.id, nextTime)
 }
 
 function onIndexChange(value: number | number[] | undefined): void {
     if (typeof value !== "number") return
-    if (dragTimer !== undefined) clearTimeout(dragTimer)
-    dragTimer = setTimeout(() => { applyTime(value) }, DRAG_DEBOUNCE_MS)
+    stopPlayback()
+    previewIndex(value)
+    if (!isPointerInteracting) {
+        scheduleCommit()
+    }
+}
+
+function beginPointerInteraction(): void {
+    isPointerInteracting = true
+    clearScheduledCommit()
+    document.addEventListener("mouseup", endPointerInteraction, { once: true })
+    document.addEventListener("touchend", endPointerInteraction, { once: true })
+    document.addEventListener("touchcancel", endPointerInteraction, { once: true })
+}
+
+function endPointerInteraction(): void {
+    document.removeEventListener("mouseup", endPointerInteraction)
+    document.removeEventListener("touchend", endPointerInteraction)
+    document.removeEventListener("touchcancel", endPointerInteraction)
+    scheduleCommit()
+}
+
+async function onSlideEnd(): Promise<void> {
+    isPointerInteracting = false
+    clearScheduledCommit()
+    await nextTick()
+    applyTime(index.value)
+}
+
+function scheduleCommit(): void {
+    clearScheduledCommit()
+    commitTimer = setTimeout(() => {
+        commitTimer = undefined
+        isPointerInteracting = false
+        applyTime(index.value)
+    }, 0)
+}
+
+function clearScheduledCommit(): void {
+    if (commitTimer !== undefined) {
+        clearTimeout(commitTimer)
+        commitTimer = undefined
+    }
 }
 
 function stopPlayback(): void {
@@ -172,7 +229,10 @@ watch(() => props.layer.id, () => {
 
 onBeforeUnmount(() => {
     stopPlayback()
-    if (dragTimer !== undefined) clearTimeout(dragTimer)
+    clearScheduledCommit()
+    document.removeEventListener("mouseup", endPointerInteraction)
+    document.removeEventListener("touchend", endPointerInteraction)
+    document.removeEventListener("touchcancel", endPointerInteraction)
 })
 </script>
 

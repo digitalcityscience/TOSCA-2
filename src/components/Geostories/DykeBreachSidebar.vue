@@ -29,22 +29,22 @@
                         </AccordionHeader>
                         <AccordionContent>
                             <div class="w-full flex flex-row-reverse pt-2 pb-3">
-                                <Button @click="startScenario(scenario)" size="small">Run Scenario</Button>
+                                <Button @click="startScenario(scenario, index)" size="small">Run Scenario</Button>
                             </div>
                             <section>
                                 <p v-for="(bullet, i) in scenario.bullets" :key="i" class="mb-2">
                                     <strong>{{ bullet.label }}</strong> {{ bullet.text }}
                                 </p>
                             </section>
-                            <section v-if="activeLayer !== undefined && legendUrl !== undefined && !legendError" class="mt-4">
+                            <section v-if="activeScenarioIndex === index && activeLayer !== undefined && legendUrl !== undefined && !legendError" class="mt-4">
                                 <h3 class="text-lg font-medium mb-2">Legend</h3>
                                 <div class="scenario-legend-wrapper">
                                     <img :src="legendUrl" alt="Layer legend" class="scenario-legend-image" @error="legendError = true" />
                                 </div>
                             </section>
-                            <section v-if="activeLayer !== undefined" class="mt-4">
+                            <section v-if="activeScenarioIndex === index && activeLayer !== undefined" class="mt-4">
                                 <h3 class="text-lg font-medium mb-2">Time Series Slider</h3>
-                                <RasterLayerTimeControl :layer="activeLayer" :auto-play="true" />
+                                <RasterLayerTimeControl :key="activeScenarioRunId" :layer="activeLayer" :auto-play="true" />
                             </section>
                         </AccordionContent>
                     </AccordionPanel>
@@ -112,6 +112,8 @@ const sidebarControl = new SidebarControl("", sidebarID, document.createElement(
 mapStore.map.addControl(sidebarControl, "top-left");
 
 const activeLayer = ref<LayerObjectWithAttributes>();
+const activeScenarioIndex = ref<number>();
+const activeScenarioRunId = ref(0);
 const legendUrl = ref<string>();
 const legendError = ref<boolean>(false);
 
@@ -128,7 +130,7 @@ const title = "Finkenwerder Dyke Breach";
 const scenarios: Scenario[] = [
     {
         title: "The 1962 Historic Benchmark",
-        layers: ["HH-Dyke:depth"],
+        layers: ["HH-Dyke:Flood_1962"],
         bullets: [
             { label: "Peak Water Level (PWL):", text: "Replicates the historic 1962 Hamburg flood event, peaking at 5.70 m NHN." },
             { label: "Breach Initiation (t=09:00 – 11:00):", text: "The surge crosses the critical failure threshold at approximately 11:00, initiating the breach." },
@@ -138,7 +140,7 @@ const scenarios: Scenario[] = [
     },
     {
         title: " The 1976 \"Capella\" Extreme",
-        layers: ["HH-Dyke:depth"],
+        layers: ["HH-Dyke:Flood_1976"],
         bullets: [
             { label: "Peak Water Level (PWL):", text: "Replicates the highest storm surge ever recorded in Hamburg, peaking at 6.45 m NHN." },
             { label: "Breach Initiation (t=09:00 – 10:40):", text: "Due to the increased velocity and volume of the rising limb, the failure threshold is crossed earlier, at 10:40." },
@@ -174,29 +176,36 @@ onMounted(() => {
     switchToSatelliteBasemap();
 });
 
-function startScenario(scenario: Scenario): void {
+function startScenario(scenario: Scenario, index: number): void {
+    const runId = activeScenarioRunId.value + 1;
+    activeScenarioRunId.value = runId;
     activeLayer.value = undefined;
+    activeScenarioIndex.value = index;
     legendUrl.value = undefined;
     legendError.value = false;
     mapStore.resetMapData(false).then(() => {
+        if (activeScenarioRunId.value !== runId) return;
         switchToSatelliteBasemap();
-        loadScenarioLayers(scenario).catch((error) => { console.error(error); });
+        loadScenarioLayers(scenario, runId).catch((error) => { console.error(error); });
     }).catch((error) => { console.error(error); });
 }
 
-const loadScenarioLayers = async (scenario: Scenario): Promise<void> => {
+const loadScenarioLayers = async (scenario: Scenario, runId: number): Promise<void> => {
     try {
         const layerBboxPolygons: FeatureCollection = {
             type: "FeatureCollection",
             features: [],
         };
         for (const item of scenario.layers) {
+            if (activeScenarioRunId.value !== runId) return;
             try {
                 const workspace = item.split(":")[0];
                 const layerName = item.split(":")[1];
                 const response = await geoserver.getLayerInformation({ name: layerName, href: "" }, workspace);
+                if (activeScenarioRunId.value !== runId) return;
                 if (response.layer === undefined) continue;
                 const detail = await geoserver.getLayerDetail(response.layer.resource.href);
+                if (activeScenarioRunId.value !== runId) return;
                 if (isNullOrEmpty(detail) || response.layer.type !== "RASTER") continue;
                 const rasterDetail = detail as GeoserverRasterTypeLayerDetail;
                 const sourceParams: GeoServerSourceParams = {
@@ -209,6 +218,7 @@ const loadScenarioLayers = async (scenario: Scenario): Promise<void> => {
                     layer: detail,
                 };
                 await mapStore.addMapDataSource(sourceParams);
+                if (activeScenarioRunId.value !== runId) return;
                 const layerParams: LayerParams = {
                     sourceType: "geoserver",
                     sourceDataType: "raster",
@@ -221,6 +231,7 @@ const loadScenarioLayers = async (scenario: Scenario): Promise<void> => {
                     displayName: rasterDetail.coverage.title ?? undefined,
                 };
                 await mapStore.addMapLayer(layerParams);
+                if (activeScenarioRunId.value !== runId) return;
                 const added = mapStore.layersOnMap.find((l) => l.id === rasterDetail.coverage.name);
                 if (added !== undefined) {
                     activeLayer.value = added;
@@ -229,7 +240,9 @@ const loadScenarioLayers = async (scenario: Scenario): Promise<void> => {
                     async (ws) => await geoserver.fetchWmsCapabilities(ws),
                     workspace,
                     rasterDetail.coverage.name
-                ).then((url) => { legendUrl.value = url; }).catch((err) => { console.error(err); });
+                ).then((url) => {
+                    if (activeScenarioRunId.value === runId) legendUrl.value = url;
+                }).catch((err) => { console.error(err); });
                 const bb = rasterDetail.coverage.latLonBoundingBox;
                 layerBboxPolygons.features.push(bboxPolygon([bb.minx, bb.miny, bb.maxx, bb.maxy]));
                 if (layerBboxPolygons.features.length > 0) {
