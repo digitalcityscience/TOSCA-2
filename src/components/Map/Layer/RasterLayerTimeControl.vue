@@ -210,7 +210,7 @@ async function load(): Promise<void> {
             : resolved.default
         const seedIdx = resolved.values.indexOf(seedIso)
         index.value = seedIdx >= 0 ? seedIdx : resolved.values.length - 1
-        if (props.autoPlay === true && !isPlaying.value) {
+        if (props.autoPlay && !isPlaying.value) {
             index.value = 0
             applyTime(0)
             togglePlay()

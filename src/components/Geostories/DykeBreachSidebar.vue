@@ -157,7 +157,7 @@ const scenarios: Scenario[] = [
  * DOM element is not yet available.
  */
 function switchToSatelliteBasemap(): void {
-    const satelliteEl = document.querySelector<HTMLElement>('.maplibregl-ctrl-basemaps .basemap[data-id="satellite"]');
+    const satelliteEl = document.querySelector<HTMLElement>(".maplibregl-ctrl-basemaps .basemap[data-id=\"satellite\"]");
     if (satelliteEl !== null && !satelliteEl.classList.contains("active")) {
         satelliteEl.click();
         return;
