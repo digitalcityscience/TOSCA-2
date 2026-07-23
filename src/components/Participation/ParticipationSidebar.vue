@@ -1,5 +1,5 @@
 <template>
-	<BaseSidebarComponent :id="sidebarID" :position="sidebarPosition" :collapsed="true">
+	<BaseSlideoverSidebarComponent :id="sidebarID" :side="sidebarPosition" :collapsed="true">
 		<template #header>
 			<p>Citizen Participation Tool</p>
 		</template>
@@ -11,15 +11,16 @@
         <div class="pt-2">
             <router-view></router-view>
         </div>
-	</BaseSidebarComponent>
+	</BaseSlideoverSidebarComponent>
 </template>
 
 <script setup lang="ts">
-import BaseSidebarComponent from "@components/Base/BaseSidebarComponent.vue"
+import BaseSlideoverSidebarComponent from "@components/Base/BaseSlideoverSidebarComponent.vue"
 import { SidebarControl } from "../../core/helpers/sidebarControl";
+import { openSlideoverSidebar } from "@helpers/slideoverSidebarRegistry";
 import { useMapStore } from "../../store/map";
 import { RouterLink, useRoute } from "vue-router";
-import { onMounted } from "vue";
+import { onMounted, watch } from "vue";
 
 const mapStore = useMapStore()
 const sidebarID = "participation"
@@ -28,32 +29,20 @@ const sidebarPosition = "left"
 const iconElement = document.createElement("span")
 iconElement.classList.add("material-icons-outlined")
 iconElement.textContent = "analytics"
-const sidebarControl = new SidebarControl("", sidebarID, document.createElement("div"), iconElement, 2)
+const sidebarControl = new SidebarControl("", sidebarID, document.createElement("div"), iconElement, 2, { slideover: true })
 mapStore.map.addControl(sidebarControl, "top-left")
 
 const route = useRoute()
 onMounted(()=>{
     setupSidebarVisibility()
 })
+watch(() => route.meta.sidebar, () => {
+    setupSidebarVisibility()
+})
 function setupSidebarVisibility(): void {
     const routeMeta = route.meta;
-    if (routeMeta !== undefined && routeMeta.sidebar !== undefined && routeMeta.sidebar !== "" && routeMeta.sidebar !== null) {
-        const sidebarId = routeMeta.sidebar as string;
-        const position = routeMeta.sidebarPosition as string;
-        const sidebars = document.getElementsByClassName(`sidebar-${position}`)
-        if (sidebars.length > 0){
-            for (let i = 0; i < sidebars.length; i++) {
-                if (sidebars[i].id === sidebarId) {
-                    sidebars[i].classList.remove("collapsed");
-                } else {
-                    sidebars[i].classList.add("collapsed");
-                }
-            }
-        }
-        const sidebarElement = document.getElementById(sidebarId);
-        if (sidebarElement != null) {
-            sidebarElement.classList.remove("collapsed");
-        }
+    if (routeMeta !== undefined && routeMeta.sidebar === sidebarID) {
+        openSlideoverSidebar(sidebarID)
     }
 }
 </script>

@@ -1,5 +1,5 @@
 <template>
-    <BaseSidebarComponent :id="sidebarID" position="left" :collapsed=true>
+    <BaseSlideoverSidebarComponent :id="sidebarID" side="left" :collapsed=true>
         <template #header>
             <RouterLink to="/participation">
             <p>{{title}}</p>
@@ -29,12 +29,12 @@
                 </UAccordion>
             </div>
         </div>
-    </BaseSidebarComponent>
+    </BaseSlideoverSidebarComponent>
 </template>
 
 <script setup lang="ts">
 // Components
-import BaseSidebarComponent from "@components/Base/BaseSidebarComponent.vue";
+import BaseSlideoverSidebarComponent from "@components/Base/BaseSlideoverSidebarComponent.vue";
 
 import { SidebarControl } from "@helpers/sidebarControl";
 import { type GeoServerSourceParams, type LayerParams, useMapStore } from "@store/map";
@@ -54,7 +54,7 @@ const sidebarID = "floodScenarios"
 const iconElement = document.createElement("span")
 iconElement.classList.add("material-icons-outlined")
 iconElement.textContent = "water"
-const sidebarControl = new SidebarControl("", sidebarID, document.createElement("div"), iconElement, 3)
+const sidebarControl = new SidebarControl("", sidebarID, document.createElement("div"), iconElement, 3, { slideover: true })
 mapStore.map.addControl(sidebarControl, "top-left")
 
 function startScenario(scenario: Scenario): void{

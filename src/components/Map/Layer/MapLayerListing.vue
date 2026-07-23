@@ -1,5 +1,5 @@
 <template>
-    <BaseSidebarComponent :id="sidebarID" position="right" :collapsed="true">
+    <BaseSlideoverSidebarComponent :id="sidebarID" side="right" :collapsed="true">
         <template #header>
             <p>Layers</p>
         </template>
@@ -19,14 +19,14 @@
         <div class="w-full" v-else>
             <UAlert class="w-full" color="info" variant="soft" description="There is no layer on map" />
         </div>
-    </BaseSidebarComponent>
+    </BaseSlideoverSidebarComponent>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
 import draggable from "vuedraggable";
 // components
-import BaseSidebarComponent from "../../Base/BaseSidebarComponent.vue";
+import BaseSlideoverSidebarComponent from "../../Base/BaseSlideoverSidebarComponent.vue";
 import MapLayerListingItem from "./MapLayerListingItem.vue";
 // JS imports
 import { useMapStore } from "@store/map";
@@ -39,7 +39,7 @@ const sidebarID = "maplayerListing"
 const iconElement = document.createElement("span")
 iconElement.classList.add("material-icons-outlined")
 iconElement.textContent = "layers"
-const sidebarControl = new SidebarControl("", sidebarID, document.createElement("div"), iconElement)
+const sidebarControl = new SidebarControl("", sidebarID, document.createElement("div"), iconElement, 0, { slideover: true })
 mapStore.map.addControl(sidebarControl, "top-right")
 
 interface DraggableChangeEvent {
