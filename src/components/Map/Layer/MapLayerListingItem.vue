@@ -16,10 +16,13 @@
                     <span class="layer-name capitalize truncate">
                         {{ (props.layer.displayName ?? props.layer.source).replaceAll("_", " ") }}
                     </span>
-                    <i v-if="hasTimeDimension"
-                       class="pi pi-clock layer-time-badge"
+                    <UIcon
+                       v-if="hasTimeDimension"
+                       name="i-lucide-clock"
+                       class="layer-time-badge"
                        title="Temporal layer"
-                       aria-label="Temporal layer"></i>
+                       aria-label="Temporal layer"
+                    />
                 </div>
                 <div class="layer-actions">
                     <UButton class="layer-icon-btn" icon="i-lucide-trash-2" color="error" variant="ghost" aria-label="Delete"
@@ -521,7 +524,7 @@ function createLayerHeaderIndicatorBackground(indicator: LayerHeaderIndicator): 
     display: flex;
     align-items: center;
     gap: 0.25rem;
-    border: 1px solid var(--p-content-border-color, rgb(0 0 0 / 0.08));
+    border: 1px solid rgb(0 0 0 / 0.08);
     border-radius: 0.375rem;
     padding: 0.35rem 0.5rem 0.35rem 0.35rem;
 }
@@ -545,7 +548,7 @@ function createLayerHeaderIndicatorBackground(indicator: LayerHeaderIndicator): 
     padding: 0.5rem 0;
 }
 .layer-section + .layer-section {
-    border-top: 1px solid var(--p-content-border-color, rgb(0 0 0 / 0.08));
+    border-top: 1px solid rgb(0 0 0 / 0.08);
 }
 .layer-section-title {
     font-size: 0.7rem;
