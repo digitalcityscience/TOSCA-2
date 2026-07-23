@@ -1,8 +1,8 @@
 <template>
     <Card>
         <template #title>
-            <h2 class="text-xl font-bold flex items-center">Give Feedback <Button severity="danger" text size="small"
-                    @click="resetFeedbackCycle(false)">Reset</Button></h2>
+            <h2 class="text-xl font-bold flex items-center">Give Feedback <UButton color="error" variant="ghost" size="sm"
+                    @click="resetFeedbackCycle(false)">Reset</UButton></h2>
         </template>
         <template #content>
             <div v-if="participation.feedbackOnProgress" class="w-full relative">
@@ -18,14 +18,14 @@
                             </p>
                         </div>
                         <div class="w-full col-span-2">
-                            <Button v-if="!participation.locationSelectionOnProgress" size="small"
+                            <UButton v-if="!participation.locationSelectionOnProgress" size="sm"
                                 @click="participation.startCenterSelection">
                                 Start selection
-                            </Button>
-                            <Button v-else :disabled="!participation.isLocationSelected" size="small"
+                            </UButton>
+                            <UButton v-else :disabled="!participation.isLocationSelected" size="sm"
                                 @click="selectCenter">
                                 Finish selection
-                            </Button>
+                            </UButton>
                         </div>
                     </div>
                     <div v-else class="form">
@@ -44,29 +44,29 @@
                     </div>
                 </div>
                 <div class="w-full grid lg:grid-cols-1 2xl:grid-cols-2 pt-2">
-                    <Button v-if="campaign.rate_enabled && participation.feedbackStep === 'rating'"
-                        :disabled="rating === undefined" class="" size="small" @click="rateHandler">Rate
-                        Campaign</Button>
-                    <Button v-if="campaign.form_enabled && participation.feedbackStep === 'feedback'"
-                        :disabled="text.length === 0 || location === undefined" class="grow" size="small"
-                        @click="feedbackHandler">Send Feedback</Button>
+                    <UButton v-if="campaign.rate_enabled && participation.feedbackStep === 'rating'"
+                        :disabled="rating === undefined" class="" size="sm" @click="rateHandler">Rate
+                        Campaign</UButton>
+                    <UButton v-if="campaign.form_enabled && participation.feedbackStep === 'feedback'"
+                        :disabled="text.length === 0 || location === undefined" class="grow" size="sm"
+                        @click="feedbackHandler">Send Feedback</UButton>
                 </div>
             </div>
             <div v-else>
                 <p class="pb-2">You can view all the active proposals in the map, please click on each project to view
                     information about it. Click on 'Start Submission' to give your feedback. </p>
                 <div class="w-full grid lg:grid-cols-1 2xl:grid-cols-2 pt-2">
-                    <Button size="small" @click="startSubmission">Start Submission</Button>
+                    <UButton size="sm" @click="startSubmission">Start Submission</UButton>
                 </div>
             </div>
             <Dialog v-model:visible="detailFeedbackModalVisibility" modal header="Your Feedback Matters!"
                 :style="{ width: '25rem' }">
                 <span class="p-text-secondary block mb-5">Thanks for your rating! Share more details to help us make this project even better.</span>
                 <div class="w-full flex justify-between">
-                    <Button class="font-light" size="small" type="button" severity="secondary"
-                        @click="sendFeedback('rating'); detailFeedbackModalVisibility = false">Send Only Rating</Button>
-                    <Button class="font-bold" size="small" type="button" @click="giveDetailedFeedback">Give Detailed
-                        Feedback</Button>
+                    <UButton class="font-light" size="sm" type="button" color="secondary"
+                        @click="sendFeedback('rating'); detailFeedbackModalVisibility = false">Send Only Rating</UButton>
+                    <UButton class="font-bold" size="sm" type="button" @click="giveDetailedFeedback">Give Detailed
+                        Feedback</UButton>
                 </div>
             </Dialog>
         </template>
@@ -74,7 +74,6 @@
 </template>
 
 <script setup lang="ts">
-import Button from "primevue/button"
 import Textarea from "primevue/textarea"
 import Select from "primevue/select"
 import Card from "primevue/card"

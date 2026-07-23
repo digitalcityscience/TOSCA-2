@@ -5,7 +5,7 @@
         <p class="font-light italic text-sm pt-1">{{ timeLeft(props.campaign.end_date) }}</p>
         <div class="w-full grid lg:grid-cols-1 2xl:grid-cols-2 pt-3">
             <RouterLink :to="{ name: 'campaign-details', params: { campaignURL: props.campaign.campaign_url_name } }">
-                <Button size="small">See Detail</Button>
+                <UButton size="sm">See Detail</UButton>
             </RouterLink>
         </div>
     </div>
@@ -15,7 +15,6 @@
 import { defineProps } from "vue";
 import { type CampaignListItem } from "@store/participation";
 import { RouterLink } from "vue-router";
-import Button from "primevue/button";
 
 export interface Props {
     campaign: CampaignListItem

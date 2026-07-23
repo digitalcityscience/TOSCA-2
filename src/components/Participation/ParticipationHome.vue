@@ -8,7 +8,7 @@
         </div>
         <div class="w-full grid lg:grid-cols-1 2xl:grid-cols-2 p-2 pt-3">
             <RouterLink :to="{ name:'active-campaigns' }">
-                <Button class="w-full" size="small">See Active Campaigns</Button>
+                <UButton class="w-full" size="sm">See Active Campaigns</UButton>
             </RouterLink>
         </div>
     </div>
@@ -16,7 +16,6 @@
 
 <script setup lang="ts">
 import { RouterLink } from "vue-router";
-import Button from "primevue/button";
 </script>
 
 <style scoped>
