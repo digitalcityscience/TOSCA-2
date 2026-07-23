@@ -2,15 +2,15 @@
     <div class="w-full text-base">
         <UCard class="w-72 h-72 overflow-y-auto">
             <template v-if="props.features !== undefined" #default>
-                <Accordion :multiple="true" :activeIndex="[]">
-                    <AccordionPanel v-for="(source, index) in Object.entries(mergedFeatures).map(([name, value]) => ({ name, value }))"
-                    :key="index" :value="index">
-                        <AccordionHeader>
-                            <span class="capitalize">{{ createDisplayName(source.name) }}</span>
-                        </AccordionHeader>
-                        <AccordionContent>
-                            <div class="max-h-60 overflow-y-auto">
-                            <div v-for="(feature, ind) in source.value" :key="ind" class="rounded-md border mt-1 px-1 first:mt-0 odd:bg-gray-100 divide-y-2 divide-dashed">
+                <UAccordion
+                    :items="attributeAccordionItems"
+                    type="multiple"
+                    :default-value="[]"
+                    :ui="{ label: 'capitalize' }"
+                >
+                    <template #body="{ item }">
+                        <div class="max-h-60 overflow-y-auto">
+                            <div v-for="(feature, ind) in item.features" :key="ind" class="rounded-md border mt-1 px-1 first:mt-0 odd:bg-gray-100 divide-y-2 divide-dashed">
                                 <div v-for="(property, i) in Object.entries(feature.properties).map(([name, value]) => ({ name, value }))"
                                     :key="i">
                                     <p class="font-bold">{{ property.name }}</p>
@@ -18,19 +18,14 @@
                                 </div>
                             </div>
                         </div>
-                        </AccordionContent>
-                    </AccordionPanel>
-                </Accordion>
+                    </template>
+                </UAccordion>
             </template>
         </UCard>
     </div>
 </template>
 
 <script setup lang="ts">
-import Accordion from "primevue/accordion";
-import AccordionPanel from "primevue/accordionpanel";
-import AccordionHeader from "primevue/accordionheader";
-import AccordionContent from "primevue/accordioncontent";
 import { useMapStore } from "@store/map"
 import { computed } from "vue";
 import { type MapGeoJSONFeature } from "maplibre-gl";
@@ -56,6 +51,13 @@ const mergedFeatures = computed(() => {
         return groupedFeatures
     }
     return []
+})
+const attributeAccordionItems = computed(() => {
+    return Object.entries(mergedFeatures.value).map(([name, features]) => ({
+        label: createDisplayName(name),
+        value: name,
+        features,
+    }))
 })
 function createDisplayName(source: string): string {
     const layer = mapStore.layersOnMap.filter((layer) => { return source === layer.source })[0]
