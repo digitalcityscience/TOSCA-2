@@ -9,7 +9,7 @@
                 <div v-if="campaign.rate_enabled && participation.feedbackStep == 'rating'" class="rating pb-2">
                     <h3 class="text-lg font-semibold ">Rate this project!</h3>
                     <p class="text-xs font-extralight italic">1-Bad, 3-Neutral 5-Excellent</p>
-                    <Rating class="w-full pt-3" v-model="rating" :stars="5" :cancel="false"></Rating>
+                    <UInputRating class="w-full pt-3" v-model="rating" :length="5" :clearable="false" color="warning" />
                 </div>
                 <div v-if="campaign.form_enabled && (participation.feedbackStep === 'feedback'||participation.feedbackStep === 'location')" class="form">
                     <div v-if="participation.feedbackStep === 'location'" class="w-full grid lg:grid-cols-1 2xl:grid-cols-2 pt-2">
@@ -31,12 +31,11 @@
                     <div v-else class="form">
                         <div class="pt-3 w-full flex flex-col">
                             <p class="text-sm font-light mb-1">Do you have a suggestion? Describe your comment.</p>
-                            <Textarea class="w-full" v-model="text" rows="5"></Textarea>
+                            <UTextarea class="w-full" v-model="text" :rows="5" />
                         </div>
                         <p class="text-sm font-light mb-1">Choose the category of your suggestion if applicable.</p>
                         <div class="pt-3 w-full flex flex-col relative">
-                            <Select v-model="category" :options="campaign.categories" class="max-w-full relative"
-                                :virtual-scroller-options="{ itemSize: 35 }"></Select>
+                            <USelect v-model="category" :items="categoryOptions" class="max-w-full relative" />
                         </div>
                         <div v-if="campaign.allow_drawings" class="pt-3 w-full">
                             <ParticipationDraw></ParticipationDraw>
@@ -59,27 +58,26 @@
                     <UButton size="sm" @click="startSubmission">Start Submission</UButton>
                 </div>
             </div>
-            <Dialog v-model:visible="detailFeedbackModalVisibility" modal header="Your Feedback Matters!"
-                :style="{ width: '25rem' }">
-                <span class="p-text-secondary block mb-5">Thanks for your rating! Share more details to help us make this project even better.</span>
-                <div class="w-full flex justify-between">
+            <UModal v-model:open="detailFeedbackModalVisibility" title="Your Feedback Matters!" :ui="{ content: 'max-w-[25rem]' }">
+                <template #body>
+                <span class="text-muted block">Thanks for your rating! Share more details to help us make this project even better.</span>
+                </template>
+                <template #footer>
+                <div class="w-full flex justify-between gap-2">
                     <UButton class="font-light" size="sm" type="button" color="secondary"
                         @click="sendFeedback('rating'); detailFeedbackModalVisibility = false">Send Only Rating</UButton>
                     <UButton class="font-bold" size="sm" type="button" @click="giveDetailedFeedback">Give Detailed
                         Feedback</UButton>
                 </div>
-            </Dialog>
+                </template>
+            </UModal>
         </template>
     </UCard>
 </template>
 
 <script setup lang="ts">
-import Textarea from "primevue/textarea"
-import Select from "primevue/select"
-import Rating from "primevue/rating"
-import Dialog from "primevue/dialog"
 import ParticipationDraw from "./ParticipationDraw.vue"
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { type CampaignDetail, useParticipationStore, type CenterLocation, type PostRating, type PostFeedback, type PostFeedbackRating } from "@store/participation";
 import { type Feature, type FeatureCollection } from "@helpers/geojson";
 import { useMapStore } from "@store/map";
@@ -97,6 +95,12 @@ const props = defineProps<{
 const rating = ref<number>(0)
 const text = ref<string>("");
 const category = ref<string>(((props.campaign.categories) != null) ? props.campaign.categories[0] : "General");
+const categoryOptions = computed(() => {
+    return props.campaign.categories?.map((campaignCategory) => ({
+        label: campaignCategory,
+        value: campaignCategory,
+    })) ?? []
+})
 const location = ref<CenterLocation | undefined>();
 
 function startSubmission(): void {

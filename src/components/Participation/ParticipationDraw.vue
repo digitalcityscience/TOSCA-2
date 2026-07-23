@@ -7,12 +7,13 @@
 			:label="`Item-${index}`" @remove="removeFromSelectedDrawnGeometries(feature)" removable
 			severity="success" />
 	</div>
-	<div class="w-full flex justify-between pt-2">
-		<div v-for="draw in drawTool.drawTypes" :key="draw.name" class="flex align-items-center">
-			<RadioButton :disabled="drawTool.drawOnProgress || drawTool.editOnProgress" v-model="drawMode"
-				:inputId="draw.name" :value="draw.name" />
-			<label :for="draw.name" class="ml-2">{{ draw.mode }}</label>
-		</div>
+	<div class="w-full pt-2">
+		<URadioGroup
+			v-model="drawMode"
+			:items="drawModeOptions"
+			:disabled="drawTool.drawOnProgress || drawTool.editOnProgress"
+			orientation="horizontal"
+		/>
 	</div>
 	<div class="w-full grid lg:grid-cols-1 pt-2">
 		<div class="py-1" v-if="!drawTool.drawOnProgress && !drawTool.editOnProgress">
@@ -31,16 +32,21 @@
 </template>
 
 <script setup lang="ts">
-import RadioButton from "primevue/radiobutton";
 import ChipWrapper from "@components/Base/ChipWrapper.vue"
 import { type DrawMode, useDrawStore } from "@store/draw"
 import { useParticipationStore } from "@store/participation";
 import { type Feature } from "@helpers/geojson"
-import { ref } from "vue";
+import { computed, ref } from "vue";
 
 const participation = useParticipationStore()
 const drawTool = useDrawStore()
 const drawMode = ref<DrawMode>("polygon")
+const drawModeOptions = computed(() => {
+    return drawTool.drawTypes.map((draw) => ({
+        label: draw.mode,
+        value: draw.name,
+    }))
+})
 function startDraw(): void{
     drawTool.drawMode = drawMode.value
     drawTool.initDrawMode()
