@@ -56,7 +56,7 @@
                     </label>
                     <label class="layer-row">
                         <span class="layer-row-label">Opacity</span>
-                        <USlider aria-label="Change Opacity" class="flex-grow" v-model="opacity" :step="0.1" :min=0
+                        <USlider aria-label="Change Opacity" class="grow" v-model="opacity" :step="0.1" :min=0
                             :max=1 @update:model-value="changeLayerOpac" />
                     </label>
                 </section>
@@ -215,7 +215,7 @@ const showServerLegend = computed<boolean>(() => {
 })
 const showFiltering = computed<boolean>(() => {
     if (props.layer.type === "raster") return false
-    return props.layer.filterLayer === undefined || props.layer.filterLayer === false
+    return props.layer.filterLayer !== true
 })
 /**
  * Exposes the editable color paint property when it is an expression (array).
@@ -230,7 +230,7 @@ const _layerLegendStyle = computed<unknown[] | undefined>(() => {
     if (!Array.isArray(value)) return undefined;
     return value as unknown[];
 })
-void _layerLegendStyle;
+void _layerLegendStyle.value;
 
 onMounted(() => {
     const colorProperty = getEditableColorPaintProperty(props.layer.type);
@@ -257,8 +257,8 @@ onMounted(() => {
 async function loadLegend(): Promise<void> {
     if (props.layer.workspaceName === undefined) return
     const details = props.layer.details
-    const layerName = (details as GeoserverRasterTypeLayerDetail | undefined)?.coverage?.name
-        ?? (details as GeoServerVectorTypeLayerDetail | undefined)?.featureType?.name
+    const layerName = (details as GeoserverRasterTypeLayerDetail | undefined)?.coverage?.name ??
+        (details as GeoServerVectorTypeLayerDetail | undefined)?.featureType?.name
     if (layerName === undefined || layerName === "") return
     try {
         legendUrl.value = await resolveLegendUrl(
