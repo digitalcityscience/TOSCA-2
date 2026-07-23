@@ -1,8 +1,7 @@
 @import '../node_modules/maplibre-gl/dist/maplibre-gl.css';
 @import "../node_modules/primeicons/primeicons.css";
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@import "@nuxt/ui";
 
 :root {
   --primary-50: rgb(225, 240, 239);
