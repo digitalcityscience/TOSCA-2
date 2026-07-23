@@ -1,21 +1,16 @@
 <template>
     <div v-if="props.item" class="layer-detail first:pt-0 pt-1">
-        <Card>
-            <template #title>
+        <UCard>
+            <template #header>
                 <div class="flex items-center gap-2 flex-wrap">
                     <span class="capitalize">{{ cleanLayerName }}</span>
                     <UBadge v-if="hasTimeDimension" color="info" variant="soft" icon="i-lucide-clock" label="Time" title="This layer supports time-based queries" />
                 </div>
-            </template>
-            <template #subtitle v-if="layerDetail">
-                <span v-if="layerDetail.coverage.description !== undefined && layerDetail.coverage.description.length > 0">
-                    <span class="line-clamp-3 hover:line-clamp-none xl:line-clamp-none">{{ layerDetail.coverage.description }}</span>
-                </span>
-                <span v-if="layerDetail.coverage.description !== undefined && layerDetail.coverage.description.length > 0">
-                    <span class="line-clamp-3 hover:line-clamp-none xl:line-clamp-none">{{ layerDetail.coverage.description }}</span>
+                <span v-if="layerDetail && layerDetail.coverage.description !== undefined && layerDetail.coverage.description.length > 0">
+                    <span class="line-clamp-3 hover:line-clamp-none xl:line-clamp-none text-muted text-sm">{{ layerDetail.coverage.description }}</span>
                 </span>
             </template>
-            <template #content v-if="layerDetail">
+            <template v-if="layerDetail">
                 <div class="grid grid-cols-4 w-full">
                     <span class="font-bold lg:col-span-2 2xl:col-span-2 3xl:col-span-2 4xl:col-span-1 self-center">Keywords:</span>
                     <span class="lg:col-span-2 2xl:col-span-2 3xl:col-span-2 4xl:col-span-3 pl-1">
@@ -33,7 +28,7 @@
                     <UButton v-if="hasTimeDimension" size="sm" color="secondary" @click="add2Map(true)">Add with time</UButton>
                 </div>
             </template>
-        </Card>
+        </UCard>
     </div>
     <div v-else class="first:pt-0 pt-1 w-full">
         <UAlert class="w-full" color="info" variant="soft" description="No information about layer." />
@@ -44,7 +39,6 @@
 import { computed, ref } from "vue";
 import { type GeoserverRasterTypeLayerDetail, type GeoserverLayerInfo, type GeoserverLayerListItem, getTimeDimension, resolveTimeDomain, useGeoserverStore } from "@store/geoserver";
 import { type GeoServerSourceParams, type LayerParams, useMapStore } from "@store/map";
-import Card from "primevue/card";
 import { isNullOrEmpty } from "../../../core/helpers/functions";
 import { useToast } from "primevue/usetoast";
 
