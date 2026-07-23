@@ -6,7 +6,18 @@ import { resolve } from "path";
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [vue(), ui()],
+  plugins: [
+    vue(),
+    ui({
+      ui: {
+        button: {
+          slots: {
+            base: "cursor-pointer",
+          },
+        },
+      },
+    }),
+  ],
   resolve: {
     alias: {
       "@components": resolve(__dirname, "./src/components"),

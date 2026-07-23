@@ -26,7 +26,7 @@
                         </AccordionHeader>
                         <AccordionContent>
                             <div class="w-full flex flex-row-reverse pt-2">
-                            <Button @click="startScenario(scenario)" size="small">Run Scenario</Button>
+                            <UButton @click="startScenario(scenario)" size="sm">Run Scenario</UButton>
                         </div>
                             <section class="mb-6">
                             <h3 class="text-lg font-medium mb-2">Layer 1: Selected Statistical Unit's Mean PPM Values</h3>
@@ -77,7 +77,6 @@ import AccordionHeader from "primevue/accordionheader";
 import AccordionContent from "primevue/accordioncontent";
 import Card from "primevue/card";
 import BaseSidebarComponent from "@components/Base/BaseSidebarComponent.vue";
-import Button from "primevue/button";
 
 import { SidebarControl } from "@helpers/sidebarControl";
 import { type GeoServerSourceParams, type LayerParams, type LayerStyleOptions, useMapStore } from "@store/map";

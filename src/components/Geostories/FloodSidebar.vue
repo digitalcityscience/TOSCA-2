@@ -22,7 +22,7 @@
                         <AccordionContent>
                             <p>{{ scenario.description }}</p>
                             <div class="w-full flex flex-row-reverse pt-2">
-                                <Button @click="startScenario(scenario)" size="small">Run Scenario</Button>
+                                <UButton @click="startScenario(scenario)" size="sm">Run Scenario</UButton>
                             </div>
                         </AccordionContent>
                     </AccordionPanel>
@@ -40,7 +40,6 @@ import AccordionHeader from "primevue/accordionheader";
 import AccordionContent from "primevue/accordioncontent";
 import Card from "primevue/card";
 import BaseSidebarComponent from "@components/Base/BaseSidebarComponent.vue";
-import Button from "primevue/button";
 
 import { SidebarControl } from "@helpers/sidebarControl";
 import { type GeoServerSourceParams, type LayerParams, useMapStore } from "@store/map";
