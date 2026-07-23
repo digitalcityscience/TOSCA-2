@@ -19,14 +19,16 @@
                 </UCard>
             </div>
             <div class="py-1">
-                <Accordion :activeIndex="[]">
-                    <AccordionPanel v-for="(scenario, index) in scenarios" :key="index" :value="index">
-                        <AccordionHeader>
-                            <h2 class="text-xl font-semibold capitalize">{{ scenario.title.replace(/[_-]/g, ' ') }}</h2>
-                        </AccordionHeader>
-                        <AccordionContent>
+                <UAccordion
+                    :items="scenarioAccordionItems"
+                    type="multiple"
+                    :default-value="[]"
+                    :unmount-on-hide="false"
+                    :ui="{ label: 'text-xl font-semibold capitalize' }"
+                >
+                    <template #body="{ item }">
                             <div class="w-full flex flex-row-reverse pt-2">
-                            <UButton @click="startScenario(scenario)" size="sm">Run Scenario</UButton>
+                            <UButton @click="startScenario(item.scenario)" size="sm">Run Scenario</UButton>
                         </div>
                             <section class="mb-6">
                             <h3 class="text-lg font-medium mb-2">Layer 1: Selected Statistical Unit's Mean PPM Values</h3>
@@ -61,9 +63,8 @@
                                 Utilize this layer to assess community health needs and plan interventions or healthcare resources accordingly.
                             </p>
                         </section>
-                        </AccordionContent>
-                    </AccordionPanel>
-                </Accordion>
+                    </template>
+                </UAccordion>
             </div>
         </div>
     </BaseSidebarComponent>
@@ -71,10 +72,6 @@
 
 <script setup lang="ts">
 // Components
-import Accordion from "primevue/accordion";
-import AccordionPanel from "primevue/accordionpanel";
-import AccordionHeader from "primevue/accordionheader";
-import AccordionContent from "primevue/accordioncontent";
 import BaseSidebarComponent from "@components/Base/BaseSidebarComponent.vue";
 
 import { SidebarControl } from "@helpers/sidebarControl";
@@ -86,7 +83,7 @@ import { useGeoserverStore, type GeoserverRasterTypeLayerDetail, type GeoServerV
 import bboxPolygon from "@turf/bbox-polygon";
 import { isNullOrEmpty } from "@helpers/functions";
 import { useToast } from "primevue/usetoast";
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { Chart, BarController, BarElement, CategoryScale, LinearScale, PieController, ArcElement, Tooltip, Legend } from "chart.js"
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, PieController, ArcElement, Tooltip, Legend);
 const mapStore = useMapStore()
@@ -308,4 +305,11 @@ const scenarios: Scenario[] = [
         layers: ["GQ2:ppm_mean_point_values", "GQ2:gq_statistical_unit_all_hamburg"]
     }
 ]
+const scenarioAccordionItems = computed(() => {
+    return scenarios.map((scenario) => ({
+        label: scenario.title.replace(/[_-]/g, " "),
+        value: scenario.title,
+        scenario,
+    }))
+})
 </script>

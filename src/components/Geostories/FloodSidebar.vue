@@ -14,19 +14,19 @@
                 </UCard>
             </div>
             <div class="py-1">
-                <Accordion :activeIndex="[]">
-                    <AccordionPanel v-for="(scenario, index) in scenarios" :key="index" :value="index">
-                        <AccordionHeader>
-                            <h2 class="text-xl font-semibold capitalize">{{ scenario.name.replace(/[_-]/g, ' ') }}</h2>
-                        </AccordionHeader>
-                        <AccordionContent>
-                            <p>{{ scenario.description }}</p>
-                            <div class="w-full flex flex-row-reverse pt-2">
-                                <UButton @click="startScenario(scenario)" size="sm">Run Scenario</UButton>
-                            </div>
-                        </AccordionContent>
-                    </AccordionPanel>
-                </Accordion>
+                <UAccordion
+                    :items="scenarioAccordionItems"
+                    type="multiple"
+                    :default-value="[]"
+                    :ui="{ label: 'text-xl font-semibold capitalize' }"
+                >
+                    <template #body="{ item }">
+                        <p>{{ item.scenario.description }}</p>
+                        <div class="w-full flex flex-row-reverse pt-2">
+                            <UButton @click="startScenario(item.scenario)" size="sm">Run Scenario</UButton>
+                        </div>
+                    </template>
+                </UAccordion>
             </div>
         </div>
     </BaseSidebarComponent>
@@ -34,10 +34,6 @@
 
 <script setup lang="ts">
 // Components
-import Accordion from "primevue/accordion";
-import AccordionPanel from "primevue/accordionpanel";
-import AccordionHeader from "primevue/accordionheader";
-import AccordionContent from "primevue/accordioncontent";
 import BaseSidebarComponent from "@components/Base/BaseSidebarComponent.vue";
 
 import { SidebarControl } from "@helpers/sidebarControl";
@@ -49,6 +45,7 @@ import { useGeoserverStore, type GeoserverRasterTypeLayerDetail, type GeoServerV
 import bboxPolygon from "@turf/bbox-polygon";
 import { isNullOrEmpty } from "@helpers/functions";
 import { useToast } from "primevue/usetoast";
+import { computed } from "vue";
 const mapStore = useMapStore()
 const geoserver = useGeoserverStore()
 const toast = useToast()
@@ -189,4 +186,11 @@ const scenarios: Scenario[] = [
         layers: ["HH_Drainage_Capacity:Drainage Capacity 100"]
     }
 ]
+const scenarioAccordionItems = computed(() => {
+    return scenarios.map((scenario) => ({
+        label: scenario.name.replace(/[_-]/g, " "),
+        value: scenario.name,
+        scenario,
+    }))
+})
 </script>
