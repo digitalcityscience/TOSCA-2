@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@material-design-icons/font": "^0.14.13",
+    "@nuxt/ui": "^4.10.0",
     "@primeuix/themes": "^1.1.2",
     "@turf/bbox": "^7.1.0",
     "@turf/bbox-polygon": "^7.1.0",
@@ -30,7 +31,7 @@
     "primevue": "^4.3.5",
     "terra-draw": "^0.0.1-alpha.53",
     "vue": "^3.5.17",
-    "vue-router": "^4.3.3",
+    "vue-router": "^4.6.4",
     "vuedraggable": "^4.1.0"
   },
   "devDependencies": {
@@ -51,10 +52,10 @@
     "eslint-plugin-vue": "^9.19.2",
     "jsdom": "^25.0.1",
     "postcss": "^8.4.35",
-    "tailwindcss": "^3.4.1",
+    "tailwindcss": "^4.3.3",
     "typedoc": "^0.27.7",
     "typedoc-plugin-vue": "^1.4.0",
-    "typescript": "^5.3.3",
+    "typescript": "~5.8.3",
     "vite": "^7.1.12",
     "vitest": "^4.0.1",
     "vue-tsc": "^2.0.29"

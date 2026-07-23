@@ -1,11 +1,12 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
+import ui from "@nuxt/ui/vite";
 import { resolve } from "path";
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), ui()],
   resolve: {
     alias: {
       "@components": resolve(__dirname, "./src/components"),
