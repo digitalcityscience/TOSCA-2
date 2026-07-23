@@ -17,7 +17,7 @@ import { ref, watch } from "vue";
 import ParticipationForm from "./ParticipationForm.vue";
 import { type CampaignDetail, useParticipationStore } from "@store/participation";
 import { useRoute } from "vue-router";
-import { useToast } from "primevue/usetoast";
+import { useToast } from "@helpers/toast";
 import { type GeoserverRasterTypeLayerDetail, type GeoServerVectorTypeLayerDetail, useGeoserverStore } from "@store/geoserver";
 import { type LayerParams, useMapStore, type GeoServerSourceParams } from "@store/map";
 import { isNullOrEmpty } from "@helpers/functions";

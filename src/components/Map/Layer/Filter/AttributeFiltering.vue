@@ -113,7 +113,7 @@ import { type GeoServerVectorTypeLayerDetail, type GeoServerFeatureTypeAttribute
 import { type IntegerFilters, type StringFilters, useFilterStore, type RelationTypes, type AttributeFilterItem } from "@store/filter";
 import { type LayerObjectWithAttributes, useMapStore } from "@store/map";
 import { isNullOrEmpty } from "@helpers/functions"
-import { useToast } from "primevue/usetoast";
+import { useToast } from "@helpers/toast";
 type OptionKey = keyof typeof filterStore.filterNames
 interface Props {
     layer: LayerObjectWithAttributes;

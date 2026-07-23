@@ -5,7 +5,6 @@ import PrimeVue from "primevue/config"
 import ui from "@nuxt/ui/vue-plugin"
 import router from "./router"
 import "./style.css"
-import ToastService from "primevue/toastservice";
 import Lara from "@primeuix/themes/lara";
 import { definePreset } from "@primeuix/themes";
 import App from "./App.vue"
@@ -113,4 +112,4 @@ const toscaPresets = definePreset(Lara, {
     }
 })
 
-createApp(App).use(pinia).use(router).use(ui).use(PrimeVue, { theme: { preset: toscaPresets, options:{ darkModeSelector: ".tosca-dark" } } }).use(ToastService).mount("#app")
+createApp(App).use(pinia).use(router).use(ui).use(PrimeVue, { theme: { preset: toscaPresets, options:{ darkModeSelector: ".tosca-dark" } } }).mount("#app")

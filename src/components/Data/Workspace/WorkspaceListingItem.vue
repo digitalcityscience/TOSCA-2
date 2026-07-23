@@ -10,7 +10,7 @@ import WorkspaceLayerListing from "@components/Data/Layer/WorkspaceLayerListing.
 // JS imports
 import { useGeoserverStore, type WorkspaceListItem, type GeoserverLayerListItem } from "@store/geoserver";
 import { ref, onMounted } from "vue";
-import { useToast } from "primevue/usetoast";
+import { useToast } from "@helpers/toast";
 const geoserver = useGeoserverStore()
 const toast = useToast()
 export interface Props {

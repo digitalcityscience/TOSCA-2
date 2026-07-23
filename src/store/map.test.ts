@@ -2,7 +2,7 @@ import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { type LayerObjectWithAttributes, useMapStore } from "./map";
 
-vi.mock("primevue/usetoast", () => ({
+vi.mock("@helpers/toast", () => ({
     useToast: () => ({
         add: vi.fn(),
     }),
