@@ -1,10 +1,10 @@
 <template>
-    <Card>
-        <template #title>
+    <UCard>
+        <template #header>
             <h2 class="text-xl font-bold flex items-center">Give Feedback <UButton color="error" variant="ghost" size="sm"
                     @click="resetFeedbackCycle(false)">Reset</UButton></h2>
         </template>
-        <template #content>
+        <template #default>
             <div v-if="participation.feedbackOnProgress" class="w-full relative">
                 <div v-if="campaign.rate_enabled && participation.feedbackStep == 'rating'" class="rating pb-2">
                     <h3 class="text-lg font-semibold ">Rate this project!</h3>
@@ -70,13 +70,12 @@
                 </div>
             </Dialog>
         </template>
-    </Card>
+    </UCard>
 </template>
 
 <script setup lang="ts">
 import Textarea from "primevue/textarea"
 import Select from "primevue/select"
-import Card from "primevue/card"
 import Rating from "primevue/rating"
 import Dialog from "primevue/dialog"
 import ParticipationDraw from "./ParticipationDraw.vue"

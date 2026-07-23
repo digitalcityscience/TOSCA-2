@@ -1,7 +1,7 @@
 <template>
     <div class="w-full text-base">
-        <Card class="w-72 h-72 overflow-y-auto">
-            <template v-if="props.features !== undefined" #content>
+        <UCard class="w-72 h-72 overflow-y-auto">
+            <template v-if="props.features !== undefined" #default>
                 <Accordion :multiple="true" :activeIndex="[]">
                     <AccordionPanel v-for="(source, index) in Object.entries(mergedFeatures).map(([name, value]) => ({ name, value }))"
                     :key="index" :value="index">
@@ -22,12 +22,11 @@
                     </AccordionPanel>
                 </Accordion>
             </template>
-        </Card>
+        </UCard>
     </div>
 </template>
 
 <script setup lang="ts">
-import Card from "primevue/card";
 import Accordion from "primevue/accordion";
 import AccordionPanel from "primevue/accordionpanel";
 import AccordionHeader from "primevue/accordionheader";
