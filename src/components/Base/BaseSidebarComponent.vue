@@ -1,5 +1,5 @@
 <template>
-    <div ref="el" :data-position="props.position"  :class="[sidebarStatusClasses, props.bgClass ?? 'bg-[#F9F7EF] text-default dark:bg-primary-950 dark:text-white']" :id="props.id" class="sidebar group flex grow-0 justify-between absolute rounded-lg p-2 lg:w-[400px] 2xl:w-[450px] 3xl:w-[450px] duration-1000" :style="props.style ? props.style : ''">
+    <div ref="el" :data-position="props.position"  :class="[sidebarStatusClasses, props.bgClass ?? 'tosca-sidebar-surface']" :id="props.id" class="sidebar group flex grow-0 justify-between absolute rounded-lg p-2 lg:w-[400px] 2xl:w-[450px] 3xl:w-[450px] duration-1000" :style="props.style ? props.style : ''">
         <div class="header w-full flex items-center gap-2 group-[.sidebar-left]:flex-row-reverse group-[.sidebar-right]:flex-row group-[.sidebar-bottom]:flex-row-reverse p-1">
             <div class="close-button">
                 <UButton
@@ -136,8 +136,8 @@ defineExpose({
     flex-direction: column;
     min-width: 15vw;
     backdrop-filter: invert(100%);
-    border: 1px solid rgb(0 0 0 / 0.12);
-    box-shadow: 0 18px 40px rgb(15 23 42 / 0.22);
+    border: 1px solid var(--tosca-sidebar-border);
+    box-shadow: 0 18px 40px var(--tosca-sidebar-shadow);
 }
 
 .sidebar.sidebar-right {
@@ -148,8 +148,8 @@ defineExpose({
     flex-direction: column;
     min-width: 15vw;
     backdrop-filter: invert(100%);
-    border: 1px solid rgb(0 0 0 / 0.12);
-    box-shadow: 0 18px 40px rgb(15 23 42 / 0.22);
+    border: 1px solid var(--tosca-sidebar-border);
+    box-shadow: 0 18px 40px var(--tosca-sidebar-shadow);
 }
 
 .sidebar.sidebar-bottom {
@@ -178,5 +178,9 @@ defineExpose({
     height: 2rem;
     padding: 0;
     flex: 0 0 auto;
+}
+.tosca-sidebar-surface {
+    background: var(--tosca-sidebar-bg);
+    color: var(--tosca-sidebar-text);
 }
 </style>
