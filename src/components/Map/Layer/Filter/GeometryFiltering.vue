@@ -9,9 +9,9 @@
 						<div v-if="filterLayerList.length>0">
 							<Select class="w-full" v-model="selectedFilterLayer" @change="dropdownFitter" :options="filterLayerList" option-label="source" show-clear
 							placeholder="Select a filter layer"></Select>
-						</div>
+                        </div>
                         <div class="w-full no-current-filter py-2" v-else>
-                            <Message class="w-full" severity="info">There is no layer for filter. Draw a layer first!</Message>
+                            <UAlert class="w-full" color="info" variant="soft" description="There is no layer for filter. Draw a layer first!" />
                         </div>
 					</div>
 					<div v-if="selectedFilterLayer"  class="identifier-dropdown w-full py-2">
@@ -46,7 +46,6 @@
 import Select, { type SelectChangeEvent } from "primevue/select";
 import Card from "primevue/card";
 import Button from "primevue/button";
-import Message from "primevue/message";
 import { type CustomAddLayerObject, useMapStore, type LayerObjectWithAttributes } from "@store/map";
 import { computed, onMounted, ref } from "vue";
 import bbox from "@turf/bbox"
