@@ -10,7 +10,12 @@
                     :items="workspaceAccordionItems"
                     type="multiple"
                     :default-value="[]"
-                    :ui="{ label: 'text-xl font-semibold capitalize' }"
+                    :ui="{
+                        item: 'rounded-md border border-muted bg-default/70 mb-2 overflow-hidden last:mb-0',
+                        trigger: 'px-3 py-3 rounded-none text-highlighted hover:bg-elevated/70',
+                        label: 'text-xl font-semibold capitalize',
+                        body: 'p-3 bg-elevated/40 border-t border-muted'
+                    }"
                 >
                     <template #body="{ item }">
                         <WorkspaceListingItem :workspace="item.workspace"></WorkspaceListingItem>

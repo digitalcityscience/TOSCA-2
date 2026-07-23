@@ -96,6 +96,25 @@ html, body {
   .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group {
     display: grid;
   }
+  .maplibregl-ctrl-group button {
+    width: 38px;
+    height: 38px;
+    color: rgb(17 24 39);
+    background: rgb(249 247 239 / 0.96);
+    border-color: rgb(17 24 39 / 0.18);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .maplibregl-ctrl-group button:hover {
+    background: rgb(255 255 255);
+    color: rgb(5 150 105);
+  }
+  .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+    width: 100%;
+    height: 100%;
+    background-size: 20px 20px;
+  }
   .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group .maplibregl-ctrl-compass {
     order: 0;
     border: 0;
@@ -107,6 +126,10 @@ html, body {
   .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group .maplibregl-ctrl-zoom-out {
     order: 2;
     border-top: 1px solid #ddd;
+  }
+  .maplibregl-ctrl-group button.tosca-map-control-button span {
+    font-size: 1.35rem;
+    line-height: 1;
   }
   .maplibregl-ctrl-basemaps {
     display: flex;

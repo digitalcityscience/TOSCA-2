@@ -1,7 +1,7 @@
 <template>
     <div class="py-1">
         <div class="map-layer-listing-panel">
-            <div class="map-layer-listing-header">
+            <div class="map-layer-listing-header" :class="{ 'map-layer-listing-header-open': layerPanelOpen }">
                 <span
                     class="layer-color-rail"
                     :class="`layer-color-rail-${layerHeaderIndicator.kind}`"
@@ -55,7 +55,16 @@
                     <h4 class="layer-section-title">Style</h4>
                     <label v-if="hasEditableLayerColor" class="layer-row pointer-events-none">
                         <span class="layer-row-label">Color</span>
-                        <UColorPicker aria-label="Change Color" class="pointer-events-auto" format="hex" v-model="colorPickerValue" />
+                        <div class="layer-color-controls pointer-events-auto">
+                            <UColorPicker aria-label="Change Color" format="hex" v-model="colorPickerValue" />
+                            <UInput
+                                class="layer-color-input"
+                                aria-label="Layer color hex code"
+                                v-model="colorHexInput"
+                                maxlength="7"
+                                @update:model-value="applyColorHexInput"
+                            />
+                        </div>
                     </label>
                     <label class="layer-row">
                         <span class="layer-row-label">Opacity</span>
@@ -115,12 +124,14 @@ const legendUrl = ref<string>()
 const legendError = ref<boolean>(false)
 const layerPanelOpen = ref<boolean>(false)
 const color = ref<string>("000000")
+const colorHexInput = ref<string>("#000000")
 const colorPickerValue = computed({
     get: () => `#${color.value}`,
     set: (value: string | undefined) => {
         const normalizedColor = normalizeHexColorInput(value);
         if (normalizedColor === undefined) return;
         color.value = normalizedColor;
+        colorHexInput.value = `#${normalizedColor}`;
         queueLayerColorChange(normalizedColor);
     }
 })
@@ -241,6 +252,7 @@ onMounted(() => {
 
     if (colorProperty !== "" && typeof getLayerPaintProperty(colorProperty) === "string") {
         color.value = normalizeColorPickerValue(getLayerPaintProperty(colorProperty) as string);
+        colorHexInput.value = `#${color.value}`;
     }
     initialLayerHeaderIndicator.value = resolveLayerHeaderIndicator(props.layer.type);
     if (opacityProperty !== "" && !isNullOrEmpty(getLayerPaintProperty(opacityProperty))) {
@@ -304,6 +316,14 @@ function queueLayerColorChange(nextColor: unknown): void {
         pendingColorChangeTimeout = undefined;
         changeLayerColor(normalizedColor);
     }, 120);
+}
+function applyColorHexInput(value: string | number | undefined): void {
+    if (typeof value !== "string") return;
+    const normalizedColor = normalizeHexColorInput(value);
+    if (normalizedColor === undefined) return;
+    color.value = normalizedColor;
+    colorHexInput.value = `#${normalizedColor}`;
+    queueLayerColorChange(normalizedColor);
 }
 function changeLayerOpac(layerOpacity: any): void {
     const opac = getOpacityPaintProperty(props.layer.type);
@@ -527,6 +547,11 @@ function createLayerHeaderIndicatorBackground(indicator: LayerHeaderIndicator): 
     border: 1px solid rgb(0 0 0 / 0.08);
     border-radius: 0.375rem;
     padding: 0.35rem 0.5rem 0.35rem 0.35rem;
+    background: rgb(255 255 255 / 0.08);
+}
+.map-layer-listing-header-open {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
 }
 
 .map-layer-listing-header {
@@ -543,12 +568,20 @@ function createLayerHeaderIndicatorBackground(indicator: LayerHeaderIndicator): 
 .layer-panel-body {
     display: flex;
     flex-direction: column;
+    border: 1px solid rgb(0 0 0 / 0.1);
+    border-top: 0;
+    border-radius: 0 0 0.375rem 0.375rem;
+    padding: 0.65rem;
+    background: rgb(255 255 255 / 0.06);
 }
 .layer-section {
-    padding: 0.5rem 0;
+    padding: 0.65rem;
+    border: 1px solid rgb(0 0 0 / 0.08);
+    border-radius: 0.375rem;
+    background: rgb(255 255 255 / 0.06);
 }
 .layer-section + .layer-section {
-    border-top: 1px solid rgb(0 0 0 / 0.08);
+    margin-top: 0.65rem;
 }
 .layer-section-title {
     font-size: 0.7rem;
@@ -557,6 +590,17 @@ function createLayerHeaderIndicatorBackground(indicator: LayerHeaderIndicator): 
     letter-spacing: 0.06em;
     opacity: 0.6;
     margin: 0 0 0.4rem 0;
+}
+.layer-color-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+    flex-wrap: wrap;
+}
+.layer-color-input {
+    width: 8rem;
+    flex: 0 0 auto;
 }
 .layer-row {
     display: flex;
