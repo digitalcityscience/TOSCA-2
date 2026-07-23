@@ -3,10 +3,14 @@
         <Popover ref="op" :dismissable="false" >
             <div class="block min-w-72 max-h-[90vh] overflow-y-auto">
                 <div class="w-full">
-                    <Card>
-                        <template #title>Buffer</template>
-                        <template #subtitle>Select a layer to apply buffer</template>
-                        <template #content>
+                    <UCard>
+                        <template #header>
+                            <div class="space-y-1">
+                                <div class="font-semibold text-highlighted">Buffer</div>
+                                <div class="text-muted text-sm">Select a layer to apply buffer</div>
+                            </div>
+                        </template>
+                        <template #default>
                             <div class="w-full" v-if="filteredLayers.length > 0">
                                 <div class="buffer-target">
                                     <label id="label_targetLayer" class="font-bold">Select target Layer</label>
@@ -36,18 +40,18 @@
                         </template>
                         <template #footer>
                             <div v-if="!bufferStore.isTmpDataCreated">
-                                <Button size="small" :disabled="bufferStore.selectedLayer === null || !(bufferStore.bufferRadius > 0)" @click="bufferStore.temporaryBufferHandler(bufferStore.selectedLayer!,bufferStore.bufferRadius)">Create Buffer</Button>
+                                <UButton size="sm" :disabled="bufferStore.selectedLayer === null || !(bufferStore.bufferRadius > 0)" @click="bufferStore.temporaryBufferHandler(bufferStore.selectedLayer!,bufferStore.bufferRadius)">Create Buffer</UButton>
                             </div>
                             <div v-else class="w-full grid-cols-2">
                                 <div  class="md:col-span-2 2xl:col-span-1 md:p-1 2xl:p-0">
-                                    <Button size="small" class="w-full" @click="bufferStore.clearTmpBufferLayer">Reset</Button>
+                                    <UButton size="sm" class="w-full" color="neutral" variant="soft" @click="bufferStore.clearTmpBufferLayer">Reset</UButton>
                                 </div>
                                 <div  class="md:col-span-2 2xl:col-span-1  md:p-1 2xl:p-0">
-                                    <Button size="small" class="w-full" :disabled="bufferStore.selectedLayer === null || !(bufferStore.bufferRadius > 0) || bufferStore.bufferLayerName ===''" @click="bufferStore.addToMapLayer(bufferStore.selectedLayer!, bufferStore.bufferRadius, bufferStore.bufferLayerName)">Add as a Layer</Button>
+                                    <UButton size="sm" class="w-full" :disabled="bufferStore.selectedLayer === null || !(bufferStore.bufferRadius > 0) || bufferStore.bufferLayerName ===''" @click="bufferStore.addToMapLayer(bufferStore.selectedLayer!, bufferStore.bufferRadius, bufferStore.bufferLayerName)">Add as a Layer</UButton>
                                 </div>
                             </div>
                         </template>
-                    </Card>
+                    </UCard>
                 </div>
             </div>
         </Popover>
@@ -55,10 +59,8 @@
 </template>
 
 <script setup lang="ts">
-import Card from "primevue/card";
 import Popover from "primevue/popover";
 import Select from "primevue/select";
-import Button from "primevue/button";
 import InputNumber from "primevue/inputnumber";
 import InputText from "primevue/inputtext";
 import { ref, computed } from "vue";
