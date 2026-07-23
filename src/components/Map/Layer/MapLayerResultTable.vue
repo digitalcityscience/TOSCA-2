@@ -13,53 +13,56 @@
             <div class="w-full">
                 <div v-if="tableData !== undefined">
                     <div v-if="tableData?.features.length > 0">
-                        <DataTable showGridlines :value="tableData.features" paginator :rows="10" :rowsPerPageOptions="[10, 20, 50]"
-                            class="w-full" size="small" table-class="w-full"
-                            paginatorTemplate="RowsPerPageDropdown FirstPageLink PrevPageLink NextPageLink LastPageLink">
-                            <template #header>
-                                <div class="w-full pb-2">
-                                    <span>
-                                        {{ tableData.features.length }} results
-                                    </span>
-                                </div>
-                                <div v-if="tableUsedFilters !== undefined" class="w-full flex flex-row pb-1">
-                                    <p>Used Filters:</p>
-                                </div>
-                                <div v-if="tableUsedFilters !== undefined" class="w-full flex flex-row">
-                                    <div v-if="tableUsedFilters.attributeFilters" class="flex flex-row">
-                                        <div v-for="(filter, index) in tableUsedFilters?.attributeFilters" :key="index">
-                                            <span class="mx-1"
-                                                v-if="index > 0 && index < tableUsedFilters.attributeFilters?.length">
-                                                {{ tableUsedFilters.attributeRelation }}
-                                            </span>
-                                            <UBadge class="first:ml-0 ml-1 px-1" color="neutral" variant="soft">
-                                                <span>{{ filter.attribute.name }} {{
-                                                    filterStore.filterNames[filter.operand as IntegerFilters |
-                                                    StringFilters] }} {{ filter.value }}</span>
-                                            </UBadge>
-                                        </div>
-                                    </div>
-                                    <div v-if="tableUsedFilters.geometryFilters">
-                                        <span v-if="tableUsedFilters.attributeFilters" class="mx-1">AND</span>
-                                        <UBadge class="px-1" color="neutral" variant="soft">
-                                            <span>Geometry filter applied</span>
-                                        </UBadge>
-                                    </div>
-                                </div>
-                            </template>
-                            <span v-for="(column, index) in tableHeaderList" :key="`col-${index}`">
-                                <Column :field="`properties.${column.value}`" :header="column.name"
-                                    :key="`column-${index}`"
-                                    :dataType="column.binding !== 'java.lang.String' ? 'numeric' : undefined"
-                                    resizableColumns columnResizeMode="fit">
-                                    <template #body="{ data }">
-                                        <span>
-                                            {{ data.properties[`${column.name}`] }}
-                                        </span>
-                                    </template>
-                                </Column>
+                        <div class="w-full pb-2">
+                            <span>
+                                {{ tableData.features.length }} results
                             </span>
-                        </DataTable>
+                        </div>
+                        <div v-if="tableUsedFilters !== undefined" class="w-full flex flex-row pb-1">
+                            <p>Used Filters:</p>
+                        </div>
+                        <div v-if="tableUsedFilters !== undefined" class="w-full flex flex-row pb-2">
+                            <div v-if="tableUsedFilters.attributeFilters" class="flex flex-row">
+                                <div v-for="(filter, index) in tableUsedFilters?.attributeFilters" :key="index">
+                                    <span class="mx-1"
+                                        v-if="index > 0 && index < tableUsedFilters.attributeFilters?.length">
+                                        {{ tableUsedFilters.attributeRelation }}
+                                    </span>
+                                    <UBadge class="first:ml-0 ml-1 px-1" color="neutral" variant="soft">
+                                        <span>{{ filter.attribute.name }} {{
+                                            filterStore.filterNames[filter.operand as IntegerFilters |
+                                            StringFilters] }} {{ filter.value }}</span>
+                                    </UBadge>
+                                </div>
+                            </div>
+                            <div v-if="tableUsedFilters.geometryFilters">
+                                <span v-if="tableUsedFilters.attributeFilters" class="mx-1">AND</span>
+                                <UBadge class="px-1" color="neutral" variant="soft">
+                                    <span>Geometry filter applied</span>
+                                </UBadge>
+                            </div>
+                        </div>
+                        <UTable
+                            :data="paginatedResultRows"
+                            :columns="resultColumns"
+                            class="w-full"
+                            :ui="{ th: 'px-2 py-2', td: 'px-2 py-2' }"
+                        />
+                        <div class="flex items-center justify-end gap-2 p-2">
+                            <USelect
+                                :model-value="tablePagination.pageSize"
+                                :items="pageSizeOptions"
+                                class="w-24"
+                                aria-label="Rows per page"
+                                @update:model-value="updateResultPageSize"
+                            />
+                            <UPagination
+                                :page="tablePagination.pageIndex + 1"
+                                :items-per-page="tablePagination.pageSize"
+                                :total="resultRows.length"
+                                @update:page="updateResultPage"
+                            />
+                        </div>
                     </div>
                     <div class="w-full flex justify-around" v-else>
                         <UAlert color="info" variant="soft" description="There is no result" />
@@ -83,9 +86,8 @@
 </template>
 
 <script setup lang="ts">
-import DataTable from "primevue/datatable";
-import Column from "primevue/column";
-import { type FeatureCollection } from "@helpers/geojson";
+import type { TableColumn } from "@nuxt/ui";
+import { type Feature, type FeatureCollection } from "@helpers/geojson";
 import { computed, ref } from "vue";
 import { type AttributeFilterItem, useFilterStore, type AppliedFiltersListItem, type IntegerFilters, type StringFilters, type RelationTypes } from "@store/filter";
 import { type LayerObjectWithAttributes } from "@store/map";
@@ -119,9 +121,34 @@ const layerFilters = computed(() => {
 const tableData = ref<FeatureCollection | undefined>(undefined)
 const tableHeaderList = ref<TableHeader[]>([])
 const tableUsedFilters = ref<AppliedFiltersListItem | undefined>(undefined)
+const tablePagination = ref({
+    pageIndex: 0,
+    pageSize: 10,
+})
+const pageSizeOptions = [
+    { label: "10", value: 10 },
+    { label: "20", value: 20 },
+    { label: "50", value: 50 },
+]
+const resultRows = computed(() => {
+    return tableData.value?.features ?? []
+})
+const paginatedResultRows = computed(() => {
+    const start = tablePagination.value.pageIndex * tablePagination.value.pageSize
+    const end = start + tablePagination.value.pageSize
+    return resultRows.value.slice(start, end)
+})
+const resultColumns = computed<TableColumn<Feature>[]>(() => {
+    return tableHeaderList.value.map((column) => ({
+        id: column.value,
+        accessorFn: (row) => row.properties?.[column.value],
+        header: column.name,
+    }))
+})
 function createTable(): void {
     getTableData().then(() => {
         applyFilters()
+        tablePagination.value.pageIndex = 0
         isOpen.value = true
     }).catch((error) => {
         console.error(error)
@@ -306,6 +333,14 @@ function downloadAsGeojson(): void {
     document.body.appendChild(downloadAnchorNode); // required for Firefox
     downloadAnchorNode.click();
     downloadAnchorNode.remove();
+}
+function updateResultPage(page: number): void {
+    tablePagination.value.pageIndex = page - 1
+}
+function updateResultPageSize(pageSize: string | number | boolean | undefined): void {
+    if (typeof pageSize !== "number") return
+    tablePagination.value.pageIndex = 0
+    tablePagination.value.pageSize = pageSize
 }
 
 const isOpen = ref<boolean>(false)
