@@ -1,8 +1,12 @@
 <template>
-    <Card class="attribute-filtering w-full">
-        <template #title>Attribute Filtering</template>
-        <template #subtitle>Select an attribute and operand to filter this layer</template>
-        <template #content>
+    <UCard class="attribute-filtering w-full">
+        <template #header>
+            <div class="space-y-1">
+                <div class="font-semibold text-highlighted">Attribute Filtering</div>
+                <div class="text-muted text-sm">Select an attribute and operand to filter this layer</div>
+            </div>
+        </template>
+        <template #default>
             <div class="current-filters" v-if="filterStore.appliedFiltersList.find((listItem)=>{return listItem.layerName === props.layer.id && ((listItem.attributeFilters !== undefined && listItem.attributeFilters?.length > 0) || listItem.geometryFilters !== undefined)})">
                 <DataTable :value="currentFilters" stripedRows class="w-full" size="small" table-class="w-full">
                     <template #header></template>
@@ -14,11 +18,13 @@
                     <Column header="">
                         <template #body="filter">
                             <div class="w-full flex flex-row-reverse">
-                                <Button @click="deleteAttributeFilter(filter.data)" severity="danger" text rounded>
-                                    <template #icon>
-                                        <i class="pi pi-times"></i>
-                                    </template>
-                                </Button>
+                                <UButton
+                                    icon="i-lucide-x"
+                                    color="error"
+                                    variant="ghost"
+                                    aria-label="Delete attribute filter"
+                                    @click="deleteAttributeFilter(filter.data)"
+                                />
                             </div>
                         </template>
                     </Column>
@@ -71,18 +77,16 @@
                     <InputText class="min-w-32 w-full h-10" v-else type="number" v-model="filterValue"></InputText>
                 </div>
                 <div class="applier w-full flex flex-row-reverse pt-2">
-                    <Button size="small" @click=applyAttributeFilter :disabled="!(selectedAttribute && selectedOperand && filterValue)">Apply</Button>
+                    <UButton size="sm" @click="applyAttributeFilter" :disabled="!(selectedAttribute && selectedOperand && filterValue)">Apply</UButton>
                 </div>
             </div>
         </template>
-    </Card>
+    </UCard>
 </template>
 
 <script setup lang="ts">
 import Select from "primevue/select";
-import Button from "primevue/button";
 import SelectButton from "primevue/selectbutton";
-import Card from "primevue/card"
 import DataTable from "primevue/datatable";
 import Column from "primevue/column";
 import InputText from "primevue/inputtext";
