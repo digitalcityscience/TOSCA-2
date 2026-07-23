@@ -6,16 +6,16 @@
             </RouterLink>
         </template>
             <div class="w-full" v-if="props.workspaces && props.workspaces.length > 0">
-                <Accordion :multiple="true" :activeIndex="[]">
-                    <AccordionPanel v-for="(item, index) in props.workspaces" :key="index" :value="index">
-                        <AccordionHeader>
-                            <h2 class="text-xl font-semibold capitalize">{{ item.name }}</h2>
-                        </AccordionHeader>
-                        <AccordionContent>
-                            <WorkspaceListingItem :workspace="item"></WorkspaceListingItem>
-                        </AccordionContent>
-                    </AccordionPanel>
-                </Accordion>
+                <UAccordion
+                    :items="workspaceAccordionItems"
+                    type="multiple"
+                    :default-value="[]"
+                    :ui="{ label: 'text-xl font-semibold capitalize' }"
+                >
+                    <template #body="{ item }">
+                        <WorkspaceListingItem :workspace="item.workspace"></WorkspaceListingItem>
+                    </template>
+                </UAccordion>
             </div>
             <div class="w-full" v-else>
                 <UAlert class="w-full" color="info" variant="soft" description="No workspace found" />
@@ -25,10 +25,6 @@
 
 <script setup lang="ts">
 // Components
-import Accordion from "primevue/accordion";
-import AccordionPanel from "primevue/accordionpanel";
-import AccordionHeader from "primevue/accordionheader";
-import AccordionContent from "primevue/accordioncontent";
 import BaseSidebarComponent from "@components/Base/BaseSidebarComponent.vue";
 import WorkspaceListingItem from "./WorkspaceListingItem.vue";
 // JS-TS imports
@@ -37,13 +33,20 @@ import { type WorkspaceListItem } from "@store/geoserver";
 import { SidebarControl } from "@helpers/sidebarControl";
 import { useMapStore } from "@store/map";
 import { RouterLink, useRoute } from "vue-router";
-import { onMounted } from "vue";
+import { computed, onMounted } from "vue";
 export interface Props {
     workspaces: WorkspaceListItem[] | undefined
 }
 const props = defineProps<Props>()
 const mapStore = useMapStore()
 const sidebarID = "workspaceListing"
+const workspaceAccordionItems = computed(() => {
+    return props.workspaces?.map((workspace) => ({
+        label: workspace.name,
+        value: workspace.name,
+        workspace,
+    })) ?? []
+})
 
 const iconElement = document.createElement("span")
 iconElement.classList.add("material-icons-outlined")
