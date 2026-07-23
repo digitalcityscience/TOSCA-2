@@ -7,11 +7,11 @@
     </template>
         <div class="w-full">
             <div class="py-1">
-                <Card>
-                    <template #content>
+                <UCard>
+                    <template #default>
                         <p>{{information}}</p>
                     </template>
-                </Card>
+                </UCard>
             </div>
             <div class="py-1">
                 <Accordion :activeIndex="[]">
@@ -38,7 +38,6 @@ import Accordion from "primevue/accordion";
 import AccordionPanel from "primevue/accordionpanel";
 import AccordionHeader from "primevue/accordionheader";
 import AccordionContent from "primevue/accordioncontent";
-import Card from "primevue/card";
 import BaseSidebarComponent from "@components/Base/BaseSidebarComponent.vue";
 
 import { SidebarControl } from "@helpers/sidebarControl";
