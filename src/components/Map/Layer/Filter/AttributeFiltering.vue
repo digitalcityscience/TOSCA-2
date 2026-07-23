@@ -72,9 +72,9 @@
                     </Select>
                 </div>
                 <div class="value w-full pt-2" v-if="selectedOperand">
-                    <InputText class="min-w-32 w-full h-10" v-if="selectedAttribute && selectedAttribute.binding == 'java.lang.String'" type="text"
-                        v-model="filterValue"></InputText>
-                    <InputText class="min-w-32 w-full h-10" v-else type="number" v-model="filterValue"></InputText>
+                    <UInput class="min-w-32 w-full h-10" v-if="selectedAttribute && selectedAttribute.binding == 'java.lang.String'" type="text"
+                        v-model="filterValue" />
+                    <UInput class="min-w-32 w-full h-10" v-else type="number" v-model="filterValue" />
                 </div>
                 <div class="applier w-full flex flex-row-reverse pt-2">
                     <UButton size="sm" @click="applyAttributeFilter" :disabled="!(selectedAttribute && selectedOperand && filterValue)">Apply</UButton>
@@ -89,7 +89,6 @@ import Select from "primevue/select";
 import SelectButton from "primevue/selectbutton";
 import DataTable from "primevue/datatable";
 import Column from "primevue/column";
-import InputText from "primevue/inputtext";
 import { computed, ref } from "vue";
 import { type GeoServerVectorTypeLayerDetail, type GeoServerFeatureTypeAttribute } from "@store/geoserver";
 import { type IntegerFilters, type StringFilters, useFilterStore, type RelationTypes, type AttributeFilterItem } from "@store/filter";

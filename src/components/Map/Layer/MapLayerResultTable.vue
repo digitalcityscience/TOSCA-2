@@ -70,7 +70,7 @@
                 <div class="w-full lg:col-span-2">
                 </div>
                 <div class="w-full flex lg:col-span-2">
-                    <InputText class="h-10 mr-4 ml-auto" type="text" v-model="fileName" placeholder="File name"></InputText>
+                    <UInput class="h-10 mr-4 ml-auto" type="text" v-model="fileName" placeholder="File name" />
                     <UButton @click="downloadAsGeojson" :disabled="fileName.length === 0" class="lg:w-full 2xl:w-auto"
                         size="sm">Download as GeoJSON</UButton>
                 </div>
@@ -84,7 +84,6 @@
 import Dialog from "primevue/dialog";
 import DataTable from "primevue/datatable";
 import Column from "primevue/column";
-import InputText from "primevue/inputtext";
 import Chip from "primevue/chip";
 import { type FeatureCollection } from "@helpers/geojson";
 import { computed, ref } from "vue";
