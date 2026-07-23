@@ -1,20 +1,26 @@
 <template>
-    <div v-if="props.item && layerInformation" class="first:pt-0 pt-1">
-        <div v-if="layerInformation.type ==='RASTER'">
+    <div class="w-full">
+        <UCard v-if="isLoading" class="bg-default/95 dark:bg-elevated/80" :ui="{ body: 'p-3' }">
+            <div class="space-y-3">
+                <USkeleton class="h-5 w-2/3" />
+                <USkeleton class="h-4 w-full" />
+                <USkeleton class="h-8 w-28" />
+            </div>
+        </UCard>
+        <UAlert v-else-if="loadError" class="w-full" color="error" variant="soft" :description="loadError" />
+        <div v-else-if="props.item && layerInformation?.type ==='RASTER'">
             <WorkspaceRasterLayerListingItem :item="props.item" :workspace="props.workspace" :layerInformation="layerInformation"></WorkspaceRasterLayerListingItem>
         </div>
-        <div v-if="layerInformation.type ==='VECTOR'">
+        <div v-else-if="props.item && layerInformation?.type ==='VECTOR'">
             <WorkspaceVectorLayerListingItem :item="props.item" :workspace="props.workspace" :layerInformation="layerInformation" :layerStyling="layerStyling"></WorkspaceVectorLayerListingItem>
         </div>
-    </div>
-    <div v-else class="first:pt-0 pt-1 w-full">
-        <UAlert class="w-full" color="info" variant="soft" description="No information about layer." />
+        <UAlert v-else class="w-full" color="info" variant="soft" description="No information about layer." />
     </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { type GeoServerVectorTypeLayerDetail, type GeoserverLayerInfo, type GeoserverLayerListItem, useGeoserverStore } from "@store/geoserver";
+import { type GeoserverLayerInfo, type GeoserverLayerListItem, useGeoserverStore } from "@store/geoserver";
 import { type LayerStyleOptions } from "@store/map";
 import { useToast } from "@helpers/toast";
 import WorkspaceRasterLayerListingItem from "./WorkspaceRasterLayerListingItem.vue";
@@ -31,16 +37,20 @@ const props = defineProps<Props>()
 const toast = useToast()
 const geoserver = useGeoserverStore()
 const layerInformation = ref<GeoserverLayerInfo>()
-const layerDetail = ref<GeoServerVectorTypeLayerDetail>()
 const layerStyling = ref<LayerStyleOptions>()
-geoserver.getLayerInformation(props.item, props.workspace).then((response) => {
-    layerInformation.value = response.layer
-    // Currently we are just picking styles which has include mbstyle in name. Further optimization needed after some period
-    // TODO: remove mbstyle selector
-    if (response.layer.defaultStyle.href.includes("mbstyle")){
-        const regex = /\.json\b/;
-        const url = response.layer.defaultStyle.href.replace(regex, ".mbstyle")
-        geoserver.getLayerStyling(url).then(style => {
+const isLoading = ref(true)
+const loadError = ref<string>()
+
+async function loadLayerInformation(): Promise<void> {
+    try {
+        const response = await geoserver.getLayerInformation(props.item, props.workspace)
+        layerInformation.value = response.layer
+        // Currently we are just picking styles which has include mbstyle in name. Further optimization needed after some period
+        // TODO: remove mbstyle selector
+        if (response.layer.defaultStyle.href.includes("mbstyle")){
+            const regex = /\.json\b/;
+            const url = response.layer.defaultStyle.href.replace(regex, ".mbstyle")
+            const style = await geoserver.getLayerStyling(url)
             if (style.layers.length > 0){
                 const obj: LayerStyleOptions = {
                     paint:{ ...style.layers[0].paint }
@@ -56,18 +66,14 @@ geoserver.getLayerInformation(props.item, props.workspace).then((response) => {
                 }
                 layerStyling.value = obj
             }
-        }).catch((error) => {
-            toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
-        })
+        }
+    } catch (err) {
+        loadError.value = "Could not load layer information."
+        toast.add({ severity: "error", summary: "Error", detail: err, life: 3000 });
+    } finally {
+        isLoading.value = false
     }
-    if (layerInformation.value !== undefined) {
-        geoserver.getLayerDetail(layerInformation.value?.resource.href).then((detail) => {
-            layerDetail.value = detail as GeoServerVectorTypeLayerDetail
-        }).catch(err => {
-            toast.add({ severity: "error", summary: "Error", detail: err, life: 3000 });
-        })
-    }
-}).catch(err => {
-    toast.add({ severity: "error", summary: "Error", detail: err, life: 3000 });
-})
+}
+
+void loadLayerInformation()
 </script>

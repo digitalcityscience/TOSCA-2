@@ -1,30 +1,38 @@
 <template>
-    <div v-if="props.item" class="first:pt-0 pt-1">
-        <UCard class="workspace-layer-card bg-default/95 dark:bg-elevated/80" :ui="{ header: 'p-3', body: 'p-3', footer: 'p-3' }">
+    <div v-if="props.item">
+        <UCard class="workspace-layer-card bg-default/95 dark:bg-elevated/80" :ui="{ header: 'p-3 pb-2', body: 'p-3 pt-0', footer: 'p-3 pt-0' }">
             <template #header>
-                <div class="space-y-1">
-                    <span class="capitalize">{{ cleanLayerName }}</span>
-                    <span v-if="layerDetail && layerDetail?.featureType.abstract?.length > 0" class="block line-clamp-3 hover:line-clamp-none xl:line-clamp-none text-muted text-sm">{{ layerDetail.featureType.abstract }}</span>
+                <div class="min-w-0 space-y-1">
+                    <div class="flex min-w-0 flex-wrap items-center gap-2">
+                        <span class="truncate font-semibold text-highlighted capitalize">{{ cleanLayerName }}</span>
+                        <UBadge color="neutral" variant="soft" size="sm" label="Vector" />
+                        <UBadge v-if="dataType" color="info" variant="soft" size="sm" :label="dataType" />
+                    </div>
+                    <p v-if="layerDetail && layerDetail?.featureType.abstract?.length > 0" class="line-clamp-2 hover:line-clamp-none xl:line-clamp-3 text-muted text-sm">{{ layerDetail.featureType.abstract }}</p>
                 </div>
             </template>
-            <template v-if="layerDetail">
-                <div class="grid grid-cols-4 w-full pt-1">
-                    <span class="font-bold lg:col-span-2 2xl:col-span-2 3xl:col-span-2 4xl:col-span-1 self-center">Keywords:</span>
-                    <span class="lg:col-span-2 2xl:col-span-2 3xl:col-span-2 4xl:col-span-3 pl-1">
-                        <UBadge class="mb-1 mr-1 last:mr-0" color="primary" variant="solid" v-for="(keyword,index) in layerDetail.featureType.keywords.string" :key="index" :label="keyword" />
-                    </span>
+            <div v-if="layerDetail" class="space-y-3 text-sm">
+                <div class="grid grid-cols-[5.5rem_1fr] gap-3">
+                    <span class="font-semibold uppercase tracking-wide text-muted text-xs self-start pt-1">Keywords</span>
+                    <div class="flex min-w-0 flex-wrap gap-x-2 gap-y-1">
+                        <span v-for="(keyword,index) in layerDetail.featureType.keywords.string" :key="index" class="italic text-muted">
+                            #{{ keyword }}
+                        </span>
+                    </div>
                 </div>
-                <div class="grid grid-cols-4 w-full pt-1" v-if="dataType">
-                    <span class="font-bold lg:col-span-2 2xl:col-span-1">Data Type:</span>
-                    <span class="lg:col-span-2 2xl:col-span-3 pl-1">{{ dataType }}</span>
-                </div>
-            </template>
+            </div>
+            <div v-else class="space-y-2">
+                <USkeleton class="h-4 w-full" />
+                <USkeleton class="h-4 w-3/4" />
+            </div>
             <template #footer>
-                <UButton size="sm" @click="add2Map">Add to map</UButton>
+                <div class="flex justify-end">
+                    <UButton size="sm" @click="add2Map">Add to map</UButton>
+                </div>
             </template>
         </UCard>
     </div>
-    <div v-else class="first:pt-0 pt-1 w-full">
+    <div v-else class="w-full">
         <UAlert class="w-full" color="info" variant="soft" description="No information about layer." />
     </div>
 </template>
