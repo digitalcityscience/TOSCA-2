@@ -42,7 +42,7 @@
                             </div>
                         </template>
                         <template #default>
-                            <InputText v-model="drawTool.layerName" placeholder="Layer Name"></InputText>
+                            <UInput v-model="drawTool.layerName" placeholder="Layer Name" />
                         </template>
                         <template #footer>
                             <UButton size="sm" @click="drawTool.saveAsLayer" :disabled="drawTool.layerName.length === 0">Add Layer</UButton>
@@ -57,7 +57,6 @@
 <script setup lang="ts">
 import RadioButton from "primevue/radiobutton";
 import Popover from "primevue/popover";
-import InputText from "primevue/inputtext";
 import { ref } from "vue";
 import { useDrawStore } from "@store/draw"
 import { useMapStore } from "@store/map";

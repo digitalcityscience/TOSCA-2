@@ -30,7 +30,7 @@
                                     <div class="buffer-layer pt-4">
                                         <label id="label_bufferLayer" class="font-bold">Buffer Layer Name</label>
                                         <p class="text-sm font-light italic">Name of the buffer layer</p>
-                                        <InputText v-model="bufferStore.bufferLayerName" placeholder="Buffer Layer Name" />
+                                        <UInput v-model="bufferStore.bufferLayerName" placeholder="Buffer Layer Name" />
                                     </div>
                                 </div>
                             </div>
@@ -62,7 +62,6 @@
 import Popover from "primevue/popover";
 import Select from "primevue/select";
 import InputNumber from "primevue/inputnumber";
-import InputText from "primevue/inputtext";
 import { ref, computed } from "vue";
 import { useMapStore } from "@store/map";
 import { useBufferStore } from "@store/buffer";
