@@ -9,8 +9,8 @@
                     :title="layerHeaderIndicatorTitle"
                     aria-hidden="true"
                 ></span>
-                <Button class="layer-drag-handle layer-icon-btn cursor-move" icon="pi pi-bars" text rounded aria-label="Reorder layer"
-                    @click.stop></Button>
+                <UButton class="layer-drag-handle layer-icon-btn cursor-move" icon="i-lucide-grip-vertical" color="neutral" variant="ghost" aria-label="Reorder layer"
+                    @click.stop />
                 <ToggleSwitch class="shrink-0" v-model="checked" @update:model-value="changeLayerVisibility" />
                 <div class="layer-name-area">
                     <span class="layer-name capitalize truncate">
@@ -22,16 +22,16 @@
                        aria-label="Temporal layer"></i>
                 </div>
                 <div class="layer-actions">
-                    <Button class="layer-icon-btn" icon="pi pi-trash" severity="danger" text rounded aria-label="Delete"
-                        @click="confirmDialogVisibility = true"></Button>
-                    <Button class="layer-icon-btn" icon="pi pi-search-plus" text rounded aria-label="Zoom"
-                        @click="zoomToLayer"></Button>
+                    <UButton class="layer-icon-btn" icon="i-lucide-trash-2" color="error" variant="ghost" aria-label="Delete"
+                        @click="confirmDialogVisibility = true" />
+                    <UButton class="layer-icon-btn" icon="i-lucide-zoom-in" color="neutral" variant="ghost" aria-label="Zoom"
+                        @click="zoomToLayer" />
                 </div>
                 <Dialog v-model:visible="confirmDialogVisibility" modal header="Delete Map Layer" :style="{ width: '25rem' }">
                     <span class="p-text-secondary block mb-5">Are you sure want to delete {{ props.layer.displayName ?? props.layer.source }} layer?</span>
                     <div class="flex justify-content-end gap-2">
-                        <Button size="small" type="button" label="Cancel" severity="secondary" @click="confirmDialogVisibility = false"></Button>
-                        <Button size="small" type="button" label="Delete" severity="danger" @click="deleteLayerConfirmation(props.layer)"></Button>
+                        <UButton size="sm" type="button" color="neutral" variant="soft" @click="confirmDialogVisibility = false">Cancel</UButton>
+                        <UButton size="sm" type="button" color="error" @click="deleteLayerConfirmation(props.layer)">Delete</UButton>
                     </div>
                 </Dialog>
             </template>
@@ -83,7 +83,6 @@ import { type LayerObjectWithAttributes, type MapLibreLayerTypes, useMapStore } 
 import Panel from "primevue/panel";
 import Slider from "primevue/slider";
 import ToggleSwitch from "primevue/toggleswitch";
-import Button from "primevue/button"
 import { useToast } from "primevue/usetoast";
 import { isNullOrEmpty } from "@helpers/functions";
 import {
