@@ -40,8 +40,7 @@ export class DrawControl implements IControl {
     createButton(): HTMLButtonElement {
         const span = this.createIcon();
         const btn = document.createElement("button");
-        btn.className = "";
-        btn.style.fontSize = "1.4rem";
+        btn.className = "tosca-map-control-button";
         btn.appendChild(span);
         return btn;
     }

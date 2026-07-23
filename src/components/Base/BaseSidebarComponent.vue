@@ -1,8 +1,9 @@
 <template>
-    <div ref="el" :data-position="props.position"  :class="[sidebarStatusClasses, props.bgClass ?? 'bg-primary-900']" :id="props.id" class="sidebar group flex grow-0 justify-between absolute rounded-lg p-1  lg:w-[400px] 2xl:w-[450px] 3xl:w-[450px] duration-1000" :style="props.style ? props.style : ''">
-        <div class="header w-full flex group-[.sidebar-left]:flex-row-reverse group-[.sidebar-right]:flex-row group-[.sidebar-bottom]:flex-row-reverse p-1">
+    <div ref="el" :data-position="props.position"  :class="[sidebarStatusClasses, props.bgClass ?? 'bg-[#F9F7EF] text-default dark:bg-primary-950 dark:text-white']" :id="props.id" class="sidebar group flex grow-0 justify-between absolute rounded-lg p-2 lg:w-[400px] 2xl:w-[450px] 3xl:w-[450px] duration-1000" :style="props.style ? props.style : ''">
+        <div class="header w-full flex items-center gap-2 group-[.sidebar-left]:flex-row-reverse group-[.sidebar-right]:flex-row group-[.sidebar-bottom]:flex-row-reverse p-1">
             <div class="close-button">
                 <UButton
+                    class="sidebar-collapse-button"
                     :icon="closeIcon"
                     color="neutral"
                     variant="soft"
@@ -12,7 +13,7 @@
                     @click="toggleSidebar"
                 />
             </div>
-            <div class="header-content grow text-2xl text-white font-bold self-center">
+            <div class="header-content grow text-2xl font-bold self-center">
                 <slot name="header"></slot>
             </div>
         </div>
@@ -129,22 +130,26 @@ defineExpose({
 
 .sidebar.sidebar-left {
     top: 10px;
-    left: 45px;
+    left: 72px;
     z-index: 11;
     height: 90vh;
     flex-direction: column;
     min-width: 15vw;
     backdrop-filter: invert(100%);
+    border: 1px solid rgb(0 0 0 / 0.12);
+    box-shadow: 0 18px 40px rgb(15 23 42 / 0.22);
 }
 
 .sidebar.sidebar-right {
     top: 10px;
-    right: 45px;
+    right: 72px;
     z-index: 11;
     height: 90vh;
     flex-direction: column;
     min-width: 15vw;
     backdrop-filter: invert(100%);
+    border: 1px solid rgb(0 0 0 / 0.12);
+    box-shadow: 0 18px 40px rgb(15 23 42 / 0.22);
 }
 
 .sidebar.sidebar-bottom {
@@ -167,5 +172,11 @@ defineExpose({
 .sidebar.sidebar-bottom.collapsed {
     transform: translateY(var(--height4Horizontal));
     display: none;
+}
+.sidebar-collapse-button {
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    flex: 0 0 auto;
 }
 </style>

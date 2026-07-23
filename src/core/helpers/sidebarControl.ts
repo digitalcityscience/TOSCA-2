@@ -15,7 +15,8 @@ export class SidebarControl implements IControl {
         this._container = container;
         if (icon === undefined){
             const el = document.createElement("span")
-            el.classList.add("pi", "pi-database")
+            el.classList.add("material-icons-outlined")
+            el.textContent = "database"
             this._icon = el
         } else {
             this._icon = icon
@@ -66,8 +67,7 @@ export class SidebarControl implements IControl {
     createButton(): HTMLButtonElement {
         const span = this._icon
         const btn = document.createElement("button");
-        btn.className = "";
-        btn.style.fontSize = "1.4rem";
+        btn.className = "tosca-map-control-button";
         btn.appendChild(span);
         return btn;
     }

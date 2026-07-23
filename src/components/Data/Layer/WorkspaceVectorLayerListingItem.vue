@@ -1,6 +1,6 @@
 <template>
     <div v-if="props.item" class="first:pt-0 pt-1">
-        <UCard>
+        <UCard class="workspace-layer-card bg-default/95 dark:bg-elevated/80" :ui="{ header: 'p-3', body: 'p-3', footer: 'p-3' }">
             <template #header>
                 <div class="space-y-1">
                     <span class="capitalize">{{ cleanLayerName }}</span>
