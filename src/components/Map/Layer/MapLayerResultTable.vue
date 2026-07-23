@@ -2,10 +2,10 @@
     <div>
         <div class="w-full 2xl:flex 2xl:justify-between 2xl:grid-cols-none lg:grid lg:grid-cols-4 lg:gap-2 2xl:gap-0 py-1 ">
             <div class="w-full lg:col-span-2 2xl:pr-2">
-                <Button class="w-full" size="small" @click="createTable">Get Table</Button>
+                <UButton class="w-full" size="sm" @click="createTable">Get Table</UButton>
             </div>
             <div class="w-full lg:col-span-2 2xl:pl -2">
-                <Button class="w-full" v-if="tableData" size="small" @click="isOpen = true">Open Table</Button>
+                <UButton class="w-full" v-if="tableData" size="sm" @click="isOpen = true">Open Table</UButton>
             </div>
         </div>
         <Dialog v-model:visible="isOpen" modal closable close-on-escape :style="{ width: 'calc(100vw - 200px)' }">
@@ -71,8 +71,8 @@
                 </div>
                 <div class="w-full flex lg:col-span-2">
                     <InputText class="h-10 mr-4 ml-auto" type="text" v-model="fileName" placeholder="File name"></InputText>
-                    <Button @click="downloadAsGeojson" :disabled="fileName.length === 0" class="lg:w-full 2xl:w-auto"
-                        size="small">Download as GeoJSON</Button>
+                    <UButton @click="downloadAsGeojson" :disabled="fileName.length === 0" class="lg:w-full 2xl:w-auto"
+                        size="sm">Download as GeoJSON</UButton>
                 </div>
 
             </div>
@@ -81,7 +81,6 @@
 </template>
 
 <script setup lang="ts">
-import Button from "primevue/button";
 import Dialog from "primevue/dialog";
 import DataTable from "primevue/datatable";
 import Column from "primevue/column";

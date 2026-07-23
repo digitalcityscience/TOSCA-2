@@ -12,7 +12,7 @@ export default defineConfig({
       ui: {
         button: {
           slots: {
-            base: "cursor-pointer",
+            base: "cursor-pointer justify-center",
           },
         },
       },
