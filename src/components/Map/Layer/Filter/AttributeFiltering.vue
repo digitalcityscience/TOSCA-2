@@ -37,7 +37,13 @@
                 <div v-if="currentFilters.length" class="relation-control w-full flex flex-row ml-auto py-1 justify-between">
                     <span class="self-center" v-if="relationType==='AND'">(Match all selections)</span>
                     <span class="self-center" v-else>(Match at least one selection)</span>
-                    <SelectButton v-model="relationType" :options="relationList" :allow-empty="false" @change="applyAttributeFilter"></SelectButton>
+                    <URadioGroup
+                        v-model="relationType"
+                        :items="relationOptions"
+                        variant="card"
+                        orientation="horizontal"
+                        @update:model-value="applyAttributeFilter"
+                    />
                 </div>
             </div>
             <div class="new-filter flex flex-col w-full">
@@ -45,31 +51,46 @@
                     <p>Add new attribute filter</p>
                 </div>
                 <div class="attribute w-full">
-                    <Select class="min-w-32 w-full h-10" v-model="selectedAttribute" :options="filteredAttributes" option-label="name" filter show-clear
-                        placeholder="Select an attribute" :virtual-scroller-options="{ itemSize: 30 }" @change="clearOperand">
-                    </Select>
+                    <div class="flex w-full">
+                        <USelect
+                            class="min-w-32 w-full h-10"
+                            v-model="selectedAttributeName"
+                            :items="filteredAttributeOptions"
+                            placeholder="Select an attribute"
+                            @update:model-value="clearOperand"
+                        />
+                        <UButton
+                            v-if="selectedAttributeName !== undefined"
+                            class="ml-1"
+                            icon="i-lucide-x"
+                            color="neutral"
+                            variant="ghost"
+                            aria-label="Clear selected attribute"
+                            @click="clearSelectedAttribute"
+                        />
+                    </div>
                 </div>
                 <div class="operand w-full pt-2">
-                    <Select class="min-w-32 w-full h-10" v-if="selectedAttribute && selectedAttribute.binding == 'java.lang.String'"
-                        v-model="selectedOperand" :options="filterStore.stringFilters" show-clear
-                        placeholder="Select an operand">
-                        <template #option="slotProps">
-                            <div class="flex align-items-center">
-                                <div>{{ filterStore.filterNames[slotProps.option as OptionKey] }}</div>
-                            </div>
-                        </template>
-                    </Select>
-                    <Select
-                        class="min-w-32 w-full h-10"
-                        v-else-if="selectedAttribute && (selectedAttribute.binding == 'java.lang.Integer' || selectedAttribute.binding == 'java.lang.Long' || selectedAttribute.binding == 'java.lang.Double' || selectedAttribute.binding == 'java.lang.BigDecimal')"
-                        v-model="selectedOperand" :options="filterStore.integerFilters" show-clear
-                        placeholder="Select an operand">
-                        <template #option="slotProps">
-                            <div class="flex align-items-center">
-                                <div>{{ filterStore.filterNames[slotProps.option as OptionKey] }}</div>
-                            </div>
-                        </template>
-                    </Select>
+                    <div
+                        v-if="selectedAttribute && (selectedAttribute.binding == 'java.lang.String' || selectedAttribute.binding == 'java.lang.Integer' || selectedAttribute.binding == 'java.lang.Long' || selectedAttribute.binding == 'java.lang.Double' || selectedAttribute.binding == 'java.lang.BigDecimal')"
+                        class="flex w-full"
+                    >
+                        <USelect
+                            class="min-w-32 w-full h-10"
+                            v-model="selectedOperand"
+                            :items="operandOptions"
+                            placeholder="Select an operand"
+                        />
+                        <UButton
+                            v-if="selectedOperand !== undefined"
+                            class="ml-1"
+                            icon="i-lucide-x"
+                            color="neutral"
+                            variant="ghost"
+                            aria-label="Clear selected operand"
+                            @click="selectedOperand = undefined"
+                        />
+                    </div>
                 </div>
                 <div class="value w-full pt-2" v-if="selectedOperand">
                     <UInput class="min-w-32 w-full h-10" v-if="selectedAttribute && selectedAttribute.binding == 'java.lang.String'" type="text"
@@ -85,8 +106,6 @@
 </template>
 
 <script setup lang="ts">
-import Select from "primevue/select";
-import SelectButton from "primevue/selectbutton";
 import DataTable from "primevue/datatable";
 import Column from "primevue/column";
 import { computed, ref } from "vue";
@@ -121,13 +140,39 @@ const currentFilters = computed(()=>{
         return [] as AppliedFilter[]
     }
 })
-const relationList = ["AND", "OR"]
 const relationType = ref<RelationTypes>("AND")
 const selectedAttribute = ref<GeoServerFeatureTypeAttribute>()
 const selectedOperand = ref<IntegerFilters | StringFilters>()
 const filterValue = ref<any>("")
 const filteredAttributes = computed(() => {
     return (props.layer.details as GeoServerVectorTypeLayerDetail)?.featureType.attributes.attribute.filter(attr => filterStore.allowedBindings.includes(attr.binding))
+})
+const selectedAttributeName = computed({
+    get: () => selectedAttribute.value?.name,
+    set: (name: string | undefined) => {
+        selectedAttribute.value = filteredAttributes.value?.find((attribute) => attribute.name === name)
+    }
+})
+const filteredAttributeOptions = computed(() => {
+    return filteredAttributes.value?.map((attribute) => ({
+        label: attribute.name,
+        value: attribute.name,
+    })) ?? []
+})
+const relationOptions = computed(() => {
+    return (["AND", "OR"] as RelationTypes[]).map((relation) => ({
+        label: relation,
+        value: relation,
+    }))
+})
+const operandOptions = computed(() => {
+    const filters = selectedAttribute.value?.binding === "java.lang.String"
+        ? filterStore.stringFilters
+        : filterStore.integerFilters
+    return filters.map((filter) => ({
+        label: filterStore.filterNames[filter as OptionKey],
+        value: filter,
+    }))
 })
 /**
  * Create current filters list then push this list to apply attribute filter function in filter store. wait for response
@@ -188,6 +233,10 @@ function cancelNewFilter(): void {
 function clearOperand(): void {
     selectedOperand.value = undefined
     filterValue.value = undefined
+}
+function clearSelectedAttribute(): void {
+    selectedAttribute.value = undefined
+    clearOperand()
 }
 async function deleteAttributeFilter(targetFilter: AppliedFilter): Promise<void> {
     await filterStore.removeAttributeFilter(props.layer.id, targetFilter).then((response)=>{

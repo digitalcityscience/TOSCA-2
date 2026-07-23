@@ -11,16 +11,47 @@
 				<template #default>
 					<div class="filterlayer-dropdown w-full">
 						<div v-if="filterLayerList.length>0">
-							<Select class="w-full" v-model="selectedFilterLayer" @change="dropdownFitter" :options="filterLayerList" option-label="source" show-clear
-							placeholder="Select a filter layer"></Select>
+							<div class="flex w-full">
+								<USelect
+									class="w-full"
+									v-model="selectedFilterLayerId"
+									:items="filterLayerOptions"
+									placeholder="Select a filter layer"
+									@update:model-value="dropdownFitter"
+								/>
+								<UButton
+									v-if="selectedFilterLayerId !== undefined"
+									class="ml-1"
+									icon="i-lucide-x"
+									color="neutral"
+									variant="ghost"
+									aria-label="Clear selected filter layer"
+									@click="selectedFilterLayerId = undefined"
+								/>
+							</div>
                         </div>
                         <div class="w-full no-current-filter py-2" v-else>
                             <UAlert class="w-full" color="info" variant="soft" description="There is no layer for filter. Draw a layer first!" />
                         </div>
 					</div>
 					<div v-if="selectedFilterLayer"  class="identifier-dropdown w-full py-2">
-							<Select class="w-full" v-model="selectedProperty" :options="filteredAttributes" option-label="name" show-clear placeholder="Select Identifier">
-							</Select>
+							<div class="flex w-full">
+								<USelect
+									class="w-full"
+									v-model="selectedPropertyName"
+									:items="filteredAttributeOptions"
+									placeholder="Select Identifier"
+								/>
+								<UButton
+									v-if="selectedPropertyName !== undefined"
+									class="ml-1"
+									icon="i-lucide-x"
+									color="neutral"
+									variant="ghost"
+									aria-label="Clear selected identifier"
+									@click="selectedPropertyName = undefined"
+								/>
+							</div>
 					</div>
 				</template>
 				<template #footer>
@@ -50,7 +81,6 @@
 </template>
 
 <script setup lang="ts">
-import Select, { type SelectChangeEvent } from "primevue/select";
 import { type CustomAddLayerObject, useMapStore, type LayerObjectWithAttributes } from "@store/map";
 import { computed, onMounted, ref } from "vue";
 import bbox from "@turf/bbox"
@@ -69,8 +99,20 @@ const props = defineProps<Props>()
 const mapStore = useMapStore()
 const toast = useToast()
 const selectedFilterLayer = ref<CustomAddLayerObject>()
+const selectedFilterLayerId = computed({
+    get: () => selectedFilterLayer.value?.id,
+    set: (id: string | undefined) => {
+        selectedFilterLayer.value = filterLayerList.value.find((layer) => layer.id === id)
+    }
+})
 const filterLayerList = computed(() => {
     return mapStore.layersOnMap.filter((layer) => { return layer.filterLayer === true })
+})
+const filterLayerOptions = computed(() => {
+    return filterLayerList.value.map((layer) => ({
+        label: layer.source,
+        value: layer.id,
+    }))
 })
 const hasGeometryFilter = computed(()=>{
     return filterStore.appliedFiltersList.filter((layer)=> { return layer.layerName === props.layer.id && layer.geometryFilters !== undefined }).length > 0
@@ -83,9 +125,10 @@ const isPolygonTiles = computed(()=>{
         return false
     }
 })
-function dropdownFitter(event: SelectChangeEvent): void{
-    if (!isNullOrEmpty(event.value)){
-        fitToFilterLayer((event.value as CustomAddLayerObject).layerData!).then(
+function dropdownFitter(layerId: string | number | boolean | undefined): void{
+    const layer = filterLayerList.value.find((item) => item.id === layerId)
+    if (!isNullOrEmpty(layer)){
+        fitToFilterLayer(layer!.layerData!).then(
             () => {},
             () => {},
         )
@@ -131,6 +174,18 @@ function isFilterLayerInView(layerData: FeatureCollection): boolean{
 const filterStore = useFilterStore()
 const filteredAttributes = computed(() => {
     return (props.layer.details as GeoServerVectorTypeLayerDetail)?.featureType.attributes.attribute.filter(attr => filterStore.allowedIDBindings.includes(attr.binding))
+})
+const selectedPropertyName = computed({
+    get: () => selectedProperty.value?.name,
+    set: (name: string | undefined) => {
+        selectedProperty.value = filteredAttributes.value?.find((attribute) => attribute.name === name)
+    }
+})
+const filteredAttributeOptions = computed(() => {
+    return filteredAttributes.value?.map((attribute) => ({
+        label: attribute.name,
+        value: attribute.name,
+    })) ?? []
 })
 onMounted(()=>{
     identifierChecker()
