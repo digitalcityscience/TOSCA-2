@@ -1,12 +1,12 @@
 <template>
     <div v-if="domain !== undefined" class="raster-time-control">
         <div class="flex items-center gap-2">
-            <Button
-                class="w-7 h-7 p-0 shrink-0"
-                :icon="isPlaying ? 'pi pi-pause' : 'pi pi-play'"
+            <UButton
+                class="size-7 shrink-0"
+                :icon="isPlaying ? 'i-lucide-pause' : 'i-lucide-play'"
                 :aria-label="isPlaying ? 'Pause time animation' : 'Play time animation'"
-                text
-                rounded
+                color="neutral"
+                variant="ghost"
                 @click="togglePlay"
             />
             <Slider
@@ -31,7 +31,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from "vue"
 import Slider from "primevue/slider"
-import Button from "primevue/button"
 import {
     type GeoserverRasterTypeLayerDetail,
     type ResolvedTimeDomain,
