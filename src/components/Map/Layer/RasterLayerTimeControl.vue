@@ -9,7 +9,7 @@
                 variant="ghost"
                 @click="togglePlay"
             />
-            <Slider
+            <USlider
                 class="flex-grow"
                 v-model="index"
                 :min="0"
@@ -30,7 +30,6 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from "vue"
-import Slider from "primevue/slider"
 import {
     type GeoserverRasterTypeLayerDetail,
     type ResolvedTimeDomain,

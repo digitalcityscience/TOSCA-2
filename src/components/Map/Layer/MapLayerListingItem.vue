@@ -1,7 +1,7 @@
 <template>
     <div class="py-1">
-        <Panel class="map-layer-listing-panel" :collapsed="true" @update:collapsed="collapsedState" toggleable>
-            <template #header>
+        <div class="map-layer-listing-panel">
+            <div class="map-layer-listing-header">
                 <span
                     class="layer-color-rail"
                     :class="`layer-color-rail-${layerHeaderIndicator.kind}`"
@@ -11,7 +11,7 @@
                 ></span>
                 <UButton class="layer-drag-handle layer-icon-btn cursor-move" icon="i-lucide-grip-vertical" color="neutral" variant="ghost" aria-label="Reorder layer"
                     @click.stop />
-                <ToggleSwitch class="shrink-0" v-model="checked" @update:model-value="changeLayerVisibility" />
+                <USwitch class="shrink-0" v-model="checked" @update:model-value="changeLayerVisibility" />
                 <div class="layer-name-area">
                     <span class="layer-name capitalize truncate">
                         {{ (props.layer.displayName ?? props.layer.source).replaceAll("_", " ") }}
@@ -26,31 +26,38 @@
                         @click="confirmDialogVisibility = true" />
                     <UButton class="layer-icon-btn" icon="i-lucide-zoom-in" color="neutral" variant="ghost" aria-label="Zoom"
                         @click="zoomToLayer" />
+                    <UButton
+                        class="layer-icon-btn"
+                        :icon="layerPanelOpen ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+                        color="neutral"
+                        variant="ghost"
+                        :aria-label="layerPanelOpen ? 'Collapse layer controls' : 'Expand layer controls'"
+                        @click="layerPanelOpen = !layerPanelOpen"
+                    />
                 </div>
-                <Dialog v-model:visible="confirmDialogVisibility" modal header="Delete Map Layer" :style="{ width: '25rem' }">
-                    <span class="p-text-secondary block mb-5">Are you sure want to delete {{ props.layer.displayName ?? props.layer.source }} layer?</span>
-                    <div class="flex justify-content-end gap-2">
+                <UModal v-model:open="confirmDialogVisibility" title="Delete Map Layer" :ui="{ content: 'max-w-[25rem]' }">
+                    <template #body>
+                    <span class="text-muted block">Are you sure want to delete {{ props.layer.displayName ?? props.layer.source }} layer?</span>
+                    </template>
+                    <template #footer>
+                    <div class="flex justify-end gap-2 w-full">
                         <UButton size="sm" type="button" color="neutral" variant="soft" @click="confirmDialogVisibility = false">Cancel</UButton>
                         <UButton size="sm" type="button" color="error" @click="deleteLayerConfirmation(props.layer)">Delete</UButton>
                     </div>
-                </Dialog>
-            </template>
-            <div class="layer-panel-body">
+                    </template>
+                </UModal>
+            </div>
+            <div v-show="layerPanelOpen" class="layer-panel-body">
                 <section class="layer-section">
                     <h4 class="layer-section-title">Style</h4>
                     <label v-if="hasEditableLayerColor" class="layer-row pointer-events-none">
                         <span class="layer-row-label">Color</span>
-                        <ColorPicker aria-label="Change Color" class="pointer-events-auto" format="hex" v-model="color"
-                            :baseZIndex="10" @update:model-value="queueLayerColorChange" @hide="flushLayerColorChange"></ColorPicker>
+                        <UColorPicker aria-label="Change Color" class="pointer-events-auto" format="hex" v-model="colorPickerValue" />
                     </label>
                     <label class="layer-row">
                         <span class="layer-row-label">Opacity</span>
-                        <Slider aria-label="Change Opacity" class="flex-grow" v-model="opacity" :step="0.1" :min=0
-                            :max=1 @update:model-value="changeLayerOpac" :pt="{
-                                range: { style: { 'background': `#${color}` } },
-                                handle: { style: { 'background': `#${color}`, 'border-color': `#${color}` } }
-                            }"
-                        />
+                        <USlider aria-label="Change Opacity" class="flex-grow" v-model="opacity" :step="0.1" :min=0
+                            :max=1 @update:model-value="changeLayerOpac" />
                     </label>
                 </section>
                 <section v-if="showServerLegend" class="layer-section">
@@ -73,16 +80,13 @@
                     <MapLayerResultTable :layer="props.layer"></MapLayerResultTable>
                 </section>
             </div>
-        </Panel>
+        </div>
     </div>
 </template>
 
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref } from "vue";
 import { type LayerObjectWithAttributes, type MapLibreLayerTypes, useMapStore } from "@store/map"
-import Panel from "primevue/panel";
-import Slider from "primevue/slider";
-import ToggleSwitch from "primevue/toggleswitch";
 import { useToast } from "primevue/usetoast";
 import { isNullOrEmpty } from "@helpers/functions";
 import {
@@ -93,8 +97,6 @@ import {
     useGeoserverStore,
 } from "@store/geoserver";
 
-const ColorPicker = defineAsyncComponent(async () => await import("primevue/colorpicker"));
-const Dialog = defineAsyncComponent(async () => await import("primevue/dialog"));
 const AttributeFiltering = defineAsyncComponent(async () => await import("./Filter/AttributeFiltering.vue"));
 const GeometryFiltering = defineAsyncComponent(async () => await import("@components/Map/Layer/Filter/GeometryFiltering.vue"));
 const MapLayerResultTable = defineAsyncComponent(async () => await import("./MapLayerResultTable.vue"));
@@ -108,8 +110,17 @@ const mapStore = useMapStore()
 const geoserver = useGeoserverStore()
 const legendUrl = ref<string>()
 const legendError = ref<boolean>(false)
-const collapsed = ref<boolean>(false)
+const layerPanelOpen = ref<boolean>(false)
 const color = ref<string>("000000")
+const colorPickerValue = computed({
+    get: () => `#${color.value}`,
+    set: (value: string | undefined) => {
+        const normalizedColor = normalizeHexColorInput(value);
+        if (normalizedColor === undefined) return;
+        color.value = normalizedColor;
+        queueLayerColorChange(normalizedColor);
+    }
+})
 const opacity = ref<number>(1)
 const checked = ref<boolean>(true)
 const initialLayerHeaderIndicator = ref<LayerHeaderIndicator>()
@@ -291,17 +302,6 @@ function queueLayerColorChange(nextColor: unknown): void {
         changeLayerColor(normalizedColor);
     }, 120);
 }
-function flushLayerColorChange(): void {
-    if (pendingColorChangeTimeout !== undefined) {
-        clearTimeout(pendingColorChangeTimeout);
-        pendingColorChangeTimeout = undefined;
-    }
-
-    const normalizedColor = normalizeHexColorInput(color.value);
-    if (normalizedColor !== undefined) {
-        changeLayerColor(normalizedColor);
-    }
-}
 function changeLayerOpac(layerOpacity: any): void {
     const opac = getOpacityPaintProperty(props.layer.type);
     mapStore.map.setPaintProperty(props.layer.id, opac, layerOpacity)
@@ -316,9 +316,6 @@ function changeLayerVisibility(layerVisibility: boolean): void {
             mapStore.map.setLayoutProperty(companionId, "visibility", value);
         }
     });
-}
-function collapsedState(isCollapsed: boolean): void {
-    collapsed.value = isCollapsed
 }
 const confirmDialogVisibility = ref<boolean>(false)
 const toast = useToast();
@@ -520,7 +517,16 @@ function createLayerHeaderIndicatorBackground(indicator: LayerHeaderIndicator): 
     min-height: 2.5rem;
 }
 
-.map-layer-listing-panel :deep(.p-panel-header) {
+.map-layer-listing-header {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    border: 1px solid var(--p-content-border-color, rgb(0 0 0 / 0.08));
+    border-radius: 0.375rem;
+    padding: 0.35rem 0.5rem 0.35rem 0.35rem;
+}
+
+.map-layer-listing-header {
     padding-left: 0.35rem;
 }
 
@@ -570,9 +576,6 @@ function createLayerHeaderIndicatorBackground(indicator: LayerHeaderIndicator): 
     height: 2rem;
     padding: 0;
     flex: 0 0 auto;
-}
-.map-layer-listing-panel :deep(.p-panel-header) {
-    gap: 0.25rem;
 }
 .layer-name-area {
     flex: 1 1 auto;

@@ -1,6 +1,7 @@
 <template>
     <div>
-        <Popover ref="op" :dismissable="false" >
+        <UPopover v-model:open="popoverOpen" :reference="popoverReference" :dismissible="false">
+            <template #content>
             <div class="block min-w-72 max-h-[90vh] overflow-y-auto">
                 <div class="w-full">
                     <UCard>
@@ -16,14 +17,32 @@
                                     <label id="label_targetLayer" class="font-bold">Select target Layer</label>
                                     <p class="text-sm font-light italic">Your selection will be used to create buffer areas</p>
                                     <div class="pt-2 w-full flex">
-                                        <Select class="w-full max-w-64" aria-labelledby="label_targetLayer" :disabled="bufferStore.isTmpDataCreated" v-model="bufferStore.selectedLayer" :options="filteredLayers" optionLabel="displayName" placeholder="Select a layer" showClear></Select>
+                                        <USelect
+                                            class="w-full max-w-64"
+                                            aria-labelledby="label_targetLayer"
+                                            :disabled="bufferStore.isTmpDataCreated"
+                                            :model-value="bufferStore.selectedLayer?.id"
+                                            :items="filteredLayerOptions"
+                                            placeholder="Select a layer"
+                                            @update:model-value="selectBufferLayer"
+                                        />
+                                        <UButton
+                                            v-if="bufferStore.selectedLayer !== null && !bufferStore.isTmpDataCreated"
+                                            class="ml-1"
+                                            icon="i-lucide-x"
+                                            color="neutral"
+                                            variant="ghost"
+                                            aria-label="Clear selected layer"
+                                            @click="bufferStore.selectedLayer = null"
+                                        />
                                     </div>
                                 </div>
                                 <div class="buffer-radius pt-4">
                                     <label id="label_radius" class="font-bold">Radius</label>
                                     <p class="text-sm font-light italic">Buffer radius as a meter</p>
-                                    <div class="pt-2 w-full flex">
-                                        <InputNumber class="w-full max-w-64" aria-labelledby="label_radius" :disabled="bufferStore.isTmpDataCreated" v-model="bufferStore.bufferRadius" mode="decimal" :min="0" :step="1" suffix=" m"/>
+                                    <div class="pt-2 w-full flex items-center">
+                                        <UInputNumber class="w-full max-w-64" aria-labelledby="label_radius" :disabled="bufferStore.isTmpDataCreated" v-model="bufferStore.bufferRadius" :min="0" :step="1" />
+                                        <span class="ml-2 text-sm text-muted">m</span>
                                     </div>
                                 </div>
                                 <div v-if="bufferStore.isTmpDataCreated">
@@ -54,14 +73,12 @@
                     </UCard>
                 </div>
             </div>
-        </Popover>
+            </template>
+        </UPopover>
     </div>
 </template>
 
 <script setup lang="ts">
-import Popover from "primevue/popover";
-import Select from "primevue/select";
-import InputNumber from "primevue/inputnumber";
 import { ref, computed } from "vue";
 import { useMapStore } from "@store/map";
 import { useBufferStore } from "@store/buffer";
@@ -69,10 +86,12 @@ import { BufferControl } from "@helpers/bufferControl";
 const mapStore = useMapStore()
 const bufferStore = useBufferStore()
 // Overlay Panel operations
-const op = ref()
 function toggle(event: Event): void {
-    op.value.toggle(event)
+    popoverReference.value = event.currentTarget as HTMLElement
+    popoverOpen.value = !popoverOpen.value
 }
+const popoverOpen = ref(false)
+const popoverReference = ref<HTMLElement>()
 
 // Terradraw operations
 const bufferControl = new BufferControl(toggle)
@@ -87,6 +106,15 @@ const filteredLayers = computed(() => {
     }
     return [];
 });
+const filteredLayerOptions = computed(() => {
+    return filteredLayers.value.map((layer) => ({
+        label: layer.displayName ?? layer.id,
+        value: layer.id,
+    }))
+})
+function selectBufferLayer(layerId: string | number | boolean | undefined): void {
+    bufferStore.selectedLayer = filteredLayers.value.find((layer) => layer.id === layerId) ?? null
+}
 </script>
 
 <style scoped></style>

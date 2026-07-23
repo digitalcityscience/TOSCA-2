@@ -1,6 +1,15 @@
 <template>
     <div>
-        <Popover ref="op" :dismissable="false" showCloseIcon :pt="closeButtonStyles">
+        <UPopover v-model:open="popoverOpen" :reference="popoverReference" :dismissible="false">
+            <template #content>
+            <UButton
+                class="absolute top-2 left-2 z-10"
+                icon="i-lucide-x"
+                color="neutral"
+                variant="ghost"
+                aria-label="Close drawing controls"
+                @click="popoverOpen = false"
+            />
             <div v-if="drawTool.externalAppOnProgress" class="flex flex-col min-w-72 max-h-[90vh] overflow-y-auto py-6">
                 <UAlert class="w-full" color="info" variant="soft" description="Drawing tool currently in use." />
             </div>
@@ -14,12 +23,12 @@
                             </div>
                         </template>
                         <template #default>
-                                <div class="flex justify-between">
-                                    <div v-for="draw in drawTool.drawTypes" :key="draw.name" class="flex align-items-center">
-                                        <RadioButton :disabled="drawTool.drawOnProgress||drawTool.editOnProgress" v-model="drawTool.drawMode" :inputId="draw.name" :value="draw.name" />
-                                        <label :for="draw.name" class="ml-2">{{ draw.mode }}</label>
-                                    </div>
-                                </div>
+                                <URadioGroup
+                                    v-model="drawTool.drawMode"
+                                    :items="drawModeOptions"
+                                    :disabled="drawTool.drawOnProgress||drawTool.editOnProgress"
+                                    orientation="horizontal"
+                                />
                         </template>
                         <template #footer>
                             <div class="w-full flex justify-between">
@@ -50,41 +59,36 @@
                     </UCard>
                 </div>
             </div>
-        </Popover>
+            </template>
+        </UPopover>
     </div>
 </template>
 
 <script setup lang="ts">
-import RadioButton from "primevue/radiobutton";
-import Popover from "primevue/popover";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { useDrawStore } from "@store/draw"
 import { useMapStore } from "@store/map";
 import { DrawControl } from "@helpers/drawControl";
 const mapStore = useMapStore()
 const drawTool = useDrawStore()
+const drawModeOptions = computed(() => {
+    return drawTool.drawTypes.map((draw) => ({
+        label: draw.mode,
+        value: draw.name,
+    }))
+})
 // Overlay Panel operations
-const op = ref()
 function toggle(event: Event): void {
-    op.value.toggle(event)
+    popoverReference.value = event.currentTarget as HTMLElement
+    popoverOpen.value = !popoverOpen.value
 }
+const popoverOpen = ref(false)
+const popoverReference = ref<HTMLElement>()
 
 // Terradraw operations
 const drawControl = new DrawControl(toggle)
 if (mapStore.map !== null || mapStore.map !== undefined) {
     mapStore.map.addControl(drawControl, "top-right")
-}
-const closeButtonStyles= {
-    closeButton:{
-        class: [
-            "absolute top-2 left-2 p-2",
-            "rounded-full",
-            "bg-transparent",
-            "text-primary-500 dark:text-primary-400",
-            "hover:bg-primary-600 dark:hover:bg-primary-300 hover:text-white hover:border-primary-600 dark:hover:border-primary-300 text-primary-300 dark:text-primary-600",
-            "focus:ring-primary-400/50 dark:focus:ring-primary-300/50"
-        ]
-    }
 }
 </script>
 

@@ -8,7 +8,8 @@
                 <UButton class="w-full" v-if="tableData" size="sm" @click="isOpen = true">Open Table</UButton>
             </div>
         </div>
-        <Dialog v-model:visible="isOpen" modal closable close-on-escape :style="{ width: 'calc(100vw - 200px)' }">
+        <UModal v-model:open="isOpen" :ui="{ content: 'w-[calc(100vw-200px)] max-w-[calc(100vw-200px)]' }">
+            <template #body>
             <div class="w-full">
                 <div v-if="tableData !== undefined">
                     <div v-if="tableData?.features.length > 0">
@@ -31,18 +32,18 @@
                                                 v-if="index > 0 && index < tableUsedFilters.attributeFilters?.length">
                                                 {{ tableUsedFilters.attributeRelation }}
                                             </span>
-                                            <Chip class="first:ml-0 ml-1 px-1">
+                                            <UBadge class="first:ml-0 ml-1 px-1" color="neutral" variant="soft">
                                                 <span>{{ filter.attribute.name }} {{
                                                     filterStore.filterNames[filter.operand as IntegerFilters |
                                                     StringFilters] }} {{ filter.value }}</span>
-                                            </Chip>
+                                            </UBadge>
                                         </div>
                                     </div>
                                     <div v-if="tableUsedFilters.geometryFilters">
                                         <span v-if="tableUsedFilters.attributeFilters" class="mx-1">AND</span>
-                                        <Chip class="px-1">
+                                        <UBadge class="px-1" color="neutral" variant="soft">
                                             <span>Geometry filter applied</span>
-                                        </Chip>
+                                        </UBadge>
                                     </div>
                                 </div>
                             </template>
@@ -76,15 +77,14 @@
                 </div>
 
             </div>
-        </Dialog>
+            </template>
+        </UModal>
     </div>
 </template>
 
 <script setup lang="ts">
-import Dialog from "primevue/dialog";
 import DataTable from "primevue/datatable";
 import Column from "primevue/column";
-import Chip from "primevue/chip";
 import { type FeatureCollection } from "@helpers/geojson";
 import { computed, ref } from "vue";
 import { type AttributeFilterItem, useFilterStore, type AppliedFiltersListItem, type IntegerFilters, type StringFilters, type RelationTypes } from "@store/filter";
