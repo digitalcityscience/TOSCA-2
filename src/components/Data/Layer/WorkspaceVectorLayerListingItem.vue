@@ -1,6 +1,6 @@
 <template>
     <div v-if="props.item">
-        <UCard class="workspace-layer-card bg-default/95 dark:bg-elevated/80" :ui="{ header: 'p-3 pb-2', body: 'p-3 pt-0', footer: 'p-3 pt-0' }">
+        <UCard class="workspace-layer-card bg-default/95 dark:bg-elevated/80" :ui="{ header: 'p-3 pb-2', body: 'p-3 pt-0', footer: 'p-3 pt-2' }">
             <template #header>
                 <div class="min-w-0 space-y-1">
                     <div class="flex min-w-0 flex-wrap items-center gap-2">

@@ -1,4 +1,9 @@
 import { type IControl } from "maplibre-gl";
+import { toggleSlideoverSidebar } from "@helpers/slideoverSidebarRegistry";
+
+interface SidebarControlOptions {
+    slideover?: boolean
+}
 
 export class SidebarControl implements IControl {
     _className: string;
@@ -7,12 +12,14 @@ export class SidebarControl implements IControl {
     _map: any;
     _icon: HTMLSpanElement;
     _order: number;
+    _options: SidebarControlOptions;
 
-    constructor(className = "", sidebarID = "", container: HTMLDivElement, icon?: HTMLSpanElement, order = 0) {
+    constructor(className = "", sidebarID = "", container: HTMLDivElement, icon?: HTMLSpanElement, order = 0, options: SidebarControlOptions = {}) {
         this._order = order;
         this._className = className;
         this._sidebarID = sidebarID;
         this._container = container;
+        this._options = options;
         if (icon === undefined){
             const el = document.createElement("span")
             el.classList.add("material-icons-outlined")
@@ -33,6 +40,10 @@ export class SidebarControl implements IControl {
         this._container.appendChild(btn);
         btn.addEventListener("click", (e) => {
             e.preventDefault()
+            if (this._options.slideover === true) {
+                toggleSlideoverSidebar(this._sidebarID)
+                return
+            }
             const sidebar: HTMLElement = document.getElementById(this._sidebarID)!
             if (sidebar !== null){
                 const position = sidebar.dataset.position

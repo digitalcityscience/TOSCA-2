@@ -1,5 +1,5 @@
 <template>
-        <BaseSidebarComponent :id="sidebarID" position="left" :collapsed=false>
+        <BaseSlideoverSidebarComponent :id="sidebarID" side="left" :collapsed=false>
             <template #header>
                 <RouterLink to="/participation">
                     <p>Datastores</p>
@@ -25,20 +25,21 @@
             <div class="w-full" v-else>
                 <UAlert class="w-full" color="info" variant="soft" description="No workspace found" />
             </div>
-        </BaseSidebarComponent>
+        </BaseSlideoverSidebarComponent>
 </template>
 
 <script setup lang="ts">
 // Components
-import BaseSidebarComponent from "@components/Base/BaseSidebarComponent.vue";
+import BaseSlideoverSidebarComponent from "@components/Base/BaseSlideoverSidebarComponent.vue";
 import WorkspaceListingItem from "./WorkspaceListingItem.vue";
 // JS-TS imports
 import { type WorkspaceListItem } from "@store/geoserver";
 
 import { SidebarControl } from "@helpers/sidebarControl";
+import { openSlideoverSidebar } from "@helpers/slideoverSidebarRegistry";
 import { useMapStore } from "@store/map";
 import { RouterLink, useRoute } from "vue-router";
-import { computed, onMounted } from "vue";
+import { computed, onMounted, watch } from "vue";
 export interface Props {
     workspaces: WorkspaceListItem[] | undefined
 }
@@ -56,32 +57,20 @@ const workspaceAccordionItems = computed(() => {
 const iconElement = document.createElement("span")
 iconElement.classList.add("material-icons-outlined")
 iconElement.textContent = "sd_storage"
-const sidebarControl = new SidebarControl("", sidebarID, document.createElement("div"), iconElement, 1)
+const sidebarControl = new SidebarControl("", sidebarID, document.createElement("div"), iconElement, 1, { slideover: true })
 mapStore.map.addControl(sidebarControl, "top-left")
 
 const route = useRoute()
 onMounted(()=>{
     setupSidebarVisibility()
 })
+watch(() => route.meta.sidebar, () => {
+    setupSidebarVisibility()
+})
 function setupSidebarVisibility(): void {
     const routeMeta = route.meta;
-    if (routeMeta !== undefined && routeMeta.sidebar !== undefined && routeMeta.sidebar !== "" && routeMeta.sidebar !== null) {
-        const sidebarId = routeMeta.sidebar as string;
-        const position = routeMeta.sidebarPosition as string;
-        const sidebars = document.getElementsByClassName(`sidebar-${position}`)
-        if (sidebars.length > 0){
-            for (let i = 0; i < sidebars.length; i++) {
-                if (sidebars[i].id === sidebarId) {
-                    sidebars[i].classList.remove("collapsed");
-                } else {
-                    sidebars[i].classList.add("collapsed");
-                }
-            }
-        }
-        const sidebarElement = document.getElementById(sidebarId);
-        if (sidebarElement != null) {
-            sidebarElement.classList.remove("collapsed");
-        }
+    if (routeMeta !== undefined && routeMeta.sidebar === sidebarID) {
+        openSlideoverSidebar(sidebarID)
     }
 }
 </script>

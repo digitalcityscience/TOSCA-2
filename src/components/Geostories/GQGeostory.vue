@@ -1,5 +1,5 @@
 <template>
-    <BaseSidebarComponent :id="sidebarID" position="left" :collapsed=true>
+    <BaseSlideoverSidebarComponent :id="sidebarID" side="left" :collapsed=true @after-open="setupCharts">
         <template #header>
             <RouterLink to="/participation">
             <p>{{title}}</p>
@@ -67,12 +67,12 @@
                 </UAccordion>
             </div>
         </div>
-    </BaseSidebarComponent>
+    </BaseSlideoverSidebarComponent>
 </template>
 
 <script setup lang="ts">
 // Components
-import BaseSidebarComponent from "@components/Base/BaseSidebarComponent.vue";
+import BaseSlideoverSidebarComponent from "@components/Base/BaseSlideoverSidebarComponent.vue";
 
 import { SidebarControl } from "@helpers/sidebarControl";
 import { type GeoServerSourceParams, type LayerParams, type LayerStyleOptions, useMapStore } from "@store/map";
@@ -83,7 +83,7 @@ import { useGeoserverStore, type GeoserverRasterTypeLayerDetail, type GeoServerV
 import bboxPolygon from "@turf/bbox-polygon";
 import { isNullOrEmpty } from "@helpers/functions";
 import { useToast } from "@helpers/toast";
-import { computed, onMounted, ref } from "vue";
+import { computed, nextTick, ref } from "vue";
 import { Chart, BarController, BarElement, CategoryScale, LinearScale, PieController, ArcElement, Tooltip, Legend } from "chart.js"
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, PieController, ArcElement, Tooltip, Legend);
 const mapStore = useMapStore()
@@ -94,7 +94,7 @@ const sidebarID = "gq-geostory-sidebar"
 const iconElement = document.createElement("span")
 iconElement.classList.add("material-icons-outlined")
 iconElement.textContent = "health_and_safety"
-const sidebarControl = new SidebarControl("", sidebarID, document.createElement("div"), iconElement, 3)
+const sidebarControl = new SidebarControl("", sidebarID, document.createElement("div"), iconElement, 3, { slideover: true })
 const statisticalUnitStyle = ref<LayerStyleOptions>(
     {
         paint: {
@@ -155,9 +155,16 @@ const heatmapStyle = ref<LayerStyleOptions>({
     }
 })
 mapStore.map.addControl(sidebarControl, "top-left")
-onMounted(() => {
-    // eslint-disable-next-line no-new
-    new Chart(document.getElementById("ppmMeanChart")! as HTMLCanvasElement, {
+const ppmMeanChart = ref<Chart>()
+const respCaseChart = ref<Chart>()
+async function setupCharts(): Promise<void> {
+    await nextTick()
+    const ppmMeanCanvas = document.getElementById("ppmMeanChart") as HTMLCanvasElement | null
+    const respCaseCanvas = document.getElementById("respCaseChart") as HTMLCanvasElement | null
+    if (ppmMeanCanvas === null || respCaseCanvas === null) return
+    ppmMeanChart.value?.destroy()
+    respCaseChart.value?.destroy()
+    ppmMeanChart.value = new Chart(ppmMeanCanvas, {
         type: "bar",
         data: {
             labels: ["Max", "Min", "Average"],
@@ -169,8 +176,7 @@ onMounted(() => {
         },
     });
 
-    // eslint-disable-next-line no-new
-    new Chart(document.getElementById("respCaseChart")! as HTMLCanvasElement, {
+    respCaseChart.value = new Chart(respCaseCanvas, {
         type: "pie",
         data: {
             labels: ["High (>15 cases/1k)", "Moderate (5–15 cases/1k)", "Low (<5 cases/1k)"],
@@ -180,7 +186,7 @@ onMounted(() => {
             }]
         },
     });
-});
+}
 function startScenario(scenario: Scenario): void{
     mapStore.resetMapData(false).then(()=>{
         console.log("Map data reset")
