@@ -1,12 +1,13 @@
 <template>
     <div v-if="props.item" class="first:pt-0 pt-1">
-        <Card>
-            <template #title>
-                <span class="capitalize">{{ cleanLayerName }}</span>
+        <UCard>
+            <template #header>
+                <div class="space-y-1">
+                    <span class="capitalize">{{ cleanLayerName }}</span>
+                    <span v-if="layerDetail && layerDetail?.featureType.abstract?.length > 0" class="block line-clamp-3 hover:line-clamp-none xl:line-clamp-none text-muted text-sm">{{ layerDetail.featureType.abstract }}</span>
+                </div>
             </template>
-            <template #subtitle v-if="layerDetail && layerDetail?.featureType.abstract?.length > 0">
-                <span class="line-clamp-3 hover:line-clamp-none xl:line-clamp-none">{{ layerDetail.featureType.abstract }}</span></template>
-            <template #content v-if="layerDetail">
+            <template v-if="layerDetail">
                 <div class="grid grid-cols-4 w-full pt-1">
                     <span class="font-bold lg:col-span-2 2xl:col-span-2 3xl:col-span-2 4xl:col-span-1 self-center">Keywords:</span>
                     <span class="lg:col-span-2 2xl:col-span-2 3xl:col-span-2 4xl:col-span-3 pl-1">
@@ -21,7 +22,7 @@
             <template #footer>
                 <UButton size="sm" @click="add2Map">Add to map</UButton>
             </template>
-        </Card>
+        </UCard>
     </div>
     <div v-else class="first:pt-0 pt-1 w-full">
         <UAlert class="w-full" color="info" variant="soft" description="No information about layer." />
@@ -32,7 +33,6 @@
 import { computed, ref } from "vue";
 import { type GeoServerVectorTypeLayerDetail, type GeoserverLayerInfo, type GeoserverLayerListItem, useGeoserverStore } from "@store/geoserver";
 import { type GeoServerSourceParams, type LayerParams, type LayerStyleOptions, useMapStore } from "@store/map";
-import Card from "primevue/card";
 import { isNullOrEmpty } from "../../../core/helpers/functions";
 import { useToast } from "primevue/usetoast";
 
