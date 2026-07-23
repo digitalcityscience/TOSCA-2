@@ -87,7 +87,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref } from "vue";
 import { type LayerObjectWithAttributes, type MapLibreLayerTypes, useMapStore } from "@store/map"
-import { useToast } from "primevue/usetoast";
+import { useToast } from "@helpers/toast";
 import { isNullOrEmpty } from "@helpers/functions";
 import {
     type GeoserverRasterTypeLayerDetail,

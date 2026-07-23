@@ -7,7 +7,7 @@ import {
 import { type SourceSpecification, type AddLayerObject } from "maplibre-gl";
 import { getRandomHexColor, isNullOrEmpty } from "../core/helpers/functions";
 import { type FeatureCollection } from "@helpers/geojson";
-import { useToast } from "primevue/usetoast";
+import { useToast } from "@helpers/toast";
 export interface LayerStyleOptions {
     paint?: Record<string, unknown>;
     layout?: Record<string, unknown>;

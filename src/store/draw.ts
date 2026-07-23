@@ -4,7 +4,7 @@ import { ref } from "vue";
 import { type GeoJSONSourceParams, type LayerParams, useMapStore } from "./map";
 import { type Map } from "maplibre-gl"
 import { type Feature, type FeatureCollection } from "@helpers/geojson";
-import { useToast } from "primevue/usetoast";
+import { useToast } from "@helpers/toast";
 
 export type DrawMode = "point" | "linestring" | "polygon" | "select" | "static";
 type DrawTypes = Array<{ mode: string, name: DrawMode }>

@@ -16,7 +16,7 @@
 import { ref } from "vue";
 import { type GeoServerVectorTypeLayerDetail, type GeoserverLayerInfo, type GeoserverLayerListItem, useGeoserverStore } from "@store/geoserver";
 import { type LayerStyleOptions } from "@store/map";
-import { useToast } from "primevue/usetoast";
+import { useToast } from "@helpers/toast";
 import WorkspaceRasterLayerListingItem from "./WorkspaceRasterLayerListingItem.vue";
 import WorkspaceVectorLayerListingItem from "./WorkspaceVectorLayerListingItem.vue";
 

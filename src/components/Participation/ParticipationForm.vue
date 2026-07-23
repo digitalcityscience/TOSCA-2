@@ -82,7 +82,7 @@ import { type CampaignDetail, useParticipationStore, type CenterLocation, type P
 import { type Feature, type FeatureCollection } from "@helpers/geojson";
 import { useMapStore } from "@store/map";
 import { onBeforeRouteLeave, useRouter } from "vue-router"
-import { useToast } from "primevue/usetoast"
+import { useToast } from "@helpers/toast"
 
 const router = useRouter()
 const mapStore = useMapStore()

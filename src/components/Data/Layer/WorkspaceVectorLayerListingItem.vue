@@ -34,7 +34,7 @@ import { computed, ref } from "vue";
 import { type GeoServerVectorTypeLayerDetail, type GeoserverLayerInfo, type GeoserverLayerListItem, useGeoserverStore } from "@store/geoserver";
 import { type GeoServerSourceParams, type LayerParams, type LayerStyleOptions, useMapStore } from "@store/map";
 import { isNullOrEmpty } from "../../../core/helpers/functions";
-import { useToast } from "primevue/usetoast";
+import { useToast } from "@helpers/toast";
 
 export interface Props {
     item: GeoserverLayerListItem

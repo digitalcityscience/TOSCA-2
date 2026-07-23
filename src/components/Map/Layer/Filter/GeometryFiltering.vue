@@ -91,7 +91,7 @@ import { type GeometryFilterItem, useFilterStore } from "@store/filter";
 import { type GeoServerVectorTypeLayerDetail, type GeoServerFeatureTypeAttribute } from "@store/geoserver";
 import { type LngLatBounds } from "maplibre-gl";
 import booleanWithin from "@turf/boolean-within";
-import { useToast } from "primevue/usetoast";
+import { useToast } from "@helpers/toast";
 export interface Props {
     layer: LayerObjectWithAttributes
 }
