@@ -2,7 +2,7 @@
         <BaseSidebarComponent :id="sidebarID" position="left" :collapsed=false>
             <template #header>
                 <RouterLink to="/participation">
-                <p>Datastores</p>
+                    <p>Datastores</p>
             </RouterLink>
         </template>
             <div class="w-full" v-if="props.workspaces && props.workspaces.length > 0">
@@ -12,8 +12,8 @@
                     :default-value="[]"
                     :ui="{
                         item: 'rounded-md border border-muted bg-default/70 mb-2 overflow-hidden last:mb-0',
-                        trigger: 'px-3 py-3 rounded-none text-highlighted hover:bg-elevated/70',
-                        label: 'text-xl font-semibold capitalize',
+                        trigger: 'px-3 py-2.5 rounded-none text-highlighted hover:bg-elevated/70',
+                        label: 'text-base font-semibold capitalize truncate',
                         body: 'p-3 bg-elevated/40 border-t border-muted'
                     }"
                 >

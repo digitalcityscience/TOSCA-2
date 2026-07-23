@@ -1,6 +1,6 @@
 <template>
-    <div v-if="props.list">
-        <WorkspaceLayerListingItem v-for="(layer,index) in props.list" :key="index" :item="layer" :workspace="workspaceName"></WorkspaceLayerListingItem>
+    <div v-if="props.list && props.list.length > 0" class="space-y-3">
+        <WorkspaceLayerListingItem v-for="layer in props.list" :key="layer.href" :item="layer" :workspace="workspaceName"></WorkspaceLayerListingItem>
     </div>
     <div v-else>
         <UAlert class="w-full" color="info" variant="soft" description="There is no layer in this workspace" />

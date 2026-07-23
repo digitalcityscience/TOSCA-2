@@ -1,36 +1,43 @@
 <template>
-    <div v-if="props.item" class="layer-detail first:pt-0 pt-1">
-        <UCard class="workspace-layer-card bg-default/95 dark:bg-elevated/80" :ui="{ header: 'p-3', body: 'p-3', footer: 'p-3' }">
+    <div v-if="props.item" class="layer-detail">
+        <UCard class="workspace-layer-card bg-default/95 dark:bg-elevated/80" :ui="{ header: 'p-3 pb-2', body: 'p-3 pt-0', footer: 'p-3 pt-0' }">
             <template #header>
-                <div class="flex items-center gap-2 flex-wrap">
-                    <span class="capitalize">{{ cleanLayerName }}</span>
-                    <UBadge v-if="hasTimeDimension" color="info" variant="soft" icon="i-lucide-clock" label="Time" title="This layer supports time-based queries" />
-                </div>
-                <span v-if="layerDetail && layerDetail.coverage.description !== undefined && layerDetail.coverage.description.length > 0">
-                    <span class="line-clamp-3 hover:line-clamp-none xl:line-clamp-none text-muted text-sm">{{ layerDetail.coverage.description }}</span>
-                </span>
-            </template>
-            <template v-if="layerDetail">
-                <div class="grid grid-cols-4 w-full">
-                    <span class="font-bold lg:col-span-2 2xl:col-span-2 3xl:col-span-2 4xl:col-span-1 self-center">Keywords:</span>
-                    <span class="lg:col-span-2 2xl:col-span-2 3xl:col-span-2 4xl:col-span-3 pl-1">
-                        <UBadge class="mb-1 mr-1 last:mr-0 font-light" color="primary" variant="solid" v-for="(keyword,index) in layerDetail.coverage.keywords.string" :key="index" :label="keyword" />
-                    </span>
-                </div>
-                <div class="grid grid-cols-4 w-full pt-1">
-                    <span class="font-bold lg:col-span-2 2xl:col-span-1">Data Type:</span>
-                    <span class="lg:col-span-2 2xl:col-span-3 pl-1"> {{layerInformation ? layerInformation.type : "raster"}} </span>
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0 space-y-1">
+                        <div class="flex min-w-0 flex-wrap items-center gap-2">
+                            <span class="truncate font-semibold text-highlighted capitalize">{{ cleanLayerName }}</span>
+                            <UBadge color="neutral" variant="soft" size="sm" label="Raster" />
+                            <UBadge v-if="hasTimeDimension" color="info" variant="soft" size="sm" icon="i-lucide-clock" label="Time" title="This layer supports time-based queries" />
+                        </div>
+                        <p v-if="layerDetail && layerDetail.coverage.description !== undefined && layerDetail.coverage.description.length > 0" class="line-clamp-2 hover:line-clamp-none xl:line-clamp-3 text-muted text-sm">
+                            {{ layerDetail.coverage.description }}
+                        </p>
+                    </div>
                 </div>
             </template>
+            <div v-if="layerDetail" class="space-y-3 text-sm">
+                <div class="grid grid-cols-[5.5rem_1fr] gap-3">
+                    <span class="font-semibold uppercase tracking-wide text-muted text-xs self-start pt-1">Keywords</span>
+                    <div class="flex min-w-0 flex-wrap gap-x-2 gap-y-1">
+                        <span v-for="(keyword,index) in layerDetail.coverage.keywords.string" :key="index" class="italic text-muted">
+                            #{{ keyword }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div v-else class="space-y-2">
+                <USkeleton class="h-4 w-full" />
+                <USkeleton class="h-4 w-3/4" />
+            </div>
             <template #footer>
-                <div class="flex gap-2 flex-wrap">
+                <div class="flex justify-end gap-2 flex-wrap">
                     <UButton size="sm" @click="add2Map(false)">Add to map</UButton>
                     <UButton v-if="hasTimeDimension" size="sm" color="secondary" @click="add2Map(true)">Add with time</UButton>
                 </div>
             </template>
         </UCard>
     </div>
-    <div v-else class="first:pt-0 pt-1 w-full">
+    <div v-else class="w-full">
         <UAlert class="w-full" color="info" variant="soft" description="No information about layer." />
     </div>
 </template>
