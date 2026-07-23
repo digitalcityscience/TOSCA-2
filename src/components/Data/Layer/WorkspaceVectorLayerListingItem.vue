@@ -10,7 +10,7 @@
                 <div class="grid grid-cols-4 w-full pt-1">
                     <span class="font-bold lg:col-span-2 2xl:col-span-2 3xl:col-span-2 4xl:col-span-1 self-center">Keywords:</span>
                     <span class="lg:col-span-2 2xl:col-span-2 3xl:col-span-2 4xl:col-span-3 pl-1">
-                        <Tag class="mb-1 mr-1 last:mr-0" severity="primary" v-for="(keyword,index) in layerDetail.featureType.keywords.string" :key="index" :value="keyword"></Tag>
+                        <UBadge class="mb-1 mr-1 last:mr-0" color="primary" variant="solid" v-for="(keyword,index) in layerDetail.featureType.keywords.string" :key="index" :label="keyword" />
                     </span>
                 </div>
                 <div class="grid grid-cols-4 w-full pt-1" v-if="dataType">
@@ -30,7 +30,6 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import Tag from "primevue/tag";
 import Button from "primevue/button"
 import { type GeoServerVectorTypeLayerDetail, type GeoserverLayerInfo, type GeoserverLayerListItem, useGeoserverStore } from "@store/geoserver";
 import { type GeoServerSourceParams, type LayerParams, type LayerStyleOptions, useMapStore } from "@store/map";

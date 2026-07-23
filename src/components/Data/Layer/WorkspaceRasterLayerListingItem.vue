@@ -4,7 +4,7 @@
             <template #title>
                 <div class="flex items-center gap-2 flex-wrap">
                     <span class="capitalize">{{ cleanLayerName }}</span>
-                    <Tag v-if="hasTimeDimension" severity="info" icon="pi pi-clock" value="Time" title="This layer supports time-based queries"></Tag>
+                    <UBadge v-if="hasTimeDimension" color="info" variant="soft" icon="i-lucide-clock" label="Time" title="This layer supports time-based queries" />
                 </div>
             </template>
             <template #subtitle v-if="layerDetail">
@@ -19,7 +19,7 @@
                 <div class="grid grid-cols-4 w-full">
                     <span class="font-bold lg:col-span-2 2xl:col-span-2 3xl:col-span-2 4xl:col-span-1 self-center">Keywords:</span>
                     <span class="lg:col-span-2 2xl:col-span-2 3xl:col-span-2 4xl:col-span-3 pl-1">
-                        <Tag class="mb-1 mr-1 last:mr-0 font-light" severity="primary" v-for="(keyword,index) in layerDetail.coverage.keywords.string" :key="index" :value="keyword"></Tag>
+                        <UBadge class="mb-1 mr-1 last:mr-0 font-light" color="primary" variant="solid" v-for="(keyword,index) in layerDetail.coverage.keywords.string" :key="index" :label="keyword" />
                     </span>
                 </div>
                 <div class="grid grid-cols-4 w-full pt-1">
@@ -42,7 +42,6 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import Tag from "primevue/tag";
 import Button from "primevue/button"
 import { type GeoserverRasterTypeLayerDetail, type GeoserverLayerInfo, type GeoserverLayerListItem, getTimeDimension, resolveTimeDomain, useGeoserverStore } from "@store/geoserver";
 import { type GeoServerSourceParams, type LayerParams, useMapStore } from "@store/map";
