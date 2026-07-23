@@ -6,10 +6,14 @@
             </div>
             <div v-else class="flex flex-col min-w-72 max-h-[90vh] overflow-y-auto">
                 <div class="w-full">
-                    <Card>
-                        <template #title>Create</template>
-                        <template #subtitle>Select a mode and start drawing</template>
-                        <template #content>
+                    <UCard>
+                        <template #header>
+                            <div class="space-y-1">
+                                <div class="font-semibold text-highlighted">Create</div>
+                                <div class="text-muted text-sm">Select a mode and start drawing</div>
+                            </div>
+                        </template>
+                        <template #default>
                                 <div class="flex justify-between">
                                     <div v-for="draw in drawTool.drawTypes" :key="draw.name" class="flex align-items-center">
                                         <RadioButton :disabled="drawTool.drawOnProgress||drawTool.editOnProgress" v-model="drawTool.drawMode" :inputId="draw.name" :value="draw.name" />
@@ -19,27 +23,31 @@
                         </template>
                         <template #footer>
                             <div class="w-full flex justify-between">
-                                <Button size="small" class="col" :disabled="drawTool.drawOnProgress" @click="drawTool.changeMode(drawTool.drawMode)">
+                                <UButton size="sm" class="col" :disabled="drawTool.drawOnProgress" @click="drawTool.changeMode(drawTool.drawMode)">
                                     <span v-if="!(drawTool.drawOnProgress || drawTool.editOnProgress)">Start Drawing</span>
                                     <span v-else>Continue</span>
-                                </Button>
-                                <Button size="small" v-if="(drawTool.drawOnProgress||drawTool.editOnProgress)" :disabled="!drawTool.drawOnProgress" @click="drawTool.changeMode('select')">Edit</Button>
-                                <Button size="small" v-if="(drawTool.drawOnProgress || drawTool.editOnProgress)" :disabled="!(drawTool.drawOnProgress || drawTool.editOnProgress)" @click="drawTool.stopTerradraw">Cancel</Button>
+                                </UButton>
+                                <UButton size="sm" v-if="(drawTool.drawOnProgress||drawTool.editOnProgress)" :disabled="!drawTool.drawOnProgress" color="secondary" @click="drawTool.changeMode('select')">Edit</UButton>
+                                <UButton size="sm" v-if="(drawTool.drawOnProgress || drawTool.editOnProgress)" :disabled="!(drawTool.drawOnProgress || drawTool.editOnProgress)" color="neutral" variant="soft" @click="drawTool.stopTerradraw">Cancel</UButton>
                             </div>
                         </template>
-                    </Card>
+                    </UCard>
                 </div>
                 <div class="w-full pt-1">
-                    <Card v-if="drawTool.drawOnProgress || drawTool.editOnProgress">
-                        <template #title>Save</template>
-                        <template #subtitle>Save your drawing as a Layer</template>
-                        <template #content>
+                    <UCard v-if="drawTool.drawOnProgress || drawTool.editOnProgress">
+                        <template #header>
+                            <div class="space-y-1">
+                                <div class="font-semibold text-highlighted">Save</div>
+                                <div class="text-muted text-sm">Save your drawing as a Layer</div>
+                            </div>
+                        </template>
+                        <template #default>
                             <InputText v-model="drawTool.layerName" placeholder="Layer Name"></InputText>
                         </template>
                         <template #footer>
-                            <Button size="small" @click="drawTool.saveAsLayer" :disabled="drawTool.layerName.length === 0">Add Layer</Button>
+                            <UButton size="sm" @click="drawTool.saveAsLayer" :disabled="drawTool.layerName.length === 0">Add Layer</UButton>
                         </template>
-                    </Card>
+                    </UCard>
                 </div>
             </div>
         </Popover>
@@ -47,10 +55,8 @@
 </template>
 
 <script setup lang="ts">
-import Card from "primevue/card";
 import RadioButton from "primevue/radiobutton";
 import Popover from "primevue/popover";
-import Button from "primevue/button";
 import InputText from "primevue/inputtext";
 import { ref } from "vue";
 import { useDrawStore } from "@store/draw"
