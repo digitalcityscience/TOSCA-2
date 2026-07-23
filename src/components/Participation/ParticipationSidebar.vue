@@ -5,7 +5,7 @@
 		</template>
 		<div class="nav w-full flex justify-end py-1">
             <RouterLink v-if="$route.name === 'campaign-details'" :to="{ name: 'active-campaigns' }">
-                <Button size="small" severity="secondary">Back to Campaigns</Button>
+                <UButton size="sm" color="secondary">Back to Campaigns</UButton>
             </RouterLink>
         </div>
         <div class="pt-2">
@@ -19,7 +19,6 @@ import BaseSidebarComponent from "@components/Base/BaseSidebarComponent.vue"
 import { SidebarControl } from "../../core/helpers/sidebarControl";
 import { useMapStore } from "../../store/map";
 import { RouterLink, useRoute } from "vue-router";
-import Button from "primevue/button";
 import { onMounted } from "vue";
 
 const mapStore = useMapStore()

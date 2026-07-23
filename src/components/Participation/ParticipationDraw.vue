@@ -16,22 +16,21 @@
 	</div>
 	<div class="w-full grid lg:grid-cols-1 pt-2">
 		<div class="py-1" v-if="!drawTool.drawOnProgress && !drawTool.editOnProgress">
-			<Button class="w-full" size="small" @click="startDraw">Start Drawing</Button>
+			<UButton class="w-full" size="sm" @click="startDraw">Start Drawing</UButton>
 		</div>
 		<div class="" v-if="(drawTool.drawOnProgress || drawTool.editOnProgress)">
 			<div class="py-1" >
-				<Button class="w-full" size="small" :disabled="!(drawTool.drawOnProgress || drawTool.editOnProgress)"
-					@click="cancelDrawing">Cancel Drawing</Button>
+				<UButton class="w-full" size="sm" :disabled="!(drawTool.drawOnProgress || drawTool.editOnProgress)"
+					@click="cancelDrawing">Cancel Drawing</UButton>
 			</div>
 			<div class="py-1">
-				<Button class="w-full" size="small" @click="addToDrawnArea">Add to Items</Button>
+				<UButton class="w-full" size="sm" @click="addToDrawnArea">Add to Items</UButton>
 			</div>
 		</div>
 	</div>
 </template>
 
 <script setup lang="ts">
-import Button from "primevue/button"
 import RadioButton from "primevue/radiobutton";
 import ChipWrapper from "@components/Base/ChipWrapper.vue"
 import { type DrawMode, useDrawStore } from "@store/draw"
