@@ -29,8 +29,8 @@
             </template>
             <template #footer>
                 <div class="flex gap-2 flex-wrap">
-                    <Button size="small" @click="add2Map(false)">Add to map</Button>
-                    <Button v-if="hasTimeDimension" size="small" severity="secondary" @click="add2Map(true)">Add with time</Button>
+                    <UButton size="sm" @click="add2Map(false)">Add to map</UButton>
+                    <UButton v-if="hasTimeDimension" size="sm" color="secondary" @click="add2Map(true)">Add with time</UButton>
                 </div>
             </template>
         </Card>
@@ -42,7 +42,6 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import Button from "primevue/button"
 import { type GeoserverRasterTypeLayerDetail, type GeoserverLayerInfo, type GeoserverLayerListItem, getTimeDimension, resolveTimeDomain, useGeoserverStore } from "@store/geoserver";
 import { type GeoServerSourceParams, type LayerParams, useMapStore } from "@store/map";
 import Card from "primevue/card";

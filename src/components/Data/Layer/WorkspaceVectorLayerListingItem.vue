@@ -19,7 +19,7 @@
                 </div>
             </template>
             <template #footer>
-                <Button size="small" @click="add2Map">Add to map</button>
+                <UButton size="sm" @click="add2Map">Add to map</UButton>
             </template>
         </Card>
     </div>
@@ -30,7 +30,6 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import Button from "primevue/button"
 import { type GeoServerVectorTypeLayerDetail, type GeoserverLayerInfo, type GeoserverLayerListItem, useGeoserverStore } from "@store/geoserver";
 import { type GeoServerSourceParams, type LayerParams, type LayerStyleOptions, useMapStore } from "@store/map";
 import Card from "primevue/card";
