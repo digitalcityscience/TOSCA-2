@@ -2,7 +2,7 @@
     <div>
         <Popover ref="op" :dismissable="false" showCloseIcon :pt="closeButtonStyles">
             <div v-if="drawTool.externalAppOnProgress" class="flex flex-col min-w-72 max-h-[90vh] overflow-y-auto py-6">
-                <Message class="w-full" severity="info">Drawing tool currently in use.</Message>
+                <UAlert class="w-full" color="info" variant="soft" description="Drawing tool currently in use." />
             </div>
             <div v-else class="flex flex-col min-w-72 max-h-[90vh] overflow-y-auto">
                 <div class="w-full">
@@ -52,7 +52,6 @@ import RadioButton from "primevue/radiobutton";
 import Popover from "primevue/popover";
 import Button from "primevue/button";
 import InputText from "primevue/inputtext";
-import Message from "primevue/message";
 import { ref } from "vue";
 import { useDrawStore } from "@store/draw"
 import { useMapStore } from "@store/map";

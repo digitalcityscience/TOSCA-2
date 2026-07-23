@@ -17,14 +17,13 @@
             </draggable>
         </div>
         <div class="w-full" v-else>
-            <Message class="w-full" severity="info">There is no layer on map</Message>
+            <UAlert class="w-full" color="info" variant="soft" description="There is no layer on map" />
         </div>
     </BaseSidebarComponent>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
-import Message from "primevue/message";
 import draggable from "vuedraggable";
 // components
 import BaseSidebarComponent from "../../Base/BaseSidebarComponent.vue";
