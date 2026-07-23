@@ -2,7 +2,15 @@
     <div ref="el" :data-position="props.position"  :class="[sidebarStatusClasses, props.bgClass ?? 'bg-primary-900']" :id="props.id" class="sidebar group flex grow-0 justify-between absolute rounded-lg p-1  lg:w-[400px] 2xl:w-[450px] 3xl:w-[450px] duration-1000" :style="props.style ? props.style : ''">
         <div class="header w-full flex group-[.sidebar-left]:flex-row-reverse group-[.sidebar-right]:flex-row group-[.sidebar-bottom]:flex-row-reverse p-1">
             <div class="close-button">
-                <Button :icon="props.position === 'left' ? 'pi pi-angle-double-left' : props.position === 'right' ? 'pi pi-angle-double-right' : 'pi pi-times'" rounded @click="toggleSidebar"></Button>
+                <UButton
+                    :icon="closeIcon"
+                    color="neutral"
+                    variant="soft"
+                    size="sm"
+                    square
+                    aria-label="Close sidebar"
+                    @click="toggleSidebar"
+                />
             </div>
             <div class="header-content grow text-2xl text-white font-bold self-center">
                 <slot name="header"></slot>
@@ -18,7 +26,6 @@
 </template>
 
 <script setup lang="ts">
-import Button from "primevue/button";
 import { computed, onMounted, ref } from "vue";
 import { isNullOrEmpty } from "../../core/helpers/functions";
 /*
@@ -42,6 +49,15 @@ const props = withDefaults(defineProps<Props>(), {
 })
 const sidebarStatusClasses = computed(() => {
     return `sidebar-${props.position} ${props.collapsed ? "collapsed":""}`
+})
+const closeIcon = computed(() => {
+    if (props.position === "left") {
+        return "i-lucide-panel-left-close"
+    }
+    if (props.position === "right") {
+        return "i-lucide-panel-right-close"
+    }
+    return "i-lucide-x"
 })
 // to check width prop with css patterns (ends with 'px', 'vw' or '%')
 const widthRegex = /^(\d+(?:\.\d*)?)px$|^(\d+(?:\.\d*)?)vw$|^(\d+(?:\.\d*)?)%$/
