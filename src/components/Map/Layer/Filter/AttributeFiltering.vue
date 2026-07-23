@@ -8,27 +8,22 @@
         </template>
         <template #default>
             <div class="current-filters" v-if="filterStore.appliedFiltersList.find((listItem)=>{return listItem.layerName === props.layer.id && ((listItem.attributeFilters !== undefined && listItem.attributeFilters?.length > 0) || listItem.geometryFilters !== undefined)})">
-                <DataTable :value="currentFilters" stripedRows class="w-full" size="small" table-class="w-full">
-                    <template #header></template>
-                    <Column header="">
-                        <template #body="filter">
-                            <span>{{ filter.data.attribute.name }} {{ filterStore.filterNames[filter.data.operand as IntegerFilters | StringFilters] }} {{ filter.data.value }}</span>
-                        </template>
-                    </Column>
-                    <Column header="">
-                        <template #body="filter">
-                            <div class="w-full flex flex-row-reverse">
-                                <UButton
-                                    icon="i-lucide-x"
-                                    color="error"
-                                    variant="ghost"
-                                    aria-label="Delete attribute filter"
-                                    @click="deleteAttributeFilter(filter.data)"
-                                />
-                            </div>
-                        </template>
-                    </Column>
-                </DataTable>
+                <UTable :data="currentFilters" :columns="currentFilterColumns" class="w-full" :ui="{ th: 'hidden', td: 'px-2 py-2' }">
+                    <template #filter-cell="{ row }">
+                        <span>{{ row.original.attribute.name }} {{ filterStore.filterNames[row.original.operand as IntegerFilters | StringFilters] }} {{ row.original.value }}</span>
+                    </template>
+                    <template #actions-cell="{ row }">
+                        <div class="w-full flex flex-row-reverse">
+                            <UButton
+                                icon="i-lucide-x"
+                                color="error"
+                                variant="ghost"
+                                aria-label="Delete attribute filter"
+                                @click="deleteAttributeFilter(row.original)"
+                            />
+                        </div>
+                    </template>
+                </UTable>
             </div>
             <div class="w-full no-current-filter py-1" v-else>
                 <UAlert class="w-full" color="info" variant="soft" description="You have no filter" />
@@ -106,8 +101,7 @@
 </template>
 
 <script setup lang="ts">
-import DataTable from "primevue/datatable";
-import Column from "primevue/column";
+import type { TableColumn } from "@nuxt/ui";
 import { computed, ref } from "vue";
 import { type GeoServerVectorTypeLayerDetail, type GeoServerFeatureTypeAttribute } from "@store/geoserver";
 import { type IntegerFilters, type StringFilters, useFilterStore, type RelationTypes, type AttributeFilterItem } from "@store/filter";
@@ -140,6 +134,16 @@ const currentFilters = computed(()=>{
         return [] as AppliedFilter[]
     }
 })
+const currentFilterColumns: TableColumn<AppliedFilter>[] = [
+    {
+        id: "filter",
+        header: "",
+    },
+    {
+        id: "actions",
+        header: "",
+    },
+]
 const relationType = ref<RelationTypes>("AND")
 const selectedAttribute = ref<GeoServerFeatureTypeAttribute>()
 const selectedOperand = ref<IntegerFilters | StringFilters>()
@@ -256,22 +260,4 @@ async function deleteAttributeFilter(targetFilter: AppliedFilter): Promise<void>
 }
 </script>
 
-<style scoped>
-.current-filters:deep([data-pc-section="header"]){
-    display: none
-}
-.current-filters:deep([data-pc-section="headerrow"]){
-    display: none
-}
-.attribute-filtering :deep(.p-card-title) {
-    font-size: 0.95rem;
-    font-weight: 600;
-}
-.attribute-filtering :deep(.p-card-subtitle) {
-    font-size: 0.8rem;
-    margin-top: 0.15rem;
-}
-.attribute-filtering :deep(.p-card-body) {
-    padding: 0.75rem;
-}
-</style>
+<style scoped></style>
