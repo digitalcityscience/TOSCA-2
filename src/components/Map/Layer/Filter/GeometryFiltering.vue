@@ -1,10 +1,14 @@
 <template>
 	<div class="geometry-filter w-full" v-if="(props.layer.filterLayer === undefined && isPolygonTiles)">
 		<div class="new-filter w-full pt-2" v-if="!hasGeometryFilter">
-			<Card class="geometry-filtering">
-				<template #title>Geometry Filtering</template>
-				<template #subtitle>Select geometry layer to filter this layer</template>
-				<template #content>
+			<UCard class="geometry-filtering">
+				<template #header>
+					<div class="space-y-1">
+						<div class="font-semibold text-highlighted">Geometry Filtering</div>
+						<div class="text-muted text-sm">Select geometry layer to filter this layer</div>
+					</div>
+				</template>
+				<template #default>
 					<div class="filterlayer-dropdown w-full">
 						<div v-if="filterLayerList.length>0">
 							<Select class="w-full" v-model="selectedFilterLayer" @change="dropdownFitter" :options="filterLayerList" option-label="source" show-clear
@@ -21,31 +25,32 @@
 				</template>
 				<template #footer>
                     <div class="w-full flex flex-row-reverse">
-                        <Button size="small" :disabled="(isNullOrEmpty(selectedFilterLayer) || (props.layer.type === 'fill' && isNullOrEmpty(selectedProperty)))" @click="applyGeometryFilter">Add Filter</Button>
+                        <UButton size="sm" :disabled="(isNullOrEmpty(selectedFilterLayer) || (props.layer.type === 'fill' && isNullOrEmpty(selectedProperty)))" @click="applyGeometryFilter">Add Filter</UButton>
                     </div>
 				</template>
-			</Card>
+			</UCard>
 		</div>
         <div class="existing-filter pt-2" v-else>
-            <Card>
-                <template #content>
+            <UCard>
+                <template #default>
                     <div class="flex flex-row justify-between w-full">
                         <span class="self-center">You have a geometry filter</span>
-                        <Button @click="removeGeometryFilter" severity="danger" text rounded>
-                            <template #icon>
-                                <i class="pi pi-times"></i>
-                            </template></Button>
+                        <UButton
+                            icon="i-lucide-x"
+                            color="error"
+                            variant="ghost"
+                            aria-label="Remove geometry filter"
+                            @click="removeGeometryFilter"
+                        />
                     </div>
                 </template>
-            </Card>
+            </UCard>
         </div>
 	</div>
 </template>
 
 <script setup lang="ts">
 import Select, { type SelectChangeEvent } from "primevue/select";
-import Card from "primevue/card";
-import Button from "primevue/button";
 import { type CustomAddLayerObject, useMapStore, type LayerObjectWithAttributes } from "@store/map";
 import { computed, onMounted, ref } from "vue";
 import bbox from "@turf/bbox"
