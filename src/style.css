@@ -46,6 +46,13 @@
 --tosca-map-control-text-hover: rgb(5 150 105);
 --tosca-map-control-border: rgb(17 24 39 / 0.18);
 --tosca-map-control-icon-filter: none;
+--tosca-app-header-height: 3rem;
+--tosca-app-footer-height: 2rem;
+--tosca-map-control-inset: 10px;
+--tosca-app-chrome-bg: rgb(249 247 239 / 0.98);
+--tosca-app-chrome-text: rgb(17 24 39);
+--tosca-app-chrome-muted: rgb(71 85 105);
+--tosca-app-border: rgb(17 24 39 / 0.12);
 }
 .dark{
 --primary: var(--primary-400);
@@ -67,6 +74,10 @@
 --tosca-map-control-text-hover: rgb(134 239 172);
 --tosca-map-control-border: rgb(148 163 184 / 0.22);
 --tosca-map-control-icon-filter: invert(1) brightness(1.4);
+--tosca-app-chrome-bg: rgb(3 35 32 / 0.98);
+--tosca-app-chrome-text: rgb(248 250 252);
+--tosca-app-chrome-muted: rgb(203 213 225);
+--tosca-app-border: rgb(148 163 184 / 0.18);
 }
 
 .customized-primary {

@@ -82,8 +82,8 @@ const slideoverUi = computed(() => ({
     footer: "hidden",
 }))
 const contentOffsetClass = computed(() => {
-    if (props.side === "left") return "!top-[10px] !bottom-[10px] !left-[4.5rem]"
-    if (props.side === "right") return "!top-[10px] !bottom-[10px] !right-[4.5rem]"
+    if (props.side === "left") return "!top-[calc(var(--tosca-app-header-height)+var(--tosca-map-control-inset))] !bottom-[calc(var(--tosca-app-footer-height)+var(--tosca-map-control-inset))] !left-[4.5rem]"
+    if (props.side === "right") return "!top-[calc(var(--tosca-app-header-height)+var(--tosca-map-control-inset))] !bottom-[calc(var(--tosca-app-footer-height)+var(--tosca-map-control-inset))] !right-[4.5rem]"
     return ""
 })
 const closeIcon = computed(() => {

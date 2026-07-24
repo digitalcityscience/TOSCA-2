@@ -34,20 +34,33 @@ watch(themeMode, (mode) => {
 
 <template>
   <UApp>
-    <div class="app-container font-sans">
-      <UTooltip :text="themeToggleLabel">
-        <UButton
-          class="theme-mode-toggle"
-          :icon="themeToggleIcon"
-          color="neutral"
-          variant="soft"
-          square
-          :aria-label="themeToggleLabel"
-          @click="toggleThemeMode"
-        />
-      </UTooltip>
-      <RouterView name="default"></RouterView>
-      <RouterView v-if="mapStore.map" name="participation"></RouterView>
+    <div class="app-container flex min-h-0 flex-col bg-default text-default font-sans">
+      <header class="app-header">
+        <RouterLink to="/" class="app-brand" aria-label="TOSCA home">
+          TOSCA
+        </RouterLink>
+        <div class="flex items-center gap-1">
+          <UTooltip :text="themeToggleLabel">
+            <UButton
+              class="h-8 w-8 p-0"
+              :icon="themeToggleIcon"
+              color="neutral"
+              variant="ghost"
+              square
+              :aria-label="themeToggleLabel"
+              @click="toggleThemeMode"
+            />
+          </UTooltip>
+        </div>
+      </header>
+      <main class="app-main">
+        <RouterView name="default"></RouterView>
+        <RouterView v-if="mapStore.map" name="participation"></RouterView>
+      </main>
+      <footer class="app-footer">
+        <span>HCU DCS</span>
+        <span>TOSCA 2</span>
+      </footer>
     </div>
   </UApp>
 </template>
@@ -57,15 +70,45 @@ watch(themeMode, (mode) => {
     width: 100%;
     height: 100%;
 }
-.theme-mode-toggle {
-    position: fixed;
-    top: 0.75rem;
-    left: 50%;
-    z-index: 30;
-    transform: translateX(-50%);
-    width: 2.375rem;
-    height: 2.375rem;
-    padding: 0;
-    box-shadow: 0 12px 30px rgb(15 23 42 / 0.22);
+.app-header {
+    height: var(--tosca-app-header-height);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0 1rem;
+    border-bottom: 1px solid var(--tosca-app-border);
+    background: var(--tosca-app-chrome-bg);
+    color: var(--tosca-app-chrome-text);
+    z-index: 20;
+}
+.app-brand {
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1;
+    color: inherit;
+    text-decoration: none;
+}
+.app-main {
+    position: relative;
+    min-height: 0;
+    flex: 1 1 auto;
+}
+.app-footer {
+    height: var(--tosca-app-footer-height);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0 1rem;
+    border-top: 1px solid var(--tosca-app-border);
+    background: var(--tosca-app-chrome-bg);
+    color: var(--tosca-app-chrome-muted);
+    font-size: 0.75rem;
+    line-height: 1;
+    z-index: 20;
 }
 </style>
