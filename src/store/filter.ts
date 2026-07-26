@@ -9,6 +9,7 @@ import { type MapLibreLayerTypes, useMapStore } from "./map";
 import booleanWithin from "@turf/boolean-within";
 import flatten from "@turf/flatten";
 import { type MapGeoJSONFeature } from "maplibre-gl";
+import { i18n } from "../core/i18n";
 
 export type IntegerFilters = ">" | ">=" | "<" | "<=" | "==" | "!=";
 export type StringFilters = "==" | "!=" | "in";
@@ -37,15 +38,18 @@ export const useFilterStore = defineStore("filter", () => {
   const attributeList = ref<GeoServerFeatureTypeAttribute[]>([]);
   const integerFilters = [">", ">=", "<", "<=", "==", "!="];
   const stringFilters = ["==", "!=", "in"];
-  const filterNames = {
-    ">": "greater than",
-    ">=": "greater than or equal to",
-    "<": "less than",
-    "<=": "less than or equal to",
-    "==": "equal to",
-    "!=": "not equal to",
+  const operandLabelKeys: Record<IntegerFilters | StringFilters, string> = {
+    ">": "greaterThan",
+    ">=": "greaterThanOrEqual",
+    "<": "lessThan",
+    "<=": "lessThanOrEqual",
+    "==": "equal",
+    "!=": "notEqual",
     in: "in",
   };
+  function operandLabel(operand: IntegerFilters | StringFilters): string {
+    return i18n.global.t(`filter.operands.${operandLabelKeys[operand]}`);
+  }
   const allowedBindings = [
     "java.lang.String",
     "java.lang.Integer",
@@ -84,7 +88,7 @@ export const useFilterStore = defineStore("filter", () => {
               if (!isinFilters) {
                 layerFilters.attributeFilters.push(attributeFilter)
               } else {
-                throw new Error(`Requested filter already set: ${attributeFilter.attribute.name} ${filterNames[attributeFilter.operand]} ${attributeFilter.value}`)
+                throw new Error(`Requested filter already set: ${attributeFilter.attribute.name} ${operandLabel(attributeFilter.operand)} ${attributeFilter.value}`)
               }
         } else {
           layerFilters.attributeFilters = [attributeFilter]
@@ -124,7 +128,7 @@ async function removeAttributeFilter(layername: string, attributeFilter: Attribu
         }
         return await Promise.resolve(appliedFiltersList.value[layerFiltersIndex]);
       } else {
-        throw new Error(`Filter not found: ${attributeFilter.attribute.name} ${filterNames[attributeFilter.operand]} ${attributeFilter.value}`);
+        throw new Error(`Filter not found: ${attributeFilter.attribute.name} ${operandLabel(attributeFilter.operand)} ${attributeFilter.value}`);
       }
     } else {
       return await Promise.resolve(appliedFiltersList.value[layerFiltersIndex])
@@ -279,7 +283,7 @@ async function removeAttributeFilter(layername: string, attributeFilter: Attribu
     attributeList,
     integerFilters,
     stringFilters,
-    filterNames,
+    operandLabel,
     allowedBindings,
     allowedIDBindings,
     appliedFiltersList,

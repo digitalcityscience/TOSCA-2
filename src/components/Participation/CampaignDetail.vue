@@ -1,5 +1,5 @@
 <template>
-    <div v-if="loading" class="loading">Loading...</div>
+    <div v-if="loading" class="loading">{{ t('participation.loading') }}</div>
 
     <div v-if="error" class="error">{{ error }}</div>
 
@@ -14,6 +14,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import ParticipationForm from "./ParticipationForm.vue";
 import { type CampaignDetail, useParticipationStore } from "@store/participation";
 import { useRoute } from "vue-router";
@@ -25,6 +26,7 @@ import { type FeatureCollection } from "@helpers/geojson";
 import bboxPolygon from "@turf/bbox-polygon";
 import bbox from "@turf/bbox";
 
+const { t } = useI18n();
 const participation = useParticipationStore();
 const geoserver = useGeoserverStore();
 const mapStore = useMapStore();
@@ -135,11 +137,11 @@ const loadCampaignLayers = async (): Promise<void> => {
                 }
                 mapStore.map.fitBounds(bbox(layerBboxPolygons), { padding: 20 });
             } catch (err) {
-                toast.add({ severity: "error", summary: "Error", detail: err, life: 3000 });
+                toast.add({ severity: "error", summary: t("toast.error"), detail: err, life: 3000 });
             }
         }
     } catch (err) {
-        toast.add({ severity: "error", summary: "Error", detail: err, life: 3000 });
+        toast.add({ severity: "error", summary: t("toast.error"), detail: err, life: 3000 });
     }
 };
 watch(() => route.params.id, loadCampaignResources, { immediate: true })

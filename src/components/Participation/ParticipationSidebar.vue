@@ -1,11 +1,11 @@
 <template>
 	<BaseSlideoverSidebarComponent :id="sidebarID" :side="sidebarPosition" :collapsed="true">
 		<template #header>
-			<p>Citizen Participation Tool</p>
+			<p>{{ t('participation.sidebar.title') }}</p>
 		</template>
 		<div class="nav w-full flex justify-end py-1">
             <RouterLink v-if="$route.name === 'campaign-details'" :to="{ name: 'active-campaigns' }">
-                <UButton size="sm" color="secondary">Back to Campaigns</UButton>
+                <UButton size="sm" color="secondary">{{ t('participation.sidebar.backToCampaigns') }}</UButton>
             </RouterLink>
         </div>
         <div class="pt-2">
@@ -19,7 +19,9 @@ import BaseSlideoverSidebarComponent from "@components/Base/BaseSlideoverSidebar
 import { openSlideoverSidebar } from "@helpers/slideoverSidebarRegistry";
 import { RouterLink, useRoute } from "vue-router";
 import { onMounted, watch } from "vue";
+import { useI18n } from "vue-i18n";
 
+const { t } = useI18n();
 const sidebarID = "participation"
 const sidebarPosition = "left"
 

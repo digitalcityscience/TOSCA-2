@@ -2,15 +2,15 @@
     <UCard>
         <template #header>
             <div class="space-y-1">
-                <div class="font-semibold text-highlighted">Buffer</div>
-                <div class="text-muted text-sm">Select a layer to apply buffer</div>
+                <div class="font-semibold text-highlighted">{{ t('buffer.title') }}</div>
+                <div class="text-muted text-sm">{{ t('buffer.description') }}</div>
             </div>
         </template>
         <template #default>
             <div class="w-full" v-if="filteredLayers.length > 0">
                 <div class="buffer-target">
-                    <label id="label_targetLayer" class="font-bold">Select target layer</label>
-                    <p class="text-sm font-light italic">Your selection will be used to create buffer areas</p>
+                    <label id="label_targetLayer" class="font-bold">{{ t('buffer.selectTargetLayer') }}</label>
+                    <p class="text-sm font-light italic">{{ t('buffer.selectTargetLayerHelp') }}</p>
                     <div class="pt-2 w-full flex">
                         <USelect
                             class="w-full max-w-64"
@@ -18,7 +18,7 @@
                             :disabled="bufferStore.isTmpDataCreated"
                             :model-value="bufferStore.selectedLayer?.id"
                             :items="filteredLayerOptions"
-                            placeholder="Select a layer"
+                            :placeholder="t('buffer.selectLayerPlaceholder')"
                             @update:model-value="selectBufferLayer"
                         />
                         <UButton
@@ -27,14 +27,14 @@
                             icon="i-lucide-x"
                             color="neutral"
                             variant="ghost"
-                            aria-label="Clear selected layer"
+                            :aria-label="t('buffer.clearSelectedLayer')"
                             @click="bufferStore.selectedLayer = null"
                         />
                     </div>
                 </div>
                 <div class="buffer-radius pt-4">
-                    <label id="label_radius" class="font-bold">Radius</label>
-                    <p class="text-sm font-light italic">Buffer radius as a meter</p>
+                    <label id="label_radius" class="font-bold">{{ t('buffer.radius') }}</label>
+                    <p class="text-sm font-light italic">{{ t('buffer.radiusHelp') }}</p>
                     <div class="pt-2 w-full flex items-center">
                         <UInputNumber class="w-full max-w-64" aria-labelledby="label_radius" :disabled="bufferStore.isTmpDataCreated" v-model="bufferStore.bufferRadius" :min="0" :step="1" />
                         <span class="ml-2 text-sm text-muted">m</span>
@@ -42,23 +42,23 @@
                 </div>
                 <div v-if="bufferStore.isTmpDataCreated">
                     <div class="buffer-layer pt-4">
-                        <label id="label_bufferLayer" class="font-bold">Buffer layer name</label>
-                        <p class="text-sm font-light italic">Name of the buffer layer</p>
-                        <UInput v-model="bufferStore.bufferLayerName" placeholder="Buffer Layer Name" />
+                        <label id="label_bufferLayer" class="font-bold">{{ t('buffer.bufferLayerName') }}</label>
+                        <p class="text-sm font-light italic">{{ t('buffer.bufferLayerNameHelp') }}</p>
+                        <UInput v-model="bufferStore.bufferLayerName" :placeholder="t('buffer.bufferLayerNamePlaceholder')" />
                     </div>
                 </div>
             </div>
             <div v-else>
-                <p>There is no suitable layer for buffering.</p>
+                <p>{{ t('buffer.noSuitableLayer') }}</p>
             </div>
         </template>
         <template #footer>
             <div v-if="!bufferStore.isTmpDataCreated">
-                <UButton size="sm" :disabled="bufferStore.selectedLayer === null || !(bufferStore.bufferRadius > 0)" @click="bufferStore.temporaryBufferHandler(bufferStore.selectedLayer!,bufferStore.bufferRadius)">Create Buffer</UButton>
+                <UButton size="sm" :disabled="bufferStore.selectedLayer === null || !(bufferStore.bufferRadius > 0)" @click="bufferStore.temporaryBufferHandler(bufferStore.selectedLayer!,bufferStore.bufferRadius)">{{ t('buffer.createBuffer') }}</UButton>
             </div>
             <div v-else class="grid w-full grid-cols-2 gap-2">
-                <UButton size="sm" class="w-full" color="neutral" variant="soft" @click="bufferStore.clearTmpBufferLayer">Reset</UButton>
-                <UButton size="sm" class="w-full" :disabled="bufferStore.selectedLayer === null || !(bufferStore.bufferRadius > 0) || bufferStore.bufferLayerName ===''" @click="bufferStore.addToMapLayer(bufferStore.selectedLayer!, bufferStore.bufferRadius, bufferStore.bufferLayerName)">Add as a Layer</UButton>
+                <UButton size="sm" class="w-full" color="neutral" variant="soft" @click="bufferStore.clearTmpBufferLayer">{{ t('buffer.reset') }}</UButton>
+                <UButton size="sm" class="w-full" :disabled="bufferStore.selectedLayer === null || !(bufferStore.bufferRadius > 0) || bufferStore.bufferLayerName ===''" @click="bufferStore.addToMapLayer(bufferStore.selectedLayer!, bufferStore.bufferRadius, bufferStore.bufferLayerName)">{{ t('buffer.addAsLayer') }}</UButton>
             </div>
         </template>
     </UCard>
@@ -66,8 +66,10 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import { useMapStore } from "@store/map";
 import { useBufferStore } from "@store/buffer";
+const { t } = useI18n();
 const mapStore = useMapStore()
 const bufferStore = useBufferStore()
 const filteredLayers = computed(() => {

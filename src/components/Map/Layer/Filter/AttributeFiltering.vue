@@ -2,15 +2,15 @@
     <UCard class="attribute-filtering w-full">
         <template #header>
             <div class="space-y-1">
-                <div class="font-semibold text-highlighted">Attribute Filtering</div>
-                <div class="text-muted text-sm">Select an attribute and operand to filter this layer</div>
+                <div class="font-semibold text-highlighted">{{ t('filter.attribute.title') }}</div>
+                <div class="text-muted text-sm">{{ t('filter.attribute.description') }}</div>
             </div>
         </template>
         <template #default>
             <div class="current-filters" v-if="filterStore.appliedFiltersList.find((listItem)=>{return listItem.layerName === props.layer.id && ((listItem.attributeFilters !== undefined && listItem.attributeFilters?.length > 0) || listItem.geometryFilters !== undefined)})">
                 <UTable :data="currentFilters" :columns="currentFilterColumns" class="w-full" :ui="{ th: 'hidden', td: 'px-2 py-2' }">
                     <template #filter-cell="{ row }">
-                        <span>{{ row.original.attribute.name }} {{ filterStore.filterNames[row.original.operand as IntegerFilters | StringFilters] }} {{ row.original.value }}</span>
+                        <span>{{ row.original.attribute.name }} {{ filterStore.operandLabel(row.original.operand as IntegerFilters | StringFilters) }} {{ row.original.value }}</span>
                     </template>
                     <template #actions-cell="{ row }">
                         <div class="w-full flex flex-row-reverse">
@@ -18,7 +18,7 @@
                                 icon="i-lucide-x"
                                 color="error"
                                 variant="ghost"
-                                aria-label="Delete attribute filter"
+                                :aria-label="t('filter.attribute.deleteFilter')"
                                 @click="deleteAttributeFilter(row.original)"
                             />
                         </div>
@@ -26,12 +26,12 @@
                 </UTable>
             </div>
             <div class="w-full no-current-filter py-1" v-else>
-                <UAlert class="w-full" color="info" variant="soft" description="You have no filter" />
+                <UAlert class="w-full" color="info" variant="soft" :description="t('filter.attribute.noFilter')" />
             </div>
             <div class="filter-control py-1">
                 <div v-if="currentFilters.length" class="relation-control w-full flex flex-row ml-auto py-1 justify-between">
-                    <span class="self-center" v-if="relationType==='AND'">(Match all selections)</span>
-                    <span class="self-center" v-else>(Match at least one selection)</span>
+                    <span class="self-center" v-if="relationType==='AND'">{{ t('filter.attribute.matchAll') }}</span>
+                    <span class="self-center" v-else>{{ t('filter.attribute.matchAny') }}</span>
                     <URadioGroup
                         v-model="relationType"
                         :items="relationOptions"
@@ -43,7 +43,7 @@
             </div>
             <div class="new-filter flex flex-col w-full">
                 <div class="w-full font-thin italic text-sm py-1 text-surface-600/50 dark:text-surface-0/50">
-                    <p>Add new attribute filter</p>
+                    <p>{{ t('filter.attribute.addNew') }}</p>
                 </div>
                 <div class="attribute w-full">
                     <div class="flex w-full">
@@ -51,7 +51,7 @@
                             class="min-w-32 w-full h-10"
                             v-model="selectedAttributeName"
                             :items="filteredAttributeOptions"
-                            placeholder="Select an attribute"
+                            :placeholder="t('filter.attribute.selectAttribute')"
                             @update:model-value="clearOperand"
                         />
                         <UButton
@@ -60,7 +60,7 @@
                             icon="i-lucide-x"
                             color="neutral"
                             variant="ghost"
-                            aria-label="Clear selected attribute"
+                            :aria-label="t('filter.attribute.clearAttribute')"
                             @click="clearSelectedAttribute"
                         />
                     </div>
@@ -74,7 +74,7 @@
                             class="min-w-32 w-full h-10"
                             v-model="selectedOperand"
                             :items="operandOptions"
-                            placeholder="Select an operand"
+                            :placeholder="t('filter.attribute.selectOperand')"
                         />
                         <UButton
                             v-if="selectedOperand !== undefined"
@@ -82,7 +82,7 @@
                             icon="i-lucide-x"
                             color="neutral"
                             variant="ghost"
-                            aria-label="Clear selected operand"
+                            :aria-label="t('filter.attribute.clearOperand')"
                             @click="selectedOperand = undefined"
                         />
                     </div>
@@ -93,7 +93,7 @@
                     <UInput class="min-w-32 w-full h-10" v-else type="number" v-model="filterValue" />
                 </div>
                 <div class="applier w-full flex flex-row-reverse pt-2">
-                    <UButton size="sm" @click="applyAttributeFilter" :disabled="!(selectedAttribute && selectedOperand && filterValue)">Apply</UButton>
+                    <UButton size="sm" @click="applyAttributeFilter" :disabled="!(selectedAttribute && selectedOperand && filterValue)">{{ t('common.apply') }}</UButton>
                 </div>
             </div>
         </template>
@@ -103,12 +103,13 @@
 <script setup lang="ts">
 import type { TableColumn } from "@nuxt/ui";
 import { computed, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { type GeoServerVectorTypeLayerDetail, type GeoServerFeatureTypeAttribute } from "@store/geoserver";
 import { type IntegerFilters, type StringFilters, useFilterStore, type RelationTypes, type AttributeFilterItem } from "@store/filter";
 import { type LayerObjectWithAttributes, useMapStore } from "@store/map";
 import { isNullOrEmpty } from "@helpers/functions"
 import { useToast } from "@helpers/toast";
-type OptionKey = keyof typeof filterStore.filterNames
+const { t } = useI18n();
 interface Props {
     layer: LayerObjectWithAttributes;
 }
@@ -174,7 +175,7 @@ const operandOptions = computed(() => {
         ? filterStore.stringFilters
         : filterStore.integerFilters
     return filters.map((filter) => ({
-        label: filterStore.filterNames[filter as OptionKey],
+        label: filterStore.operandLabel(filter as IntegerFilters | StringFilters),
         value: filter,
     }))
 })
@@ -199,13 +200,13 @@ async function applyAttributeFilter(): Promise<void> {
                     }
                 }).catch((error)=>{
                     mapStore.map.setFilter(props.layer.id, null)
-                    toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
+                    toast.add({ severity: "error", summary: t("toast.error"), detail: error, life: 3000 });
                 })
             } else {
                 mapStore.map.setFilter(props.layer.id, null)
             }
         }).catch((error)=> {
-            toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
+            toast.add({ severity: "error", summary: t("toast.error"), detail: error, life: 3000 });
         })
         cancelNewFilter()
     } else {
@@ -221,7 +222,7 @@ async function applyAttributeFilter(): Promise<void> {
                 }
             }).catch((error)=>{
                 mapStore.map.setFilter(props.layer.id, null)
-                toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
+                toast.add({ severity: "error", summary: t("toast.error"), detail: error, life: 3000 });
             })
         } else {
             mapStore.map.setFilter(props.layer.id, null)
@@ -252,10 +253,10 @@ async function deleteAttributeFilter(targetFilter: AppliedFilter): Promise<void>
             }
         }).catch((error)=>{
             mapStore.map.setFilter(props.layer.id, null)
-            toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
+            toast.add({ severity: "error", summary: t("toast.error"), detail: error, life: 3000 });
         })
     }).catch((error)=>{
-        toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
+        toast.add({ severity: "error", summary: t("toast.error"), detail: error, life: 3000 });
     })
 }
 </script>

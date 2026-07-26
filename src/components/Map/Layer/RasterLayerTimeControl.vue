@@ -4,7 +4,7 @@
             <UButton
                 class="size-7 shrink-0"
                 :icon="isPlaying ? 'i-lucide-pause' : 'i-lucide-play'"
-                :aria-label="isPlaying ? 'Pause time animation' : 'Play time animation'"
+                :aria-label="isPlaying ? t('map.rasterTimeControl.pause') : t('map.rasterTimeControl.play')"
                 color="neutral"
                 variant="ghost"
                 @click="togglePlay"
@@ -24,12 +24,13 @@
             <span>{{ formatLabel(domain.values[domain.values.length - 1]) }}</span>
         </div>
     </div>
-    <div v-else-if="loading" class="text-xs opacity-70">Loading time domain…</div>
+    <div v-else-if="loading" class="text-xs opacity-70">{{ t('map.rasterTimeControl.loading') }}</div>
     <div v-else-if="error !== undefined" class="text-xs text-red-500">{{ error }}</div>
 </template>
 
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from "vue"
+import { useI18n } from "vue-i18n"
 import {
     type GeoserverRasterTypeLayerDetail,
     type ResolvedTimeDomain,
@@ -42,6 +43,7 @@ interface Props {
     layer: LayerObjectWithAttributes
 }
 const props = defineProps<Props>()
+const { t } = useI18n()
 const geoserver = useGeoserverStore()
 const mapStore = useMapStore()
 const domain = ref<ResolvedTimeDomain>()
@@ -118,7 +120,7 @@ async function load(): Promise<void> {
         const seedIdx = resolved.values.indexOf(seedIso)
         index.value = seedIdx >= 0 ? seedIdx : resolved.values.length - 1
     } catch (e) {
-        error.value = `Could not load time domain: ${(e as Error).message}`
+        error.value = t("map.rasterTimeControl.loadError", { message: (e as Error).message })
     } finally {
         loading.value = false
     }

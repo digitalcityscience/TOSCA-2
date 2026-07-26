@@ -9,7 +9,7 @@
                     :title="layerHeaderIndicatorTitle"
                     aria-hidden="true"
                 ></span>
-                <UButton class="layer-drag-handle layer-icon-btn cursor-move" icon="i-lucide-grip-vertical" color="neutral" variant="ghost" aria-label="Reorder layer"
+                <UButton class="layer-drag-handle layer-icon-btn cursor-move" icon="i-lucide-grip-vertical" color="neutral" variant="ghost" :aria-label="t('map.layerItem.reorderLayer')"
                     @click.stop />
                 <USwitch class="shrink-0" v-model="checked" @update:model-value="changeLayerVisibility" />
                 <div class="layer-name-area">
@@ -20,46 +20,46 @@
                        v-if="hasTimeDimension"
                        name="i-lucide-clock"
                        class="layer-time-badge"
-                       title="Temporal layer"
-                       aria-label="Temporal layer"
+                       :title="t('map.layerItem.temporalLayer')"
+                       :aria-label="t('map.layerItem.temporalLayer')"
                     />
                 </div>
                 <div class="layer-actions">
-                    <UButton class="layer-icon-btn" icon="i-lucide-trash-2" color="error" variant="ghost" aria-label="Delete"
+                    <UButton class="layer-icon-btn" icon="i-lucide-trash-2" color="error" variant="ghost" :aria-label="t('common.delete')"
                         @click="confirmDialogVisibility = true" />
-                    <UButton class="layer-icon-btn" icon="i-lucide-zoom-in" color="neutral" variant="ghost" aria-label="Zoom"
+                    <UButton class="layer-icon-btn" icon="i-lucide-zoom-in" color="neutral" variant="ghost" :aria-label="t('map.layerItem.zoom')"
                         @click="zoomToLayer" />
                     <UButton
                         class="layer-icon-btn"
                         :icon="layerPanelOpen ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
                         color="neutral"
                         variant="ghost"
-                        :aria-label="layerPanelOpen ? 'Collapse layer controls' : 'Expand layer controls'"
+                        :aria-label="layerPanelOpen ? t('map.layerItem.collapseControls') : t('map.layerItem.expandControls')"
                         @click="layerPanelOpen = !layerPanelOpen"
                     />
                 </div>
-                <UModal v-model:open="confirmDialogVisibility" title="Delete Map Layer" :ui="{ content: 'max-w-[25rem]' }">
+                <UModal v-model:open="confirmDialogVisibility" :title="t('map.layerItem.deleteLayerTitle')" :ui="{ content: 'max-w-[25rem]' }">
                     <template #body>
-                    <span class="text-muted block">Are you sure want to delete {{ props.layer.displayName ?? props.layer.source }} layer?</span>
+                    <span class="text-muted block">{{ t('map.layerItem.deleteLayerConfirm', { name: props.layer.displayName ?? props.layer.source }) }}</span>
                     </template>
                     <template #footer>
                     <div class="flex justify-end gap-2 w-full">
-                        <UButton size="sm" type="button" color="neutral" variant="soft" @click="confirmDialogVisibility = false">Cancel</UButton>
-                        <UButton size="sm" type="button" color="error" @click="deleteLayerConfirmation(props.layer)">Delete</UButton>
+                        <UButton size="sm" type="button" color="neutral" variant="soft" @click="confirmDialogVisibility = false">{{ t('common.cancel') }}</UButton>
+                        <UButton size="sm" type="button" color="error" @click="deleteLayerConfirmation(props.layer)">{{ t('common.delete') }}</UButton>
                     </div>
                     </template>
                 </UModal>
             </div>
             <div v-show="layerPanelOpen" class="layer-panel-body">
                 <section class="layer-section">
-                    <h4 class="layer-section-title">Style</h4>
+                    <h4 class="layer-section-title">{{ t('map.layerItem.style') }}</h4>
                     <label v-if="hasEditableLayerColor" class="layer-row pointer-events-none">
-                        <span class="layer-row-label">Color</span>
+                        <span class="layer-row-label">{{ t('map.layerItem.color') }}</span>
                         <div class="layer-color-controls pointer-events-auto">
-                            <UColorPicker aria-label="Change Color" format="hex" v-model="colorPickerValue" />
+                            <UColorPicker :aria-label="t('map.layerItem.changeColor')" format="hex" v-model="colorPickerValue" />
                             <UInput
                                 class="layer-color-input"
-                                aria-label="Layer color hex code"
+                                :aria-label="t('map.layerItem.layerColorHex')"
                                 v-model="colorHexInput"
                                 maxlength="7"
                                 @update:model-value="applyColorHexInput"
@@ -67,28 +67,28 @@
                         </div>
                     </label>
                     <label class="layer-row">
-                        <span class="layer-row-label">Opacity</span>
-                        <USlider aria-label="Change Opacity" class="grow" v-model="opacity" :step="0.1" :min=0
+                        <span class="layer-row-label">{{ t('map.layerItem.opacity') }}</span>
+                        <USlider :aria-label="t('map.layerItem.changeOpacity')" class="grow" v-model="opacity" :step="0.1" :min=0
                             :max=1 @update:model-value="changeLayerOpac" />
                     </label>
                 </section>
                 <section v-if="showServerLegend" class="layer-section">
-                    <h4 class="layer-section-title">Legend</h4>
+                    <h4 class="layer-section-title">{{ t('map.layerItem.legend') }}</h4>
                     <div class="layer-legend-wrapper">
-                        <img :src="legendUrl" alt="Layer legend" class="layer-legend-image" @error="legendError = true" />
+                        <img :src="legendUrl" :alt="t('map.layerItem.legendAlt')" class="layer-legend-image" @error="legendError = true" />
                     </div>
                 </section>
                 <section v-if="hasTimeDimension" class="layer-section">
-                    <h4 class="layer-section-title">Time</h4>
+                    <h4 class="layer-section-title">{{ t('map.layerItem.time') }}</h4>
                     <RasterLayerTimeControl :layer="props.layer" />
                 </section>
                 <section v-if="showFiltering" class="layer-section">
-                    <h4 class="layer-section-title">Filtering</h4>
+                    <h4 class="layer-section-title">{{ t('map.layerItem.filtering') }}</h4>
                     <AttributeFiltering :layer="props.layer"></AttributeFiltering>
                     <GeometryFiltering :layer="props.layer"></GeometryFiltering>
                 </section>
                 <section v-if="props.layer.type !== 'raster'" class="layer-section">
-                    <h4 class="layer-section-title">Data</h4>
+                    <h4 class="layer-section-title">{{ t('map.layerItem.data') }}</h4>
                     <MapLayerResultTable :layer="props.layer"></MapLayerResultTable>
                 </section>
             </div>
@@ -98,6 +98,7 @@
 
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { type LayerObjectWithAttributes, type MapLibreLayerTypes, useMapStore } from "@store/map"
 import { useToast } from "@helpers/toast";
 import { isNullOrEmpty } from "@helpers/functions";
@@ -118,6 +119,7 @@ export interface Props {
     layer: LayerObjectWithAttributes
 }
 const props = defineProps<Props>()
+const { t } = useI18n();
 const mapStore = useMapStore()
 const geoserver = useGeoserverStore()
 const legendUrl = ref<string>()
@@ -190,15 +192,15 @@ const layerHeaderIndicatorStyle = computed<Record<string, string>>(() => {
 const layerHeaderIndicatorTitle = computed<string>(() => {
     switch (layerHeaderIndicator.value.kind) {
         case "single":
-            return `Layer color ${layerHeaderIndicator.value.colors[0]}`;
+            return t("map.layerItem.indicatorSingle", { color: layerHeaderIndicator.value.colors[0] });
         case "multi":
-            return "Layer uses multiple style colors";
+            return t("map.layerItem.indicatorMulti");
         case "heatmap":
-            return "Heatmap layer colors";
+            return t("map.layerItem.indicatorHeatmap");
         case "raster":
-            return "Raster layer";
+            return t("map.layerItem.indicatorRaster");
         default:
-            return "Layer style color unavailable";
+            return t("map.layerItem.indicatorUnknown");
     }
 })
 const hasTimeDimension = computed<boolean>(() => {
@@ -347,10 +349,10 @@ function deleteLayerConfirmation(layer: LayerObjectWithAttributes): void {
         try {
             mapStore.deleteMapDataSource(layer.source)
         } catch (error) {
-            toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 })
+            toast.add({ severity: "error", summary: t("toast.error"), detail: error, life: 3000 })
         }
     }).catch((error)=>{
-        toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
+        toast.add({ severity: "error", summary: t("toast.error"), detail: error, life: 3000 });
     })
     confirmDialogVisibility.value = false
 }

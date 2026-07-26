@@ -1,10 +1,10 @@
 <template>
 	<div class="font-light text-sm">
-		<p class="">Do you have a suggestion for an alternate location? Draw your suggestion on the map. You can choose to draw a point, a line or a polygon to explain your suggestion.</p>
+		<p class="">{{ t('participation.draw.instructions') }}</p>
 	</div>
 	<div class="w-full pt-2" v-if="participation.selectedDrawnGeometry.length > 0">
 		<ChipWrapper v-for="(feature, index) in participation.selectedDrawnGeometry" :key="feature.id"
-			:label="`Item-${index}`" @remove="removeFromSelectedDrawnGeometries(feature)" removable
+			:label="t('participation.draw.itemLabel', { index })" @remove="removeFromSelectedDrawnGeometries(feature)" removable
 			severity="success" />
 	</div>
 	<div class="w-full pt-2">
@@ -17,15 +17,15 @@
 	</div>
 	<div class="w-full grid lg:grid-cols-1 pt-2">
 		<div class="py-1" v-if="!drawTool.drawOnProgress && !drawTool.editOnProgress">
-			<UButton class="w-full" size="sm" @click="startDraw">Start Drawing</UButton>
+			<UButton class="w-full" size="sm" @click="startDraw">{{ t('participation.draw.startDrawing') }}</UButton>
 		</div>
 		<div class="" v-if="(drawTool.drawOnProgress || drawTool.editOnProgress)">
 			<div class="py-1" >
 				<UButton class="w-full" size="sm" :disabled="!(drawTool.drawOnProgress || drawTool.editOnProgress)"
-					@click="cancelDrawing">Cancel Drawing</UButton>
+					@click="cancelDrawing">{{ t('participation.draw.cancelDrawing') }}</UButton>
 			</div>
 			<div class="py-1">
-				<UButton class="w-full" size="sm" @click="addToDrawnArea">Add to Items</UButton>
+				<UButton class="w-full" size="sm" @click="addToDrawnArea">{{ t('participation.draw.addToItems') }}</UButton>
 			</div>
 		</div>
 	</div>
@@ -37,7 +37,9 @@ import { type DrawMode, useDrawStore } from "@store/draw"
 import { useParticipationStore } from "@store/participation";
 import { type Feature } from "@helpers/geojson"
 import { computed, ref } from "vue";
+import { useI18n } from "vue-i18n";
 
+const { t } = useI18n();
 const participation = useParticipationStore()
 const drawTool = useDrawStore()
 const drawMode = ref<DrawMode>("polygon")

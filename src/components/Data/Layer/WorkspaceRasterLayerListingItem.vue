@@ -6,8 +6,8 @@
                     <div class="min-w-0 space-y-1">
                         <div class="flex min-w-0 flex-wrap items-center gap-2">
                             <span class="truncate font-semibold text-highlighted capitalize">{{ cleanLayerName }}</span>
-                            <UBadge color="neutral" variant="soft" size="sm" label="Raster" />
-                            <UBadge v-if="hasTimeDimension" color="info" variant="soft" size="sm" icon="i-lucide-clock" label="Time" title="This layer supports time-based queries" />
+                            <UBadge color="neutral" variant="soft" size="sm" :label="t('workspace.layerItem.raster')" />
+                            <UBadge v-if="hasTimeDimension" color="info" variant="soft" size="sm" icon="i-lucide-clock" :label="t('workspace.layerItem.time')" :title="t('workspace.layerItem.timeSupport')" />
                         </div>
                         <div v-if="hasKeywords" class="flex min-w-0 flex-wrap gap-x-2 gap-y-0.5">
                             <span v-for="(keyword,index) in layerDetail?.coverage.keywords.string" :key="index" class="text-[0.6875rem] italic leading-tight text-muted">
@@ -23,7 +23,7 @@
                         {{ descriptionText }}
                     </p>
                     <UButton v-if="isSummaryTruncated || isSummaryExpanded" size="xs" color="neutral" variant="link" class="h-auto justify-start p-0" @click="isSummaryExpanded = !isSummaryExpanded">
-                        {{ isSummaryExpanded ? "Show less" : "Read more" }}
+                        {{ isSummaryExpanded ? t('workspace.layerItem.showLess') : t('workspace.layerItem.readMore') }}
                     </UButton>
                 </div>
             </div>
@@ -33,19 +33,20 @@
             </div>
             <template #footer>
                 <div class="flex justify-end gap-2 flex-wrap">
-                    <UButton size="sm" @click="add2Map(false)">Add to map</UButton>
-                    <UButton v-if="hasTimeDimension" size="sm" color="secondary" @click="add2Map(true)">Add with time</UButton>
+                    <UButton size="sm" @click="add2Map(false)">{{ t('workspace.layerItem.addToMap') }}</UButton>
+                    <UButton v-if="hasTimeDimension" size="sm" color="secondary" @click="add2Map(true)">{{ t('workspace.layerItem.addWithTime') }}</UButton>
                 </div>
             </template>
         </UCard>
     </div>
     <div v-else class="w-full">
-        <UAlert class="w-full" color="info" variant="soft" description="No information about layer." />
+        <UAlert class="w-full" color="info" variant="soft" :description="t('workspace.layerItem.noInformation')" />
     </div>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { type GeoserverRasterTypeLayerDetail, type GeoserverLayerInfo, type GeoserverLayerListItem, getTimeDimension, resolveTimeDomain, useGeoserverStore } from "@store/geoserver";
 import { type GeoServerSourceParams, type LayerParams, useMapStore } from "@store/map";
 import { isNullOrEmpty } from "../../../core/helpers/functions";
@@ -60,6 +61,7 @@ export interface LayerStylingPaint {
     paint: object
 }
 const props = defineProps<Props>()
+const { t } = useI18n();
 const toast = useToast()
 const cleanLayerName = computed(() => {
     return ((layerDetail.value?.coverage.title) != null) ? String(layerDetail.value?.coverage.title).replaceAll("_", " ") : String(props.item.name).replaceAll("_", " ")
@@ -79,7 +81,7 @@ const hasKeywords = computed(() => (layerDetail.value?.coverage.keywords.string.
 geoserver.getLayerDetail(props.layerInformation.resource.href).then((detail) => {
     layerDetail.value = detail as GeoserverRasterTypeLayerDetail
 }).catch(err => {
-    toast.add({ severity: "error", summary: "Error", detail: err, life: 3000 });
+    toast.add({ severity: "error", summary: t("toast.error"), detail: err, life: 3000 });
 })
 
 onMounted(() => {
@@ -120,7 +122,7 @@ async function add2Map(withTime: boolean): Promise<void> {
             )
             initialTime = domain.default
         } catch (err) {
-            toast.add({ severity: "warn", summary: "Time domain", detail: "Could not resolve time domain; adding without time.", life: 3000 })
+            toast.add({ severity: "warn", summary: t("workspace.layerItem.timeDomainTitle"), detail: t("workspace.layerItem.timeDomainError"), life: 3000 })
         }
     }
     const sourceParams: GeoServerSourceParams = {
@@ -149,7 +151,7 @@ async function add2Map(withTime: boolean): Promise<void> {
         }
         await mapStore.addMapLayer(layerParams)
     } catch (error) {
-        toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 })
+        toast.add({ severity: "error", summary: t("toast.error"), detail: error, life: 3000 })
     }
 }
 

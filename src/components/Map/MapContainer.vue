@@ -6,12 +6,14 @@
 <script setup lang="ts">
 import maplibre, { type MapMouseEvent, type Map } from "maplibre-gl"
 import { h, nextTick, onMounted, ref, render } from "vue";
+import { useI18n } from "vue-i18n";
 import { useMapStore } from "@store/map";
 import MapAttributeDialog from "./MapAttributeDialog.vue"
 import { useDrawStore } from "@store/draw";
 import { useParticipationStore } from "@store/participation";
 import { BaseMapControl, type BaseMapControlOptions } from "@helpers/baseMapControl";
 
+const { t } = useI18n();
 const mapStore = useMapStore()
 const clickedLayers = ref()
 onMounted(() => {
@@ -99,14 +101,14 @@ onMounted(() => {
         maps:[
             {
                 id:"streets-v2",
-                title:"Streets",
+                title: t("map.basemap.streets"),
                 tiles: [
                     `https://api.maptiler.com/maps/${import.meta.env.VITE_MAPTILER_API_MAP_ID}/{z}/{x}/{y}.png?key=${import.meta.env.VITE_MAPTILER_API_KEY}`
                 ]
             },
             {
                 id:"satellite",
-                title:"Satellite",
+                title: t("map.basemap.satellite"),
                 tiles: [
                     `https://api.maptiler.com/maps/satellite/{z}/{x}/{y}.jpg?key=${import.meta.env.VITE_MAPTILER_API_KEY}`
                 ]

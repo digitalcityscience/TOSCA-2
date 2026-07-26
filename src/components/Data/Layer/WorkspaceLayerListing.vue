@@ -3,18 +3,20 @@
         <WorkspaceLayerListingItem v-for="layer in props.list" :key="layer.href" :item="layer" :workspace="workspaceName"></WorkspaceLayerListingItem>
     </div>
     <div v-else>
-        <UAlert class="w-full" color="info" variant="soft" description="There is no layer in this workspace" />
+        <UAlert class="w-full" color="info" variant="soft" :description="t('workspace.layerListing.noLayers')" />
     </div>
 </template>
 
 <script setup lang="ts">
 // Components
+import { useI18n } from "vue-i18n";
 import WorkspaceLayerListingItem from "./WorkspaceLayerListingItem.vue";
 import { type GeoserverLayerListItem } from "@store/geoserver";
 export interface Props {
     list: GeoserverLayerListItem[] | undefined
     workspaceName: string
 }
+const { t } = useI18n();
 const props = defineProps<Props>()
 </script>
 <style scoped></style>

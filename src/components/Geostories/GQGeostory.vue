@@ -10,9 +10,9 @@
                 <UCard>
                     <template #default>
                         <section class="mb-6">
-                        <h3 class="text-lg font-medium mb-2">Air Quality and Respiratory Health</h3>
+                        <h3 class="text-lg font-medium mb-2">{{ t('geostories.gq.healthTitle') }}</h3>
                             <p>
-                                Poor air quality has significant impacts on respiratory health. High levels of pollutants such as particulate matter (PM), nitrogen dioxide (NO₂), and ozone (O₃) can cause or exacerbate respiratory conditions, including asthma, bronchitis, and other chronic respiratory diseases.
+                                {{ t('geostories.gq.healthBody') }}
                             </p>
                         </section>
                     </template>
@@ -28,39 +28,43 @@
                 >
                     <template #body="{ item }">
                             <div class="w-full flex flex-row-reverse pt-2">
-                            <UButton @click="startScenario(item.scenario)" size="sm">Run Scenario</UButton>
+                            <UButton @click="startScenario(item.scenario)" size="sm">{{ t('geostories.runScenario') }}</UButton>
                         </div>
                             <section class="mb-6">
-                            <h3 class="text-lg font-medium mb-2">Layer 1: Selected Statistical Unit's Mean PPM Values</h3>
+                            <h3 class="text-lg font-medium mb-2">{{ t('geostories.gq.layer1Title') }}</h3>
                             <p>
-                                The <strong>ppm_mean_avg</strong> layer visualizes average pollutant concentration values measured in parts per million (ppm), providing insights into pollutant distribution across different geographic areas. Higher values indicate regions with greater pollution concerns.
+                                <i18n-t keypath="geostories.gq.layer1Body" tag="span">
+                                    <template #ppmMean><strong>ppm_mean_avg</strong></template>
+                                </i18n-t>
                             </p>
                             <canvas id="ppmMeanChart" class="my-3"></canvas>
                             <ul class="list-disc pl-5">
-                                <li><strong>Max Value:</strong> 49.63 ppm</li>
-                                <li><strong>Min Value:</strong> 6.93 ppm</li>
-                                <li><strong>Average:</strong> 27.31 ppm</li>
+                                <li><strong>{{ t('geostories.gq.layer1MaxValue') }}</strong> {{ t('geostories.gq.layer1MaxValueAmount') }}</li>
+                                <li><strong>{{ t('geostories.gq.layer1MinValue') }}</strong> {{ t('geostories.gq.layer1MinValueAmount') }}</li>
+                                <li><strong>{{ t('geostories.gq.layer1Average') }}</strong> {{ t('geostories.gq.layer1AverageAmount') }}</li>
                             </ul>
                             <p>
-                                Use this layer to identify and monitor high-risk areas for targeted air quality improvements and policy interventions.
+                                {{ t('geostories.gq.layer1Footer') }}
                             </p>
                             </section>
 
                             <!-- Layer 2 Information -->
                             <section>
-                            <h3 class="text-lg font-medium mb-2">Layer 2: Selected Statistical Units Respiratory Illness Cases
+                            <h3 class="text-lg font-medium mb-2">{{ t('geostories.gq.layer2Title') }}
                             </h3>
                             <p>
-                                The <strong>resp_case_1k</strong> layer represents respiratory illness cases per 1,000 residents, highlighting the health impact and risk level associated with air quality. This layer helps visualize the direct health implications of poor air quality.
+                                <i18n-t keypath="geostories.gq.layer2Body" tag="span">
+                                    <template #respCase><strong>resp_case_1k</strong></template>
+                                </i18n-t>
                             </p>
                             <canvas id="respCaseChart" class="my-3"></canvas>
                             <ul class="list-disc pl-5">
-                                <li><strong>High Incidence:</strong> &gt; 15 cases/1k - High health risk</li>
-                                <li><strong>Moderate Incidence:</strong> 5-15 cases/1k - Moderate health risk</li>
-                                <li><strong>Low Incidence:</strong> &lt; 5 cases/1k - Low health risk</li>
+                                <li><strong>{{ t('geostories.gq.layer2HighIncidence') }}</strong> {{ t('geostories.gq.layer2HighIncidenceValue') }}</li>
+                                <li><strong>{{ t('geostories.gq.layer2ModerateIncidence') }}</strong> {{ t('geostories.gq.layer2ModerateIncidenceValue') }}</li>
+                                <li><strong>{{ t('geostories.gq.layer2LowIncidence') }}</strong> {{ t('geostories.gq.layer2LowIncidenceValue') }}</li>
                             </ul>
                             <p>
-                                Utilize this layer to assess community health needs and plan interventions or healthcare resources accordingly.
+                                {{ t('geostories.gq.layer2Footer') }}
                             </p>
                         </section>
                     </template>
@@ -83,8 +87,10 @@ import bboxPolygon from "@turf/bbox-polygon";
 import { isNullOrEmpty } from "@helpers/functions";
 import { useToast } from "@helpers/toast";
 import { computed, nextTick, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { Chart, BarController, BarElement, CategoryScale, LinearScale, PieController, ArcElement, Tooltip, Legend } from "chart.js"
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, PieController, ArcElement, Tooltip, Legend);
+const { t } = useI18n();
 const mapStore = useMapStore()
 const geoserver = useGeoserverStore()
 const toast = useToast()
@@ -161,9 +167,9 @@ async function setupCharts(): Promise<void> {
     ppmMeanChart.value = new Chart(ppmMeanCanvas, {
         type: "bar",
         data: {
-            labels: ["Max", "Min", "Average"],
+            labels: [t("geostories.gq.chart.max"), t("geostories.gq.chart.min"), t("geostories.gq.chart.average")],
             datasets: [{
-                label: "ppm_mean_avg (ppm)",
+                label: t("geostories.gq.chart.ppmMeanLabel"),
                 data: [49.63, 6.93, 27.31],
                 backgroundColor: ["#ff6384", "#36a2eb", "#ffcd56"]
             }]
@@ -173,7 +179,7 @@ async function setupCharts(): Promise<void> {
     respCaseChart.value = new Chart(respCaseCanvas, {
         type: "pie",
         data: {
-            labels: ["High (>15 cases/1k)", "Moderate (5–15 cases/1k)", "Low (<5 cases/1k)"],
+            labels: [t("geostories.gq.chart.highLabel"), t("geostories.gq.chart.moderateLabel"), t("geostories.gq.chart.lowLabel")],
             datasets: [{
                 data: [30, 50, 20], // replace with actual data
                 backgroundColor: ["#ff6384", "#36a2eb", "#4bc0c0"]
@@ -285,11 +291,11 @@ const loadScenarioLayers = async (scenario: Scenario): Promise<void> => {
                 }
                 mapStore.map.fitBounds(bbox(layerBboxPolygons), { padding: 20 });
             } catch (err) {
-                toast.add({ severity: "error", summary: "Error", detail: err, life: 3000 });
+                toast.add({ severity: "error", summary: t("toast.error"), detail: err, life: 3000 });
             }
         }
     } catch (err) {
-        toast.add({ severity: "error", summary: "Error", detail: err, life: 3000 });
+        toast.add({ severity: "error", summary: t("toast.error"), detail: err, life: 3000 });
     }
 };
 interface Scenario {
@@ -297,19 +303,18 @@ interface Scenario {
     abstract: string
     layers: string[]
 }
-const title: string = "GQ Air Quality Scenarios"
-const scenarios: Scenario[] = [
-    {
-        title: "Air Quality Effect on Respiratory Illness",
-        abstract: "This scenario illustrates the potential impact of air quality on respiratory illness in an urban setting. The map highlights areas with high levels of air pollution, which can exacerbate respiratory conditions such as asthma and bronchitis. By identifying these high-risk zones, the map helps public health officials target interventions to improve air quality and protect vulnerable populations.",
-        layers: ["GQ2:ppm_mean_point_values", "GQ2:gq_statistical_unit_all_hamburg"]
-    }
-]
+const title = computed(() => t("geostories.gq.title"))
+const scenarioLayers = ["GQ2:ppm_mean_point_values", "GQ2:gq_statistical_unit_all_hamburg"]
 const scenarioAccordionItems = computed(() => {
-    return scenarios.map((scenario) => ({
+    const scenario: Scenario = {
+        title: t("geostories.gq.scenario.title"),
+        abstract: t("geostories.gq.scenario.abstract"),
+        layers: scenarioLayers,
+    }
+    return [{
         label: scenario.title.replace(/[_-]/g, " "),
-        value: scenario.title,
+        value: "airQualityRespiratoryIllness",
         scenario,
-    }))
+    }]
 })
 </script>

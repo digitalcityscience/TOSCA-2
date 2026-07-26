@@ -16,6 +16,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 import { toggleSlideoverSidebar } from "@helpers/slideoverSidebarRegistry";
 
@@ -24,6 +25,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const { t } = useI18n();
 const route = useRoute()
 const router = useRouter()
 
@@ -34,30 +36,30 @@ interface FrameItem {
     action: (event: MouseEvent) => void | Promise<void>
 }
 
-const frameLabel = computed(() => props.side === "left" ? "Left map tools" : "Right map tools")
+const frameLabel = computed(() => props.side === "left" ? t("map.sideFrame.leftLabel") : t("map.sideFrame.rightLabel"))
 const frameItems = computed(() => props.side === "left" ? leftItems.value : rightItems.value)
 const leftItems = computed<FrameItem[]>(() => [
     {
         id: "workspaceListing",
-        label: "Datastores",
+        label: t("map.sideFrame.datastores"),
         icon: "i-lucide-database",
         action: () => toggleSlideoverSidebar("workspaceListing"),
     },
     {
         id: "floodScenarios",
-        label: "Flood scenarios",
+        label: t("map.sideFrame.floodScenarios"),
         icon: "i-lucide-waves",
         action: () => toggleSlideoverSidebar("floodScenarios"),
     },
     {
         id: "gq-geostory-sidebar",
-        label: "Air quality scenarios",
+        label: t("map.sideFrame.airQualityScenarios"),
         icon: "i-lucide-shield-plus",
         action: () => toggleSlideoverSidebar("gq-geostory-sidebar"),
     },
     {
         id: "participation",
-        label: "Participation",
+        label: t("map.sideFrame.participation"),
         icon: "i-lucide-chart-column",
         action: async () => {
             if (route.name === "participation-home" || route.name === "active-campaigns" || route.name === "campaign-details") {
@@ -72,13 +74,13 @@ const leftItems = computed<FrameItem[]>(() => [
 const rightItems = computed<FrameItem[]>(() => [
     {
         id: "maplayerListing",
-        label: "Layers",
+        label: t("map.sideFrame.layers"),
         icon: "i-lucide-layers",
         action: () => toggleSlideoverSidebar("maplayerListing"),
     },
     {
         id: "toolboxSidebar",
-        label: "Toolbox",
+        label: t("map.toolbox.title"),
         icon: "i-lucide-wrench",
         action: () => toggleSlideoverSidebar("toolboxSidebar"),
     },

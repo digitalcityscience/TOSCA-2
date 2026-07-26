@@ -9,7 +9,7 @@
                     variant="soft"
                     size="sm"
                     square
-                    aria-label="Close sidebar"
+                    :aria-label="t('common.closeSidebar')"
                     @click="toggleSidebar"
                 />
             </div>
@@ -28,7 +28,10 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { isNullOrEmpty } from "../../core/helpers/functions";
+
+const { t } = useI18n();
 /*
 To use this component properly please use props accordingly:
 - If you pick position "left" or "right" use "width" to adjust size. "height" prop will be neglected
