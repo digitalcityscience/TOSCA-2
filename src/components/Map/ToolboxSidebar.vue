@@ -1,7 +1,7 @@
 <template>
     <BaseSlideoverSidebarComponent :id="sidebarID" side="right" :collapsed="true">
         <template #header>
-            <p>Toolbox</p>
+            <p>{{ t('map.toolbox.title') }}</p>
         </template>
         <div class="w-full p-3">
             <UAccordion
@@ -27,19 +27,21 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import BaseSlideoverSidebarComponent from "@components/Base/BaseSlideoverSidebarComponent.vue";
 import DrawContainer from "@components/Map/Layer/Draw/DrawContainer.vue";
 import BufferContainer from "@components/Map/Buffer/BufferContainer.vue";
 
+const { t } = useI18n();
 const sidebarID = "toolboxSidebar"
 const toolboxItems = computed(() => [
     {
-        label: "Draw",
+        label: t("map.toolbox.draw"),
         value: "draw",
         icon: "i-lucide-pencil-ruler",
     },
     {
-        label: "Buffer",
+        label: t("map.toolbox.buffer"),
         value: "buffer",
         icon: "i-lucide-circle-dot-dashed",
     },

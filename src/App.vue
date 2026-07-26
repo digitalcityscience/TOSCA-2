@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { RouterView } from "vue-router";
+import { useI18n } from "vue-i18n";
 import { useMapStore } from "./store/map";
+import LocaleSwitcher from "./components/Base/LocaleSwitcher.vue";
 import toscaLogo from "./assets/GIZ-HCU-DCS-TOSCA_2.svg";
 
 type ThemeMode = "light" | "dark";
 
+const { t } = useI18n();
 const mapStore = useMapStore();
 const themeMode = ref<ThemeMode>("light");
 const isDarkMode = computed(() => themeMode.value === "dark");
-const themeToggleLabel = computed(() => isDarkMode.value ? "Switch to light mode" : "Switch to dark mode");
+const themeToggleLabel = computed(() => isDarkMode.value ? t("theme.switchToLight") : t("theme.switchToDark"));
 const themeToggleIcon = computed(() => isDarkMode.value ? "i-lucide-sun" : "i-lucide-moon");
 
 function applyThemeMode(mode: ThemeMode): void {
@@ -41,6 +44,7 @@ watch(themeMode, (mode) => {
           TOSCA
         </RouterLink>
         <div class="flex items-center gap-1">
+          <LocaleSwitcher />
           <UTooltip :text="themeToggleLabel">
             <UButton
               class="h-8 w-8 p-0"

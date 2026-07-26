@@ -24,7 +24,9 @@
     "paths": {
       "@components/*": ["./src/components/*"],
       "@store/*": ["./src/store/*"],
-      "@helpers/*":["./src/core/helpers/*"]
+      "@helpers/*":["./src/core/helpers/*"],
+      "@presets/*": ["./src/presets/*"],
+      "@locales/*": ["./src/locales/*"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "src/**/*.d.ts"],

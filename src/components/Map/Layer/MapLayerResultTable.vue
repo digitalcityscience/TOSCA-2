@@ -2,10 +2,10 @@
     <div>
         <div class="w-full 2xl:flex 2xl:justify-between 2xl:grid-cols-none lg:grid lg:grid-cols-4 lg:gap-2 2xl:gap-0 py-1 ">
             <div class="w-full lg:col-span-2 2xl:pr-2">
-                <UButton class="w-full" size="sm" @click="createTable">Get Table</UButton>
+                <UButton class="w-full" size="sm" @click="createTable">{{ t('map.resultTable.getTable') }}</UButton>
             </div>
             <div class="w-full lg:col-span-2 2xl:pl -2">
-                <UButton class="w-full" v-if="tableData" size="sm" @click="isOpen = true">Open Table</UButton>
+                <UButton class="w-full" v-if="tableData" size="sm" @click="isOpen = true">{{ t('map.resultTable.openTable') }}</UButton>
             </div>
         </div>
         <UModal v-model:open="isOpen" :ui="{ content: 'w-[calc(100vw-200px)] max-w-[calc(100vw-200px)]' }">
@@ -15,11 +15,11 @@
                     <div v-if="tableData?.features.length > 0">
                         <div class="w-full pb-2">
                             <span>
-                                {{ tableData.features.length }} results
+                                {{ t('map.resultTable.resultsCount', { count: tableData.features.length }) }}
                             </span>
                         </div>
                         <div v-if="tableUsedFilters !== undefined" class="w-full flex flex-row pb-1">
-                            <p>Used Filters:</p>
+                            <p>{{ t('map.resultTable.usedFilters') }}</p>
                         </div>
                         <div v-if="tableUsedFilters !== undefined" class="w-full flex flex-row pb-2">
                             <div v-if="tableUsedFilters.attributeFilters" class="flex flex-row">
@@ -30,15 +30,15 @@
                                     </span>
                                     <UBadge class="first:ml-0 ml-1 px-1" color="neutral" variant="soft">
                                         <span>{{ filter.attribute.name }} {{
-                                            filterStore.filterNames[filter.operand as IntegerFilters |
-                                            StringFilters] }} {{ filter.value }}</span>
+                                            filterStore.operandLabel(filter.operand as IntegerFilters |
+                                            StringFilters) }} {{ filter.value }}</span>
                                     </UBadge>
                                 </div>
                             </div>
                             <div v-if="tableUsedFilters.geometryFilters">
-                                <span v-if="tableUsedFilters.attributeFilters" class="mx-1">AND</span>
+                                <span v-if="tableUsedFilters.attributeFilters" class="mx-1">{{ t('filter.attribute.and') }}</span>
                                 <UBadge class="px-1" color="neutral" variant="soft">
-                                    <span>Geometry filter applied</span>
+                                    <span>{{ t('map.resultTable.geometryFilterApplied') }}</span>
                                 </UBadge>
                             </div>
                         </div>
@@ -53,7 +53,7 @@
                                 :model-value="tablePagination.pageSize"
                                 :items="pageSizeOptions"
                                 class="w-24"
-                                aria-label="Rows per page"
+                                :aria-label="t('map.resultTable.rowsPerPage')"
                                 @update:model-value="updateResultPageSize"
                             />
                             <UPagination
@@ -65,7 +65,7 @@
                         </div>
                     </div>
                     <div class="w-full flex justify-around" v-else>
-                        <UAlert color="info" variant="soft" description="There is no result" />
+                        <UAlert color="info" variant="soft" :description="t('map.resultTable.noResult')" />
                     </div>
                 </div>
             </div>
@@ -74,9 +74,9 @@
                 <div class="w-full lg:col-span-2">
                 </div>
                 <div class="w-full flex lg:col-span-2">
-                    <UInput class="h-10 mr-4 ml-auto" type="text" v-model="fileName" placeholder="File name" />
+                    <UInput class="h-10 mr-4 ml-auto" type="text" v-model="fileName" :placeholder="t('map.resultTable.fileNamePlaceholder')" />
                     <UButton @click="downloadAsGeojson" :disabled="fileName.length === 0" class="lg:w-full 2xl:w-auto"
-                        size="sm">Download as GeoJSON</UButton>
+                        size="sm">{{ t('map.resultTable.downloadAsGeojson') }}</UButton>
                 </div>
 
             </div>
@@ -89,11 +89,14 @@
 import type { TableColumn } from "@nuxt/ui";
 import { type Feature, type FeatureCollection } from "@helpers/geojson";
 import { computed, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { type AttributeFilterItem, useFilterStore, type AppliedFiltersListItem, type IntegerFilters, type StringFilters, type RelationTypes } from "@store/filter";
 import { type LayerObjectWithAttributes } from "@store/map";
 import bbox from "@turf/bbox";
 import { type GeoserverRasterTypeLayerDetail, type GeoServerVectorTypeLayerDetail, useGeoserverStore } from "@store/geoserver";
 import booleanWithin from "@turf/boolean-within";
+
+const { t } = useI18n();
 
 interface TableHeader {
     name: string,

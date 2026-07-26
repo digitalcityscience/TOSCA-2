@@ -23,7 +23,7 @@
                     <template #body="{ item }">
                         <p>{{ item.scenario.description }}</p>
                         <div class="w-full flex flex-row-reverse pt-2">
-                            <UButton @click="startScenario(item.scenario)" size="sm">Run Scenario</UButton>
+                            <UButton @click="startScenario(item.scenario)" size="sm">{{ t('geostories.runScenario') }}</UButton>
                         </div>
                     </template>
                 </UAccordion>
@@ -45,6 +45,8 @@ import bboxPolygon from "@turf/bbox-polygon";
 import { isNullOrEmpty } from "@helpers/functions";
 import { useToast } from "@helpers/toast";
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
+const { t } = useI18n();
 const mapStore = useMapStore()
 const geoserver = useGeoserverStore()
 const toast = useToast()
@@ -138,52 +140,43 @@ const loadScenarioLayers = async (scenario: Scenario): Promise<void> => {
                 }
                 mapStore.map.fitBounds(bbox(layerBboxPolygons), { padding: 20 });
             } catch (err) {
-                toast.add({ severity: "error", summary: "Error", detail: err, life: 3000 });
+                toast.add({ severity: "error", summary: t("toast.error"), detail: err, life: 3000 });
             }
         }
     } catch (err) {
-        toast.add({ severity: "error", summary: "Error", detail: err, life: 3000 });
+        toast.add({ severity: "error", summary: t("toast.error"), detail: err, life: 3000 });
     }
 };
+interface ScenarioDefinition {
+    id: string
+    layers: string[]
+}
 interface Scenario {
     name: string
     description: string
     layers: string[]
 }
-const title: string = "Flood Scenarios"
-const information: string = "This map illustrates areas in an urban setting, likely Hamburg based on  the geographic features, where rainwater can accumulate or flow during  heavy rainfall events. By leveraging detailed topographic data, the map  identifies low-lying depressions and delineates potential water flow  paths through the city. These highlighted zones indicate where rainwater  is most likely to pool and flow, marking them as high-risk for flood  accumulation."
-const scenarios: Scenario[] = [
-    {
-        name: "Current Situation",
-        description: "This map represents Hamburg's current drainage capacity  without any enhancements. It highlights areas where rainwater is likely  to accumulate or flow during heavy rainfall events, showing zones most  vulnerable to flooding. With no additional drainage improvements, these  flood-prone areas remain at high risk, as the current infrastructure may  struggle to handle significant stormwater volumes. This map underscores  the need for drainage upgrades to mitigate flood risks, improve urban  resilience, and protect infrastructure and public safety from potential  flood events.",
-        layers: ["HH_Drainage_Capacity:Drainage Capacity Default"]
-    },
-    {
-        name: "Expanded Drainage Network: 25%",
-        description: "This map represents the impact of  increasing Hamburg's drainage capacity by 25%. By analyzing the drainage  data, this simulation demonstrates how enhancing the drainage  infrastructure could reduce flood-prone areas. Compared to the original  flood risk map, the highlighted water accumulation zones have visibly  decreased.",
-        layers: ["HH_Drainage_Capacity:Drainage Capacity 025"]
-    },
-    {
-        name: "Expanded Drainage Network: 50%",
-        description: "This map represents the impact of  increasing Hamburg's drainage capacity by 50%. With this enhancement,  the map demonstrates a further reduction in flood-prone areas compared  to a 25% increase. By doubling the drainage improvement, more water is  effectively managed during heavy rainfall, leading to fewer areas of  water accumulation. This map highlights the benefits of a significant  upgrade, showing an even greater decrease in areas at risk of flooding.",
-        layers: ["HH_Drainage_Capacity:Drainage Capacity 050"]
-    },
-    {
-        name: "Expanded Drainage Network: 75%",
-        description: "This map represents the effect of a  75% increase in Hamburg's drainage capacity. With this substantial  improvement, the map reveals a considerable reduction in flood-prone  zones, indicating that most areas can now efficiently manage stormwater  runoff. This enhanced drainage capacity offers a high level of  protection for urban infrastructure, suggesting that a threefold upgrade  in drainage could make a significant impact on flood mitigation.",
-        layers: ["HH_Drainage_Capacity:Drainage Capacity 075"]
-    },
-    {
-        name: "Expanded Drainage Network: 100%",
-        description: "This map illustrates the impact of  doubling Hamburg's drainage capacity, with a 100% increase. Under this  scenario, the map shows a dramatic reduction in water accumulation  areas, as the drainage infrastructure now handles nearly all stormwater  effectively. Such an improvement nearly eliminates high-risk zones for  flooding, indicating that a complete overhaul in drainage capacity could  provide maximum protection against flood risks, securing urban  resilience even in extreme weather events.",
-        layers: ["HH_Drainage_Capacity:Drainage Capacity 100"]
-    }
+const title = computed(() => t("geostories.flood.title"))
+const information = computed(() => t("geostories.flood.information"))
+const scenarioDefinitions: ScenarioDefinition[] = [
+    { id: "current", layers: ["HH_Drainage_Capacity:Drainage Capacity Default"] },
+    { id: "expanded25", layers: ["HH_Drainage_Capacity:Drainage Capacity 025"] },
+    { id: "expanded50", layers: ["HH_Drainage_Capacity:Drainage Capacity 050"] },
+    { id: "expanded75", layers: ["HH_Drainage_Capacity:Drainage Capacity 075"] },
+    { id: "expanded100", layers: ["HH_Drainage_Capacity:Drainage Capacity 100"] },
 ]
 const scenarioAccordionItems = computed(() => {
-    return scenarios.map((scenario) => ({
-        label: scenario.name.replace(/[_-]/g, " "),
-        value: scenario.name,
-        scenario,
-    }))
+    return scenarioDefinitions.map((definition) => {
+        const scenario: Scenario = {
+            name: t(`geostories.flood.scenarios.${definition.id}.name`),
+            description: t(`geostories.flood.scenarios.${definition.id}.description`),
+            layers: definition.layers,
+        }
+        return {
+            label: scenario.name.replace(/[_-]/g, " "),
+            value: definition.id,
+            scenario,
+        }
+    })
 })
 </script>

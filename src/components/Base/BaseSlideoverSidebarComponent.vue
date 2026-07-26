@@ -29,7 +29,7 @@
                         variant="ghost"
                         size="xs"
                         square
-                        aria-label="Collapse sidebar"
+                        :aria-label="t('common.collapseSidebar')"
                         @click="collapse"
                     />
                 </header>
@@ -46,11 +46,14 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import {
     type SlideoverSidebarSide,
     registerSlideoverSidebar,
     openSlideoverSidebar,
 } from "@helpers/slideoverSidebarRegistry";
+
+const { t } = useI18n();
 
 interface Props {
     id: string

@@ -5,7 +5,7 @@
                 <div class="min-w-0 space-y-1">
                     <div class="flex min-w-0 flex-wrap items-center gap-2">
                         <span class="truncate font-semibold text-highlighted capitalize">{{ cleanLayerName }}</span>
-                        <UBadge color="neutral" variant="soft" size="sm" label="Vector" />
+                        <UBadge color="neutral" variant="soft" size="sm" :label="t('workspace.layerItem.vector')" />
                         <UBadge v-if="dataType" color="info" variant="soft" size="sm" :label="dataType" />
                     </div>
                     <div v-if="hasKeywords" class="flex min-w-0 flex-wrap gap-x-2 gap-y-0.5">
@@ -21,7 +21,7 @@
                         {{ descriptionText }}
                     </p>
                     <UButton v-if="isSummaryTruncated || isSummaryExpanded" size="xs" color="neutral" variant="link" class="h-auto justify-start p-0" @click="isSummaryExpanded = !isSummaryExpanded">
-                        {{ isSummaryExpanded ? "Show less" : "Read more" }}
+                        {{ isSummaryExpanded ? t('workspace.layerItem.showLess') : t('workspace.layerItem.readMore') }}
                     </UButton>
                 </div>
             </div>
@@ -31,18 +31,19 @@
             </div>
             <template #footer>
                 <div class="flex justify-end">
-                    <UButton size="sm" @click="add2Map">Add to map</UButton>
+                    <UButton size="sm" @click="add2Map">{{ t('workspace.layerItem.addToMap') }}</UButton>
                 </div>
             </template>
         </UCard>
     </div>
     <div v-else class="w-full">
-        <UAlert class="w-full" color="info" variant="soft" description="No information about layer." />
+        <UAlert class="w-full" color="info" variant="soft" :description="t('workspace.layerItem.noInformation')" />
     </div>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { type GeoServerVectorTypeLayerDetail, type GeoserverLayerInfo, type GeoserverLayerListItem, useGeoserverStore } from "@store/geoserver";
 import { type GeoServerSourceParams, type LayerParams, type LayerStyleOptions, useMapStore } from "@store/map";
 import { isNullOrEmpty } from "../../../core/helpers/functions";
@@ -58,6 +59,7 @@ export interface LayerStylingPaint {
     paint: object
 }
 const props = defineProps<Props>()
+const { t } = useI18n();
 const toast = useToast()
 const cleanLayerName = computed(() => {
     return ((layerDetail.value?.featureType.title) != null) ? layerDetail.value?.featureType.title.replaceAll("_", " ") : props.item.name.replaceAll("_", " ")
@@ -73,7 +75,7 @@ const hasKeywords = computed(() => (layerDetail.value?.featureType.keywords.stri
 geoserver.getLayerDetail(props.layerInformation.resource.href).then((detail) => {
     layerDetail.value = detail as GeoServerVectorTypeLayerDetail
 }).catch(err => {
-    toast.add({ severity: "error", summary: "Error", detail: err, life: 3000 });
+    toast.add({ severity: "error", summary: t("toast.error"), detail: err, life: 3000 });
 })
 
 onMounted(() => {
@@ -138,11 +140,11 @@ function add2Map(): void{
                 }
                 mapStore.addMapLayer(layerParams).then(()=>{
                 }).catch(error => {
-                    toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
+                    toast.add({ severity: "error", summary: t("toast.error"), detail: error, life: 3000 });
                 })
             }
         }).catch(error => {
-            toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
+            toast.add({ severity: "error", summary: t("toast.error"), detail: error, life: 3000 });
         })
     }
 }

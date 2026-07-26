@@ -4,8 +4,8 @@
 			<UCard class="geometry-filtering">
 				<template #header>
 					<div class="space-y-1">
-						<div class="font-semibold text-highlighted">Geometry Filtering</div>
-						<div class="text-muted text-sm">Select geometry layer to filter this layer</div>
+						<div class="font-semibold text-highlighted">{{ t('map.geometryFilter.title') }}</div>
+						<div class="text-muted text-sm">{{ t('map.geometryFilter.description') }}</div>
 					</div>
 				</template>
 				<template #default>
@@ -16,7 +16,7 @@
 									class="w-full"
 									v-model="selectedFilterLayerId"
 									:items="filterLayerOptions"
-									placeholder="Select a filter layer"
+									:placeholder="t('map.geometryFilter.selectFilterLayer')"
 									@update:model-value="dropdownFitter"
 								/>
 								<UButton
@@ -25,13 +25,13 @@
 									icon="i-lucide-x"
 									color="neutral"
 									variant="ghost"
-									aria-label="Clear selected filter layer"
+									:aria-label="t('map.geometryFilter.clearFilterLayer')"
 									@click="selectedFilterLayerId = undefined"
 								/>
 							</div>
                         </div>
                         <div class="w-full no-current-filter py-2" v-else>
-                            <UAlert class="w-full" color="info" variant="soft" description="There is no layer for filter. Draw a layer first!" />
+                            <UAlert class="w-full" color="info" variant="soft" :description="t('map.geometryFilter.noFilterLayer')" />
                         </div>
 					</div>
 					<div v-if="selectedFilterLayer"  class="identifier-dropdown w-full py-2">
@@ -40,7 +40,7 @@
 									class="w-full"
 									v-model="selectedPropertyName"
 									:items="filteredAttributeOptions"
-									placeholder="Select Identifier"
+									:placeholder="t('map.geometryFilter.selectIdentifier')"
 								/>
 								<UButton
 									v-if="selectedPropertyName !== undefined"
@@ -48,7 +48,7 @@
 									icon="i-lucide-x"
 									color="neutral"
 									variant="ghost"
-									aria-label="Clear selected identifier"
+									:aria-label="t('map.geometryFilter.clearIdentifier')"
 									@click="selectedPropertyName = undefined"
 								/>
 							</div>
@@ -56,7 +56,7 @@
 				</template>
 				<template #footer>
                     <div class="w-full flex flex-row-reverse">
-                        <UButton size="sm" :disabled="(isNullOrEmpty(selectedFilterLayer) || (props.layer.type === 'fill' && isNullOrEmpty(selectedProperty)))" @click="applyGeometryFilter">Add Filter</UButton>
+                        <UButton size="sm" :disabled="(isNullOrEmpty(selectedFilterLayer) || (props.layer.type === 'fill' && isNullOrEmpty(selectedProperty)))" @click="applyGeometryFilter">{{ t('map.geometryFilter.addFilter') }}</UButton>
                     </div>
 				</template>
 			</UCard>
@@ -65,12 +65,12 @@
             <UCard>
                 <template #default>
                     <div class="flex flex-row justify-between w-full">
-                        <span class="self-center">You have a geometry filter</span>
+                        <span class="self-center">{{ t('map.geometryFilter.hasFilter') }}</span>
                         <UButton
                             icon="i-lucide-x"
                             color="error"
                             variant="ghost"
-                            aria-label="Remove geometry filter"
+                            :aria-label="t('map.geometryFilter.removeFilter')"
                             @click="removeGeometryFilter"
                         />
                     </div>
@@ -83,6 +83,7 @@
 <script setup lang="ts">
 import { type CustomAddLayerObject, useMapStore, type LayerObjectWithAttributes } from "@store/map";
 import { computed, onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import bbox from "@turf/bbox"
 import bboxPolygon from "@turf/bbox-polygon"
 import { type FeatureCollection, type Feature } from "@helpers/geojson";
@@ -96,6 +97,7 @@ export interface Props {
     layer: LayerObjectWithAttributes
 }
 const props = defineProps<Props>()
+const { t } = useI18n();
 const mapStore = useMapStore()
 const toast = useToast()
 const selectedFilterLayer = ref<CustomAddLayerObject>()
@@ -230,7 +232,7 @@ function applyGeometryFilter(): void{
             fitToFilterLayer(selectedFilterLayer.value.layerData).then(() => {
                 geomFilterApplier()
             }).catch((error)=>{
-                toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
+                toast.add({ severity: "error", summary: t("toast.error"), detail: error, life: 3000 });
             })
         } else {
             geomFilterApplier()
@@ -270,10 +272,10 @@ function geomFilterApplier(): void{
                         }
                     }).catch((error)=>{
                         mapStore.map.setFilter(props.layer.id, null)
-                        toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
+                        toast.add({ severity: "error", summary: t("toast.error"), detail: error, life: 3000 });
                     })
                 }).catch((error)=>{
-                    toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
+                    toast.add({ severity: "error", summary: t("toast.error"), detail: error, life: 3000 });
                 })
             }
         }
@@ -294,11 +296,11 @@ function removeGeometryFilter(): void{
                 mapStore.map.setFilter(props.layer.id, null)
             }
         }).catch((error)=>{
-            toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
+            toast.add({ severity: "error", summary: t("toast.error"), detail: error, life: 3000 });
         })
     }).catch((error)=>{
         mapStore.map.setFilter(props.layer.id, null)
-        toast.add({ severity: "error", summary: "Error", detail: error, life: 3000 });
+        toast.add({ severity: "error", summary: t("toast.error"), detail: error, life: 3000 });
     })
 }
 </script>

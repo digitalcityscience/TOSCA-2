@@ -9,7 +9,7 @@
 			size="xs"
 			square
 			class="-mr-1 ml-1 text-inverted hover:text-inverted/80"
-			aria-label="Remove"
+			:aria-label="t('common.remove')"
 			@click="$emit('remove')"
 		/>
 	</UBadge>
@@ -17,6 +17,9 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 interface Props {
     severity?: "primary" | "secondary" | "success" | "info" | "warning" | "danger",

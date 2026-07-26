@@ -1,7 +1,7 @@
 <template>
         <BaseSlideoverSidebarComponent :id="sidebarID" side="left" :collapsed=false>
             <template #header>
-                <p>Datastores</p>
+                <p>{{ t('workspace.listing.title') }}</p>
         </template>
             <div class="w-full p-3" v-if="props.workspaces && props.workspaces.length > 0">
                 <UAccordion
@@ -21,7 +21,7 @@
                 </UAccordion>
             </div>
             <div class="w-full p-3" v-else>
-                <UAlert class="w-full" color="info" variant="soft" description="No workspace found" />
+                <UAlert class="w-full" color="info" variant="soft" :description="t('workspace.listing.noWorkspace')" />
             </div>
         </BaseSlideoverSidebarComponent>
 </template>
@@ -36,9 +36,11 @@ import { type WorkspaceListItem } from "@store/geoserver";
 import { openSlideoverSidebar } from "@helpers/slideoverSidebarRegistry";
 import { useRoute } from "vue-router";
 import { computed, onMounted, watch } from "vue";
+import { useI18n } from "vue-i18n";
 export interface Props {
     workspaces: WorkspaceListItem[] | undefined
 }
+const { t } = useI18n();
 const props = defineProps<Props>()
 const sidebarID = "workspaceListing"
 const workspaceAccordionItems = computed(() => {

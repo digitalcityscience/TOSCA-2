@@ -1,7 +1,7 @@
 <template>
     <BaseSlideoverSidebarComponent :id="sidebarID" side="right" :collapsed="true">
         <template #header>
-            <p>Layers</p>
+            <p>{{ t('map.layerListing.title') }}</p>
         </template>
         <div class="w-full" v-if="visibleLayers.length > 0">
             <draggable
@@ -19,13 +19,13 @@
         <div class="w-full p-3" v-else>
             <UEmpty
                 icon="i-lucide-layers"
-                title="No layers on map"
-                description="Add a layer from datastores to start working with map layers."
+                :title="t('map.layerListing.emptyTitle')"
+                :description="t('map.layerListing.emptyDescription')"
                 :ui="{ root: 'py-8', description: 'text-sm' }"
             />
             <div class="flex justify-center pt-3">
                 <UButton size="sm" icon="i-lucide-database" @click="openSlideoverSidebar('workspaceListing')">
-                    Open datastores
+                    {{ t('map.layerListing.openDatastores') }}
                 </UButton>
             </div>
         </div>
@@ -35,6 +35,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import draggable from "vuedraggable";
+import { useI18n } from "vue-i18n";
 // components
 import BaseSlideoverSidebarComponent from "../../Base/BaseSlideoverSidebarComponent.vue";
 import MapLayerListingItem from "./MapLayerListingItem.vue";
@@ -42,6 +43,7 @@ import MapLayerListingItem from "./MapLayerListingItem.vue";
 import { useMapStore } from "@store/map";
 import { openSlideoverSidebar } from "@helpers/slideoverSidebarRegistry";
 
+const { t } = useI18n();
 const mapStore = useMapStore()
 const visibleLayers = computed(() => mapStore.getReorderableVisibleLayersTopToBottom())
 

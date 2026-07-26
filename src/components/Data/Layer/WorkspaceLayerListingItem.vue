@@ -14,12 +14,13 @@
         <div v-else-if="props.item && layerInformation?.type ==='VECTOR'">
             <WorkspaceVectorLayerListingItem :item="props.item" :workspace="props.workspace" :layerInformation="layerInformation" :layerStyling="layerStyling"></WorkspaceVectorLayerListingItem>
         </div>
-        <UAlert v-else class="w-full" color="info" variant="soft" description="No information about layer." />
+        <UAlert v-else class="w-full" color="info" variant="soft" :description="t('workspace.layerItem.noInformation')" />
     </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { type GeoserverLayerInfo, type GeoserverLayerListItem, useGeoserverStore } from "@store/geoserver";
 import { type LayerStyleOptions } from "@store/map";
 import { useToast } from "@helpers/toast";
@@ -34,6 +35,7 @@ export interface LayerStylingPaint {
     paint: object
 }
 const props = defineProps<Props>()
+const { t } = useI18n();
 const toast = useToast()
 const geoserver = useGeoserverStore()
 const layerInformation = ref<GeoserverLayerInfo>()
@@ -68,8 +70,8 @@ async function loadLayerInformation(): Promise<void> {
             }
         }
     } catch (err) {
-        loadError.value = "Could not load layer information."
-        toast.add({ severity: "error", summary: "Error", detail: err, life: 3000 });
+        loadError.value = t("workspace.layerItem.loadError")
+        toast.add({ severity: "error", summary: t("toast.error"), detail: err, life: 3000 });
     } finally {
         isLoading.value = false
     }
