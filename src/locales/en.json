@@ -19,7 +19,9 @@
   },
   "locale": {
     "label": "Language",
-    "en": "English"
+    "en": "English",
+    "de": "German",
+    "tr": "Turkish"
   },
   "filter": {
     "operands": {

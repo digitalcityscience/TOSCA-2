@@ -1,0 +1,309 @@
+{
+  "common": {
+    "close": "Schließen",
+    "closeSidebar": "Seitenleiste schließen",
+    "collapseSidebar": "Seitenleiste einklappen",
+    "remove": "Entfernen",
+    "delete": "Löschen",
+    "cancel": "Abbrechen",
+    "save": "Speichern",
+    "apply": "Anwenden",
+    "reset": "Zurücksetzen",
+    "back": "Zurück",
+    "next": "Weiter",
+    "loading": "Lädt..."
+  },
+  "theme": {
+    "switchToLight": "Zum hellen Modus wechseln",
+    "switchToDark": "Zum dunklen Modus wechseln"
+  },
+  "locale": {
+    "label": "Sprache",
+    "en": "Englisch",
+    "de": "Deutsch",
+    "tr": "Türkisch"
+  },
+  "filter": {
+    "operands": {
+      "greaterThan": "größer als",
+      "greaterThanOrEqual": "größer oder gleich",
+      "lessThan": "kleiner als",
+      "lessThanOrEqual": "kleiner oder gleich",
+      "equal": "gleich",
+      "notEqual": "ungleich",
+      "in": "in"
+    },
+    "attribute": {
+      "title": "Attributfilterung",
+      "description": "Wählen Sie ein Attribut und einen Operanden aus, um diese Ebene zu filtern",
+      "deleteFilter": "Attributfilter löschen",
+      "noFilter": "Sie haben keinen Filter",
+      "matchAll": "(Alle Auswahlen erfüllen)",
+      "matchAny": "(Mindestens eine Auswahl erfüllen)",
+      "selectAttribute": "Attribut auswählen",
+      "clearAttribute": "Ausgewähltes Attribut löschen",
+      "selectOperand": "Operand auswählen",
+      "clearOperand": "Ausgewählten Operanden löschen",
+      "addNew": "Neuen Attributfilter hinzufügen",
+      "and": "UND"
+    }
+  },
+  "map": {
+    "resultTable": {
+      "getTable": "Tabelle abrufen",
+      "openTable": "Tabelle öffnen",
+      "resultsCount": "{count} Ergebnisse",
+      "usedFilters": "Verwendete Filter:",
+      "geometryFilterApplied": "Geometriefilter angewendet",
+      "noResult": "Es gibt kein Ergebnis",
+      "rowsPerPage": "Zeilen pro Seite",
+      "fileNamePlaceholder": "Dateiname",
+      "downloadAsGeojson": "Als GeoJSON herunterladen"
+    },
+    "sideFrame": {
+      "leftLabel": "Linke Kartenwerkzeuge",
+      "rightLabel": "Rechte Kartenwerkzeuge",
+      "datastores": "Datenspeicher",
+      "floodScenarios": "Hochwasserszenarien",
+      "airQualityScenarios": "Luftqualitätsszenarien",
+      "participation": "Beteiligung",
+      "layers": "Ebenen"
+    },
+    "basemap": {
+      "streets": "Straßen",
+      "satellite": "Satellit"
+    },
+    "attributeDialog": {
+      "featureLabel": "Feature {index}",
+      "noAttributes": "Für dieses Feature sind keine Attribute verfügbar."
+    },
+    "toolbox": {
+      "title": "Werkzeugkasten",
+      "draw": "Zeichnen",
+      "buffer": "Puffer"
+    },
+    "layerItem": {
+      "reorderLayer": "Ebene neu anordnen",
+      "temporalLayer": "Zeitliche Ebene",
+      "zoom": "Zoom",
+      "collapseControls": "Ebenensteuerung einklappen",
+      "expandControls": "Ebenensteuerung ausklappen",
+      "deleteLayerTitle": "Kartenebene löschen",
+      "deleteLayerConfirm": "Möchten Sie die Ebene {name} wirklich löschen?",
+      "style": "Stil",
+      "color": "Farbe",
+      "changeColor": "Farbe ändern",
+      "layerColorHex": "Hex-Code der Ebenenfarbe",
+      "opacity": "Deckkraft",
+      "changeOpacity": "Deckkraft ändern",
+      "legend": "Legende",
+      "legendAlt": "Ebenenlegende",
+      "time": "Zeit",
+      "filtering": "Filterung",
+      "data": "Daten",
+      "indicatorSingle": "Ebenenfarbe {color}",
+      "indicatorMulti": "Ebene verwendet mehrere Stilfarben",
+      "indicatorHeatmap": "Heatmap-Farben",
+      "indicatorRaster": "Rasterebene",
+      "indicatorUnknown": "Ebenenfarbe nicht verfügbar"
+    },
+    "layerListing": {
+      "title": "Ebenen",
+      "emptyTitle": "Keine Ebenen auf der Karte",
+      "emptyDescription": "Fügen Sie eine Ebene aus den Datenspeichern hinzu, um mit Kartenebenen zu arbeiten.",
+      "openDatastores": "Datenspeicher öffnen"
+    },
+    "rasterTimeControl": {
+      "pause": "Zeitanimation pausieren",
+      "play": "Zeitanimation abspielen",
+      "loading": "Zeitbereich wird geladen…",
+      "loadError": "Zeitbereich konnte nicht geladen werden: {message}"
+    },
+    "geometryFilter": {
+      "title": "Geometriefilterung",
+      "description": "Wählen Sie eine Geometrieebene aus, um diese Ebene zu filtern",
+      "selectFilterLayer": "Filterebene auswählen",
+      "clearFilterLayer": "Ausgewählte Filterebene löschen",
+      "noFilterLayer": "Es gibt keine Ebene zum Filtern. Zeichnen Sie zuerst eine Ebene!",
+      "selectIdentifier": "Kennung auswählen",
+      "clearIdentifier": "Ausgewählte Kennung löschen",
+      "addFilter": "Filter hinzufügen",
+      "hasFilter": "Sie haben einen Geometriefilter",
+      "removeFilter": "Geometriefilter entfernen"
+    }
+  },
+  "buffer": {
+    "title": "Puffer",
+    "description": "Wählen Sie eine Ebene aus, um einen Puffer anzuwenden",
+    "selectTargetLayer": "Zielebene auswählen",
+    "selectTargetLayerHelp": "Ihre Auswahl wird zur Erstellung von Pufferbereichen verwendet",
+    "selectLayerPlaceholder": "Ebene auswählen",
+    "clearSelectedLayer": "Ausgewählte Ebene löschen",
+    "radius": "Radius",
+    "radiusHelp": "Pufferradius in Metern",
+    "bufferLayerName": "Name der Pufferebene",
+    "bufferLayerNameHelp": "Name der Pufferebene",
+    "bufferLayerNamePlaceholder": "Name der Pufferebene",
+    "noSuitableLayer": "Es gibt keine geeignete Ebene für die Pufferung.",
+    "createBuffer": "Puffer erstellen",
+    "reset": "Zurücksetzen",
+    "addAsLayer": "Als Ebene hinzufügen"
+  },
+  "draw": {
+    "toolInUse": "Zeichenwerkzeug wird gerade verwendet.",
+    "createTitle": "Erstellen",
+    "createDescription": "Wählen Sie einen Modus aus und beginnen Sie mit dem Zeichnen",
+    "startDrawing": "Zeichnen starten",
+    "continue": "Fortsetzen",
+    "edit": "Bearbeiten",
+    "cancel": "Abbrechen",
+    "saveTitle": "Speichern",
+    "saveDescription": "Speichern Sie Ihre Zeichnung als Ebene",
+    "layerNamePlaceholder": "Ebenenname",
+    "addLayer": "Ebene hinzufügen"
+  },
+  "toast": {
+    "error": "Fehler"
+  },
+  "workspace": {
+    "listing": {
+      "title": "Datenspeicher",
+      "noWorkspace": "Kein Arbeitsbereich gefunden"
+    },
+    "layerListing": {
+      "noLayers": "Es gibt keine Ebene in diesem Arbeitsbereich"
+    },
+    "layerItem": {
+      "noInformation": "Keine Informationen zur Ebene.",
+      "loadError": "Ebeneninformationen konnten nicht geladen werden.",
+      "raster": "Raster",
+      "vector": "Vektor",
+      "time": "Zeit",
+      "timeSupport": "Diese Ebene unterstützt zeitbasierte Abfragen",
+      "showLess": "Weniger anzeigen",
+      "readMore": "Mehr lesen",
+      "addToMap": "Zur Karte hinzufügen",
+      "addWithTime": "Mit Zeit hinzufügen",
+      "timeDomainTitle": "Zeitbereich",
+      "timeDomainError": "Zeitbereich konnte nicht ermittelt werden; wird ohne Zeit hinzugefügt."
+    },
+    "listingItem": {
+      "loadError": "Arbeitsbereichsebenen konnten nicht geladen werden."
+    }
+  },
+  "participation": {
+    "loading": "Lädt...",
+    "detail": {
+      "feedbackSuffix": "Personen haben zu diesem Projekt Feedback gegeben.",
+      "seeDetail": "Details ansehen",
+      "endsToday": "Kampagne endet heute",
+      "endsInDays": "Diese Kampagne endet in {days} Tagen",
+      "endsInMonths": "Diese Kampagne endet in {months} Monaten"
+    },
+    "draw": {
+      "instructions": "Haben Sie einen Vorschlag für einen alternativen Standort? Zeichnen Sie Ihren Vorschlag auf der Karte ein. Sie können einen Punkt, eine Linie oder ein Polygon zeichnen, um Ihren Vorschlag zu erläutern.",
+      "itemLabel": "Element-{index}",
+      "startDrawing": "Zeichnen starten",
+      "cancelDrawing": "Zeichnen abbrechen",
+      "addToItems": "Zu den Elementen hinzufügen"
+    },
+    "sidebar": {
+      "title": "Bürgerbeteiligungstool",
+      "backToCampaigns": "Zurück zu den Kampagnen"
+    },
+    "form": {
+      "giveFeedback": "Feedback geben",
+      "reset": "Zurücksetzen",
+      "rateProject": "Bewerten Sie dieses Projekt!",
+      "ratingScale": "1-Schlecht, 3-Neutral, 5-Ausgezeichnet",
+      "chooseLocation": "Wählen Sie den Ort aus, an dem Sie Ihr Feedback geben möchten.",
+      "startSelection": "Auswahl starten",
+      "finishSelection": "Auswahl abschließen",
+      "describeComment": "Haben Sie einen Vorschlag? Beschreiben Sie Ihren Kommentar.",
+      "chooseCategory": "Wählen Sie gegebenenfalls die Kategorie Ihres Vorschlags aus.",
+      "generalCategory": "Allgemein",
+      "rateCampaign": "Kampagne bewerten",
+      "sendFeedback": "Feedback senden",
+      "introText": "Sie können alle aktiven Vorschläge auf der Karte einsehen. Klicken Sie auf jedes Projekt, um Informationen dazu anzuzeigen. Klicken Sie auf 'Einreichung starten', um Ihr Feedback zu geben.",
+      "startSubmission": "Einreichung starten",
+      "modalTitle": "Ihr Feedback ist uns wichtig!",
+      "modalBody": "Danke für Ihre Bewertung! Teilen Sie weitere Details mit, damit wir dieses Projekt noch besser machen können.",
+      "sendOnlyRating": "Nur Bewertung senden",
+      "giveDetailedFeedback": "Ausführliches Feedback geben",
+      "feedbackSentTitle": "Feedback gesendet",
+      "feedbackSentDetail": "Ihr Feedback wurde erfolgreich gesendet.",
+      "feedbackFailedTitle": "Feedback konnte nicht gesendet werden",
+      "feedbackFailedDetail": "Beim Senden Ihres Feedbacks ist ein Fehler aufgetreten."
+    },
+    "home": {
+      "welcomeTitle": "Willkommen beim Digital City Science Bürgerbeteiligungsportal",
+      "welcomeBody": "Gestalten Sie mit uns die Zukunft unserer urbanen Räume. Diese Plattform ermöglicht es Ihnen, Ihre Ideen, Erkenntnisse und Ihr Feedback zu wichtigen Entwicklungen in Ihrer Stadt zu teilen. Gemeinsam können wir eine intelligentere, grünere und inklusivere städtische Umgebung schaffen. Entdecken Sie unsere neueste Kampagne, beteiligen Sie sich an Diskussionen und helfen Sie, den städtischen Kontext für alle zu gestalten. Ihre Stimme zählt – lassen Sie uns gemeinsam die Stadt von morgen bauen!",
+      "seeActiveCampaigns": "Aktive Kampagnen ansehen"
+    }
+  },
+  "geostories": {
+    "runScenario": "Szenario ausführen",
+    "flood": {
+      "title": "Hochwasserszenarien",
+      "information": "Diese Karte zeigt Bereiche in einem städtischen Umfeld, vermutlich Hamburg, basierend auf geografischen Merkmalen, in denen sich Regenwasser bei starken Niederschlagsereignissen ansammeln oder fließen kann. Durch die Nutzung detaillierter topografischer Daten identifiziert die Karte tief liegende Senken und zeigt mögliche Wasserabflusswege durch die Stadt auf. Diese hervorgehobenen Zonen zeigen, wo sich Regenwasser am wahrscheinlichsten sammelt und fließt, und kennzeichnen sie als Hochrisikogebiete für Hochwasser.",
+      "scenarios": {
+        "current": {
+          "name": "Aktuelle Situation",
+          "description": "Diese Karte stellt Hamburgs aktuelle Entwässerungskapazität ohne jegliche Verbesserungen dar. Sie hebt Bereiche hervor, in denen sich bei starken Niederschlagsereignissen wahrscheinlich Regenwasser ansammelt oder fließt, und zeigt die am stärksten überschwemmungsgefährdeten Zonen. Ohne zusätzliche Entwässerungsverbesserungen bleiben diese hochwassergefährdeten Gebiete einem hohen Risiko ausgesetzt, da die derzeitige Infrastruktur möglicherweise Schwierigkeiten hat, erhebliche Regenwassermengen zu bewältigen. Diese Karte unterstreicht die Notwendigkeit von Entwässerungsverbesserungen, um Hochwasserrisiken zu mindern, die städtische Resilienz zu verbessern und Infrastruktur sowie öffentliche Sicherheit vor möglichen Hochwasserereignissen zu schützen."
+        },
+        "expanded25": {
+          "name": "Erweitertes Entwässerungsnetz: 25 %",
+          "description": "Diese Karte zeigt die Auswirkungen einer Erhöhung der Entwässerungskapazität Hamburgs um 25 %. Durch die Analyse der Entwässerungsdaten zeigt diese Simulation, wie eine verbesserte Entwässerungsinfrastruktur hochwassergefährdete Gebiete verringern könnte. Im Vergleich zur ursprünglichen Hochwasserrisikokarte haben die hervorgehobenen Wasseransammlungszonen sichtbar abgenommen."
+        },
+        "expanded50": {
+          "name": "Erweitertes Entwässerungsnetz: 50 %",
+          "description": "Diese Karte zeigt die Auswirkungen einer Erhöhung der Entwässerungskapazität Hamburgs um 50 %. Mit dieser Verbesserung zeigt die Karte eine weitere Verringerung der hochwassergefährdeten Gebiete im Vergleich zu einer Erhöhung um 25 %. Durch die Verdopplung der Entwässerungsverbesserung wird bei starkem Regen mehr Wasser effektiv bewältigt, was zu weniger Wasseransammlungsgebieten führt. Diese Karte zeigt die Vorteile eines deutlichen Ausbaus, der eine noch größere Verringerung der hochwassergefährdeten Gebiete bewirkt."
+        },
+        "expanded75": {
+          "name": "Erweitertes Entwässerungsnetz: 75 %",
+          "description": "Diese Karte zeigt die Auswirkung einer Erhöhung der Entwässerungskapazität Hamburgs um 75 %. Mit dieser erheblichen Verbesserung zeigt die Karte eine deutliche Verringerung der hochwassergefährdeten Zonen, was darauf hindeutet, dass die meisten Gebiete nun Regenwasserabflüsse effizient bewältigen können. Diese verbesserte Entwässerungskapazität bietet ein hohes Schutzniveau für die städtische Infrastruktur und deutet darauf hin, dass eine dreifache Aufwertung der Entwässerung einen erheblichen Einfluss auf die Hochwasserminderung haben könnte."
+        },
+        "expanded100": {
+          "name": "Erweitertes Entwässerungsnetz: 100 %",
+          "description": "Diese Karte zeigt die Auswirkung einer Verdopplung der Entwässerungskapazität Hamburgs um 100 %. In diesem Szenario zeigt die Karte eine dramatische Verringerung der Wasseransammlungsgebiete, da die Entwässerungsinfrastruktur nun nahezu den gesamten Regenwasserabfluss effektiv bewältigt. Eine solche Verbesserung eliminiert nahezu alle Hochrisikozonen für Hochwasser und deutet darauf hin, dass eine vollständige Überarbeitung der Entwässerungskapazität maximalen Schutz vor Hochwasserrisiken bieten und die städtische Resilienz auch bei extremen Wetterereignissen sichern könnte."
+        }
+      }
+    },
+    "gq": {
+      "title": "GQ-Luftqualitätsszenarien",
+      "healthTitle": "Luftqualität und Atemwegsgesundheit",
+      "healthBody": "Schlechte Luftqualität hat erhebliche Auswirkungen auf die Atemwegsgesundheit. Hohe Konzentrationen von Schadstoffen wie Feinstaub (PM), Stickstoffdioxid (NO₂) und Ozon (O₃) können Atemwegserkrankungen wie Asthma, Bronchitis und andere chronische Atemwegserkrankungen verursachen oder verschlimmern.",
+      "layer1Title": "Ebene 1: Mittlere PPM-Werte der ausgewählten statistischen Einheit",
+      "layer1Body": "Die Ebene {ppmMean} visualisiert durchschnittliche Schadstoffkonzentrationswerte gemessen in Parts per Million (ppm) und bietet Einblicke in die Schadstoffverteilung über verschiedene geografische Gebiete hinweg. Höhere Werte weisen auf Regionen mit größeren Umweltbedenken hin.",
+      "layer1MaxValue": "Maximalwert:",
+      "layer1MaxValueAmount": "49,63 ppm",
+      "layer1MinValue": "Minimalwert:",
+      "layer1MinValueAmount": "6,93 ppm",
+      "layer1Average": "Durchschnitt:",
+      "layer1AverageAmount": "27,31 ppm",
+      "layer1Footer": "Verwenden Sie diese Ebene, um Hochrisikogebiete für gezielte Luftqualitätsverbesserungen und politische Maßnahmen zu identifizieren und zu überwachen.",
+      "layer2Title": "Ebene 2: Fälle von Atemwegserkrankungen in ausgewählten statistischen Einheiten",
+      "layer2Body": "Die Ebene {respCase} stellt Fälle von Atemwegserkrankungen pro 1.000 Einwohner dar und zeigt die gesundheitlichen Auswirkungen und das Risikoniveau im Zusammenhang mit der Luftqualität. Diese Ebene hilft, die direkten gesundheitlichen Auswirkungen schlechter Luftqualität zu visualisieren.",
+      "layer2HighIncidence": "Hohe Häufigkeit:",
+      "layer2HighIncidenceValue": "> 15 Fälle/1.000 - hohes Gesundheitsrisiko",
+      "layer2ModerateIncidence": "Mittlere Häufigkeit:",
+      "layer2ModerateIncidenceValue": "5-15 Fälle/1.000 - mittleres Gesundheitsrisiko",
+      "layer2LowIncidence": "Niedrige Häufigkeit:",
+      "layer2LowIncidenceValue": "< 5 Fälle/1.000 - niedriges Gesundheitsrisiko",
+      "layer2Footer": "Nutzen Sie diese Ebene, um den Bedarf der Gemeinschaft im Gesundheitsbereich zu bewerten und entsprechende Maßnahmen oder Gesundheitsressourcen zu planen.",
+      "scenario": {
+        "title": "Auswirkung der Luftqualität auf Atemwegserkrankungen",
+        "abstract": "Dieses Szenario veranschaulicht die potenziellen Auswirkungen der Luftqualität auf Atemwegserkrankungen in einem städtischen Umfeld. Die Karte hebt Gebiete mit hoher Luftverschmutzung hervor, die Atemwegserkrankungen wie Asthma und Bronchitis verschlimmern können. Durch die Identifizierung dieser Hochrisikozonen hilft die Karte Gesundheitsbehörden, gezielte Maßnahmen zur Verbesserung der Luftqualität und zum Schutz gefährdeter Bevölkerungsgruppen zu ergreifen."
+      },
+      "chart": {
+        "max": "Max",
+        "min": "Min",
+        "average": "Durchschnitt",
+        "ppmMeanLabel": "ppm_mean_avg (ppm)",
+        "highLabel": "Hoch (>15 Fälle/1.000)",
+        "moderateLabel": "Mittel (5–15 Fälle/1.000)",
+        "lowLabel": "Niedrig (<5 Fälle/1.000)"
+      }
+    }
+  }
+}
