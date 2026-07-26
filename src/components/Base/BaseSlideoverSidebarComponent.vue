@@ -75,15 +75,15 @@ const slideoverUi = computed(() => ({
     content: [
         props.widthClass,
         contentOffsetClass.value,
-        "max-w-[calc(100vw-5rem)] bg-default/95 text-default shadow-xl ring ring-muted backdrop-blur",
+        "z-[40] max-w-[calc(100vw-5rem)] bg-default/95 text-default shadow-xl ring ring-muted backdrop-blur",
     ].join(" "),
     header: "hidden",
     body: "p-0",
     footer: "hidden",
 }))
 const contentOffsetClass = computed(() => {
-    if (props.side === "left") return "!top-[calc(var(--tosca-app-header-height)+var(--tosca-map-control-inset))] !bottom-[calc(var(--tosca-app-footer-height)+var(--tosca-map-control-inset))] !left-[4.5rem]"
-    if (props.side === "right") return "!top-[calc(var(--tosca-app-header-height)+var(--tosca-map-control-inset))] !bottom-[calc(var(--tosca-app-footer-height)+var(--tosca-map-control-inset))] !right-[4.5rem]"
+    if (props.side === "left") return "!top-[var(--tosca-app-header-height)] !bottom-[var(--tosca-app-footer-height)] !left-[var(--tosca-map-frame-width)] !rounded-l-none"
+    if (props.side === "right") return "!top-[var(--tosca-app-header-height)] !bottom-[var(--tosca-app-footer-height)] !right-[var(--tosca-map-frame-width)] !rounded-r-none"
     return ""
 })
 const closeIcon = computed(() => {

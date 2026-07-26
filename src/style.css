@@ -46,6 +46,15 @@
 --tosca-map-control-text-hover: rgb(5 150 105);
 --tosca-map-control-border: rgb(17 24 39 / 0.18);
 --tosca-map-control-icon-filter: none;
+--tosca-map-frame-bg: rgb(249 247 239 / 0.98);
+--tosca-map-frame-border: rgb(17 24 39 / 0.12);
+--tosca-map-frame-shadow: rgb(15 23 42 / 0.18);
+--tosca-map-frame-width: 3.75rem;
+--tosca-basemap-border: rgb(17 24 39 / 0.18);
+--tosca-basemap-border-active: rgb(5 150 105);
+--tosca-basemap-label-bg: rgb(255 255 255 / 0.72);
+--tosca-basemap-label-text: rgb(17 24 39);
+--tosca-basemap-shadow: rgb(15 23 42 / 0.20);
 --tosca-app-header-height: 3rem;
 --tosca-app-footer-height: 2rem;
 --tosca-map-control-inset: 10px;
@@ -74,6 +83,14 @@
 --tosca-map-control-text-hover: rgb(134 239 172);
 --tosca-map-control-border: rgb(148 163 184 / 0.22);
 --tosca-map-control-icon-filter: invert(1) brightness(1.4);
+--tosca-map-frame-bg: rgb(15 23 42 / 0.96);
+--tosca-map-frame-border: rgb(148 163 184 / 0.22);
+--tosca-map-frame-shadow: rgb(0 0 0 / 0.35);
+--tosca-basemap-border: rgb(148 163 184 / 0.30);
+--tosca-basemap-border-active: rgb(134 239 172);
+--tosca-basemap-label-bg: rgb(15 23 42 / 0.78);
+--tosca-basemap-label-text: rgb(248 250 252);
+--tosca-basemap-shadow: rgb(0 0 0 / 0.38);
 --tosca-app-chrome-bg: rgb(3 35 32 / 0.98);
 --tosca-app-chrome-text: rgb(248 250 252);
 --tosca-app-chrome-muted: rgb(203 213 225);
@@ -174,9 +191,10 @@ html, body {
     width: 64px;
     height: 64px;
     margin: 2px;
-    border: 2px solid #ccc;
+    border: 2px solid var(--tosca-basemap-border);
     border-radius: 8px;
-    box-shadow: inset 0px -20px rgba(255, 255, 255, 0.6);
+    box-shadow: inset 0 -24px var(--tosca-basemap-label-bg), 0 10px 24px var(--tosca-basemap-shadow);
+    color: var(--tosca-basemap-label-text);
     cursor: pointer;
     background-size: cover;
     background-position: bottom;
@@ -187,9 +205,12 @@ html, body {
   }
   
   .maplibregl-ctrl-basemaps .basemap.active {
-    border-color: red;
-    box-shadow: 2px 2px 4px #000;
-    box-shadow: inset 0px -20px rgba(255, 255, 255, 0.6);
+    border-color: var(--tosca-basemap-border-active);
+    box-shadow: inset 0 -24px var(--tosca-basemap-label-bg), 0 10px 24px var(--tosca-basemap-shadow);
+  }
+
+  .maplibregl-ctrl-basemaps .basemap:hover {
+    border-color: var(--tosca-basemap-border-active);
   }
   
   .maplibregl-ctrl-basemaps.closed .basemap {
@@ -199,6 +220,6 @@ html, body {
   
   .maplibregl-ctrl-basemaps.closed .basemap.active {
     display: flex;
-    box-shadow: inset 0px -20px rgba(255, 255, 255, 0.6);
-    border: 2px solid #ccc;
+    box-shadow: inset 0 -24px var(--tosca-basemap-label-bg), 0 10px 24px var(--tosca-basemap-shadow);
+    border: 2px solid var(--tosca-basemap-border-active);
   }

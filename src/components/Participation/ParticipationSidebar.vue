@@ -16,21 +16,12 @@
 
 <script setup lang="ts">
 import BaseSlideoverSidebarComponent from "@components/Base/BaseSlideoverSidebarComponent.vue"
-import { SidebarControl } from "../../core/helpers/sidebarControl";
 import { openSlideoverSidebar } from "@helpers/slideoverSidebarRegistry";
-import { useMapStore } from "../../store/map";
 import { RouterLink, useRoute } from "vue-router";
 import { onMounted, watch } from "vue";
 
-const mapStore = useMapStore()
 const sidebarID = "participation"
 const sidebarPosition = "left"
-// add participation sidebar control to the map
-const iconElement = document.createElement("span")
-iconElement.classList.add("material-icons-outlined")
-iconElement.textContent = "analytics"
-const sidebarControl = new SidebarControl("", sidebarID, document.createElement("div"), iconElement, 2, { slideover: true })
-mapStore.map.addControl(sidebarControl, "top-left")
 
 const route = useRoute()
 onMounted(()=>{

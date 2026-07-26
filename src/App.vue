@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { RouterView } from "vue-router";
 import { useMapStore } from "./store/map";
+import toscaLogo from "./assets/GIZ-HCU-DCS-TOSCA_2.svg";
 
 type ThemeMode = "light" | "dark";
 
@@ -58,8 +59,7 @@ watch(themeMode, (mode) => {
         <RouterView v-if="mapStore.map" name="participation"></RouterView>
       </main>
       <footer class="app-footer">
-        <span>HCU DCS</span>
-        <span>TOSCA 2</span>
+        <img class="app-footer-logo" :src="toscaLogo" alt="GIZ HCU DCS TOSCA" />
       </footer>
     </div>
   </UApp>
@@ -101,7 +101,7 @@ watch(themeMode, (mode) => {
     height: var(--tosca-app-footer-height);
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 0.5rem;
     padding: 0 1rem;
     border-top: 1px solid var(--tosca-app-border);
@@ -110,5 +110,10 @@ watch(themeMode, (mode) => {
     font-size: 0.75rem;
     line-height: 1;
     z-index: 20;
+}
+.app-footer-logo {
+    max-height: calc(var(--tosca-app-footer-height) - 0.375rem);
+    max-width: min(32rem, calc(100vw - 2rem));
+    object-fit: contain;
 }
 </style>

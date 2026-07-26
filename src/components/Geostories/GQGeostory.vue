@@ -74,7 +74,6 @@
 // Components
 import BaseSlideoverSidebarComponent from "@components/Base/BaseSlideoverSidebarComponent.vue";
 
-import { SidebarControl } from "@helpers/sidebarControl";
 import { type GeoServerSourceParams, type LayerParams, type LayerStyleOptions, useMapStore } from "@store/map";
 import { RouterLink } from "vue-router";
 import { type FeatureCollection } from "@helpers/geojson";
@@ -91,10 +90,6 @@ const geoserver = useGeoserverStore()
 const toast = useToast()
 const sidebarID = "gq-geostory-sidebar"
 
-const iconElement = document.createElement("span")
-iconElement.classList.add("material-icons-outlined")
-iconElement.textContent = "health_and_safety"
-const sidebarControl = new SidebarControl("", sidebarID, document.createElement("div"), iconElement, 3, { slideover: true })
 const statisticalUnitStyle = ref<LayerStyleOptions>(
     {
         paint: {
@@ -154,7 +149,6 @@ const heatmapStyle = ref<LayerStyleOptions>({
         ]
     }
 })
-mapStore.map.addControl(sidebarControl, "top-left")
 const ppmMeanChart = ref<Chart>()
 const respCaseChart = ref<Chart>()
 async function setupCharts(): Promise<void> {
