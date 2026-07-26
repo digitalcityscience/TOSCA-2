@@ -1,0 +1,309 @@
+{
+  "common": {
+    "close": "Kapat",
+    "closeSidebar": "Kenar çubuğunu kapat",
+    "collapseSidebar": "Kenar çubuğunu daralt",
+    "remove": "Kaldır",
+    "delete": "Sil",
+    "cancel": "İptal",
+    "save": "Kaydet",
+    "apply": "Uygula",
+    "reset": "Sıfırla",
+    "back": "Geri",
+    "next": "İleri",
+    "loading": "Yükleniyor..."
+  },
+  "theme": {
+    "switchToLight": "Açık moda geç",
+    "switchToDark": "Koyu moda geç"
+  },
+  "locale": {
+    "label": "Dil",
+    "en": "İngilizce",
+    "de": "Almanca",
+    "tr": "Türkçe"
+  },
+  "filter": {
+    "operands": {
+      "greaterThan": "büyüktür",
+      "greaterThanOrEqual": "büyük veya eşittir",
+      "lessThan": "küçüktür",
+      "lessThanOrEqual": "küçük veya eşittir",
+      "equal": "eşittir",
+      "notEqual": "eşit değildir",
+      "in": "içinde"
+    },
+    "attribute": {
+      "title": "Öznitelik Filtreleme",
+      "description": "Bu katmanı filtrelemek için bir öznitelik ve işlem seçin",
+      "deleteFilter": "Öznitelik filtresini sil",
+      "noFilter": "Herhangi bir filtreniz yok",
+      "matchAll": "(Tüm seçimlerle eşleş)",
+      "matchAny": "(En az bir seçimle eşleş)",
+      "selectAttribute": "Öznitelik seçin",
+      "clearAttribute": "Seçili özniteliği temizle",
+      "selectOperand": "İşlem seçin",
+      "clearOperand": "Seçili işlemi temizle",
+      "addNew": "Yeni öznitelik filtresi ekle",
+      "and": "VE"
+    }
+  },
+  "map": {
+    "resultTable": {
+      "getTable": "Tabloyu Getir",
+      "openTable": "Tabloyu Aç",
+      "resultsCount": "{count} sonuç",
+      "usedFilters": "Kullanılan Filtreler:",
+      "geometryFilterApplied": "Geometri filtresi uygulandı",
+      "noResult": "Sonuç yok",
+      "rowsPerPage": "Sayfa başına satır",
+      "fileNamePlaceholder": "Dosya adı",
+      "downloadAsGeojson": "GeoJSON olarak indir"
+    },
+    "sideFrame": {
+      "leftLabel": "Sol harita araçları",
+      "rightLabel": "Sağ harita araçları",
+      "datastores": "Veri depoları",
+      "floodScenarios": "Sel senaryoları",
+      "airQualityScenarios": "Hava kalitesi senaryoları",
+      "participation": "Katılım",
+      "layers": "Katmanlar"
+    },
+    "basemap": {
+      "streets": "Sokaklar",
+      "satellite": "Uydu"
+    },
+    "attributeDialog": {
+      "featureLabel": "Öğe {index}",
+      "noAttributes": "Bu öğe için kullanılabilir öznitelik yok."
+    },
+    "toolbox": {
+      "title": "Araç Kutusu",
+      "draw": "Çiz",
+      "buffer": "Tampon"
+    },
+    "layerItem": {
+      "reorderLayer": "Katmanı yeniden sırala",
+      "temporalLayer": "Zamansal katman",
+      "zoom": "Yakınlaştır",
+      "collapseControls": "Katman denetimlerini daralt",
+      "expandControls": "Katman denetimlerini genişlet",
+      "deleteLayerTitle": "Harita Katmanını Sil",
+      "deleteLayerConfirm": "{name} katmanını silmek istediğinizden emin misiniz?",
+      "style": "Stil",
+      "color": "Renk",
+      "changeColor": "Rengi Değiştir",
+      "layerColorHex": "Katman rengi hex kodu",
+      "opacity": "Opaklık",
+      "changeOpacity": "Opaklığı Değiştir",
+      "legend": "Lejant",
+      "legendAlt": "Katman lejantı",
+      "time": "Zaman",
+      "filtering": "Filtreleme",
+      "data": "Veri",
+      "indicatorSingle": "Katman rengi {color}",
+      "indicatorMulti": "Katman birden fazla stil rengi kullanıyor",
+      "indicatorHeatmap": "Isı haritası renkleri",
+      "indicatorRaster": "Raster katman",
+      "indicatorUnknown": "Katman stil rengi kullanılamıyor"
+    },
+    "layerListing": {
+      "title": "Katmanlar",
+      "emptyTitle": "Haritada katman yok",
+      "emptyDescription": "Harita katmanlarıyla çalışmaya başlamak için veri depolarından bir katman ekleyin.",
+      "openDatastores": "Veri depolarını aç"
+    },
+    "rasterTimeControl": {
+      "pause": "Zaman animasyonunu duraklat",
+      "play": "Zaman animasyonunu oynat",
+      "loading": "Zaman aralığı yükleniyor…",
+      "loadError": "Zaman aralığı yüklenemedi: {message}"
+    },
+    "geometryFilter": {
+      "title": "Geometri Filtreleme",
+      "description": "Bu katmanı filtrelemek için bir geometri katmanı seçin",
+      "selectFilterLayer": "Filtre katmanı seçin",
+      "clearFilterLayer": "Seçili filtre katmanını temizle",
+      "noFilterLayer": "Filtreleme için katman yok. Önce bir katman çizin!",
+      "selectIdentifier": "Tanımlayıcı seçin",
+      "clearIdentifier": "Seçili tanımlayıcıyı temizle",
+      "addFilter": "Filtre Ekle",
+      "hasFilter": "Bir geometri filtreniz var",
+      "removeFilter": "Geometri filtresini kaldır"
+    }
+  },
+  "buffer": {
+    "title": "Tampon",
+    "description": "Tampon uygulamak için bir katman seçin",
+    "selectTargetLayer": "Hedef katmanı seçin",
+    "selectTargetLayerHelp": "Seçiminiz tampon alanları oluşturmak için kullanılacaktır",
+    "selectLayerPlaceholder": "Bir katman seçin",
+    "clearSelectedLayer": "Seçili katmanı temizle",
+    "radius": "Yarıçap",
+    "radiusHelp": "Metre cinsinden tampon yarıçapı",
+    "bufferLayerName": "Tampon katman adı",
+    "bufferLayerNameHelp": "Tampon katmanının adı",
+    "bufferLayerNamePlaceholder": "Tampon Katman Adı",
+    "noSuitableLayer": "Tamponlama için uygun katman yok.",
+    "createBuffer": "Tampon Oluştur",
+    "reset": "Sıfırla",
+    "addAsLayer": "Katman Olarak Ekle"
+  },
+  "draw": {
+    "toolInUse": "Çizim aracı şu anda kullanımda.",
+    "createTitle": "Oluştur",
+    "createDescription": "Bir mod seçin ve çizmeye başlayın",
+    "startDrawing": "Çizmeye Başla",
+    "continue": "Devam Et",
+    "edit": "Düzenle",
+    "cancel": "İptal",
+    "saveTitle": "Kaydet",
+    "saveDescription": "Çiziminizi katman olarak kaydedin",
+    "layerNamePlaceholder": "Katman Adı",
+    "addLayer": "Katman Ekle"
+  },
+  "toast": {
+    "error": "Hata"
+  },
+  "workspace": {
+    "listing": {
+      "title": "Veri depoları",
+      "noWorkspace": "Çalışma alanı bulunamadı"
+    },
+    "layerListing": {
+      "noLayers": "Bu çalışma alanında katman yok"
+    },
+    "layerItem": {
+      "noInformation": "Katman hakkında bilgi yok.",
+      "loadError": "Katman bilgileri yüklenemedi.",
+      "raster": "Raster",
+      "vector": "Vektör",
+      "time": "Zaman",
+      "timeSupport": "Bu katman zaman tabanlı sorguları destekler",
+      "showLess": "Daha az göster",
+      "readMore": "Daha fazla oku",
+      "addToMap": "Haritaya ekle",
+      "addWithTime": "Zaman ile ekle",
+      "timeDomainTitle": "Zaman aralığı",
+      "timeDomainError": "Zaman aralığı çözümlenemedi; zaman olmadan ekleniyor."
+    },
+    "listingItem": {
+      "loadError": "Çalışma alanı katmanları yüklenemedi."
+    }
+  },
+  "participation": {
+    "loading": "Yükleniyor...",
+    "detail": {
+      "feedbackSuffix": "kişi bu proje hakkında geri bildirimde bulundu.",
+      "seeDetail": "Detayları Gör",
+      "endsToday": "Kampanya bugün sona eriyor",
+      "endsInDays": "Bu kampanya {days} gün içinde sona eriyor",
+      "endsInMonths": "Bu kampanya {months} ay içinde sona eriyor"
+    },
+    "draw": {
+      "instructions": "Alternatif bir konum için öneriniz mi var? Önerinizi haritada çizin. Önerinizi açıklamak için bir nokta, çizgi veya çokgen çizmeyi seçebilirsiniz.",
+      "itemLabel": "Öğe-{index}",
+      "startDrawing": "Çizmeye Başla",
+      "cancelDrawing": "Çizimi İptal Et",
+      "addToItems": "Öğelere Ekle"
+    },
+    "sidebar": {
+      "title": "Vatandaş Katılım Aracı",
+      "backToCampaigns": "Kampanyalara Dön"
+    },
+    "form": {
+      "giveFeedback": "Geri Bildirim Ver",
+      "reset": "Sıfırla",
+      "rateProject": "Bu projeyi değerlendirin!",
+      "ratingScale": "1-Kötü, 3-Nötr, 5-Mükemmel",
+      "chooseLocation": "Geri bildirim vermek istediğiniz konumu seçin.",
+      "startSelection": "Seçimi Başlat",
+      "finishSelection": "Seçimi Bitir",
+      "describeComment": "Bir öneriniz mi var? Yorumunuzu açıklayın.",
+      "chooseCategory": "Varsa önerinizin kategorisini seçin.",
+      "generalCategory": "Genel",
+      "rateCampaign": "Kampanyayı Değerlendir",
+      "sendFeedback": "Geri Bildirim Gönder",
+      "introText": "Haritadaki tüm aktif önerileri görüntüleyebilirsiniz, her proje hakkında bilgi görmek için üzerine tıklayın. Geri bildiriminizi vermek için 'Gönderimi Başlat' düğmesine tıklayın.",
+      "startSubmission": "Gönderimi Başlat",
+      "modalTitle": "Geri Bildiriminiz Önemli!",
+      "modalBody": "Değerlendirmeniz için teşekkürler! Bu projeyi daha da iyi hale getirmemize yardımcı olmak için daha fazla ayrıntı paylaşın.",
+      "sendOnlyRating": "Yalnızca Değerlendirmeyi Gönder",
+      "giveDetailedFeedback": "Ayrıntılı Geri Bildirim Ver",
+      "feedbackSentTitle": "Geri bildirim gönderildi",
+      "feedbackSentDetail": "Geri bildiriminiz başarıyla gönderildi.",
+      "feedbackFailedTitle": "Geri bildirim gönderilemedi",
+      "feedbackFailedDetail": "Geri bildiriminiz gönderilirken bir hata oluştu."
+    },
+    "home": {
+      "welcomeTitle": "Digital City Science Vatandaş Katılım Portalına Hoş Geldiniz",
+      "welcomeBody": "Kentsel alanlarımızın geleceğini şekillendirmemize katılın. Bu platform, şehrinizdeki önemli gelişmeler hakkında fikirlerinizi, görüşlerinizi ve geri bildirimlerinizi paylaşmanızı sağlar. Birlikte daha akıllı, daha yeşil ve daha kapsayıcı bir kentsel çevre yaratabiliriz. En son kampanyamızı keşfedin, tartışmalara katkıda bulunun ve herkes için işe yarayan kentsel bağlamı tasarlamaya yardımcı olun. Sesiniz önemli—hadi yarının şehrini bugünden inşa edelim!",
+      "seeActiveCampaigns": "Aktif Kampanyaları Gör"
+    }
+  },
+  "geostories": {
+    "runScenario": "Senaryoyu Çalıştır",
+    "flood": {
+      "title": "Sel Senaryoları",
+      "information": "Bu harita, coğrafi özelliklere dayanarak muhtemelen Hamburg olan kentsel bir ortamda, şiddetli yağış olayları sırasında yağmur suyunun birikebileceği veya akabileceği alanları göstermektedir. Ayrıntılı topografik verilerden yararlanan harita, alçak çöküntüleri belirler ve şehir genelinde olası su akış yollarını ortaya koyar. Bu vurgulanan bölgeler, yağmur suyunun en olası biriktiği ve aktığı yerleri gösterir ve bunları sel birikimi açısından yüksek riskli olarak işaretler.",
+      "scenarios": {
+        "current": {
+          "name": "Mevcut Durum",
+          "description": "Bu harita, herhangi bir iyileştirme yapılmadan Hamburg'un mevcut drenaj kapasitesini temsil eder. Şiddetli yağış olayları sırasında yağmur suyunun birikmesi veya akması muhtemel alanları vurgulayarak sele karşı en savunmasız bölgeleri gösterir. Ek drenaj iyileştirmeleri olmadan, mevcut altyapı önemli miktarda yağmur suyunu yönetmekte zorlanabileceğinden, bu sele eğilimli alanlar yüksek risk altında kalır. Bu harita, sel risklerini azaltmak, kentsel dayanıklılığı artırmak ve altyapı ile kamu güvenliğini olası sel olaylarından korumak için drenaj iyileştirmelerine duyulan ihtiyacın altını çizmektedir."
+        },
+        "expanded25": {
+          "name": "Genişletilmiş Drenaj Ağı: %25",
+          "description": "Bu harita, Hamburg'un drenaj kapasitesinin %25 artırılmasının etkisini temsil etmektedir. Drenaj verilerini analiz eden bu simülasyon, geliştirilmiş drenaj altyapısının sele eğilimli alanları nasıl azaltabileceğini göstermektedir. Orijinal sel riski haritasıyla karşılaştırıldığında, vurgulanan su birikimi bölgeleri gözle görülür şekilde azalmıştır."
+        },
+        "expanded50": {
+          "name": "Genişletilmiş Drenaj Ağı: %50",
+          "description": "Bu harita, Hamburg'un drenaj kapasitesinin %50 artırılmasının etkisini temsil etmektedir. Bu iyileştirmeyle harita, %25'lik artışa kıyasla sele eğilimli alanlarda daha fazla azalma göstermektedir. Drenaj iyileştirmesinin iki katına çıkarılmasıyla, şiddetli yağış sırasında daha fazla su etkin bir şekilde yönetilerek daha az su birikimi alanına yol açmaktadır. Bu harita, önemli bir yükseltmenin faydalarını göstererek sel riski altındaki alanlarda daha da büyük bir azalma sergilemektedir."
+        },
+        "expanded75": {
+          "name": "Genişletilmiş Drenaj Ağı: %75",
+          "description": "Bu harita, Hamburg'un drenaj kapasitesinde %75'lik bir artışın etkisini göstermektedir. Bu önemli iyileştirmeyle harita, sele eğilimli bölgelerde önemli bir azalma ortaya koyarak çoğu alanın artık yağmur suyu akışını verimli bir şekilde yönetebildiğini göstermektedir. Bu geliştirilmiş drenaj kapasitesi, kentsel altyapı için yüksek düzeyde koruma sunarak drenajda üç katı bir yükseltmenin sel önlemede önemli bir etki yaratabileceğini göstermektedir."
+        },
+        "expanded100": {
+          "name": "Genişletilmiş Drenaj Ağı: %100",
+          "description": "Bu harita, Hamburg'un drenaj kapasitesinin ikiye katlanmasının, yani %100 artırılmasının etkisini göstermektedir. Bu senaryoda harita, drenaj altyapısının artık neredeyse tüm yağmur suyunu etkin bir şekilde yönetmesiyle su birikimi alanlarında dramatik bir azalma göstermektedir. Bu tür bir iyileştirme, sel için yüksek riskli bölgeleri neredeyse ortadan kaldırarak, drenaj kapasitesinde eksiksiz bir revizyonun sel risklerine karşı maksimum koruma sağlayabileceğini ve aşırı hava olaylarında bile kentsel dayanıklılığı güvence altına alabileceğini göstermektedir."
+        }
+      }
+    },
+    "gq": {
+      "title": "GQ Hava Kalitesi Senaryoları",
+      "healthTitle": "Hava Kalitesi ve Solunum Sağlığı",
+      "healthBody": "Kötü hava kalitesinin solunum sağlığı üzerinde önemli etkileri vardır. Partikül madde (PM), azot dioksit (NO₂) ve ozon (O₃) gibi yüksek düzeyde kirleticiler, astım, bronşit ve diğer kronik solunum hastalıkları dahil olmak üzere solunum rahatsızlıklarına neden olabilir veya bunları şiddetlendirebilir.",
+      "layer1Title": "Katman 1: Seçilen İstatistiksel Birimin Ortalama PPM Değerleri",
+      "layer1Body": "{ppmMean} katmanı, milyonda parça (ppm) cinsinden ölçülen ortalama kirletici konsantrasyon değerlerini görselleştirerek farklı coğrafi alanlarda kirletici dağılımı hakkında bilgi sağlar. Daha yüksek değerler, daha fazla kirlilik endişesi olan bölgeleri gösterir.",
+      "layer1MaxValue": "Maksimum Değer:",
+      "layer1MaxValueAmount": "49,63 ppm",
+      "layer1MinValue": "Minimum Değer:",
+      "layer1MinValueAmount": "6,93 ppm",
+      "layer1Average": "Ortalama:",
+      "layer1AverageAmount": "27,31 ppm",
+      "layer1Footer": "Bu katmanı, hedeflenen hava kalitesi iyileştirmeleri ve politika müdahaleleri için yüksek riskli alanları belirlemek ve izlemek amacıyla kullanın.",
+      "layer2Title": "Katman 2: Seçilen İstatistiksel Birimlerde Solunum Yolu Hastalığı Vakaları",
+      "layer2Body": "{respCase} katmanı, 1.000 kişi başına düşen solunum yolu hastalığı vakalarını temsil ederek hava kalitesiyle ilişkili sağlık etkisini ve risk düzeyini vurgular. Bu katman, kötü hava kalitesinin doğrudan sağlık etkilerini görselleştirmeye yardımcı olur.",
+      "layer2HighIncidence": "Yüksek Görülme Sıklığı:",
+      "layer2HighIncidenceValue": "1.000'de > 15 vaka - Yüksek sağlık riski",
+      "layer2ModerateIncidence": "Orta Görülme Sıklığı:",
+      "layer2ModerateIncidenceValue": "1.000'de 5-15 vaka - Orta sağlık riski",
+      "layer2LowIncidence": "Düşük Görülme Sıklığı:",
+      "layer2LowIncidenceValue": "1.000'de < 5 vaka - Düşük sağlık riski",
+      "layer2Footer": "Bu katmanı, toplum sağlığı ihtiyaçlarını değerlendirmek ve buna göre müdahaleler veya sağlık kaynakları planlamak için kullanın.",
+      "scenario": {
+        "title": "Hava Kalitesinin Solunum Yolu Hastalıkları Üzerindeki Etkisi",
+        "abstract": "Bu senaryo, kentsel bir ortamda hava kalitesinin solunum yolu hastalıkları üzerindeki potansiyel etkisini göstermektedir. Harita, astım ve bronşit gibi solunum rahatsızlıklarını şiddetlendirebilecek yüksek hava kirliliği seviyelerine sahip alanları vurgulamaktadır. Bu yüksek riskli bölgeleri belirleyerek harita, halk sağlığı yetkililerinin hava kalitesini iyileştirmeye ve savunmasız nüfusları korumaya yönelik müdahaleleri hedeflemesine yardımcı olur."
+      },
+      "chart": {
+        "max": "Maks",
+        "min": "Min",
+        "average": "Ortalama",
+        "ppmMeanLabel": "ppm_mean_avg (ppm)",
+        "highLabel": "Yüksek (1.000'de >15 vaka)",
+        "moderateLabel": "Orta (1.000'de 5–15 vaka)",
+        "lowLabel": "Düşük (1.000'de <5 vaka)"
+      }
+    }
+  }
+}

@@ -1,7 +1,9 @@
 import { createI18n } from "vue-i18n";
 import en from "@locales/en.json";
+import de from "@locales/de.json";
+import tr from "@locales/tr.json";
 
-export const SUPPORTED_LOCALES = ["en"] as const;
+export const SUPPORTED_LOCALES = ["en", "de", "tr"] as const;
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 
 const LOCALE_STORAGE_KEY = "tosca-locale";
@@ -28,7 +30,7 @@ export const i18n = createI18n({
     legacy: false,
     locale: detectLocale(),
     fallbackLocale: "en",
-    messages: { en },
+    messages: { en, de, tr },
 });
 
 export function setLocale(locale: SupportedLocale): void {
