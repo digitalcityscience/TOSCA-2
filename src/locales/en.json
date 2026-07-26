@@ -71,6 +71,10 @@
       "streets": "Streets",
       "satellite": "Satellite"
     },
+    "attributeDialog": {
+      "featureLabel": "Feature {index}",
+      "noAttributes": "No attributes available for this feature."
+    },
     "toolbox": {
       "title": "Toolbox",
       "draw": "Draw",

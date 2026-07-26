@@ -16,6 +16,7 @@ import { BaseMapControl, type BaseMapControlOptions } from "@helpers/baseMapCont
 const { t } = useI18n();
 const mapStore = useMapStore()
 const clickedLayers = ref()
+type PopupAnchor = "center" | "top" | "bottom" | "left" | "right" | "top-left" | "top-right" | "bottom-left" | "bottom-right";
 onMounted(() => {
     const lng = Number(import.meta.env.VITE_MAP_START_LNG) ?? 9.993163
     const lat = Number(import.meta.env.VITE_MAP_START_LAT) ?? 53.552123
@@ -77,16 +78,28 @@ onMounted(() => {
                         console.log(e)
                         clickedLayers.value = reducedFeatures
                         console.log("clicked layers", clickedLayers.value)
-                        new maplibre.Popup({ maxWidth:"none" })
+                        const popupContainer = document.createElement("div")
+                        const popup = new maplibre.Popup({
+                            anchor: resolvePopupAnchor(e),
+                            className: "tosca-map-popup",
+                            maxWidth: "none",
+                            offset: 12,
+                        })
                             .setLngLat(e.lngLat)
-                            .setHTML("<div id='map-popup-content'></div>")
+                            .setDOMContent(popupContainer)
                             .addTo(mapStore.map as Map)
                         nextTick(() => {
                             // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
                             const popupComp = h(MapAttributeDialog, {
                                 features: [...reducedFeatures],
+                                onSizeChange: () => {
+                                    clampPopupToMapViewport(popup, mapStore.map as Map)
+                                },
                             });
-                            render(popupComp, document.getElementById("map-popup-content")!);
+                            render(popupComp, popupContainer);
+                            void nextTick(() => {
+                                clampPopupToMapViewport(popup, mapStore.map as Map)
+                            })
                         }).then(()=>{}, ()=>{})
                     }
                 }
@@ -118,6 +131,55 @@ onMounted(() => {
     }
     mapStore.map.addControl(new BaseMapControl(options), "bottom-left");
 })
+
+function resolvePopupAnchor(event: MapMouseEvent): PopupAnchor {
+    const canvas = event.target.getCanvas()
+    const horizontal = event.point.x < canvas.clientWidth * 0.35
+        ? "left"
+        : event.point.x > canvas.clientWidth * 0.65
+            ? "right"
+            : ""
+    const vertical = event.point.y < canvas.clientHeight * 0.35
+        ? "top"
+        : event.point.y > canvas.clientHeight * 0.65
+            ? "bottom"
+            : ""
+
+    if (vertical !== "" && horizontal !== "") {
+        return `${vertical}-${horizontal}` as PopupAnchor
+    }
+
+    return (horizontal || vertical || "bottom") as PopupAnchor
+}
+
+function clampPopupToMapViewport(popup: maplibre.Popup, map: Map): void {
+    const popupElement = popup.getElement()
+    const mapRect = map.getContainer().getBoundingClientRect()
+    const margin = 12
+
+    popupElement.style.transform = popupElement.dataset.toscaBaseTransform ?? popupElement.style.transform
+    popupElement.dataset.toscaBaseTransform = popupElement.style.transform
+
+    const popupRect = popupElement.getBoundingClientRect()
+    const minLeft = mapRect.left + margin
+    const maxRight = mapRect.right - margin
+    const minTop = mapRect.top + margin
+    const maxBottom = mapRect.bottom - margin
+    const dx = popupRect.left < minLeft
+        ? minLeft - popupRect.left
+        : popupRect.right > maxRight
+            ? maxRight - popupRect.right
+            : 0
+    const dy = popupRect.top < minTop
+        ? minTop - popupRect.top
+        : popupRect.bottom > maxBottom
+            ? maxBottom - popupRect.bottom
+            : 0
+
+    if (dx !== 0 || dy !== 0) {
+        popupElement.style.transform = `${popupElement.dataset.toscaBaseTransform} translate(${dx}px, ${dy}px)`
+    }
+}
 </script>
 
 <style scoped>
