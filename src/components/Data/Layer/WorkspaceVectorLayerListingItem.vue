@@ -1,6 +1,6 @@
 <template>
     <div v-if="props.item">
-        <UCard class="workspace-layer-card bg-default/95 dark:bg-elevated/80" :ui="{ header: 'p-3 pb-2', body: 'p-3 pt-0', footer: 'p-3 pt-2' }">
+        <UCard class="workspace-layer-card bg-default/95 dark:bg-elevated/80" :ui="{ header: 'p-3 pb-2', body: 'p-3 pt-1', footer: 'p-3 pt-2' }">
             <template #header>
                 <div class="min-w-0 space-y-1">
                     <div class="flex min-w-0 flex-wrap items-center gap-2">
@@ -8,17 +8,21 @@
                         <UBadge color="neutral" variant="soft" size="sm" label="Vector" />
                         <UBadge v-if="dataType" color="info" variant="soft" size="sm" :label="dataType" />
                     </div>
-                    <p v-if="layerDetail && layerDetail?.featureType.abstract?.length > 0" class="line-clamp-2 hover:line-clamp-none xl:line-clamp-3 text-muted text-sm">{{ layerDetail.featureType.abstract }}</p>
-                </div>
-            </template>
-            <div v-if="layerDetail" class="space-y-3 text-sm">
-                <div class="grid grid-cols-[5.5rem_1fr] gap-3">
-                    <span class="font-semibold uppercase tracking-wide text-muted text-xs self-start pt-1">Keywords</span>
-                    <div class="flex min-w-0 flex-wrap gap-x-2 gap-y-1">
-                        <span v-for="(keyword,index) in layerDetail.featureType.keywords.string" :key="index" class="italic text-muted">
+                    <div v-if="hasKeywords" class="flex min-w-0 flex-wrap gap-x-2 gap-y-0.5">
+                        <span v-for="(keyword,index) in layerDetail?.featureType.keywords.string" :key="index" class="text-[0.6875rem] italic leading-tight text-muted">
                             #{{ keyword }}
                         </span>
                     </div>
+                </div>
+            </template>
+            <div v-if="layerDetail" class="space-y-2">
+                <div v-if="hasDescription" class="space-y-1">
+                    <p ref="summaryElement" :class="['text-muted text-sm', isSummaryExpanded ? '' : 'line-clamp-2']">
+                        {{ descriptionText }}
+                    </p>
+                    <UButton v-if="isSummaryTruncated || isSummaryExpanded" size="xs" color="neutral" variant="link" class="h-auto justify-start p-0" @click="isSummaryExpanded = !isSummaryExpanded">
+                        {{ isSummaryExpanded ? "Show less" : "Read more" }}
+                    </UButton>
                 </div>
             </div>
             <div v-else class="space-y-2">
@@ -38,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { type GeoServerVectorTypeLayerDetail, type GeoserverLayerInfo, type GeoserverLayerListItem, useGeoserverStore } from "@store/geoserver";
 import { type GeoServerSourceParams, type LayerParams, type LayerStyleOptions, useMapStore } from "@store/map";
 import { isNullOrEmpty } from "../../../core/helpers/functions";
@@ -60,11 +64,41 @@ const cleanLayerName = computed(() => {
 })
 const geoserver = useGeoserverStore()
 const layerDetail = ref<GeoServerVectorTypeLayerDetail>()
+const isSummaryExpanded = ref(false)
+const isSummaryTruncated = ref(false)
+const summaryElement = ref<HTMLElement>()
+const descriptionText = computed(() => layerDetail.value?.featureType.abstract ?? "")
+const hasDescription = computed(() => descriptionText.value.length > 0)
+const hasKeywords = computed(() => (layerDetail.value?.featureType.keywords.string.length ?? 0) > 0)
 geoserver.getLayerDetail(props.layerInformation.resource.href).then((detail) => {
     layerDetail.value = detail as GeoServerVectorTypeLayerDetail
 }).catch(err => {
     toast.add({ severity: "error", summary: "Error", detail: err, life: 3000 });
 })
+
+onMounted(() => {
+    window.addEventListener("resize", updateSummaryTruncation)
+})
+
+onBeforeUnmount(() => {
+    window.removeEventListener("resize", updateSummaryTruncation)
+})
+
+watch(descriptionText, () => {
+    isSummaryExpanded.value = false
+    void nextTick(updateSummaryTruncation)
+})
+
+async function updateSummaryTruncation(): Promise<void> {
+    await nextTick()
+    const element = summaryElement.value
+    if (element === undefined) {
+        isSummaryTruncated.value = false
+        return
+    }
+
+    isSummaryTruncated.value = element.scrollHeight > element.clientHeight + 1
+}
 
 const dataType = computed(() => {
     if (!isNullOrEmpty(layerDetail.value)) {

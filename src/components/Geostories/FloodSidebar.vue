@@ -36,7 +36,6 @@
 // Components
 import BaseSlideoverSidebarComponent from "@components/Base/BaseSlideoverSidebarComponent.vue";
 
-import { SidebarControl } from "@helpers/sidebarControl";
 import { type GeoServerSourceParams, type LayerParams, useMapStore } from "@store/map";
 import { RouterLink } from "vue-router";
 import { type FeatureCollection } from "@helpers/geojson";
@@ -50,12 +49,6 @@ const mapStore = useMapStore()
 const geoserver = useGeoserverStore()
 const toast = useToast()
 const sidebarID = "floodScenarios"
-
-const iconElement = document.createElement("span")
-iconElement.classList.add("material-icons-outlined")
-iconElement.textContent = "water"
-const sidebarControl = new SidebarControl("", sidebarID, document.createElement("div"), iconElement, 3, { slideover: true })
-mapStore.map.addControl(sidebarControl, "top-left")
 
 function startScenario(scenario: Scenario): void{
     mapStore.resetMapData(false).then(()=>{

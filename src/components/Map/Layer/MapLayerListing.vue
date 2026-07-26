@@ -16,8 +16,18 @@
                 </template>
             </draggable>
         </div>
-        <div class="w-full" v-else>
-            <UAlert class="w-full" color="info" variant="soft" description="There is no layer on map" />
+        <div class="w-full p-3" v-else>
+            <UEmpty
+                icon="i-lucide-layers"
+                title="No layers on map"
+                description="Add a layer from datastores to start working with map layers."
+                :ui="{ root: 'py-8', description: 'text-sm' }"
+            />
+            <div class="flex justify-center pt-3">
+                <UButton size="sm" icon="i-lucide-database" @click="openSlideoverSidebar('workspaceListing')">
+                    Open datastores
+                </UButton>
+            </div>
         </div>
     </BaseSlideoverSidebarComponent>
 </template>
@@ -30,17 +40,12 @@ import BaseSlideoverSidebarComponent from "../../Base/BaseSlideoverSidebarCompon
 import MapLayerListingItem from "./MapLayerListingItem.vue";
 // JS imports
 import { useMapStore } from "@store/map";
-import { SidebarControl } from "@helpers/sidebarControl"
+import { openSlideoverSidebar } from "@helpers/slideoverSidebarRegistry";
 
 const mapStore = useMapStore()
 const visibleLayers = computed(() => mapStore.getReorderableVisibleLayersTopToBottom())
 
 const sidebarID = "maplayerListing"
-const iconElement = document.createElement("span")
-iconElement.classList.add("material-icons-outlined")
-iconElement.textContent = "layers"
-const sidebarControl = new SidebarControl("", sidebarID, document.createElement("div"), iconElement, 0, { slideover: true })
-mapStore.map.addControl(sidebarControl, "top-right")
 
 interface DraggableChangeEvent {
     moved?: {
