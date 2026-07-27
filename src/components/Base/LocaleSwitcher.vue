@@ -12,7 +12,7 @@ const items = computed(() => SUPPORTED_LOCALES.map((code) => ({
 
 const selected = computed({
     get: () => locale.value,
-    set: (value: SupportedLocale) => setLocale(value),
+    set: (value: SupportedLocale) => { setLocale(value); },
 });
 </script>
 
