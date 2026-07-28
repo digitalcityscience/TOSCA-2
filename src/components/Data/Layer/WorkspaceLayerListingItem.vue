@@ -9,10 +9,10 @@
         </UCard>
         <UAlert v-else-if="loadError" class="w-full" color="error" variant="soft" :description="loadError" />
         <div v-else-if="props.item && layerInformation?.type ==='RASTER'">
-            <WorkspaceRasterLayerListingItem :item="props.item" :workspace="props.workspace" :layerInformation="layerInformation"></WorkspaceRasterLayerListingItem>
+            <WorkspaceRasterLayerListingItem :item="props.item" :workspace="props.workspace.name" :layerInformation="layerInformation"></WorkspaceRasterLayerListingItem>
         </div>
         <div v-else-if="props.item && layerInformation?.type ==='VECTOR'">
-            <WorkspaceVectorLayerListingItem :item="props.item" :workspace="props.workspace" :layerInformation="layerInformation" :layerStyling="layerStyling"></WorkspaceVectorLayerListingItem>
+            <WorkspaceVectorLayerListingItem :item="props.item" :workspace="props.workspace.name" :layerInformation="layerInformation" :layerStyling="layerStyling"></WorkspaceVectorLayerListingItem>
         </div>
         <UAlert v-else class="w-full" color="info" variant="soft" :description="t('workspace.layerItem.noInformation')" />
     </div>
@@ -21,15 +21,21 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { type GeoserverLayerInfo, type GeoserverLayerListItem, useGeoserverStore } from "@store/geoserver";
+import {
+    type GeoserverLayerInfo,
+    type GeoserverLayerListItem,
+    type WorkspaceListItem,
+    useGeoserverStore,
+} from "@store/geoserver";
 import { type LayerStyleOptions } from "@store/map";
 import { useToast } from "@helpers/toast";
+import { reportDeveloperError } from "@helpers/userFacingError";
 import WorkspaceRasterLayerListingItem from "./WorkspaceRasterLayerListingItem.vue";
 import WorkspaceVectorLayerListingItem from "./WorkspaceVectorLayerListingItem.vue";
 
 export interface Props {
     item: GeoserverLayerListItem
-    workspace: string
+    workspace: WorkspaceListItem
 }
 export interface LayerStylingPaint {
     paint: object
@@ -47,13 +53,9 @@ async function loadLayerInformation(): Promise<void> {
     try {
         const response = await geoserver.getLayerInformation(props.item, props.workspace)
         layerInformation.value = response.layer
-        // Currently we are just picking styles which has include mbstyle in name. Further optimization needed after some period
-        // TODO: remove mbstyle selector
-        if (response.layer.defaultStyle.href.includes("mbstyle")){
-            const regex = /\.json\b/;
-            const url = response.layer.defaultStyle.href.replace(regex, ".mbstyle")
-            const style = await geoserver.getLayerStyling(url)
-            if (style.layers.length > 0){
+        try {
+            const style = await geoserver.getLayerStyling(response.layer.defaultStyle.href)
+            if (Array.isArray(style?.layers) && style.layers.length > 0){
                 const obj: LayerStyleOptions = {
                     paint:{ ...style.layers[0].paint }
                 }
@@ -68,6 +70,11 @@ async function loadLayerInformation(): Promise<void> {
                 }
                 layerStyling.value = obj
             }
+        } catch (styleError) {
+            reportDeveloperError(
+                `Loading optional style for ${props.workspace.name}:${props.item.name}`,
+                styleError
+            )
         }
     } catch (err) {
         loadError.value = t("workspace.layerItem.loadError")

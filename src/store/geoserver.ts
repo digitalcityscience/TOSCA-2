@@ -2,7 +2,28 @@
 /* eslint "no-tabs": "off" */
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
+import {
+  fetchBackendJson,
+  getBackendRootUrl,
+  resolveBackendUrl,
+} from "./backend";
+
+const CATALOG_API_PATH = "/api/v1/catalog";
+
+export interface CatalogProvider {
+  id: string;
+  name: string;
+  base_url: string;
+  engine_type?: string;
+}
+
+export interface CatalogResourceContext {
+  provider: CatalogProvider;
+  workspace_name: string;
+}
+
 export interface GeoServerVectorTypeLayerDetail {
+  catalog?: CatalogResourceContext;
   featureType: {
     name: string;
     nativeName: string;
@@ -84,6 +105,7 @@ export type CoverageMetadataEntry =
   | CoverageMetadataElevationEntry
   | CoverageMetadataStringEntry;
 export interface GeoserverRasterTypeLayerDetail {
+  catalog?: CatalogResourceContext;
   coverage: {
     name: string,
     nativeName: string,
@@ -193,10 +215,14 @@ export interface GeoserverLayerInfo {
 }
 export interface GeoserverLayerInfoResponse {
   layer: GeoserverLayerInfo;
+  provider?: CatalogProvider;
+  workspace?: WorkspaceListItem;
 }
 export interface GeoserverLayerListItem {
   name: string;
   href: string;
+  provider_id?: string;
+  workspace_name?: string;
 }
 export interface GeoserverLayerListResponse {
   layers: {
@@ -206,11 +232,59 @@ export interface GeoserverLayerListResponse {
 export interface WorkspaceListItem {
   name: string;
   href: string;
+  provider: CatalogProvider;
 }
 export interface WorkspaceListResponse {
   workspaces: {
     workspace: WorkspaceListItem[];
   };
+}
+
+export function buildCatalogProvidersUrl(): URL {
+  return new URL(`${CATALOG_API_PATH}/providers`, getBackendRootUrl());
+}
+
+export function buildCatalogWorkspacesUrl(providerId: string): URL {
+  return new URL(
+    `${CATALOG_API_PATH}/providers/${encodeURIComponent(providerId)}/workspaces`,
+    getBackendRootUrl()
+  );
+}
+
+export function buildCatalogLayersUrl(
+  providerId: string,
+  workspaceName: string
+): URL {
+  return new URL(
+    `${CATALOG_API_PATH}/providers/${encodeURIComponent(providerId)}` +
+      `/workspaces/${encodeURIComponent(workspaceName)}/layers`,
+    getBackendRootUrl()
+  );
+}
+
+export function buildCatalogLayerUrl(
+  providerId: string,
+  workspaceName: string,
+  layerName: string
+): URL {
+  return new URL(
+    `${buildCatalogLayersUrl(providerId, workspaceName).pathname}` +
+      `/${encodeURIComponent(layerName)}`,
+    getBackendRootUrl()
+  );
+}
+
+export function buildCatalogResourceUrl(
+  providerId: string,
+  workspaceName: string,
+  layerName: string
+): URL {
+  return new URL(
+    `${CATALOG_API_PATH}/providers/${encodeURIComponent(providerId)}` +
+      `/workspaces/${encodeURIComponent(workspaceName)}` +
+      `/resources/${encodeURIComponent(layerName)}`,
+    getBackendRootUrl()
+  );
 }
 export interface WmsTimeDimension {
   /** Discrete time values from the Extent element, in source order. */
@@ -266,7 +340,11 @@ export interface WmsCapabilities {
  * advertise a LegendURL for the layer's default style. GeoServer renders a
  * PNG legend swatch from this endpoint without needing a style name.
  */
-export function buildWmsLegendUrl(workspace: string, layerName: string): string {
+export function buildWmsLegendUrl(
+  workspace: string,
+  layerName: string,
+  providerBaseUrl = String(import.meta.env.VITE_GEOSERVER_BASE_URL ?? "")
+): string {
   const params = new URLSearchParams({
     REQUEST: "GetLegendGraphic",
     VERSION: "1.0.0",
@@ -278,7 +356,7 @@ export function buildWmsLegendUrl(workspace: string, layerName: string): string 
     // transparent so any residual blank canvas blends into the wrapper.
     LEGEND_OPTIONS: "fontAntiAliasing:true;fontSize:11;forceLabels:on;hideEmptyRules:true",
   });
-  return `${import.meta.env.VITE_GEOSERVER_BASE_URL}/${workspace}/wms?${params.toString()}`;
+  return `${providerBaseUrl.replace(/\/+$/, "")}/${workspace}/wms?${params.toString()}`;
 }
 /**
  * If `url` already points at a GeoServer GetLegendGraphic endpoint, merge in
@@ -315,7 +393,8 @@ export function enhanceLegendUrl(url: string): string {
 export async function resolveLegendUrl(
   fetchCapabilities: (workspace: string) => Promise<WmsCapabilities>,
   workspace: string,
-  layerName: string
+  layerName: string,
+  providerBaseUrl?: string
 ): Promise<string> {
   try {
     const caps = await fetchCapabilities(workspace);
@@ -325,7 +404,7 @@ export async function resolveLegendUrl(
   } catch {
     // fall through to the constructed URL
   }
-  return buildWmsLegendUrl(workspace, layerName);
+  return buildWmsLegendUrl(workspace, layerName, providerBaseUrl);
 }
 /**
  * Hard fallback bounds for the time slider when neither the coverage metadata
@@ -527,109 +606,235 @@ export function parseWmsCapabilities(
 }
 export const useGeoserverStore = defineStore("geoserver", () => {
   const pointData = ref();
-  const auth = btoa(
-    `${
-      import.meta.env.VITE_GEOSERVER_USERNAME +
-      ":" +
-      import.meta.env.VITE_GEOSERVER_PASSWORD
-    }`
-  );
-  const layerList = ref<GeoserverLayerListItem[]>();
-  const workspaceList = ref<WorkspaceListItem[]>();
+  const providers = ref<CatalogProvider[]>([]);
+  const layerList = ref<GeoserverLayerListItem[]>([]);
+  const workspaceList = ref<WorkspaceListItem[]>([]);
+  const workspacesByProvider = ref<Record<string, WorkspaceListItem[]>>({});
+  const loadingCatalog = ref(false);
+  const catalogError = ref("");
   const wmsCapabilitiesCache = new Map<string, Promise<WmsCapabilities>>();
+  let catalogLoadPromise: Promise<WorkspaceListResponse> | undefined;
+
+  async function getProviderList(force = false): Promise<CatalogProvider[]> {
+    if (!force && providers.value.length > 0) {
+      return providers.value;
+    }
+
+    const response = await fetchBackendJson<CatalogProvider[]>(
+      buildCatalogProvidersUrl(),
+      "Catalog providers"
+    );
+    providers.value = response.map((provider) => ({
+      ...provider,
+      base_url: provider.base_url.replace(/\/+$/, ""),
+    }));
+    return providers.value;
+  }
+
   /**
-   * Retrieves a list of layers from GeoServer.
-   * If a workspace name is provided, it returns the layers from that specific workspace.
+   * Retrieves catalog workspaces provider-first and flattens them for the
+   * existing workspace browser while retaining provider ownership.
    *
-   * @param workspaceName - Optional workspace name to filter the layers.
-   * @returns A Promise resolving to a GeoServerLayerListResponse containing the list of layers.
+   * @param force - Refetch providers and workspaces even when cached.
    */
-  async function getLayerList(
-    workspaceName?: string
-  ): Promise<GeoserverLayerListResponse> {
-    let url = new URL(`${import.meta.env.VITE_GEOSERVER_REST_URL}/layers`);
-    /* eslint-disable */
-    if (workspaceName) {
-      url = new URL(
-        `${
-          import.meta.env.VITE_GEOSERVER_REST_URL
-        }/workspaces/${workspaceName}/layers`
+  async function getWorkspaceList(force = false): Promise<WorkspaceListResponse> {
+    if (!force && workspaceList.value.length > 0) {
+      return { workspaces: { workspace: workspaceList.value } };
+    }
+
+    if (!force && catalogLoadPromise !== undefined) {
+      return await catalogLoadPromise;
+    }
+
+    const request = (async (): Promise<WorkspaceListResponse> => {
+      loadingCatalog.value = true;
+      catalogError.value = "";
+      try {
+        const catalogProviders = await getProviderList(force);
+        const providerWorkspaceEntries = await Promise.all(
+          catalogProviders.map(async (provider) => {
+            const response = await fetchBackendJson<{
+              workspaces: { workspace?: Array<Omit<WorkspaceListItem, "provider">> }
+            }>(
+              buildCatalogWorkspacesUrl(provider.id),
+              `Catalog workspaces for ${provider.name}`
+            );
+            const workspaces = (response.workspaces.workspace ?? []).map((workspace) => ({
+              ...workspace,
+              provider,
+            }));
+            return [provider.id, workspaces] as const;
+          })
+        );
+
+        workspacesByProvider.value = Object.fromEntries(providerWorkspaceEntries);
+        workspaceList.value = providerWorkspaceEntries.flatMap(([, workspaces]) => workspaces);
+        return { workspaces: { workspace: workspaceList.value } };
+      } catch (error) {
+        catalogError.value = "The data catalog could not be loaded.";
+        throw error;
+      } finally {
+        loadingCatalog.value = false;
+      }
+    })();
+
+    catalogLoadPromise = request;
+    try {
+      return await request;
+    } finally {
+      if (catalogLoadPromise === request) {
+        catalogLoadPromise = undefined;
+      }
+    }
+  }
+
+  async function resolveWorkspace(
+    workspace: WorkspaceListItem | string,
+    providerId?: string
+  ): Promise<WorkspaceListItem> {
+    if (typeof workspace !== "string") {
+      return workspace;
+    }
+
+    if (workspaceList.value.length === 0) {
+      await getWorkspaceList();
+    }
+
+    const matches = workspaceList.value.filter((item) => {
+      return item.name === workspace &&
+        (providerId === undefined || item.provider.id === providerId);
+    });
+
+    if (matches.length === 0) {
+      throw new Error(`Workspace "${workspace}" was not found in the catalog.`);
+    }
+    if (matches.length > 1 && providerId === undefined) {
+      throw new Error(
+        `Workspace "${workspace}" exists in multiple providers; a provider id is required.`
       );
     }
-    const response = await fetch(url, {
-      method: "GET",
-      redirect: "follow",
-      headers: new Headers({
-        "Content-Type": "application/json",
-        Authorization: `Basic ${auth}`,
-      }),
-    });
-    return await response.json();
+    return matches[0];
   }
+
+  async function getProviderBaseUrlForWorkspace(
+    workspace: WorkspaceListItem | string,
+    providerId?: string
+  ): Promise<string> {
+    return (await resolveWorkspace(workspace, providerId)).provider.base_url;
+  }
+
   /**
-   * Retrieves a list of all workspaces the user has access to in GeoServer.
-   *
-   * @returns A Promise resolving to a WorkspaceListResponse containing the list of workspaces.
+   * Retrieves layers from the Django catalog for one provider workspace.
    */
-  async function getWorkspaceList(): Promise<WorkspaceListResponse> {
-    const url = new URL(
-      `${import.meta.env.VITE_GEOSERVER_REST_URL}/workspaces`
+  async function getLayerList(
+    workspace?: WorkspaceListItem | string,
+    providerId?: string
+  ): Promise<GeoserverLayerListResponse> {
+    if (workspace === undefined) {
+      const catalogProviders = await getProviderList();
+      const responses = await Promise.all(
+        catalogProviders.map(async (provider) => {
+          const url = new URL(
+            `${CATALOG_API_PATH}/providers/${encodeURIComponent(provider.id)}/layers`,
+            getBackendRootUrl()
+          );
+          const response = await fetchBackendJson<GeoserverLayerListResponse>(
+            url,
+            `Catalog layers for ${provider.name}`
+          );
+          return (response.layers.layer ?? []).map((layer) => ({
+            ...layer,
+            provider_id: provider.id,
+            workspace_name: workspaceNameFromCatalogUrl(layer.href),
+          }));
+        })
+      );
+      layerList.value = responses.flat();
+      return { layers: { layer: layerList.value } };
+    }
+
+    const catalogWorkspace = await resolveWorkspace(workspace, providerId);
+    const response = await fetchBackendJson<GeoserverLayerListResponse>(
+      buildCatalogLayersUrl(catalogWorkspace.provider.id, catalogWorkspace.name),
+      `Catalog layers for ${catalogWorkspace.name}`
     );
-    const response = await fetch(url, {
-      method: "GET",
-      redirect: "follow",
-      headers: new Headers({
-        "Content-Type": "application/json",
-        Authorization: `Basic ${auth}`,
-      }),
-    });
-    return await response.json();
+    const layers = (response.layers.layer ?? []).map((layer) => ({
+      ...layer,
+      provider_id: catalogWorkspace.provider.id,
+      workspace_name: catalogWorkspace.name,
+    }));
+    layerList.value = layers;
+    return { layers: { layer: layers } };
   }
+
   /**
-   * Retrieves information about a specific layer within a given workspace.
+   * Retrieves the catalog layer record for a provider workspace.
    *
    * @param layer - The layer for which to retrieve information.
    * @param workspace - The workspace containing the layer.
+   * @param providerId - Required only when a workspace name exists in multiple providers.
    * @returns A Promise resolving to a GeoserverLayerInfoResponse containing layer information.
    */
   async function getLayerInformation(
     layer: GeoserverLayerListItem,
-    workspace: string
+    workspace: WorkspaceListItem | string,
+    providerId?: string
   ): Promise<GeoserverLayerInfoResponse> {
-    const url = new URL(
-      `${
-        import.meta.env.VITE_GEOSERVER_REST_URL
-      }/workspaces/${workspace}/layers/${layer.name}`
+    const inferredProviderId = providerId ??
+      layer.provider_id ??
+      await providerIdFromPublishedUrl(layer.href, workspace);
+    const catalogWorkspace = await resolveWorkspace(
+      workspace,
+      inferredProviderId
     );
-    const response = await fetch(url, {
-      method: "GET",
-      redirect: "follow",
-      headers: new Headers({
-        "Content-Type": "application/json",
-        Authorization: `Basic ${auth}`,
-      }),
-    });
-    return await response.json();
+    const response = await fetchBackendJson<GeoserverLayerInfoResponse>(
+      buildCatalogLayerUrl(
+        catalogWorkspace.provider.id,
+        catalogWorkspace.name,
+        layer.name
+      ),
+      `Catalog layer ${catalogWorkspace.name}:${layer.name}`
+    );
+    return {
+      ...response,
+      provider: catalogWorkspace.provider,
+      workspace: catalogWorkspace,
+    };
   }
+
   /**
-   * Retrieves detailed information about a specific vector or raster layer from GeoServer.
+   * Retrieves vector or raster resource details through the Django catalog.
    *
-   * @param url - The URL to the resource containing the layer details.
+   * @param url - Catalog resource URL returned by the layer record.
    * @returns A Promise resolving to a GeoServerVectorTypeLayerDetail or GeoserverRasterTypeLayerDetail.
    */
   async function getLayerDetail(url: string): Promise<GeoServerVectorTypeLayerDetail|GeoserverRasterTypeLayerDetail> {
-    const response = await fetch(url, {
-      method: "GET",
-      redirect: "follow",
-      headers: new Headers({
-        "Content-Type": "application/json",
-        Authorization: `Basic ${auth}`,
-      }),
-    });
-    return await response.json();
+    const detail = await fetchBackendJson<
+      GeoServerVectorTypeLayerDetail | GeoserverRasterTypeLayerDetail
+    >(resolveBackendUrl(url), "Catalog layer resource");
+    const pathContext = catalogContextFromResourceUrl(url);
+    if (pathContext === undefined) {
+      return detail;
+    }
+
+    if (providers.value.length === 0) {
+      await getProviderList();
+    }
+    const provider = providers.value.find((item) => item.id === pathContext.providerId);
+    if (provider === undefined) {
+      return detail;
+    }
+    return {
+      ...detail,
+      catalog: {
+        provider,
+        workspace_name: pathContext.workspaceName,
+      },
+    };
   }
+
   /**
-   * Retrieves a GeoJSON layer source from GeoServer using the WMS service.
+   * Retrieves a GeoJSON layer source from the selected provider's WMS service.
    *
    * @param layer - The name of the layer to retrieve.
    * @param workspace - The name of the workspace containing the layer.
@@ -637,43 +842,68 @@ export const useGeoserverStore = defineStore("geoserver", () => {
    * @param cqlFilter - Optional CQL filter to apply to the data.
    * @returns A Promise resolving to the GeoJSON object containing the requested layer data.
    */
-  async function getGeoJSONLayerSource(layer: string, workspace: string, bbox?:string, cqlFilter?:string): Promise<any> {
-    const url = new URL(
-      `${import.meta.env.VITE_GEOSERVER_BASE_URL}/${workspace}/wms?service=WMS&version=1.1.0&request=GetMap&layers=${workspace}:${layer}&bbox=${bbox ?? ""}&width=512&height=512&srs=EPSG:4326&format=geojson&CQL_FILTER=${cqlFilter ?? ""}&styles=`
+  async function getGeoJSONLayerSource(
+    layer: string,
+    workspace: string,
+    bbox?: string,
+    cqlFilter?: string,
+    providerId?: string
+  ): Promise<any> {
+    const providerBaseUrl = await getProviderBaseUrlForWorkspace(
+      workspace,
+      providerId
     );
-    console.log(url);
+    const url = new URL(
+      `${providerBaseUrl}/${workspace}/wms?service=WMS&version=1.1.0&request=GetMap&layers=${workspace}:${layer}&bbox=${bbox ?? ""}&width=512&height=512&srs=EPSG:4326&format=geojson&CQL_FILTER=${cqlFilter ?? ""}&styles=`
+    );
     const response = await fetch(url, {
       method: "GET",
       redirect: "follow",
       headers: new Headers({
-        "Content-Type": "application/geojson",
-        Authorization: `Basic ${auth}`,
-      }),
-    });
-    return await response.json();
-  }
-  /**
-   * Retrieves the layer's styling information from GeoServer.
-   *
-   * @param url - The URL to the style resource on GeoServer.
-   * @returns A Promise resolving to the style object for the layer.
-   */
-  async function getLayerStyling(url:string):Promise<any> {
-    const response = await fetch(url,{
-      method: "GET",
-      redirect: "follow",
-      headers: new Headers({
-        "Content-Type": "application/vnd.geoserver.mbstyle+json",
-        Authorization: `Basic ${auth}`,
+        Accept: "application/geo+json, application/json",
       }),
     });
     if (!response.ok) {
-      throw new Error("Failed to fetch layer styling.");
+      throw new Error(
+        `GeoJSON layer request failed (${response.status} ${response.statusText}).`
+      );
     }
-    return response.json();
+    return await response.json();
   }
+
   /**
-   * Fetches and parses the WMS GetCapabilities document for a workspace.
+   * Retrieves JSON styling through the Django catalog when available.
+   * SLD is a valid catalog style format, but it cannot be applied directly as
+   * MapLibre JSON styling, so SLD responses intentionally resolve undefined.
+   *
+   * @param url - The catalog style resource URL.
+   * @returns The JSON style, or undefined when the style uses another format.
+   */
+  async function getLayerStyling(url:string):Promise<any | undefined> {
+    const response = await fetch(resolveBackendUrl(url), {
+      method: "GET",
+      redirect: "follow",
+      headers: new Headers({
+        Accept: "*/*",
+      }),
+    });
+    if (response.status === 400 || response.status === 406) {
+      return undefined;
+    }
+    if (!response.ok) {
+      throw new Error(
+        `Catalog style request failed (${response.status} ${response.statusText}).`
+      );
+    }
+    const contentType = response.headers.get("Content-Type")?.toLowerCase() ?? "";
+    if (!contentType.includes("json")) {
+      return undefined;
+    }
+    return await response.json();
+  }
+
+  /**
+   * Fetches and parses WMS capabilities from the workspace's provider.
    * Result is cached per workspace for the lifetime of the store, since
    * GetCapabilities is a large document and rarely changes during a session.
    * Pass `force: true` to bypass and refresh the cache.
@@ -684,22 +914,22 @@ export const useGeoserverStore = defineStore("geoserver", () => {
    */
   async function fetchWmsCapabilities(
     workspace: string,
-    force = false
+    force = false,
+    providerId?: string
   ): Promise<WmsCapabilities> {
+    const providerBaseUrl = await getProviderBaseUrlForWorkspace(workspace, providerId);
+    const cacheKey = `${providerBaseUrl}/${workspace}`;
     if (!force) {
-      const cached = wmsCapabilitiesCache.get(workspace);
+      const cached = wmsCapabilitiesCache.get(cacheKey);
       if (cached !== undefined) return await cached;
     }
     const url = new URL(
-      `${import.meta.env.VITE_GEOSERVER_BASE_URL}/${workspace}/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities`
+      `${providerBaseUrl}/${workspace}/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities`
     );
     const promise = (async (): Promise<WmsCapabilities> => {
       const response = await fetch(url, {
         method: "GET",
         redirect: "follow",
-        headers: new Headers({
-          Authorization: `Basic ${auth}`,
-        }),
       });
       if (!response.ok) {
         throw new Error(
@@ -709,18 +939,79 @@ export const useGeoserverStore = defineStore("geoserver", () => {
       const text = await response.text();
       return parseWmsCapabilities(text, workspace);
     })();
-    promise.catch(() => wmsCapabilitiesCache.delete(workspace));
-    wmsCapabilitiesCache.set(workspace, promise);
+    promise.catch(() => wmsCapabilitiesCache.delete(cacheKey));
+    wmsCapabilitiesCache.set(cacheKey, promise);
     return await promise;
   }
+
+  function workspaceNameFromCatalogUrl(url: string): string | undefined {
+    try {
+      const match = new URL(url, getBackendRootUrl()).pathname.match(
+        /\/workspaces\/([^/]+)\/layers(?:\/|$)/
+      );
+      return match === null ? undefined : decodeURIComponent(match[1]);
+    } catch {
+      return undefined;
+    }
+  }
+
+  function catalogContextFromResourceUrl(url: string): {
+    providerId: string
+    workspaceName: string
+  } | undefined {
+    try {
+      const match = new URL(url, getBackendRootUrl()).pathname.match(
+        /\/providers\/([^/]+)\/workspaces\/([^/]+)\/resources(?:\/|$)/
+      );
+      if (match === null) {
+        return undefined;
+      }
+      return {
+        providerId: decodeURIComponent(match[1]),
+        workspaceName: decodeURIComponent(match[2]),
+      };
+    } catch {
+      return undefined;
+    }
+  }
+
+  async function providerIdFromPublishedUrl(
+    publishedUrl: string,
+    workspace: WorkspaceListItem | string
+  ): Promise<string | undefined> {
+    if (publishedUrl === "" || typeof workspace !== "string") {
+      return undefined;
+    }
+    if (workspaceList.value.length === 0) {
+      await getWorkspaceList();
+    }
+    const matchingProviders = workspaceList.value
+      .filter((item) => item.name === workspace)
+      .map((item) => item.provider)
+      .filter((provider) => {
+        return publishedUrl === provider.base_url ||
+          publishedUrl.startsWith(`${provider.base_url}/`) ||
+          publishedUrl.startsWith(`${provider.base_url}?`);
+      });
+    return matchingProviders.length === 1
+      ? matchingProviders[0].id
+      : undefined;
+  }
+
   return {
     pointData,
+    providers,
     layerList,
     workspaceList,
+    workspacesByProvider,
+    loadingCatalog,
+    catalogError,
+    getProviderList,
     getLayerList,
     getWorkspaceList,
     getLayerInformation,
     getLayerDetail,
+    getProviderBaseUrlForWorkspace,
     getGeoJSONLayerSource,
     getLayerStyling,
     fetchWmsCapabilities

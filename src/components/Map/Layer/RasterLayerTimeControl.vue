@@ -105,7 +105,11 @@ async function load(): Promise<void> {
     error.value = undefined
     try {
         const resolved = await resolveTimeDomain(
-            async (ws) => await geoserver.fetchWmsCapabilities(ws),
+            async (ws) => await geoserver.fetchWmsCapabilities(
+                ws,
+                false,
+                details.catalog?.provider.id
+            ),
             props.layer.workspaceName,
             details.coverage.name,
             details.coverage

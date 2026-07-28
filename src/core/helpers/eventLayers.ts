@@ -74,7 +74,7 @@ export async function loadEventLayersOnMap(
 
         try {
             const response = await geoserverStore.getLayerInformation(
-                { name: layerName, href: "" },
+                { name: layerName, href: item.layer.published_url },
                 workspaceName
             );
 

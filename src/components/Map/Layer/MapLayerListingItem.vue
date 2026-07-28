@@ -279,9 +279,14 @@ async function loadLegend(): Promise<void> {
     if (layerName === undefined || layerName === "") return
     try {
         legendUrl.value = await resolveLegendUrl(
-            async (ws) => await geoserver.fetchWmsCapabilities(ws),
+            async (ws) => await geoserver.fetchWmsCapabilities(
+                ws,
+                false,
+                details?.catalog?.provider.id
+            ),
             props.layer.workspaceName,
-            layerName
+            layerName,
+            details?.catalog?.provider.base_url
         )
     } catch (error) {
         console.error("Could not resolve legend URL", error)

@@ -115,7 +115,11 @@ async function add2Map(withTime: boolean): Promise<void> {
     if (withTime && hasTimeDimension.value) {
         try {
             const domain = await resolveTimeDomain(
-                async (ws) => await geoserver.fetchWmsCapabilities(ws),
+                async (ws) => await geoserver.fetchWmsCapabilities(
+                    ws,
+                    false,
+                    layerDetail.value?.catalog?.provider.id
+                ),
                 props.workspace,
                 layerDetail.value!.coverage.name,
                 layerDetail.value!.coverage

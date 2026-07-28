@@ -12,16 +12,9 @@ function normalizeRootUrl(value: string): string {
     );
 }
 
-export function getBackendRootUrl(): string {
+function getConfiguredBackendRootUrl(): string {
     const backendRoot = normalizeRootUrl(String(import.meta.env.VITE_BACKEND_ROOT_URL ?? ""));
     if (backendRoot !== "") {
-        if (
-            import.meta.env.DEV &&
-            import.meta.env.MODE !== "test" &&
-            typeof window !== "undefined"
-        ) {
-            return trimTrailingSlash(window.location.origin);
-        }
         return backendRoot;
     }
 
@@ -30,11 +23,47 @@ export function getBackendRootUrl(): string {
         return geonodeRestUrl.replace(/\/api$/, "");
     }
 
-    return trimTrailingSlash(window.location.origin);
+    return "";
+}
+
+function usesDevelopmentProxy(): boolean {
+    return import.meta.env.DEV &&
+        import.meta.env.MODE !== "test" &&
+        typeof window !== "undefined";
+}
+
+export function getBackendRootUrl(): string {
+    const configuredRoot = getConfiguredBackendRootUrl();
+    if (configuredRoot !== "") {
+        return usesDevelopmentProxy()
+            ? trimTrailingSlash(window.location.origin)
+            : configuredRoot;
+    }
+
+    return typeof window === "undefined"
+        ? ""
+        : trimTrailingSlash(window.location.origin);
 }
 
 export function resolveBackendUrl(urlOrPath: string): URL {
-    return new URL(urlOrPath, getBackendRootUrl());
+    const configuredRoot = getConfiguredBackendRootUrl();
+    const resolvedUrl = new URL(
+        urlOrPath,
+        configuredRoot === "" ? getBackendRootUrl() : configuredRoot
+    );
+
+    if (
+        usesDevelopmentProxy() &&
+        configuredRoot !== "" &&
+        resolvedUrl.origin === new URL(configuredRoot).origin
+    ) {
+        return new URL(
+            `${resolvedUrl.pathname}${resolvedUrl.search}${resolvedUrl.hash}`,
+            getBackendRootUrl()
+        );
+    }
+
+    return resolvedUrl;
 }
 
 export function resolveBackendMediaUrl(url?: string | null): string | undefined {
