@@ -5,7 +5,11 @@
             <USkeleton class="h-24 w-full rounded-md" />
         </div>
         <UAlert v-else-if="loadError" class="w-full" color="error" variant="soft" :description="loadError" />
-        <WorkspaceLayerListing v-else :list="layerList" :workspaceName="props.workspace.name"></WorkspaceLayerListing>
+        <WorkspaceLayerListing
+            v-else
+            :list="layerList"
+            :workspace="props.workspace"
+        />
     </div>
 </template>
 
@@ -28,7 +32,7 @@ const layerList = ref<GeoserverLayerListItem[]>()
 const isLoading = ref(true)
 const loadError = ref<string>()
 onMounted(() => {
-    geoserver.getLayerList(props.workspace.name).then((response) => {
+    geoserver.getLayerList(props.workspace).then((response) => {
         layerList.value = response.layers.layer ?? []
     }).catch(err => {
         loadError.value = t("workspace.listingItem.loadError")

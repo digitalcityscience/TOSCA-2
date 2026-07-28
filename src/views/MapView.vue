@@ -19,6 +19,7 @@ import { defineAsyncComponent, onMounted } from "vue";
 import { useGeoserverStore } from "../store/geoserver";
 import MapContainer from "@components/Map/MapContainer.vue";
 import MapSideFrame from "@components/Map/MapSideFrame.vue";
+import { reportDeveloperError } from "@helpers/userFacingError";
 const WorkspaceListing = defineAsyncComponent(async () => await import("@components/Data/Workspace/WorkspaceListing.vue"));
 const MapLayerListing = defineAsyncComponent(async () => await import("@components/Map/Layer/MapLayerListing.vue"));
 const ToolboxSidebar = defineAsyncComponent(async () => await import("@components/Map/ToolboxSidebar.vue"))
@@ -26,9 +27,9 @@ const FloodSidebar = defineAsyncComponent(async () => await import("@components/
 const GQGeostory = defineAsyncComponent(async () => await import("@components/Geostories/GQGeostory.vue"))
 const geoserverStore = useGeoserverStore()
 onMounted(()=>{
-    geoserverStore.getWorkspaceList().then((data)=>{
-        geoserverStore.workspaceList = data.workspaces.workspace
-    }).catch((error)=>{ console.error(error) })
+    geoserverStore.getWorkspaceList().catch((error) => {
+        reportDeveloperError("Loading catalog providers and workspaces", error)
+    })
 })
 </script>
 

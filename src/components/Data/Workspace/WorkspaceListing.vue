@@ -48,8 +48,8 @@ const props = defineProps<Props>()
 const sidebarID = "workspaceListing"
 const workspaceAccordionItems = computed(() => {
     return props.workspaces?.map((workspace) => ({
-        label: workspace.name,
-        value: workspace.name,
+        label: `${workspace.provider.name} · ${workspace.name}`,
+        value: `${workspace.provider.id}:${workspace.name}`,
         workspace,
     })) ?? []
 })
