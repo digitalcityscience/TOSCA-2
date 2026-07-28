@@ -28,6 +28,11 @@ export default defineConfig(({ mode }) => {
               base: "cursor-pointer justify-center",
             },
           },
+          select: {
+            slots: {
+              content: "z-[80]",
+            },
+          },
         },
       }),
       vueI18n({

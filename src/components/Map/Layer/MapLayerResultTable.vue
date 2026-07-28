@@ -8,21 +8,31 @@
                 <UButton class="w-full" v-if="tableData" size="sm" @click="isOpen = true">{{ t('map.resultTable.openTable') }}</UButton>
             </div>
         </div>
-        <UModal v-model:open="isOpen" :ui="{ content: 'w-[calc(100vw-200px)] max-w-[calc(100vw-200px)]' }">
+        <UModal
+            v-model:open="isOpen"
+            :ui="{
+                overlay: 'z-[70]',
+                content: 'z-[70] h-[calc(100dvh-2rem)] sm:h-[calc(100dvh-4rem)] w-[calc(100vw-200px)] max-w-[calc(100vw-200px)]',
+                body: 'flex min-h-0 flex-1 flex-col overflow-hidden p-4 sm:p-6',
+                footer: 'shrink-0 justify-end',
+            }"
+        >
             <template #body>
-            <div class="w-full">
-                <div v-if="tableData !== undefined">
-                    <div v-if="tableData?.features.length > 0">
-                        <div class="w-full pb-2">
+                <div class="flex min-h-0 w-full flex-1 flex-col">
+                    <div
+                        v-if="tableData !== undefined && tableData.features.length > 0"
+                        class="flex min-h-0 flex-1 flex-col"
+                    >
+                        <div class="w-full shrink-0 pb-2">
                             <span>
                                 {{ t('map.resultTable.resultsCount', { count: tableData.features.length }) }}
                             </span>
                         </div>
-                        <div v-if="tableUsedFilters !== undefined" class="w-full flex flex-row pb-1">
+                        <div v-if="tableUsedFilters !== undefined" class="flex w-full shrink-0 flex-row pb-1">
                             <p>{{ t('map.resultTable.usedFilters') }}</p>
                         </div>
-                        <div v-if="tableUsedFilters !== undefined" class="w-full flex flex-row pb-2">
-                            <div v-if="tableUsedFilters.attributeFilters" class="flex flex-row">
+                        <div v-if="tableUsedFilters !== undefined" class="flex w-full shrink-0 flex-row flex-wrap pb-2">
+                            <div v-if="tableUsedFilters.attributeFilters" class="flex flex-row flex-wrap">
                                 <div v-for="(filter, index) in tableUsedFilters?.attributeFilters" :key="index">
                                     <span class="mx-1"
                                         v-if="index > 0 && index < tableUsedFilters.attributeFilters?.length">
@@ -45,10 +55,11 @@
                         <UTable
                             :data="paginatedResultRows"
                             :columns="resultColumns"
-                            class="w-full"
+                            sticky="header"
+                            class="min-h-0 w-full flex-1"
                             :ui="{ th: 'px-2 py-2', td: 'px-2 py-2' }"
                         />
-                        <div class="flex items-center justify-end gap-2 p-2">
+                        <div class="flex shrink-0 items-center justify-end gap-2 border-t border-muted p-2">
                             <USelect
                                 :model-value="tablePagination.pageSize"
                                 :items="pageSizeOptions"
@@ -64,22 +75,27 @@
                             />
                         </div>
                     </div>
-                    <div class="w-full flex justify-around" v-else>
+                    <div v-else class="flex min-h-0 flex-1 items-center justify-around">
                         <UAlert color="info" variant="soft" :description="t('map.resultTable.noResult')" />
                     </div>
                 </div>
-            </div>
-
-            <div class="w-full 2xl:flex 2xl:justify-between 2xl:grid-cols-none lg:grid lg:grid-cols-4 lg:gap-2 2xl:gap-0 p-1 ">
-                <div class="w-full lg:col-span-2">
+            </template>
+            <template #footer>
+                <div class="flex w-full items-center justify-end gap-2">
+                    <UInput
+                        v-model="fileName"
+                        class="w-full max-w-sm"
+                        type="text"
+                        :placeholder="t('map.resultTable.fileNamePlaceholder')"
+                    />
+                    <UButton
+                        size="sm"
+                        :disabled="fileName.length === 0"
+                        @click="downloadAsGeojson"
+                    >
+                        {{ t('map.resultTable.downloadAsGeojson') }}
+                    </UButton>
                 </div>
-                <div class="w-full flex lg:col-span-2">
-                    <UInput class="h-10 mr-4 ml-auto" type="text" v-model="fileName" :placeholder="t('map.resultTable.fileNamePlaceholder')" />
-                    <UButton @click="downloadAsGeojson" :disabled="fileName.length === 0" class="lg:w-full 2xl:w-auto"
-                        size="sm">{{ t('map.resultTable.downloadAsGeojson') }}</UButton>
-                </div>
-
-            </div>
             </template>
         </UModal>
     </div>
