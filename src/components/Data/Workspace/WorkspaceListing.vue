@@ -1,5 +1,9 @@
 <template>
-        <BaseSlideoverSidebarComponent :id="sidebarID" side="left" :collapsed=false>
+        <BaseSlideoverSidebarComponent
+            :id="sidebarID"
+            side="left"
+            :collapsed="route.meta.sidebar !== sidebarID"
+        >
             <template #header>
                 <p>{{ t('workspace.listing.title') }}</p>
         </template>
@@ -33,9 +37,8 @@ import WorkspaceListingItem from "./WorkspaceListingItem.vue";
 // JS-TS imports
 import { type WorkspaceListItem } from "@store/geoserver";
 
-import { openSlideoverSidebar } from "@helpers/slideoverSidebarRegistry";
 import { useRoute } from "vue-router";
-import { computed, onMounted, watch } from "vue";
+import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 export interface Props {
     workspaces: WorkspaceListItem[] | undefined
@@ -52,16 +55,4 @@ const workspaceAccordionItems = computed(() => {
 })
 
 const route = useRoute()
-onMounted(()=>{
-    setupSidebarVisibility()
-})
-watch(() => route.meta.sidebar, () => {
-    setupSidebarVisibility()
-})
-function setupSidebarVisibility(): void {
-    const routeMeta = route.meta;
-    if (routeMeta !== undefined && routeMeta.sidebar === sidebarID) {
-        openSlideoverSidebar(sidebarID)
-    }
-}
 </script>

@@ -35,6 +35,56 @@ const router = createRouter({
             }
         },
         {
+            path: "/events",
+            name: "events",
+            components: {
+                default: MapView,
+                events: async () => await import("../components/Events/EventsSidebar.vue")
+            },
+            children: [
+                {
+                    path: "",
+                    name: "event-list",
+                    component: async () => await import("../components/Events/EventList.vue")
+                },
+                {
+                    path: ":eventId",
+                    name: "event-detail",
+                    component: async () => await import("../components/Events/EventDetail.vue"),
+                    props: true
+                }
+            ],
+            meta: {
+                sidebar: "events",
+                sidebarPosition: "left"
+            }
+        },
+        {
+            path: "/geostories",
+            name: "geostories",
+            components: {
+                default: MapView,
+                geostories: async () => await import("../components/Geostories/GeoStorySidebar.vue")
+            },
+            children: [
+                {
+                    path: "",
+                    name: "geostory-list",
+                    component: async () => await import("../components/Geostories/GeoStoryList.vue")
+                },
+                {
+                    path: ":storyId",
+                    name: "geostory-detail",
+                    component: async () => await import("../components/Geostories/GeoStoryDetail.vue"),
+                    props: true
+                }
+            ],
+            meta: {
+                sidebar: "geostories",
+                sidebarPosition: "left"
+            }
+        },
+        {
             path: "/:catchAll(.*)",
             redirect: "/"
         }

@@ -67,6 +67,8 @@
       "floodScenarios": "Hochwasserszenarien",
       "airQualityScenarios": "Luftqualitätsszenarien",
       "participation": "Beteiligung",
+      "events": "Veranstaltungen",
+      "geostories": "GeoStories",
       "layers": "Ebenen"
     },
     "basemap": {

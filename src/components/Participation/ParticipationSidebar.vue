@@ -1,5 +1,9 @@
 <template>
-	<BaseSlideoverSidebarComponent :id="sidebarID" :side="sidebarPosition" :collapsed="true">
+	<BaseSlideoverSidebarComponent
+        :id="sidebarID"
+        :side="sidebarPosition"
+        :collapsed="route.meta.sidebar !== sidebarID"
+    >
 		<template #header>
 			<p>{{ t('participation.sidebar.title') }}</p>
 		</template>
@@ -16,9 +20,7 @@
 
 <script setup lang="ts">
 import BaseSlideoverSidebarComponent from "@components/Base/BaseSlideoverSidebarComponent.vue"
-import { openSlideoverSidebar } from "@helpers/slideoverSidebarRegistry";
 import { RouterLink, useRoute } from "vue-router";
-import { onMounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
 const { t } = useI18n();
@@ -26,18 +28,6 @@ const sidebarID = "participation"
 const sidebarPosition = "left"
 
 const route = useRoute()
-onMounted(()=>{
-    setupSidebarVisibility()
-})
-watch(() => route.meta.sidebar, () => {
-    setupSidebarVisibility()
-})
-function setupSidebarVisibility(): void {
-    const routeMeta = route.meta;
-    if (routeMeta !== undefined && routeMeta.sidebar === sidebarID) {
-        openSlideoverSidebar(sidebarID)
-    }
-}
 </script>
 
 <style scoped></style>
