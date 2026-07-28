@@ -69,6 +69,30 @@ const leftItems = computed<FrameItem[]>(() => [
             await router.push({ name: "participation-home" })
         },
     },
+    {
+        id: "events",
+        label: t("map.sideFrame.events"),
+        icon: "i-lucide-calendar-days",
+        action: async () => {
+            if (route.name === "event-list" || route.name === "event-detail") {
+                toggleSlideoverSidebar("events")
+                return
+            }
+            await router.push({ name: "event-list" })
+        },
+    },
+    {
+        id: "geostories",
+        label: t("map.sideFrame.geostories"),
+        icon: "i-lucide-book-open",
+        action: async () => {
+            if (route.name === "geostory-list" || route.name === "geostory-detail") {
+                toggleSlideoverSidebar("geostories")
+                return
+            }
+            await router.push({ name: "geostory-list" })
+        },
+    },
 ])
 
 const rightItems = computed<FrameItem[]>(() => [

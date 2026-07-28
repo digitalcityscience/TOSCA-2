@@ -14,6 +14,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@editorjs/code": "^2.9.4",
+    "@editorjs/delimiter": "^1.4.2",
+    "@editorjs/editorjs": "^2.31.6",
+    "@editorjs/header": "^2.8.9",
+    "@editorjs/image": "^2.10.3",
+    "@editorjs/list": "^2.0.9",
+    "@editorjs/quote": "^2.7.6",
     "@intlify/unplugin-vue-i18n": "^11.2.4",
     "@material-design-icons/font": "^0.14.13",
     "@nuxt/ui": "^4.10.0",
