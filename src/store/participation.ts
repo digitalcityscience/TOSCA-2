@@ -499,7 +499,7 @@ export const useParticipationStore = defineStore("participation", () => {
             });
             return await response.json();
         } catch (error) {
-            throw new Error(`Error fetching campaigns: ${String(error)}`);
+            throw new Error("Error fetching campaigns", { cause: error });
         }
     }
     /**
@@ -527,7 +527,7 @@ export const useParticipationStore = defineStore("participation", () => {
             });
             return await response.json();
         } catch (error) {
-            throw new Error(`Error fetching campaign detail: ${String(error)}`);
+            throw new Error("Error fetching campaign detail", { cause: error });
         }
     }
     async function sendFeedback(feed: PostRating|PostFeedback|PostFeedbackRating): Promise<void> {
