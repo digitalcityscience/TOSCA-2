@@ -23,8 +23,17 @@ cd your-repo
 ```
 
 ### **2. Install Dependencies**
+
+Use the Node.js and npm versions configured for the project:
+
 ```sh
-npm install
+nvm use
+```
+
+Then install the locked dependencies:
+
+```sh
+npm ci
 ```
 
 ### **3. Configure Environment Variables**
@@ -91,6 +100,11 @@ For API details, refer to the [API & Backend Configuration](https://github.com/d
 ## Testing
 This project uses **Vitest** for unit and integration testing.
 
+### **Run ESLint**
+```sh
+npm run lint
+```
+
 ### **Run Tests**
 ```sh
 npm run test
@@ -107,4 +121,3 @@ We welcome contributions! See the [Contributing Guide](https://github.com/digita
 
 ## License
 This project is licensed under the **MIT License**. See `LICENSE` for details.
-

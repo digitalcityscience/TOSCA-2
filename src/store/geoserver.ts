@@ -1,4 +1,4 @@
-/* eslint "@typescript-eslint/indent": "off" */
+/* eslint "@stylistic/indent": "off" */
 /* eslint "no-tabs": "off" */
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";

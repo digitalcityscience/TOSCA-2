@@ -18,8 +18,10 @@ const mapStore = useMapStore()
 const clickedLayers = ref()
 type PopupAnchor = "center" | "top" | "bottom" | "left" | "right" | "top-left" | "top-right" | "bottom-left" | "bottom-right";
 onMounted(() => {
-    const lng = Number(import.meta.env.VITE_MAP_START_LNG) ?? 9.993163
-    const lat = Number(import.meta.env.VITE_MAP_START_LAT) ?? 53.552123
+    const configuredLng = Number(import.meta.env.VITE_MAP_START_LNG)
+    const configuredLat = Number(import.meta.env.VITE_MAP_START_LAT)
+    const lng = Number.isNaN(configuredLng) ? 9.993163 : configuredLng
+    const lat = Number.isNaN(configuredLat) ? 53.552123 : configuredLat
     const zoom = Number.isNaN(Number(import.meta.env.VITE_MAP_START_ZOOM)) ? 15 : Number(import.meta.env.VITE_MAP_START_ZOOM);
     mapStore.map = new maplibre.Map({
         container: "map",
