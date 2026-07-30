@@ -8,6 +8,7 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+docs
 dist
 dist-ssr
 auto-imports.d.ts
@@ -17,6 +18,9 @@ components.d.ts
 .env.development
 .env.production
 # Editor directories and files
+.claude
+.codex
+.stitch
 .vscode/*
 !.vscode/extensions.json
 .idea
