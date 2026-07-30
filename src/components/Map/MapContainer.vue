@@ -108,6 +108,10 @@ onMounted(() => {
             }
         })
     }
+    // Add scale control to the map.
+    const scaleControl = new maplibre.ScaleControl()
+    mapStore.map.addControl(scaleControl, "bottom-right");
+
     // Add zoom controls to the map.
     const zoomControl = new maplibre.NavigationControl()
     mapStore.map.addControl(zoomControl, "bottom-right");
