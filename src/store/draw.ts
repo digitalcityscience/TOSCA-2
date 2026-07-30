@@ -86,7 +86,7 @@ export const useDrawStore = defineStore("draw", () => {
             });
         } catch (error) {
             console.error("Failed to initialize TerraDraw:", error);
-            throw new Error("TerraDraw initialization failed");
+            throw new Error("TerraDraw initialization failed", { cause: error });
         }
     }
     /**
