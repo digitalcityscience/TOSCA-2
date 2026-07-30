@@ -260,7 +260,7 @@ describe("catalog store", () => {
             { name: "roads", href: "" },
             "Shared"
         )).rejects.toThrow(
-            'Workspace "Shared" exists in multiple providers; a provider id is required.'
+            "Workspace \"Shared\" exists in multiple providers; a provider id is required."
         );
 
         await catalog.getLayerInformation(

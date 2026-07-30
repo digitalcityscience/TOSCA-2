@@ -78,12 +78,16 @@ geoserver.getLayerDetail(props.layerInformation.resource.href).then((detail) => 
     toast.add({ severity: "error", summary: t("toast.error"), detail: err, life: 3000 });
 })
 
+const handleResize = (): void => {
+    void updateSummaryTruncation()
+}
+
 onMounted(() => {
-    window.addEventListener("resize", updateSummaryTruncation)
+    window.addEventListener("resize", handleResize)
 })
 
 onBeforeUnmount(() => {
-    window.removeEventListener("resize", updateSummaryTruncation)
+    window.removeEventListener("resize", handleResize)
 })
 
 watch(descriptionText, () => {

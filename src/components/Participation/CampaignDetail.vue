@@ -71,7 +71,7 @@ const loadCampaignLayers = async (): Promise<void> => {
         if (campaignDetail.value?.geoserver_layers === undefined) {
             return;
         }
-        for (const item of campaignDetail.value?.geoserver_layers) {
+        for (const item of campaignDetail.value.geoserver_layers) {
             try {
                 const response = await geoserver.getLayerInformation({ name:item.split(":")[1], href:"" }, item.split(":")[0]);
                 if (response.layer !== undefined) {

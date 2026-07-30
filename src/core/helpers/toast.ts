@@ -29,7 +29,11 @@ function formatToastDetail(detail: unknown): string | undefined {
     if (typeof detail === "string") {
         return detail;
     }
-    return String(detail);
+    try {
+        return JSON.stringify(detail);
+    } catch {
+        return "Unable to display error details";
+    }
 }
 
 export function useToast(): { add: (message: LegacyToastMessage) => void } {

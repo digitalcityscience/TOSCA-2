@@ -3,12 +3,15 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "packageManager": "npm@10.9.3",
   "engines": {
-    "node": ">=22.19.0"
+    "node": ">=22.19.0",
+    "npm": ">=10.9.3"
   },
   "scripts": {
     "docs": "typedoc",
     "dev": "vite --mode development",
+    "lint": "eslint .",
     "test": "vitest",
     "build": "vue-tsc && vite build --mode production",
     "preview": "vite preview"
@@ -41,21 +44,18 @@
     "vuedraggable": "^4.1.0"
   },
   "devDependencies": {
-    "@stylistic/eslint-plugin-js": "^1.5.4",
-    "@types/node": "^20.14.11",
-    "@typescript-eslint/eslint-plugin": "^6.14.0",
-    "@typescript-eslint/parser": "^6.14.0",
+    "@eslint/js": "^9.39.2",
+    "@stylistic/eslint-plugin": "^5.10.0",
+    "@types/node": "^22.19.19",
     "@vitejs/plugin-vue": "^6.0.1",
-    "@vue/eslint-config-typescript": "^12.0.0",
+    "@vue/eslint-config-typescript": "^14.9.0",
     "@vue/test-utils": "^2.4.6",
     "autoprefixer": "^10.4.17",
-    "eslint": "^8.56.0",
-    "eslint-config-standard-with-typescript": "^42.0.0",
-    "eslint-import-resolver-alias": "^1.1.2",
-    "eslint-plugin-import": "^2.29.1",
-    "eslint-plugin-n": "^16.4.0",
-    "eslint-plugin-promise": "^6.1.1",
-    "eslint-plugin-vue": "^9.19.2",
+    "eslint": "^9.39.2",
+    "eslint-import-resolver-typescript": "^4.4.5",
+    "eslint-plugin-import-x": "^4.17.1",
+    "eslint-plugin-vue": "^10.10.0",
+    "globals": "^17.8.0",
     "jsdom": "^25.0.1",
     "postcss": "^8.4.35",
     "tailwindcss": "^4.3.3",

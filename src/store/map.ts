@@ -427,10 +427,10 @@ export const useMapStore = defineStore("map", () => {
         }
         if (sourceType === "geoserver") {
             (layerObject as LayerObjectWithAttributes).details =
-        params.geoserverLayerDetails;
+                params.geoserverLayerDetails;
             if (params.workspaceName !== undefined) {
                 (layerObject as LayerObjectWithAttributes).workspaceName =
-          params.workspaceName;
+                    params.workspaceName;
             }
             (layerObject as LayerObjectWithAttributes).sourceProtocol = params.sourceProtocol;
             (layerObject as LayerObjectWithAttributes).time = params.time;
@@ -483,7 +483,11 @@ export const useMapStore = defineStore("map", () => {
                 removeFromMapLayerList(identifier, information);
                 resolve();
             } catch (error) {
-                reject(error);
+                reject(
+                    error instanceof Error
+                        ? error
+                        : new Error("Unknown map layer deletion error"),
+                );
             }
         });
     }
