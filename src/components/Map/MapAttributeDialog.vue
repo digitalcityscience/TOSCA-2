@@ -49,18 +49,18 @@
 <script setup lang="ts">
 import { useMapStore } from "@store/map"
 import { computed } from "vue";
-import { type MapGeoJSONFeature } from "maplibre-gl";
+import type { PopupAttributeFeature } from "@store/geoserver";
 import { i18n } from "../../core/i18n";
 
 const t = i18n.global.t;
 const mapStore = useMapStore()
 interface Props {
-    features: MapGeoJSONFeature[] | undefined
+    features: PopupAttributeFeature[] | undefined
 }
 const emit = defineEmits<{
     sizeChange: []
 }>()
-type GroupedFeatures = Record<string, MapGeoJSONFeature[]>;
+type GroupedFeatures = Record<string, PopupAttributeFeature[]>;
 const props = defineProps<Props>()
 
 const mergedFeatures = computed(() => {
@@ -94,7 +94,7 @@ function createDisplayName(source: string): string {
     }
 }
 
-function getPropertyRows(feature: MapGeoJSONFeature): Array<{ name: string; value: string }> {
+function getPropertyRows(feature: PopupAttributeFeature): Array<{ name: string; value: string }> {
     return Object.entries(feature.properties ?? {})
         .filter(([, value]) => value !== undefined && value !== null && value !== "")
         .map(([name, value]) => ({
