@@ -240,6 +240,155 @@ export interface WorkspaceListResponse {
   };
 }
 
+export interface RasterFeatureInfoLayer {
+  source: string;
+  workspaceName: string;
+  details: GeoserverRasterTypeLayerDetail;
+  time?: string;
+}
+
+export interface PopupAttributeFeature {
+  source: string;
+  sourceLayer?: string;
+  properties: Record<string, unknown>;
+}
+
+export interface RasterFeatureInfoPoint {
+  lng: number;
+  lat: number;
+}
+
+const FEATURE_INFO_POINT_OFFSET = 0.000001;
+
+function rasterProviderBaseUrl(detail: GeoserverRasterTypeLayerDetail): string {
+  return (detail.catalog?.provider.base_url ?? String(import.meta.env.VITE_GEOSERVER_BASE_URL ?? ""))
+    .replace(/\/+$/, "");
+}
+
+/** Build a WMS GetFeatureInfo request matching the currently visible map viewport. */
+export function buildRasterFeatureInfoUrl(
+  layer: RasterFeatureInfoLayer,
+  point: RasterFeatureInfoPoint,
+  infoFormat = "application/json"
+): string {
+  const baseUrl = rasterProviderBaseUrl(layer.details);
+  if (baseUrl === "") {
+    throw new Error("GeoServer base URL is not configured");
+  }
+
+  const qualifiedLayerName = `${layer.workspaceName}:${layer.details.coverage.name}`;
+  const params = new URLSearchParams({
+    SERVICE: "WMS",
+    VERSION: "1.1.1",
+    REQUEST: "GetFeatureInfo",
+    LAYERS: qualifiedLayerName,
+    QUERY_LAYERS: qualifiedLayerName,
+    STYLES: "",
+    SRS: "EPSG:4326",
+    BBOX: [
+      point.lng - FEATURE_INFO_POINT_OFFSET,
+      point.lat - FEATURE_INFO_POINT_OFFSET,
+      point.lng + FEATURE_INFO_POINT_OFFSET,
+      point.lat + FEATURE_INFO_POINT_OFFSET,
+    ].join(","),
+    WIDTH: "3",
+    HEIGHT: "3",
+    X: "1",
+    Y: "1",
+    INFO_FORMAT: infoFormat,
+    FEATURE_COUNT: "10",
+    FORMAT: "image/png",
+    TRANSPARENT: "true",
+  });
+  if (layer.time !== undefined && layer.time !== "") {
+    params.set("TIME", layer.time);
+  }
+  return `${baseUrl}/wms?${params.toString()}`;
+}
+
+function normalizeGeoJsonFeatures(
+  body: unknown,
+  layer: RasterFeatureInfoLayer
+): PopupAttributeFeature[] {
+  if (typeof body !== "object" || body === null || !("features" in body)) {
+    return [];
+  }
+  const features = (body as { features?: unknown }).features;
+  if (!Array.isArray(features)) return [];
+
+  return features.flatMap((feature) => {
+    if (typeof feature !== "object" || feature === null) return [];
+    const properties = (feature as { properties?: unknown }).properties;
+    if (typeof properties !== "object" || properties === null || Array.isArray(properties)) {
+      return [];
+    }
+    return [{
+      source: layer.source,
+      sourceLayer: layer.details.coverage.name,
+      properties: properties as Record<string, unknown>,
+    }];
+  });
+}
+
+function parsePlainTextFeatureInfo(
+  text: string,
+  layer: RasterFeatureInfoLayer
+): PopupAttributeFeature[] {
+  const properties: Record<string, unknown> = {};
+  for (const line of text.split(/\r?\n/)) {
+    const match = line.match(/^\s*([^=:\s][^=:]*?)\s*=\s*(.*?)\s*$/);
+    if (match !== null && match[2] !== "") {
+      properties[match[1].trim()] = match[2];
+    }
+  }
+  return Object.keys(properties).length === 0
+    ? []
+    : [{
+      source: layer.source,
+      sourceLayer: layer.details.coverage.name,
+      properties,
+    }];
+}
+
+async function fetchFeatureInfo(
+  url: string,
+  layer: RasterFeatureInfoLayer,
+  signal?: AbortSignal
+): Promise<PopupAttributeFeature[]> {
+  const response = await fetch(url, {
+    method: "GET",
+    redirect: "follow",
+    signal,
+    headers: new Headers({ Accept: "application/json, text/plain;q=0.9" }),
+  });
+  if (!response.ok) {
+    throw new Error(
+      `Raster feature info request failed (${response.status} ${response.statusText}).`
+    );
+  }
+  const contentType = response.headers.get("Content-Type")?.toLowerCase() ?? "";
+  if (contentType.includes("json")) {
+    return normalizeGeoJsonFeatures(await response.json(), layer);
+  }
+  return parsePlainTextFeatureInfo(await response.text(), layer);
+}
+
+/** Query a coverage value, falling back to GeoServer's plain-text format. */
+export async function queryRasterFeatureInfo(
+  layer: RasterFeatureInfoLayer,
+  point: RasterFeatureInfoPoint,
+  signal?: AbortSignal
+): Promise<PopupAttributeFeature[]> {
+  const jsonUrl = buildRasterFeatureInfoUrl(layer, point);
+  try {
+    return await fetchFeatureInfo(jsonUrl, layer, signal);
+  } catch (error) {
+    if (signal?.aborted === true) throw error;
+    const textUrl = buildRasterFeatureInfoUrl(layer, point, "text/plain");
+    return await fetchFeatureInfo(textUrl, layer, signal);
+  }
+}
+
 export function buildCatalogProvidersUrl(): URL {
   return new URL(`${CATALOG_API_PATH}/providers`, getBackendRootUrl());
 }

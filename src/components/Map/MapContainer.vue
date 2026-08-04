@@ -12,11 +12,19 @@ import MapAttributeDialog from "./MapAttributeDialog.vue"
 import { useDrawStore } from "@store/draw";
 import { useParticipationStore } from "@store/participation";
 import { BaseMapControl, type BaseMapControlOptions } from "@helpers/baseMapControl";
+import {
+    queryRasterFeatureInfo,
+    type GeoserverRasterTypeLayerDetail,
+    type PopupAttributeFeature,
+    type RasterFeatureInfoLayer,
+} from "@store/geoserver";
 
 const { t } = useI18n();
 const mapStore = useMapStore()
 const clickedLayers = ref()
 type PopupAnchor = "center" | "top" | "bottom" | "left" | "right" | "top-left" | "top-right" | "bottom-left" | "bottom-right";
+let attributePopup: maplibre.Popup | undefined
+let featureInfoRequest: AbortController | undefined
 onMounted(() => {
     const configuredLng = Number(import.meta.env.VITE_MAP_START_LNG)
     const configuredLat = Number(import.meta.env.VITE_MAP_START_LAT)
@@ -59,52 +67,9 @@ onMounted(() => {
          * The attribute dialog is only shown if the clicked feature is part of a layer that is currently displayed on the map.
          * The attribute dialog is populated with the attributes of the clicked feature. Features are grouped by layer.
          */
-        mapStore.map.on("click", (e: MapMouseEvent)=>{
+        mapStore.map.on("click", (e: MapMouseEvent) => {
             if (!(useDrawStore().drawOnProgress || useDrawStore().editOnProgress || useParticipationStore().locationSelectionOnProgress)) {
-                const interactiveLayers = mapStore.map.getStyle().layers
-                    .filter((layer: { type: string; }) => layer.type !== "heatmap")
-                    .map((layer: { id: any; }) => layer.id);
-                const clickedFeatures: any[] = mapStore.map.queryRenderedFeatures(e.point, { layers: interactiveLayers })
-                if (clickedFeatures.length > 0) {
-                    const matchedFeatures = clickedFeatures.filter((clickedLayer)=>{ return mapStore.layersOnMap.some((l)=>{ return l.source === clickedLayer.source }) })
-                    if (matchedFeatures.length > 0){
-                        const uniqueLayers = new Set();
-                        const reducedFeatures: any[] = [];
-                        for (const feature of matchedFeatures) {
-                            if (!uniqueLayers.has(feature.sourceLayer)) {
-                                uniqueLayers.add(feature.sourceLayer);
-                                reducedFeatures.push(feature);
-                            }
-                        }
-                        console.log("matched features", matchedFeatures)
-                        console.log(e)
-                        clickedLayers.value = reducedFeatures
-                        console.log("clicked layers", clickedLayers.value)
-                        const popupContainer = document.createElement("div")
-                        const popup = new maplibre.Popup({
-                            anchor: resolvePopupAnchor(e),
-                            className: "tosca-map-popup",
-                            maxWidth: "none",
-                            offset: 12,
-                        })
-                            .setLngLat(e.lngLat)
-                            .setDOMContent(popupContainer)
-                            .addTo(mapStore.map as Map)
-                        nextTick(() => {
-                            // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-                            const popupComp = h(MapAttributeDialog, {
-                                features: [...reducedFeatures],
-                                onSizeChange: () => {
-                                    clampPopupToMapViewport(popup, mapStore.map as Map)
-                                },
-                            });
-                            render(popupComp, popupContainer);
-                            void nextTick(() => {
-                                clampPopupToMapViewport(popup, mapStore.map as Map)
-                            })
-                        }).then(()=>{}, ()=>{})
-                    }
-                }
+                void showAttributePopup(e)
             }
         })
     }
@@ -137,6 +102,88 @@ onMounted(() => {
     }
     mapStore.map.addControl(new BaseMapControl(options), "bottom-left");
 })
+
+async function showAttributePopup(event: MapMouseEvent): Promise<void> {
+    featureInfoRequest?.abort()
+    featureInfoRequest = new AbortController()
+    const signal = featureInfoRequest.signal
+    attributePopup?.remove()
+    attributePopup = undefined
+
+    const interactiveLayers = mapStore.map.getStyle().layers
+        .filter((layer: { type: string }) => layer.type !== "heatmap" && layer.type !== "raster")
+        .map((layer: { id: string }) => layer.id)
+    const renderedFeatures = mapStore.map.queryRenderedFeatures(event.point, {
+        layers: interactiveLayers,
+    }) as PopupAttributeFeature[]
+    const matchedFeatures = renderedFeatures.filter((feature) =>
+        mapStore.layersOnMap.some((layer) => layer.source === feature.source)
+    )
+    const uniqueVectorLayers = new Set<string>()
+    const vectorFeatures = matchedFeatures.filter((feature) => {
+        const key = feature.sourceLayer ?? feature.source
+        if (uniqueVectorLayers.has(key)) return false
+        uniqueVectorLayers.add(key)
+        return true
+    })
+
+    const rasterLayers = mapStore.layersOnMap
+        .filter((layer) =>
+            layer.type === "raster" &&
+            layer.sourceType === "geoserver" &&
+            layer.workspaceName !== undefined &&
+            layer.details !== undefined &&
+            "coverage" in layer.details &&
+            mapStore.map.getLayoutProperty(layer.id, "visibility") !== "none"
+        )
+        .slice()
+        .reverse()
+        .map((layer): RasterFeatureInfoLayer => ({
+            source: layer.source,
+            workspaceName: layer.workspaceName!,
+            details: layer.details as GeoserverRasterTypeLayerDetail,
+            time: layer.time,
+        }))
+    const rasterResults = await Promise.allSettled(rasterLayers.map(async (layer) =>
+        await queryRasterFeatureInfo(layer, {
+            lng: event.lngLat.lng,
+            lat: event.lngLat.lat,
+        }, signal)
+    ))
+    if (signal.aborted) return
+
+    const rasterFeatures = rasterResults.flatMap((result) => {
+        if (result.status === "fulfilled") return result.value
+        console.warn("Raster GetFeatureInfo failed", result.reason)
+        return []
+    })
+    const features = [...vectorFeatures, ...rasterFeatures]
+    if (features.length === 0) return
+
+    clickedLayers.value = features
+    const popupContainer = document.createElement("div")
+    attributePopup = new maplibre.Popup({
+        anchor: resolvePopupAnchor(event),
+        className: "tosca-map-popup",
+        maxWidth: "none",
+        offset: 12,
+    })
+        .setLngLat(event.lngLat)
+        .setDOMContent(popupContainer)
+        .addTo(mapStore.map as Map)
+    const popup = attributePopup
+    popup.on("close", () => {
+        render(null, popupContainer)
+        if (attributePopup === popup) attributePopup = undefined
+    })
+    await nextTick()
+    render(h(MapAttributeDialog, {
+        features,
+        onSizeChange: () => clampPopupToMapViewport(popup, mapStore.map as Map),
+    }), popupContainer)
+    await nextTick()
+    clampPopupToMapViewport(popup, mapStore.map as Map)
+}
 
 function resolvePopupAnchor(event: MapMouseEvent): PopupAnchor {
     const canvas = event.target.getCanvas()

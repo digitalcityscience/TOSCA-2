@@ -6,8 +6,13 @@ import {
     buildCatalogProvidersUrl,
     buildCatalogResourceUrl,
     buildCatalogWorkspacesUrl,
+    buildRasterFeatureInfoUrl,
     type CatalogProvider,
+    type GeoserverRasterTypeLayerDetail,
     type GeoServerVectorTypeLayerDetail,
+    queryRasterFeatureInfo,
+    type RasterFeatureInfoLayer,
+    type RasterFeatureInfoPoint,
     type WorkspaceListItem,
     useGeoserverStore,
 } from "./geoserver";
@@ -27,6 +32,92 @@ const provider: CatalogProvider = {
     name: "Primary GeoServer",
     base_url: "https://maps.example.test/geoserver/",
 };
+
+const rasterFeatureInfoLayer: RasterFeatureInfoLayer = {
+    source: "rainfall-source",
+    workspaceName: "Hamburg",
+    time: "2026-08-04T12:00:00Z",
+    details: {
+        catalog: {
+            provider: {
+                id: "primary",
+                name: "Primary GeoServer",
+                base_url: "https://maps.example.test/geoserver/",
+            },
+            workspace_name: "Hamburg",
+        },
+        coverage: { name: "rainfall" },
+    } as GeoserverRasterTypeLayerDetail,
+};
+
+const rasterFeatureInfoPoint: RasterFeatureInfoPoint = {
+    lng: 10,
+    lat: 53.55,
+};
+
+describe("raster feature info", () => {
+    test("builds a provider-aware WMS GetFeatureInfo URL", () => {
+        const url = new URL(buildRasterFeatureInfoUrl(
+            rasterFeatureInfoLayer,
+            rasterFeatureInfoPoint
+        ));
+
+        expect(`${url.origin}${url.pathname}`).toBe("https://maps.example.test/geoserver/wms");
+        expect(url.searchParams.get("REQUEST")).toBe("GetFeatureInfo");
+        expect(url.searchParams.get("LAYERS")).toBe("Hamburg:rainfall");
+        expect(url.searchParams.get("QUERY_LAYERS")).toBe("Hamburg:rainfall");
+        expect(url.searchParams.get("VERSION")).toBe("1.1.1");
+        expect(url.searchParams.get("SRS")).toBe("EPSG:4326");
+        expect(url.searchParams.get("X")).toBe("1");
+        expect(url.searchParams.get("Y")).toBe("1");
+        expect(url.searchParams.get("TIME")).toBe("2026-08-04T12:00:00Z");
+        expect(url.searchParams.get("BBOX")?.split(",")).toHaveLength(4);
+    });
+
+    test("normalizes GeoJSON coverage properties for the existing popup", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+            type: "FeatureCollection",
+            features: [{
+                type: "Feature",
+                geometry: { type: "Point", coordinates: [10, 53.55] },
+                properties: { GRAY_INDEX: 17.5 },
+            }],
+        }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+        })));
+
+        await expect(queryRasterFeatureInfo(
+            rasterFeatureInfoLayer,
+            rasterFeatureInfoPoint
+        )).resolves.toEqual([{
+            source: "rainfall-source",
+            sourceLayer: "rainfall",
+            properties: { GRAY_INDEX: 17.5 },
+        }]);
+    });
+
+    test("falls back to text/plain when JSON feature info is unavailable", async () => {
+        const fetchMock = vi.fn()
+            .mockResolvedValueOnce(new Response("Unsupported format", { status: 400 }))
+            .mockResolvedValueOnce(new Response(
+                "Results for FeatureType 'rainfall':\nGRAY_INDEX = 8.25\n",
+                { status: 200, headers: { "Content-Type": "text/plain" } }
+            ));
+        vi.stubGlobal("fetch", fetchMock);
+
+        await expect(queryRasterFeatureInfo(
+            rasterFeatureInfoLayer,
+            rasterFeatureInfoPoint
+        )).resolves.toEqual([{
+            source: "rainfall-source",
+            sourceLayer: "rainfall",
+            properties: { GRAY_INDEX: "8.25" },
+        }]);
+        expect(new URL(fetchMock.mock.calls[1][0]).searchParams.get("INFO_FORMAT"))
+            .toBe("text/plain");
+    });
+});
 
 function workspace(name = "Hamburg"): WorkspaceListItem {
     return {
