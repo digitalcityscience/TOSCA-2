@@ -7,6 +7,7 @@ import {
   getBackendRootUrl,
   resolveBackendUrl,
 } from "./backend";
+import type { EditorJsDescriptionContent } from "@helpers/editorJsDescription";
 
 const CATALOG_API_PATH = "/api/v1/catalog";
 
@@ -33,6 +34,7 @@ export interface GeoServerVectorTypeLayerDetail {
     };
     title: string;
     abstract: string;
+    description_content?: EditorJsDescriptionContent;
     keywords: {
       string: string[];
     };
@@ -115,6 +117,7 @@ export interface GeoserverRasterTypeLayerDetail {
     },
     title: string,
     description: string,
+    description_content?: EditorJsDescriptionContent,
     keywords: {
       string: string[]
     },
@@ -200,6 +203,9 @@ export interface GeoserverLayerInfo {
   defaultStyle: {
     name: string;
     href: string;
+    assignmentId?: string | null;
+    styleLayerIds?: string[];
+    format?: "mbstyle" | "sld" | null;
   };
   resource: {
     "@class": string;
@@ -228,6 +234,93 @@ export interface GeoserverLayerListResponse {
   layers: {
     layer: GeoserverLayerListItem[];
   };
+  groups?: {
+    group: CatalogLayerGroupListItem[];
+  };
+}
+export interface CatalogLayerGroupListItem {
+  id: string;
+  name: string;
+  title: string;
+  description: string;
+  description_content?: EditorJsDescriptionContent;
+  composition: "VECTOR" | "RASTER" | "MIXED";
+  member_count: number;
+  has_legend: boolean;
+  legend_stale: boolean;
+  warnings: string[];
+  href: string;
+  provider_id?: string;
+  workspace_name?: string;
+}
+export interface CatalogLayerGroupMember {
+  id: string;
+  layer_id: string;
+  name: string;
+  title: string;
+  layer_title?: string;
+  source_alias: string;
+  source_key?: string;
+  order: number;
+  data_type: "VECTOR" | "RASTER";
+  geometry_type: string;
+  style_assignment: {
+    id: string;
+    style_id: string;
+    style_layer_ids: string[];
+  };
+  render_layer_ids?: string[];
+  effective_style_layer_ids?: string[];
+  resource_href: string;
+  details?: GeoServerVectorTypeLayerDetail | GeoserverRasterTypeLayerDetail;
+}
+export interface CatalogGroupStyleLayer extends Record<string, unknown> {
+  id: string;
+  type: string;
+  source?: string;
+  "source-layer"?: string;
+  paint?: Record<string, unknown>;
+  layout?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  minzoom?: number;
+  maxzoom?: number;
+  filter?: unknown[];
+}
+export interface CatalogLayerGroupManifest {
+  id: string;
+  name: string;
+  title: string;
+  description: string;
+  description_content?: EditorJsDescriptionContent;
+  composition: "VECTOR" | "RASTER" | "MIXED";
+  legend: {
+    url: string;
+    content_hash: string;
+    stale: boolean;
+  } | null;
+  warnings: string[];
+  workspace: { id: string; name: string };
+  provider: CatalogProvider;
+  members: CatalogLayerGroupMember[];
+  sources: Record<string, Record<string, unknown>>;
+  layers: CatalogGroupStyleLayer[];
+  sprites: Record<string, {
+    id: string;
+    url: string;
+    content_hash: string;
+  }>;
+  styles: Record<string, {
+    id: string;
+    name: string;
+    title: string;
+    format: "mbstyle" | "sld";
+    content_hash: string;
+    sprite_id: string | null;
+    href: string;
+  }>;
+}
+export interface CatalogLayerGroupManifestResponse {
+  group: CatalogLayerGroupManifest;
 }
 export interface WorkspaceListItem {
   name: string;
@@ -248,9 +341,42 @@ export interface RasterFeatureInfoLayer {
 }
 
 export interface PopupAttributeFeature {
+  id?: string | number;
   source: string;
   sourceLayer?: string;
   properties: Record<string, unknown>;
+  geometry?: unknown;
+}
+
+/** Collapse one data feature rendered by several MBStyle layers into one popup row. */
+export function deduplicatePopupAttributeFeatures(
+  features: PopupAttributeFeature[]
+): PopupAttributeFeature[] {
+  const seen = new Set<string>();
+  return features.filter((feature) => {
+    const featureIdentity = feature.id === undefined
+      ? stableFeatureValue({
+          geometry: feature.geometry ?? null,
+          properties: feature.properties,
+        })
+      : String(feature.id);
+    const key = [feature.source, feature.sourceLayer ?? "", featureIdentity].join("\u0000");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function stableFeatureValue(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableFeatureValue).join(",")}]`;
+  }
+  if (value !== null && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right));
+    return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${stableFeatureValue(item)}`).join(",")}}`;
+  }
+  return JSON.stringify(value) ?? String(value);
 }
 
 export interface RasterFeatureInfoPoint {
@@ -492,7 +618,8 @@ export interface WmsCapabilities {
 export function buildWmsLegendUrl(
   workspace: string,
   layerName: string,
-  providerBaseUrl = String(import.meta.env.VITE_GEOSERVER_BASE_URL ?? "")
+  providerBaseUrl = String(import.meta.env.VITE_GEOSERVER_BASE_URL ?? ""),
+  styleName?: string
 ): string {
   const params = new URLSearchParams({
     REQUEST: "GetLegendGraphic",
@@ -505,6 +632,7 @@ export function buildWmsLegendUrl(
     // transparent so any residual blank canvas blends into the wrapper.
     LEGEND_OPTIONS: "fontAntiAliasing:true;fontSize:11;forceLabels:on;hideEmptyRules:true",
   });
+  if (styleName !== undefined && styleName !== "") params.set("STYLE", styleName);
   return `${providerBaseUrl.replace(/\/+$/, "")}/${workspace}/wms?${params.toString()}`;
 }
 /**
@@ -543,17 +671,22 @@ export async function resolveLegendUrl(
   fetchCapabilities: (workspace: string) => Promise<WmsCapabilities>,
   workspace: string,
   layerName: string,
-  providerBaseUrl?: string
+  providerBaseUrl?: string,
+  styleName?: string
 ): Promise<string> {
   try {
     const caps = await fetchCapabilities(workspace);
     const layer = caps.layers.get(layerName);
-    const advertised = layer?.styles.flatMap((s) => s.legendUrls)[0]?.href;
+    const styles = layer?.styles ?? [];
+    const advertised = (styleName === undefined
+      ? styles
+      : styles.filter((style) => style.name === styleName))
+      .flatMap((style) => style.legendUrls)[0]?.href;
     if (advertised !== undefined && advertised !== "") return enhanceLegendUrl(advertised);
   } catch {
     // fall through to the constructed URL
   }
-  return buildWmsLegendUrl(workspace, layerName, providerBaseUrl);
+  return buildWmsLegendUrl(workspace, layerName, providerBaseUrl, styleName);
 }
 /**
  * Hard fallback bounds for the time slider when neither the coverage metadata
@@ -757,6 +890,7 @@ export const useGeoserverStore = defineStore("geoserver", () => {
   const pointData = ref();
   const providers = ref<CatalogProvider[]>([]);
   const layerList = ref<GeoserverLayerListItem[]>([]);
+  const groupList = ref<CatalogLayerGroupListItem[]>([]);
   const workspaceList = ref<WorkspaceListItem[]>([]);
   const workspacesByProvider = ref<Record<string, WorkspaceListItem[]>>({});
   const loadingCatalog = ref(false);
@@ -891,15 +1025,26 @@ export const useGeoserverStore = defineStore("geoserver", () => {
             url,
             `Catalog layers for ${provider.name}`
           );
-          return (response.layers.layer ?? []).map((layer) => ({
-            ...layer,
-            provider_id: provider.id,
-            workspace_name: workspaceNameFromCatalogUrl(layer.href),
-          }));
+          return {
+            layers: (response.layers.layer ?? []).map((layer) => ({
+              ...layer,
+              provider_id: provider.id,
+              workspace_name: workspaceNameFromCatalogUrl(layer.href),
+            })),
+            groups: (response.groups?.group ?? []).map((group) => ({
+              ...group,
+              provider_id: provider.id,
+              workspace_name: workspaceNameFromCatalogUrl(group.href),
+            })),
+          };
         })
       );
-      layerList.value = responses.flat();
-      return { layers: { layer: layerList.value } };
+      layerList.value = responses.flatMap((response) => response.layers);
+      groupList.value = responses.flatMap((response) => response.groups);
+      return {
+        layers: { layer: layerList.value },
+        groups: { group: groupList.value },
+      };
     }
 
     const catalogWorkspace = await resolveWorkspace(workspace, providerId);
@@ -913,7 +1058,33 @@ export const useGeoserverStore = defineStore("geoserver", () => {
       workspace_name: catalogWorkspace.name,
     }));
     layerList.value = layers;
-    return { layers: { layer: layers } };
+    const groups = (response.groups?.group ?? []).map((group) => ({
+      ...group,
+      provider_id: catalogWorkspace.provider.id,
+      workspace_name: catalogWorkspace.name,
+    }));
+    groupList.value = groups;
+    return { layers: { layer: layers }, groups: { group: groups } };
+  }
+
+  async function getLayerGroup(
+    item: CatalogLayerGroupListItem
+  ): Promise<CatalogLayerGroupManifest> {
+    const response = await fetchBackendJson<CatalogLayerGroupManifestResponse>(
+      resolveBackendUrl(item.href),
+      `Catalog layer group ${item.name}`
+    );
+    if (!providers.value.some((provider) => provider.id === response.group.provider.id)) {
+      providers.value.push({
+        ...response.group.provider,
+        base_url: response.group.provider.base_url.replace(/\/+$/, ""),
+      });
+    }
+    const members = await Promise.all(response.group.members.map(async (member) => ({
+      ...member,
+      details: await getLayerDetail(member.resource_href),
+    })));
+    return { ...response.group, members };
   }
 
   /**
@@ -1096,7 +1267,7 @@ export const useGeoserverStore = defineStore("geoserver", () => {
   function workspaceNameFromCatalogUrl(url: string): string | undefined {
     try {
       const match = new URL(url, getBackendRootUrl()).pathname.match(
-        /\/workspaces\/([^/]+)\/layers(?:\/|$)/
+        /\/workspaces\/([^/]+)\/(?:layers|groups)(?:\/|$)/
       );
       return match === null ? undefined : decodeURIComponent(match[1]);
     } catch {
@@ -1151,6 +1322,7 @@ export const useGeoserverStore = defineStore("geoserver", () => {
     pointData,
     providers,
     layerList,
+    groupList,
     workspaceList,
     workspacesByProvider,
     loadingCatalog,
@@ -1159,6 +1331,7 @@ export const useGeoserverStore = defineStore("geoserver", () => {
     getLayerList,
     getWorkspaceList,
     getLayerInformation,
+    getLayerGroup,
     getLayerDetail,
     getProviderBaseUrlForWorkspace,
     getGeoJSONLayerSource,

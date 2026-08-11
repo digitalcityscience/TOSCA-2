@@ -7,15 +7,95 @@ import {
     buildCatalogResourceUrl,
     buildCatalogWorkspacesUrl,
     buildRasterFeatureInfoUrl,
+    buildWmsLegendUrl,
+    deduplicatePopupAttributeFeatures,
     type CatalogProvider,
     type GeoserverRasterTypeLayerDetail,
     type GeoServerVectorTypeLayerDetail,
     queryRasterFeatureInfo,
+    resolveLegendUrl,
     type RasterFeatureInfoLayer,
     type RasterFeatureInfoPoint,
     type WorkspaceListItem,
     useGeoserverStore,
 } from "./geoserver";
+
+describe("WMS legends", () => {
+    test("adds the assigned style to a generated group-member legend URL", () => {
+        const url = new URL(buildWmsLegendUrl(
+            "Hamburg",
+            "districts",
+            "https://maps.example.test/geoserver",
+            "hamburg-group"
+        ));
+
+        expect(url.searchParams.get("LAYER")).toBe("Hamburg:districts");
+        expect(url.searchParams.get("STYLE")).toBe("hamburg-group");
+    });
+
+    test("prefers the assigned style's advertised legend", async () => {
+        const legend = await resolveLegendUrl(async () => ({
+            version: "1.3.0",
+            workspace: "Hamburg",
+            layers: new Map([["districts", {
+                name: "districts",
+                title: "Districts",
+                abstract: "",
+                keywords: [],
+                srsList: [],
+                boundingBoxes: [],
+                queryable: true,
+                opaque: false,
+                styles: [
+                    { name: "default", legendUrls: [{ href: "https://example.test/default.png" }] },
+                    { name: "hamburg-group", legendUrls: [{ href: "https://example.test/group.png" }] },
+                ],
+            }]]),
+        }), "Hamburg", "districts", "https://maps.example.test/geoserver", "hamburg-group");
+
+        expect(legend).toBe("https://example.test/group.png");
+    });
+});
+
+describe("popup feature deduplication", () => {
+    test("collapses repeated render passes but preserves distinct overlapping features", () => {
+        const repeated = {
+            id: 7,
+            source: "health-data",
+            sourceLayer: "health_data",
+            properties: { district: "A", score: 4 },
+        };
+        const distinct = {
+            id: 8,
+            source: "health-data",
+            sourceLayer: "health_data",
+            properties: { district: "B", score: 4 },
+        };
+
+        expect(deduplicatePopupAttributeFeatures([
+            repeated,
+            { ...repeated },
+            distinct,
+        ])).toEqual([repeated, distinct]);
+    });
+
+    test("uses stable properties and geometry when vector tiles have no feature id", () => {
+        const repeated = {
+            source: "health-data",
+            sourceLayer: "health_data",
+            properties: { pattern: "dots", category: "high" },
+            geometry: { type: "Point", coordinates: [9, 53] },
+        };
+
+        expect(deduplicatePopupAttributeFeatures([
+            repeated,
+            {
+                ...repeated,
+                properties: { category: "high", pattern: "dots" },
+            },
+        ])).toHaveLength(1);
+    });
+});
 
 function jsonResponse(body: unknown, init?: ResponseInit): Response {
     return new Response(JSON.stringify(body), {
@@ -218,6 +298,107 @@ describe("catalog store", () => {
             name: "districts",
             provider_id: "provider/1",
             workspace_name: "Hamburg",
+        });
+    });
+
+    test("retains groups returned by the provider-wide catalog", async () => {
+        fetchMock
+            .mockResolvedValueOnce(jsonResponse([provider]))
+            .mockResolvedValueOnce(jsonResponse({
+                layers: { layer: [] },
+                groups: {
+                    group: [{
+                        id: "group-1",
+                        name: "mobility",
+                        title: "Mobility",
+                        description: "",
+                        render_type: "VECTOR",
+                        member_count: 2,
+                        href:
+                            "http://localhost:8000/api/v1/catalog/providers/provider%2F1/" +
+                            "workspaces/Hamburg/groups/mobility",
+                    }],
+                },
+            }));
+
+        const catalog = useGeoserverStore();
+        const response = await catalog.getLayerList();
+
+        expect(response.groups?.group[0]).toMatchObject({
+            id: "group-1",
+            provider_id: "provider/1",
+            workspace_name: "Hamburg",
+        });
+        expect(catalog.groupList).toHaveLength(1);
+    });
+
+    test("loads catalog groups and expands member resource details", async () => {
+        const groupHref =
+            "http://localhost:8000/api/v1/catalog/providers/provider%2F1/" +
+            "workspaces/Hamburg/groups/mobility";
+        fetchMock
+            .mockResolvedValueOnce(jsonResponse({
+                layers: { layer: [] },
+                groups: {
+                    group: [{
+                        id: "group-1",
+                        name: "mobility",
+                        title: "Mobility",
+                        description: "",
+                        render_type: "VECTOR",
+                        member_count: 2,
+                        href: groupHref,
+                    }],
+                },
+            }))
+            .mockResolvedValueOnce(jsonResponse({
+                group: {
+                    id: "group-1",
+                    name: "mobility",
+                    title: "Mobility",
+                    description: "",
+                    render_type: "VECTOR",
+                    workspace: { id: "workspace-1", name: "Hamburg" },
+                    provider,
+                    members: [{
+                        id: "roads-1",
+                        name: "roads",
+                        title: "Roads",
+                        source_alias: "roads",
+                        order: 0,
+                        geometry_type: "LineString",
+                        resource_href: "/api/v1/catalog/providers/provider%2F1/workspaces/Hamburg/resources/roads",
+                    }],
+                    sources: { roads: { type: "vector", tiles: [] } },
+                    layers: [{ id: "roads", type: "line", source: "roads" }],
+                    sprite: null,
+                    style: {
+                        id: "style-1",
+                        name: "mobility",
+                        format: "mbstyle",
+                        content_hash: "abc",
+                        href: "/api/v1/catalog/providers/provider%2F1/styles/style-1",
+                    },
+                },
+            }))
+            .mockResolvedValueOnce(jsonResponse({
+                featureType: {
+                    name: "roads",
+                    title: "Roads",
+                    attributes: { attribute: [] },
+                },
+            }));
+
+        const catalog = useGeoserverStore();
+        const response = await catalog.getLayerList(workspace());
+        const manifest = await catalog.getLayerGroup(response.groups!.group[0]);
+
+        expect(response.groups!.group[0]).toMatchObject({
+            provider_id: "provider/1",
+            workspace_name: "Hamburg",
+        });
+        expect(manifest.members[0].details).toMatchObject({
+            featureType: { name: "roads" },
         });
     });
 

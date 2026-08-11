@@ -17,6 +17,12 @@
                         {{ (props.layer.displayName ?? props.layer.source).replaceAll("_", " ") }}
                     </span>
                     <UIcon
+                       v-if="isGroupLayer"
+                       name="i-lucide-layers-3"
+                       class="layer-time-badge"
+                       :title="t('map.layerItem.groupLayer')"
+                    />
+                    <UIcon
                        v-if="hasTimeDimension"
                        name="i-lucide-clock"
                        class="layer-time-badge"
@@ -72,22 +78,61 @@
                             :max=1 @update:model-value="changeLayerOpac" />
                     </label>
                 </section>
-                <section v-if="showServerLegend" class="layer-section">
+                <section v-if="showLegend" class="layer-section">
                     <h4 class="layer-section-title">{{ t('map.layerItem.legend') }}</h4>
-                    <div class="layer-legend-wrapper">
+                    <div v-if="showCentralGroupLegend" class="layer-legend-wrapper">
+                        <img
+                            :src="centralGroupLegendUrl"
+                            :alt="t('map.layerItem.legendAlt')"
+                            class="layer-legend-image group-central-legend-image"
+                            @error="handleCentralGroupLegendError"
+                        />
+                    </div>
+                    <div v-if="showServerLegend && !isGroupLayer" class="layer-legend-wrapper">
                         <img :src="legendUrl" :alt="t('map.layerItem.legendAlt')" class="layer-legend-image" @error="legendError = true" />
                     </div>
+                    <div v-if="showServerLegend && isGroupLayer" class="group-legend-list">
+                        <figure
+                            v-for="legend in visibleGroupLegendImages"
+                            :key="legend.key"
+                            class="group-legend-item"
+                        >
+                            <figcaption class="group-legend-label">{{ legend.label }}</figcaption>
+                            <div class="layer-legend-wrapper">
+                                <img
+                                    :src="legend.url"
+                                    :alt="`${legend.label}: ${t('map.layerItem.legendAlt')}`"
+                                    class="layer-legend-image"
+                                    @error="markGroupLegendFailed(legend.key)"
+                                />
+                            </div>
+                        </figure>
+                    </div>
+                    <MapStyleLegend v-if="mbStyleLegendEntries.length > 0" :entries="mbStyleLegendEntries" />
                 </section>
                 <section v-if="hasTimeDimension" class="layer-section">
                     <h4 class="layer-section-title">{{ t('map.layerItem.time') }}</h4>
                     <RasterLayerTimeControl :layer="props.layer" />
+                </section>
+                <section v-if="isGroupLayer" class="layer-section">
+                    <h4 class="layer-section-title">{{ t('map.layerItem.groupMembers') }}</h4>
+                    <div class="flex flex-wrap gap-1.5">
+                        <UBadge
+                            v-for="member in props.layer.groupManifest?.members"
+                            :key="member.id"
+                            color="neutral"
+                            variant="soft"
+                            size="sm"
+                            :label="member.title"
+                        />
+                    </div>
                 </section>
                 <section v-if="showFiltering" class="layer-section">
                     <h4 class="layer-section-title">{{ t('map.layerItem.filtering') }}</h4>
                     <AttributeFiltering :layer="props.layer"></AttributeFiltering>
                     <GeometryFiltering :layer="props.layer"></GeometryFiltering>
                 </section>
-                <section v-if="props.layer.type !== 'raster'" class="layer-section">
+                <section v-if="props.layer.type !== 'raster' && !isGroupLayer" class="layer-section">
                     <h4 class="layer-section-title">{{ t('map.layerItem.data') }}</h4>
                     <MapLayerResultTable :layer="props.layer"></MapLayerResultTable>
                 </section>
@@ -103,6 +148,10 @@ import { type LayerObjectWithAttributes, type MapLibreLayerTypes, useMapStore } 
 import { useToast } from "@helpers/toast";
 import { isNullOrEmpty } from "@helpers/functions";
 import {
+    createMapStyleLegendEntries,
+    hasSingleEditableMapStyleColor,
+} from "@helpers/mapStyleLegend";
+import {
     type GeoserverRasterTypeLayerDetail,
     type GeoServerVectorTypeLayerDetail,
     getTimeDimension,
@@ -114,6 +163,7 @@ const AttributeFiltering = defineAsyncComponent(async () => await import("./Filt
 const GeometryFiltering = defineAsyncComponent(async () => await import("@components/Map/Layer/Filter/GeometryFiltering.vue"));
 const MapLayerResultTable = defineAsyncComponent(async () => await import("./MapLayerResultTable.vue"));
 const RasterLayerTimeControl = defineAsyncComponent(async () => await import("./RasterLayerTimeControl.vue"));
+const MapStyleLegend = defineAsyncComponent(async () => await import("./MapStyleLegend.vue"));
 
 export interface Props {
     layer: LayerObjectWithAttributes
@@ -124,6 +174,10 @@ const mapStore = useMapStore()
 const geoserver = useGeoserverStore()
 const legendUrl = ref<string>()
 const legendError = ref<boolean>(false)
+const groupLegendImages = ref<GroupLegendImage[]>([])
+const failedGroupLegendKeys = ref<Set<string>>(new Set())
+const groupLegendLoading = ref<boolean>(false)
+const centralGroupLegendError = ref<boolean>(false)
 const layerPanelOpen = ref<boolean>(false)
 const color = ref<string>("000000")
 const colorHexInput = ref<string>("#000000")
@@ -140,6 +194,7 @@ const colorPickerValue = computed({
 const opacity = ref<number>(1)
 const checked = ref<boolean>(true)
 const initialLayerHeaderIndicator = ref<LayerHeaderIndicator>()
+const isGroupLayer = computed(() => props.layer.logicalKind === "group")
 let pendingColorChangeTimeout: ReturnType<typeof setTimeout> | undefined;
 
 type LayerHeaderIndicatorKind = "single" | "multi" | "raster" | "heatmap" | "unknown";
@@ -147,6 +202,12 @@ type LayerHeaderIndicatorKind = "single" | "multi" | "raster" | "heatmap" | "unk
 interface LayerHeaderIndicator {
     kind: LayerHeaderIndicatorKind;
     colors: string[];
+}
+
+interface GroupLegendImage {
+    key: string;
+    label: string;
+    url: string;
 }
 
 const fallbackHeatmapColors = ["#313695", "#74add1", "#ffffbf", "#f46d43", "#a50026"];
@@ -173,6 +234,7 @@ const layerHeaderIndicator = computed<LayerHeaderIndicator>(() => {
     // setPaintProperty / addLayer / removeLayer call fires `styledata`.
     void mapStore.paintVersion;
     void initialLayerHeaderIndicator.value;
+    if (isGroupLayer.value) return { kind: "multi", colors: [] };
     const editableColorProperty = getEditableColorPaintProperty(props.layer.type);
     if (editableColorProperty !== "" && initialLayerHeaderIndicator.value?.kind === "single") {
         return { kind: "single", colors: [`#${color.value}`] };
@@ -204,15 +266,49 @@ const layerHeaderIndicatorTitle = computed<string>(() => {
     }
 })
 const hasTimeDimension = computed<boolean>(() => {
+    if (isGroupLayer.value) return false
     if (props.layer.type !== "raster") return false
     const details = props.layer.details as GeoserverRasterTypeLayerDetail | undefined
     if (details?.coverage === undefined) return false
     return getTimeDimension(details.coverage) !== null
 })
 const hasEditableLayerColor = computed<boolean>(() => {
+    if (isGroupLayer.value) return false
     void mapStore.paintVersion;
-    return getEditableColorPaintProperty(props.layer.type) !== "" &&
-        typeof getLayerPaintProperty(getEditableColorPaintProperty(props.layer.type)) === "string";
+    const colorProperty = getEditableColorPaintProperty(props.layer.type);
+    if (colorProperty === "" || typeof getLayerPaintProperty(colorProperty) !== "string") {
+        return false;
+    }
+
+    const catalogStyleLayers = props.layer.mbStyleLayers;
+    return catalogStyleLayers === undefined ||
+        hasSingleEditableMapStyleColor(catalogStyleLayers, colorProperty);
+})
+const visibleGroupLegendImages = computed<GroupLegendImage[]>(() => {
+    return groupLegendImages.value.filter((legend) => !failedGroupLegendKeys.value.has(legend.key))
+})
+const centralGroupLegendUrl = computed<string | undefined>(() => {
+    return props.layer.groupManifest?.legend?.url
+})
+const showCentralGroupLegend = computed<boolean>(() => {
+    return isGroupLayer.value &&
+        centralGroupLegendUrl.value !== undefined &&
+        !centralGroupLegendError.value
+})
+const mbStyleLegendEntries = computed(() => {
+    const manifest = props.layer.groupManifest
+    if (isGroupLayer.value && manifest !== undefined) {
+        if (showCentralGroupLegend.value) return []
+        return createMapStyleLegendEntries(manifest.layers, {
+            members: manifest.members,
+            styles: manifest.styles,
+            sprites: manifest.sprites,
+        })
+    }
+    return createMapStyleLegendEntries(
+        props.layer.mbStyleLayers ?? [],
+        props.layer.mbStyleLegendContext
+    )
 })
 /**
  * Only show GeoServer's legend image when the rendered map color matches
@@ -225,11 +321,21 @@ const hasEditableLayerColor = computed<boolean>(() => {
  * server-rendered legend, since we don't repaint them.
  */
 const showServerLegend = computed<boolean>(() => {
+    if (isGroupLayer.value) {
+        return !showCentralGroupLegend.value && visibleGroupLegendImages.value.length > 0
+    }
+    if ((props.layer.mbStyleLayers?.length ?? 0) > 0) return false
     if (legendUrl.value === undefined || legendError.value) return false
     if (hasEditableLayerColor.value) return false
     return true
 })
+const showLegend = computed<boolean>(() => {
+    return showCentralGroupLegend.value ||
+        showServerLegend.value ||
+        mbStyleLegendEntries.value.length > 0
+})
 const showFiltering = computed<boolean>(() => {
+    if (isGroupLayer.value) return false
     if (props.layer.type === "raster") return false
     return props.layer.filterLayer !== true
 })
@@ -272,6 +378,10 @@ onMounted(() => {
  * suppresses the section so we don't show a broken icon.
  */
 async function loadLegend(): Promise<void> {
+    if (isGroupLayer.value) {
+        await loadGroupLegend()
+        return
+    }
     if (props.layer.workspaceName === undefined) return
     const details = props.layer.details
     const layerName = (details as GeoserverRasterTypeLayerDetail | undefined)?.coverage?.name ??
@@ -291,6 +401,53 @@ async function loadLegend(): Promise<void> {
     } catch (error) {
         console.error("Could not resolve legend URL", error)
     }
+}
+
+async function loadGroupLegend(useGeneratedFallback = false): Promise<void> {
+    const manifest = props.layer.groupManifest
+    if (manifest === undefined) return
+    if (!useGeneratedFallback) centralGroupLegendError.value = false
+    if (manifest.legend !== null && !useGeneratedFallback) return
+    groupLegendLoading.value = true
+    failedGroupLegendKeys.value = new Set()
+    try {
+        const rasterMembers = manifest.members.filter((member) => {
+            const style = manifest.styles[member.style_assignment.style_id]
+            return member.data_type === "RASTER" && style?.format === "sld"
+        })
+        groupLegendImages.value = await Promise.all(rasterMembers.map(async (member) => {
+            const style = manifest.styles[member.style_assignment.style_id]
+            return {
+                key: member.id,
+                label: member.title,
+                url: await resolveLegendUrl(
+                    async (workspace) => await geoserver.fetchWmsCapabilities(
+                        workspace,
+                        false,
+                        manifest.provider.id
+                    ),
+                    manifest.workspace.name,
+                    member.name,
+                    manifest.provider.base_url,
+                    style.name
+                ),
+            }
+        }))
+    } catch (error) {
+        groupLegendImages.value = []
+        console.error("Could not resolve group legend URLs", error)
+    } finally {
+        groupLegendLoading.value = false
+    }
+}
+
+function handleCentralGroupLegendError(): void {
+    centralGroupLegendError.value = true
+    void loadGroupLegend(true)
+}
+
+function markGroupLegendFailed(key: string): void {
+    failedGroupLegendKeys.value = new Set([...failedGroupLegendKeys.value, key])
 }
 function changeLayerColor(color: string): void {
     const prop = getEditableColorPaintProperty(props.layer.type);
@@ -333,6 +490,10 @@ function applyColorHexInput(value: string | number | undefined): void {
     queueLayerColorChange(normalizedColor);
 }
 function changeLayerOpac(layerOpacity: any): void {
+    if (isGroupLayer.value) {
+        mapStore.setLogicalLayerOpacity(props.layer, Number(layerOpacity))
+        return
+    }
     const opac = getOpacityPaintProperty(props.layer.type);
     mapStore.map.setPaintProperty(props.layer.id, opac, layerOpacity)
 }
@@ -351,6 +512,7 @@ const confirmDialogVisibility = ref<boolean>(false)
 const toast = useToast();
 function deleteLayerConfirmation(layer: LayerObjectWithAttributes): void {
     mapStore.deleteMapLayer(layer.id, true).then(() => {
+        if (layer.logicalKind === "group") return
         try {
             mapStore.deleteMapDataSource(layer.source)
         } catch (error) {
@@ -362,6 +524,24 @@ function deleteLayerConfirmation(layer: LayerObjectWithAttributes): void {
     confirmDialogVisibility.value = false
 }
 function zoomToLayer(): void {
+    if (isGroupLayer.value) {
+        const boxes = props.layer.groupManifest?.members.flatMap((member) => {
+            const details = member.details
+            const bbox = details !== undefined && "coverage" in details
+                ? details.coverage.latLonBoundingBox
+                : details !== undefined && "featureType" in details
+                    ? details.featureType.latLonBoundingBox
+                    : undefined
+            return bbox === undefined ? [] : [bbox]
+        }) ?? []
+        if (boxes.length > 0) {
+            mapStore.map.fitBounds([
+                [Math.min(...boxes.map((box) => box.minx)), Math.min(...boxes.map((box) => box.miny))],
+                [Math.max(...boxes.map((box) => box.maxx)), Math.max(...boxes.map((box) => box.maxy))],
+            ], { padding: 20 })
+        }
+        return
+    }
     if (props.layer.type === "raster") {
         const bbox = (props.layer.details as GeoserverRasterTypeLayerDetail).coverage.latLonBoundingBox;
         mapStore.map.fitBounds([[bbox.minx, bbox.miny], [bbox.maxx, bbox.maxy]], { padding: 20 });
@@ -666,6 +846,23 @@ function createLayerHeaderIndicatorBackground(indicator: LayerHeaderIndicator): 
     max-width: 100%;
     max-height: 200px;
     object-fit: contain;
+}
+.group-central-legend-image {
+    max-height: 360px;
+}
+.group-legend-list {
+    display: grid;
+    gap: 0.75rem;
+}
+.group-legend-item {
+    display: grid;
+    gap: 0.3rem;
+    margin: 0;
+}
+.group-legend-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--ui-text-muted);
 }
 .layer-actions {
     display: flex;
