@@ -87,6 +87,8 @@
     "layerItem": {
       "reorderLayer": "Ebene neu anordnen",
       "temporalLayer": "Zeitliche Ebene",
+      "groupLayer": "Ebenengruppe",
+      "groupMembers": "Gruppenebenen",
       "zoom": "Zoom",
       "collapseControls": "Ebenensteuerung einklappen",
       "expandControls": "Ebenensteuerung ausklappen",
@@ -179,6 +181,7 @@
       "noInformation": "Keine Informationen zur Ebene.",
       "loadError": "Ebeneninformationen konnten nicht geladen werden.",
       "raster": "Raster",
+      "mixed": "Gemischt",
       "vector": "Vektor",
       "time": "Zeit",
       "timeSupport": "Diese Ebene unterstützt zeitbasierte Abfragen",
@@ -188,6 +191,12 @@
       "addWithTime": "Mit Zeit hinzufügen",
       "timeDomainTitle": "Zeitbereich",
       "timeDomainError": "Zeitbereich konnte nicht ermittelt werden; wird ohne Zeit hinzugefügt."
+    },
+    "groupItem": {
+      "group": "Gruppe",
+      "memberCount": "{count} Ebenen",
+      "noDescription": "Keine Gruppenbeschreibung verfügbar.",
+      "addToMap": "Gruppe zur Karte hinzufügen"
     },
     "listingItem": {
       "loadError": "Arbeitsbereichsebenen konnten nicht geladen werden."

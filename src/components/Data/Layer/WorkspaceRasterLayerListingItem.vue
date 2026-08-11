@@ -19,9 +19,14 @@
             </template>
             <div v-if="layerDetail" class="space-y-2">
                 <div v-if="hasDescription" class="space-y-1">
-                    <p ref="summaryElement" :class="['text-muted text-sm', isSummaryExpanded ? '' : 'line-clamp-2']">
+                    <p v-if="!isSummaryExpanded" ref="summaryElement" class="line-clamp-2 whitespace-pre-line text-sm text-muted">
                         {{ descriptionText }}
                     </p>
+                    <RichDescription
+                        v-else
+                        :content="layerDetail.coverage.description_content"
+                        :fallback="descriptionText"
+                    />
                     <UButton v-if="isSummaryTruncated || isSummaryExpanded" size="xs" color="neutral" variant="link" class="h-auto justify-start p-0" @click="isSummaryExpanded = !isSummaryExpanded">
                         {{ isSummaryExpanded ? t('workspace.layerItem.showLess') : t('workspace.layerItem.readMore') }}
                     </UButton>
@@ -48,9 +53,10 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { type GeoserverRasterTypeLayerDetail, type GeoserverLayerInfo, type GeoserverLayerListItem, getTimeDimension, resolveTimeDomain, useGeoserverStore } from "@store/geoserver";
-import { type GeoServerSourceParams, type LayerParams, useMapStore } from "@store/map";
+import { createMapRuntimeId, type GeoServerSourceParams, type LayerParams, useMapStore } from "@store/map";
 import { isNullOrEmpty } from "../../../core/helpers/functions";
 import { useToast } from "@helpers/toast";
+import RichDescription from "@components/Base/RichDescription.vue";
 
 export interface Props {
     item: GeoserverLayerListItem
@@ -133,9 +139,11 @@ async function add2Map(withTime: boolean): Promise<void> {
             toast.add({ severity: "warn", summary: t("workspace.layerItem.timeDomainTitle"), detail: t("workspace.layerItem.timeDomainError"), life: 3000 })
         }
     }
+    const resourceKey = `${layerDetail.value!.catalog?.provider.id ?? "provider"}:${props.workspace}:${layerDetail.value!.coverage.name}`
+    const runtimeId = createMapRuntimeId("layer", resourceKey)
     const sourceParams: GeoServerSourceParams = {
         sourceType: "geoserver",
-        identifier: layerDetail.value!.coverage.name,
+        identifier: runtimeId,
         isFilterLayer: false,
         workspaceName: props.workspace,
         layer: layerDetail.value!,
@@ -147,7 +155,8 @@ async function add2Map(withTime: boolean): Promise<void> {
         await mapStore.addMapDataSource(sourceParams)
         const layerParams: LayerParams = {
             sourceType: "geoserver",
-            identifier: layerDetail.value!.coverage.name,
+            identifier: runtimeId,
+            sourceIdentifier: runtimeId,
             layerType: "raster",
             geoserverLayerDetails: layerDetail.value!,
             sourceLayer: `${layerDetail.value!.coverage.name}`,

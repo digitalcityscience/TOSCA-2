@@ -86,12 +86,7 @@ const attributeAccordionItems = computed(() => {
     }))
 })
 function createDisplayName(source: string): string {
-    const layer = mapStore.layersOnMap.filter((layer) => { return source === layer.source })[0]
-    if (layer !== undefined) {
-        return (layer.displayName !== undefined && layer.displayName !== "") ? layer.displayName.replaceAll("_", " ") : layer.source.replaceAll("_", " ")
-    } else {
-        return "-x-x-x-"
-    }
+    return mapStore.displayNameForSource(source)?.replaceAll("_", " ") ?? "-x-x-x-"
 }
 
 function getPropertyRows(feature: PopupAttributeFeature): Array<{ name: string; value: string }> {

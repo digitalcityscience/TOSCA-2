@@ -87,6 +87,8 @@
     "layerItem": {
       "reorderLayer": "Reorder layer",
       "temporalLayer": "Temporal layer",
+      "groupLayer": "Layer group",
+      "groupMembers": "Group members",
       "zoom": "Zoom",
       "collapseControls": "Collapse layer controls",
       "expandControls": "Expand layer controls",
@@ -179,6 +181,7 @@
       "noInformation": "No information about layer.",
       "loadError": "Could not load layer information.",
       "raster": "Raster",
+      "mixed": "Mixed",
       "vector": "Vector",
       "time": "Time",
       "timeSupport": "This layer supports time-based queries",
@@ -188,6 +191,12 @@
       "addWithTime": "Add with time",
       "timeDomainTitle": "Time domain",
       "timeDomainError": "Could not resolve time domain; adding without time."
+    },
+    "groupItem": {
+      "group": "Group",
+      "memberCount": "{count} layers",
+      "noDescription": "No group description available.",
+      "addToMap": "Add group to map"
     },
     "listingItem": {
       "loadError": "Could not load workspace layers."

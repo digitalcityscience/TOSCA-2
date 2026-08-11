@@ -22,12 +22,12 @@
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 import {
+    type CatalogGroupStyleLayer,
     type GeoserverLayerInfo,
     type GeoserverLayerListItem,
     type WorkspaceListItem,
     useGeoserverStore,
 } from "@store/geoserver";
-import { type LayerStyleOptions } from "@store/map";
 import { useToast } from "@helpers/toast";
 import { reportDeveloperError } from "@helpers/userFacingError";
 import WorkspaceRasterLayerListingItem from "./WorkspaceRasterLayerListingItem.vue";
@@ -40,12 +40,16 @@ export interface Props {
 export interface LayerStylingPaint {
     paint: object
 }
+export interface LayerStylingBundle {
+    layers: CatalogGroupStyleLayer[];
+    spriteUrl?: string;
+}
 const props = defineProps<Props>()
 const { t } = useI18n();
 const toast = useToast()
 const geoserver = useGeoserverStore()
 const layerInformation = ref<GeoserverLayerInfo>()
-const layerStyling = ref<LayerStyleOptions>()
+const layerStyling = ref<LayerStylingBundle>()
 const isLoading = ref(true)
 const loadError = ref<string>()
 
@@ -56,19 +60,17 @@ async function loadLayerInformation(): Promise<void> {
         try {
             const style = await geoserver.getLayerStyling(response.layer.defaultStyle.href)
             if (Array.isArray(style?.layers) && style.layers.length > 0){
-                const obj: LayerStyleOptions = {
-                    paint:{ ...style.layers[0].paint }
+                const selectedIds = response.layer.defaultStyle.styleLayerIds ?? []
+                const selectedLayers = selectedIds.length > 0
+                    ? style.layers.filter((layer: CatalogGroupStyleLayer) => selectedIds.includes(layer.id))
+                    : style.layers.filter((layer: CatalogGroupStyleLayer) =>
+                        layer.source === props.item.name || layer["source-layer"] === props.item.name
+                    )
+                layerStyling.value = {
+                    layers: (selectedLayers.length > 0 ? selectedLayers : [style.layers[0]])
+                        .map((layer: CatalogGroupStyleLayer) => ({ ...layer })),
+                    ...(typeof style.sprite === "string" ? { spriteUrl: style.sprite } : {}),
                 }
-                if (Object.prototype.hasOwnProperty.call(style.layers[0] as LayerStyleOptions, "layout")){
-                    obj.layout = style.layers[0].layout
-                }
-                if (Object.prototype.hasOwnProperty.call(style.layers[0] as LayerStyleOptions, "minzoom")){
-                    obj.minzoom = style.layers[0].minzoom
-                }
-                if (Object.prototype.hasOwnProperty.call(style.layers[0] as LayerStyleOptions, "maxzoom")){
-                    obj.maxzoom = style.layers[0].maxzoom
-                }
-                layerStyling.value = obj
             }
         } catch (styleError) {
             reportDeveloperError(

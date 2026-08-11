@@ -1,16 +1,20 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref, shallowRef } from "vue";
 import {
+    type CatalogLayerGroupManifest,
+    type CatalogGroupStyleLayer,
     type GeoserverRasterTypeLayerDetail,
     type GeoServerVectorTypeLayerDetail,
 } from "./geoserver";
 import { type SourceSpecification, type AddLayerObject } from "maplibre-gl";
 import { getRandomHexColor, isNullOrEmpty } from "../core/helpers/functions";
 import { type FeatureCollection } from "@helpers/geojson";
+import { type MapStyleLegendContext } from "@helpers/mapStyleLegend";
 import { useToast } from "@helpers/toast";
 export interface LayerStyleOptions {
     paint?: Record<string, unknown>;
     layout?: Record<string, unknown>;
+    filter?: unknown[];
     minzoom?: number;
     maxzoom?: number;
     visibility?: "none" | "visible";
@@ -23,6 +27,7 @@ export interface CustomAddLayerObject {
     "source-layer"?: string;
     paint?: Record<string, unknown>;
     layout?: Record<string, unknown>;
+    filter?: unknown[];
     filterLayer?: boolean;
     layerData?: FeatureCollection;
     displayName?: string;
@@ -40,6 +45,13 @@ export interface LayerObjectWithAttributes extends CustomAddLayerObject {
      * can render the active selection.
      */
     time?: string;
+    logicalKind?: "layer" | "group";
+    managedSourceIds?: string[];
+    groupSourceIds?: Record<string, string>;
+    groupManifest?: CatalogLayerGroupManifest;
+    spriteRuntimeIds?: string[];
+    mbStyleLayers?: CatalogLayerGroupManifest["layers"];
+    mbStyleLegendContext?: MapStyleLegendContext;
 }
 type SourceType = "geojson" | "geoserver";
 export type MapLibreLayerTypes =
@@ -100,6 +112,14 @@ export interface GeoJSONSourceParams extends BaseDataSourceParams {
     geoJSONSrc: FeatureCollection;
 }
 export type SourceParams = GeoJSONSourceParams | GeoServerSourceParams;
+let runtimeIdSequence = 0;
+
+/** Create an insertion-scoped ID so catalog layers and group members never collide. */
+export function createMapRuntimeId(kind: "layer" | "group", resourceId: string): string {
+    runtimeIdSequence += 1;
+    const safeResourceId = resourceId.replace(/[^a-zA-Z0-9_-]+/g, "-");
+    return `${kind}:${safeResourceId}:${runtimeIdSequence}`;
+}
 /**
  * Builds a WMS GetMap tile URL for a raster source. MapLibre substitutes
  * `{bbox-epsg-3857}` per tile, so the URL is a tile template, not a one-shot
@@ -164,6 +184,7 @@ function providerBaseUrl(
         String(import.meta.env.VITE_GEOSERVER_BASE_URL ?? "").replace(/\/+$/, "");
 }
 export const useMapStore = defineStore("map", () => {
+    const spriteRegistry = new Map<string, { runtimeId: string; references: number }>();
     const toast = useToast();
     /**
    * Reference to the map instance, which will be assigned once a MapLibre map is initialized.
@@ -480,6 +501,14 @@ export const useMapStore = defineStore("map", () => {
                     }
                 });
                 map.value?.removeLayer(identifier);
+                if (parentRecord?.logicalKind === "group") {
+                    parentRecord.managedSourceIds?.forEach((sourceId) => {
+                        if (map.value?.getSource(sourceId) !== undefined) {
+                            map.value.removeSource(sourceId);
+                        }
+                    });
+                }
+                parentRecord?.spriteRuntimeIds?.forEach(releaseMapSprite);
                 removeFromMapLayerList(identifier, information);
                 resolve();
             } catch (error) {
@@ -507,7 +536,9 @@ export const useMapStore = defineStore("map", () => {
         // Get a list of all layer sources before deleting the layers
         const layerSources = new Set<string>();
         for (const layer of layersOnMap.value) {
-            layerSources.add(layer.source);
+            // Groups remove all of their managed sources as part of the same
+            // logical deletion, so do not queue their primary source twice.
+            if (layer.logicalKind !== "group") layerSources.add(layer.source);
         }
         const layersToDelete = [...layersOnMap.value];
         // Delete all layers on the map
@@ -671,6 +702,158 @@ export const useMapStore = defineStore("map", () => {
     }
 
     /**
+     * Add a complete catalog group as isolated runtime sources/layers while
+     * registering a single logical entry in the map layer sidebar.
+     */
+    async function addMapGroup(manifest: CatalogLayerGroupManifest): Promise<LayerObjectWithAttributes> {
+        if (isNullOrEmpty(map.value)) {
+            throw new Error("There is no map to add the group");
+        }
+        if (manifest.layers.length === 0 || Object.keys(manifest.sources).length === 0) {
+            throw new Error(`Layer group ${manifest.name} has no renderable content`);
+        }
+
+        const prefix = createMapRuntimeId("group", manifest.id);
+        const sourceIds: Record<string, string> = {};
+        const addedSources: string[] = [];
+        const addedLayers: string[] = [];
+        const spriteRuntimeIds: Record<string, string> = {};
+        const addedSprites: string[] = [];
+        try {
+            for (const [alias, specification] of Object.entries(manifest.sources)) {
+                const sourceId = `${prefix}:source:${sanitizeRuntimePart(alias)}`;
+                sourceIds[alias] = sourceId;
+                map.value.addSource(sourceId, specification as SourceSpecification);
+                addedSources.push(sourceId);
+            }
+            for (const sprite of Object.values(manifest.sprites)) {
+                // MapLibre uses the first colon as its sprite namespace
+                // separator, so generated sprite IDs themselves stay colon-free.
+                const runtimeId = `sprite-${sanitizeRuntimePart(prefix)}-${sanitizeRuntimePart(sprite.id)}`;
+                const acquiredRuntimeId = await acquireMapSprite(sprite.url, runtimeId);
+                spriteRuntimeIds[sprite.id] = acquiredRuntimeId;
+                addedSprites.push(acquiredRuntimeId);
+            }
+
+            const runtimeLayerObjects: LayerObjectWithAttributes[] = [];
+            manifest.layers.forEach((rawLayer, index) => {
+                const sourceAlias = typeof rawLayer.source === "string" ? rawLayer.source : undefined;
+                const styleId = typeof rawLayer.metadata?.["tosca:style-id"] === "string"
+                    ? rawLayer.metadata["tosca:style-id"] as string
+                    : undefined;
+                const spriteId = styleId === undefined ? undefined : manifest.styles[styleId]?.sprite_id;
+                const spriteRuntimeId = spriteId === null || spriteId === undefined
+                    ? undefined
+                    : spriteRuntimeIds[spriteId];
+                const runtimeLayerId = `${prefix}:render:${index}:${sanitizeRuntimePart(String(rawLayer.id ?? index))}`;
+                const layerObject = {
+                    ...rawLayer,
+                    id: runtimeLayerId,
+                    ...(sourceAlias === undefined ? {} : { source: sourceIds[sourceAlias] }),
+                    ...(rawLayer.paint === undefined
+                        ? {}
+                        : { paint: rewriteSpritePaint(rawLayer.paint, spriteRuntimeId) }),
+                    ...(rawLayer.layout === undefined
+                        ? {}
+                        : { layout: rewriteSpriteLayout(rawLayer.layout, spriteRuntimeId) }),
+                } as unknown as AddLayerObject;
+                map.value.addLayer(layerObject);
+                addedLayers.push(runtimeLayerId);
+                runtimeLayerObjects.push({
+                    ...(layerObject as unknown as CustomAddLayerObject),
+                    source: sourceAlias === undefined ? addedSources[0] : sourceIds[sourceAlias],
+                    sourceType: "geoserver",
+                    type: rawLayer.type as MapLibreLayerTypes,
+                    showOnLayerList: index === 0,
+                });
+            });
+
+            const primary = runtimeLayerObjects[0];
+            const logicalRecord: LayerObjectWithAttributes = {
+                ...primary,
+                displayName: manifest.title,
+                showOnLayerList: true,
+                logicalKind: "group",
+                companionLayerIds: addedLayers.slice(1),
+                managedSourceIds: addedSources,
+                groupSourceIds: sourceIds,
+                groupManifest: manifest,
+                spriteRuntimeIds: addedSprites,
+                workspaceName: manifest.workspace.name,
+                details: manifest.members[0]?.details,
+            };
+            add2MapLayerList(logicalRecord);
+            return logicalRecord;
+        } catch (error) {
+            [...addedLayers].reverse().forEach((layerId) => {
+                if (map.value?.getLayer(layerId) !== undefined) map.value.removeLayer(layerId);
+            });
+            [...addedSources].reverse().forEach((sourceId) => {
+                if (map.value?.getSource(sourceId) !== undefined) map.value.removeSource(sourceId);
+            });
+            [...addedSprites].reverse().forEach(releaseMapSprite);
+            throw error;
+        }
+    }
+
+    async function acquireMapSprite(url: string, preferredRuntimeId: string): Promise<string> {
+        const existing = spriteRegistry.get(url);
+        if (existing !== undefined) {
+            existing.references += 1;
+            return existing.runtimeId;
+        }
+        await map.value.addSprite(preferredRuntimeId, url);
+        spriteRegistry.set(url, { runtimeId: preferredRuntimeId, references: 1 });
+        return preferredRuntimeId;
+    }
+
+    function releaseMapSprite(runtimeId: string): void {
+        const entry = [...spriteRegistry.entries()].find(
+            ([, candidate]) => candidate.runtimeId === runtimeId
+        );
+        if (entry === undefined) return;
+        const [url, registered] = entry;
+        registered.references -= 1;
+        if (registered.references > 0) return;
+        spriteRegistry.delete(url);
+        if (typeof map.value?.removeSprite !== "function") return;
+        try {
+            map.value.removeSprite(runtimeId);
+        } catch (error) {
+            console.warn(`Failed to remove sprite ${runtimeId}`, error);
+        }
+    }
+
+    function setLogicalLayerOpacity(layer: LayerObjectWithAttributes, opacity: number): void {
+        const layerIds = [layer.id, ...(layer.companionLayerIds ?? [])];
+        layerIds.forEach((layerId) => {
+            const mapLayer = map.value?.getLayer(layerId);
+            if (mapLayer === undefined) return;
+            opacityPropertiesForType(mapLayer.type as MapLibreLayerTypes).forEach(
+                (property) => map.value.setPaintProperty(layerId, property, opacity)
+            );
+        });
+    }
+
+    function layerOwnsSource(layer: LayerObjectWithAttributes, sourceId: string): boolean {
+        return layer.source === sourceId || layer.managedSourceIds?.includes(sourceId) === true;
+    }
+
+    function displayNameForSource(sourceId: string): string | undefined {
+        const layer = layersOnMap.value.find((item) => layerOwnsSource(item, sourceId));
+        if (layer === undefined) return undefined;
+        if (layer.logicalKind === "group") {
+            const alias = Object.entries(layer.groupSourceIds ?? {})
+                .find(([, runtimeId]) => runtimeId === sourceId)?.[0];
+            const member = layer.groupManifest?.members.find(
+                (item) => (item.source_key ?? item.source_alias) === alias
+            );
+            return member?.layer_title ?? member?.title ?? layer.displayName;
+        }
+        return layer.displayName ?? layer.source;
+    }
+
+    /**
    * Returns user-visible layers in the same order shown by the sidebar.
    *
    * @returns {LayerObjectWithAttributes[]} Visible, reorderable layers from top to bottom.
@@ -771,16 +954,18 @@ export const useMapStore = defineStore("map", () => {
             (layer) => layer.id === identifier
         );
         if (index !== -1) {
-            const removedLayer = layersOnMap.value.splice(index, 1);
+            const [removedLayer] = layersOnMap.value.splice(index, 1);
             if (
-                removedLayer[0].showOnLayerList !== undefined &&
-        removedLayer[0].showOnLayerList
+                removedLayer.showOnLayerList !== undefined &&
+        removedLayer.showOnLayerList
             ) {
                 if (information !== undefined && information) {
                     toast.add({
-                        severity: "info",
-                        summary: "Info",
-                        detail: `Layer ${identifier} removed from layer list`,
+                        severity: "success",
+                        summary: "Success",
+                        detail: `Layer ${
+                            removedLayer.displayName ?? removedLayer.id
+                        } removed successfully`,
                         life: 3000,
                     });
                 }
@@ -905,12 +1090,86 @@ export const useMapStore = defineStore("map", () => {
         reorderVisibleMapLayer,
         getReorderableVisibleLayersTopToBottom,
         addCompanionLayer,
+        addMapGroup,
+        acquireMapSprite,
+        releaseMapSprite,
+        setLogicalLayerOpacity,
+        layerOwnsSource,
+        displayNameForSource,
         paintVersion,
         resetMapData,
         geometryConversion,
         setRasterLayerTime,
     };
 });
+
+function sanitizeRuntimePart(value: string): string {
+    return value.replace(/[^a-zA-Z0-9_-]+/g, "-");
+}
+
+export function rewriteSpriteLayout(
+    layout: Record<string, unknown>,
+    spriteRuntimeId?: string
+): Record<string, unknown> {
+    if (spriteRuntimeId === undefined || layout["icon-image"] === undefined) return { ...layout };
+    const iconImage = layout["icon-image"];
+    return {
+        ...layout,
+        "icon-image": prefixSpriteReference(iconImage, spriteRuntimeId),
+    };
+}
+
+export function rewriteSpritePaint(
+    paint: Record<string, unknown>,
+    spriteRuntimeId?: string
+): Record<string, unknown> {
+    if (spriteRuntimeId === undefined) return { ...paint };
+    const rewritten = { ...paint };
+    for (const property of [
+        "background-pattern",
+        "fill-pattern",
+        "fill-extrusion-pattern",
+        "line-pattern",
+    ]) {
+        if (rewritten[property] !== undefined) {
+            rewritten[property] = prefixSpriteReference(rewritten[property], spriteRuntimeId);
+        }
+    }
+    return rewritten;
+}
+
+/** Preserve every runtime-relevant MBStyle option for a standalone layer. */
+export function mbStyleLayerOptions(
+    layer: CatalogGroupStyleLayer,
+    spriteRuntimeId?: string
+): LayerStyleOptions {
+    return {
+        ...(layer.paint === undefined ? {} : { paint: rewriteSpritePaint(layer.paint, spriteRuntimeId) }),
+        ...(layer.layout === undefined ? {} : { layout: rewriteSpriteLayout(layer.layout, spriteRuntimeId) }),
+        ...(layer.filter === undefined ? {} : { filter: layer.filter }),
+        ...(layer.minzoom === undefined ? {} : { minzoom: layer.minzoom }),
+        ...(layer.maxzoom === undefined ? {} : { maxzoom: layer.maxzoom }),
+    };
+}
+
+function prefixSpriteReference(value: unknown, spriteRuntimeId: string): unknown {
+    return typeof value === "string"
+        ? `${spriteRuntimeId}:${value}`
+        : ["concat", `${spriteRuntimeId}:`, value];
+}
+
+function opacityPropertiesForType(type: MapLibreLayerTypes): string[] {
+    switch (type) {
+        case "circle": return ["circle-opacity"];
+        case "fill": return ["fill-opacity"];
+        case "line": return ["line-opacity"];
+        case "heatmap": return ["heatmap-opacity"];
+        case "raster": return ["raster-opacity"];
+        case "symbol": return ["icon-opacity", "text-opacity"];
+        case "fill-extrusion": return ["fill-extrusion-opacity"];
+        default: return [];
+    }
+}
 /* eslint-disable */
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useMapStore, import.meta.hot));

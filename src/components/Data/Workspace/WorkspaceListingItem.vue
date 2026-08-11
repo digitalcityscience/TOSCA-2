@@ -8,6 +8,7 @@
         <WorkspaceLayerListing
             v-else
             :list="layerList"
+            :groups="groupList"
             :workspace="props.workspace"
         />
     </div>
@@ -17,7 +18,7 @@
 // Components
 import WorkspaceLayerListing from "@components/Data/Layer/WorkspaceLayerListing.vue";
 // JS imports
-import { useGeoserverStore, type WorkspaceListItem, type GeoserverLayerListItem } from "@store/geoserver";
+import { useGeoserverStore, type WorkspaceListItem, type GeoserverLayerListItem, type CatalogLayerGroupListItem } from "@store/geoserver";
 import { ref, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { useToast } from "@helpers/toast";
@@ -29,11 +30,13 @@ export interface Props {
 }
 const props = defineProps<Props>()
 const layerList = ref<GeoserverLayerListItem[]>()
+const groupList = ref<CatalogLayerGroupListItem[]>()
 const isLoading = ref(true)
 const loadError = ref<string>()
 onMounted(() => {
     geoserver.getLayerList(props.workspace).then((response) => {
         layerList.value = response.layers.layer ?? []
+        groupList.value = response.groups?.group ?? []
     }).catch(err => {
         loadError.value = t("workspace.listingItem.loadError")
         toast.add({ severity: "error", summary: t("toast.error"), detail: err, life: 3000 });

@@ -14,6 +14,7 @@ import { useParticipationStore } from "@store/participation";
 import { BaseMapControl, type BaseMapControlOptions } from "@helpers/baseMapControl";
 import {
     queryRasterFeatureInfo,
+    deduplicatePopupAttributeFeatures,
     type GeoserverRasterTypeLayerDetail,
     type PopupAttributeFeature,
     type RasterFeatureInfoLayer,
@@ -117,33 +118,41 @@ async function showAttributePopup(event: MapMouseEvent): Promise<void> {
         layers: interactiveLayers,
     }) as PopupAttributeFeature[]
     const matchedFeatures = renderedFeatures.filter((feature) =>
-        mapStore.layersOnMap.some((layer) => layer.source === feature.source)
+        mapStore.layersOnMap.some((layer) => mapStore.layerOwnsSource(layer, feature.source))
     )
-    const uniqueVectorLayers = new Set<string>()
-    const vectorFeatures = matchedFeatures.filter((feature) => {
-        const key = feature.sourceLayer ?? feature.source
-        if (uniqueVectorLayers.has(key)) return false
-        uniqueVectorLayers.add(key)
-        return true
-    })
+    const vectorFeatures = deduplicatePopupAttributeFeatures(matchedFeatures)
 
     const rasterLayers = mapStore.layersOnMap
-        .filter((layer) =>
-            layer.type === "raster" &&
-            layer.sourceType === "geoserver" &&
-            layer.workspaceName !== undefined &&
-            layer.details !== undefined &&
-            "coverage" in layer.details &&
-            mapStore.map.getLayoutProperty(layer.id, "visibility") !== "none"
-        )
         .slice()
         .reverse()
-        .map((layer): RasterFeatureInfoLayer => ({
-            source: layer.source,
-            workspaceName: layer.workspaceName!,
-            details: layer.details as GeoserverRasterTypeLayerDetail,
-            time: layer.time,
-        }))
+        .flatMap((layer): RasterFeatureInfoLayer[] => {
+            if (mapStore.map.getLayoutProperty(layer.id, "visibility") === "none") return []
+            if (layer.logicalKind === "group") {
+                return layer.groupManifest?.members.flatMap((member) => {
+                    if (member.details === undefined || !("coverage" in member.details)) return []
+                    const source = layer.groupSourceIds?.[member.source_key ?? member.source_alias]
+                    if (source === undefined) return []
+                    return [{
+                        source,
+                        workspaceName: layer.groupManifest!.workspace.name,
+                        details: member.details as GeoserverRasterTypeLayerDetail,
+                    }]
+                }) ?? []
+            }
+            if (
+                layer.type !== "raster" ||
+                layer.sourceType !== "geoserver" ||
+                layer.workspaceName === undefined ||
+                layer.details === undefined ||
+                !("coverage" in layer.details)
+            ) return []
+            return [{
+                source: layer.source,
+                workspaceName: layer.workspaceName,
+                details: layer.details as GeoserverRasterTypeLayerDetail,
+                time: layer.time,
+            }]
+        })
     const rasterResults = await Promise.allSettled(rasterLayers.map(async (layer) =>
         await queryRasterFeatureInfo(layer, {
             lng: event.lngLat.lng,

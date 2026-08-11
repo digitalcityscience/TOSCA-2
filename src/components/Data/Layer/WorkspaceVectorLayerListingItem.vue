@@ -17,9 +17,14 @@
             </template>
             <div v-if="layerDetail" class="space-y-2">
                 <div v-if="hasDescription" class="space-y-1">
-                    <p ref="summaryElement" :class="['text-muted text-sm', isSummaryExpanded ? '' : 'line-clamp-2']">
+                    <p v-if="!isSummaryExpanded" ref="summaryElement" class="line-clamp-2 whitespace-pre-line text-sm text-muted">
                         {{ descriptionText }}
                     </p>
+                    <RichDescription
+                        v-else
+                        :content="layerDetail.featureType.description_content"
+                        :fallback="descriptionText"
+                    />
                     <UButton v-if="isSummaryTruncated || isSummaryExpanded" size="xs" color="neutral" variant="link" class="h-auto justify-start p-0" @click="isSummaryExpanded = !isSummaryExpanded">
                         {{ isSummaryExpanded ? t('workspace.layerItem.showLess') : t('workspace.layerItem.readMore') }}
                     </UButton>
@@ -45,15 +50,27 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { type GeoServerVectorTypeLayerDetail, type GeoserverLayerInfo, type GeoserverLayerListItem, useGeoserverStore } from "@store/geoserver";
-import { type GeoServerSourceParams, type LayerParams, type LayerStyleOptions, useMapStore } from "@store/map";
+import {
+    createMapRuntimeId,
+    mbStyleLayerOptions,
+    rewriteSpriteLayout,
+    rewriteSpritePaint,
+    type GeoServerSourceParams,
+    type LayerParams,
+    type MapLibreLayerTypes,
+    useMapStore,
+} from "@store/map";
+import type { AddLayerObject } from "maplibre-gl";
+import type { LayerStylingBundle } from "./WorkspaceLayerListingItem.vue";
 import { isNullOrEmpty } from "../../../core/helpers/functions";
 import { useToast } from "@helpers/toast";
+import RichDescription from "@components/Base/RichDescription.vue";
 
 export interface Props {
     item: GeoserverLayerListItem
     workspace: string
     layerInformation: GeoserverLayerInfo,
-    layerStyling?: LayerStyleOptions
+    layerStyling?: LayerStylingBundle
 }
 export interface LayerStylingPaint {
     paint: object
@@ -117,24 +134,45 @@ const sanitizeDataType = (type: string): string => {
 }
 
 const mapStore = useMapStore()
-function add2Map(): void{
+async function add2Map(): Promise<void> {
     if (!isNullOrEmpty(layerDetail.value)) {
+        const resourceKey = `${layerDetail.value!.catalog?.provider.id ?? "provider"}:${props.workspace}:${layerDetail.value!.featureType.name}`
+        const runtimeId = createMapRuntimeId("layer", resourceKey)
         const sourceParams: GeoServerSourceParams = {
             sourceType:"geoserver",
-            identifier:layerDetail.value!.featureType.name,
+            identifier:runtimeId,
             isFilterLayer:false,
             workspaceName:props.workspace,
             layer:layerDetail.value!,
             sourceDataType:"vector",
             sourceProtocol:"wmts"
         }
-        mapStore.addMapDataSource(sourceParams).then(() => {
+        let spriteRuntimeId: string | undefined
+        let spriteRegisteredOnLayer = false
+        try {
+            await mapStore.addMapDataSource(sourceParams)
             if (!isNullOrEmpty(dataType) && !isNullOrEmpty(layerDetail.value)) {
+                const selectedStyleLayers = (props.layerStyling?.layers ?? []).map((layer) => ({
+                    ...layer,
+                    metadata: {
+                        ...(layer.metadata ?? {}),
+                        "tosca:member-id": "standalone",
+                        "tosca:style-id": "standalone-style",
+                    },
+                }))
+                if (props.layerStyling?.spriteUrl !== undefined) {
+                    spriteRuntimeId = await mapStore.acquireMapSprite(
+                        props.layerStyling.spriteUrl,
+                        `sprite-${runtimeId.replace(/[^a-zA-Z0-9_-]+/g, "-")}`
+                    )
+                }
+                const firstStyleLayer = selectedStyleLayers[0]
                 const layerParams: LayerParams = {
                     sourceType:"geoserver",
-                    identifier:layerDetail.value!.featureType.name,
-                    layerType:mapStore.geometryConversion(dataType.value),
-                    layerStyle:!isNullOrEmpty(props.layerStyling) ? { ...props.layerStyling }: undefined,
+                    identifier:runtimeId,
+                    sourceIdentifier:runtimeId,
+                    layerType:(firstStyleLayer?.type as MapLibreLayerTypes | undefined) ?? mapStore.geometryConversion(dataType.value),
+                    layerStyle:firstStyleLayer === undefined ? undefined : mbStyleLayerOptions(firstStyleLayer, spriteRuntimeId),
                     geoserverLayerDetails:layerDetail.value!,
                     sourceLayer:`${layerDetail.value!.featureType.name}`,
                     displayName:layerDetail.value?.featureType.title ?? undefined,
@@ -142,14 +180,51 @@ function add2Map(): void{
                     sourceProtocol:"wmts",
                     workspaceName:props.workspace,
                 }
-                mapStore.addMapLayer(layerParams).then(()=>{
-                }).catch(error => {
-                    toast.add({ severity: "error", summary: t("toast.error"), detail: error, life: 3000 });
+                await mapStore.addMapLayer(layerParams)
+                const logicalLayer = mapStore.layersOnMap.find((layer) => layer.id === runtimeId)
+                if (logicalLayer !== undefined && selectedStyleLayers.length > 0) {
+                    logicalLayer.mbStyleLayers = selectedStyleLayers
+                    logicalLayer.mbStyleLegendContext = {
+                        members: [{ id: "standalone", title: cleanLayerName.value }],
+                        styles: {
+                            "standalone-style": {
+                                sprite_id: props.layerStyling?.spriteUrl === undefined
+                                    ? null
+                                    : "standalone-sprite",
+                            },
+                        },
+                        sprites: props.layerStyling?.spriteUrl === undefined
+                            ? {}
+                            : { "standalone-sprite": { url: props.layerStyling.spriteUrl } },
+                    }
+                    if (spriteRuntimeId !== undefined) {
+                        logicalLayer.spriteRuntimeIds = [spriteRuntimeId]
+                        spriteRegisteredOnLayer = true
+                    }
+                }
+                selectedStyleLayers.slice(1).forEach((styleLayer, index) => {
+                    mapStore.addCompanionLayer(runtimeId, {
+                        ...styleLayer,
+                        id: `${runtimeId}:style:${index + 1}`,
+                        type: styleLayer.type as MapLibreLayerTypes,
+                        source: runtimeId,
+                        "source-layer": layerDetail.value!.featureType.name,
+                        ...(styleLayer.paint === undefined
+                            ? {}
+                            : { paint: rewriteSpritePaint(styleLayer.paint, spriteRuntimeId) }),
+                        ...(styleLayer.layout === undefined
+                            ? {}
+                            : { layout: rewriteSpriteLayout(styleLayer.layout, spriteRuntimeId) }),
+                    } as AddLayerObject)
                 })
             }
-        }).catch(error => {
+        } catch (error) {
+            if (spriteRuntimeId !== undefined && !spriteRegisteredOnLayer) {
+                mapStore.releaseMapSprite(spriteRuntimeId)
+            }
             toast.add({ severity: "error", summary: t("toast.error"), detail: error, life: 3000 });
-        })
+        }
     }
 }
+
 </script>

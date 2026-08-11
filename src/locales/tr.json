@@ -87,6 +87,8 @@
     "layerItem": {
       "reorderLayer": "Katmanı yeniden sırala",
       "temporalLayer": "Zamansal katman",
+      "groupLayer": "Katman grubu",
+      "groupMembers": "Grup katmanları",
       "zoom": "Yakınlaştır",
       "collapseControls": "Katman denetimlerini daralt",
       "expandControls": "Katman denetimlerini genişlet",
@@ -179,6 +181,7 @@
       "noInformation": "Katman hakkında bilgi yok.",
       "loadError": "Katman bilgileri yüklenemedi.",
       "raster": "Raster",
+      "mixed": "Karma",
       "vector": "Vektör",
       "time": "Zaman",
       "timeSupport": "Bu katman zaman tabanlı sorguları destekler",
@@ -188,6 +191,12 @@
       "addWithTime": "Zaman ile ekle",
       "timeDomainTitle": "Zaman aralığı",
       "timeDomainError": "Zaman aralığı çözümlenemedi; zaman olmadan ekleniyor."
+    },
+    "groupItem": {
+      "group": "Grup",
+      "memberCount": "{count} katman",
+      "noDescription": "Grup açıklaması bulunmuyor.",
+      "addToMap": "Grubu haritaya ekle"
     },
     "listingItem": {
       "loadError": "Çalışma alanı katmanları yüklenemedi."
