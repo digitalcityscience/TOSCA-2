@@ -57,7 +57,7 @@
     "eslint-plugin-vue": "^10.10.0",
     "globals": "^17.8.0",
     "jsdom": "^25.0.1",
-    "postcss": "^8.4.35",
+    "postcss": "^8.5.26",
     "tailwindcss": "^4.3.3",
     "typedoc": "0.28.20",
     "typedoc-plugin-vue": "^1.4.0",
