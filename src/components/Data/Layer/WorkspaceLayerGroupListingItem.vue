@@ -26,17 +26,11 @@
             </div>
         </template>
         <div v-if="item.description" class="space-y-1">
-            <p
-                v-if="!isDescriptionExpanded"
-                ref="descriptionElement"
-                class="line-clamp-3 whitespace-pre-line text-sm text-muted"
-            >
-                {{ item.description }}
-            </p>
             <RichDescription
-                v-else
+                ref="descriptionElement"
                 :content="item.description_content"
                 :fallback="item.description"
+                :clamp-lines="isDescriptionExpanded ? undefined : 3"
             />
             <UButton
                 v-if="isDescriptionTruncated || isDescriptionExpanded"
@@ -87,7 +81,7 @@ const toast = useToast();
 const isAdding = ref(false);
 const isDescriptionExpanded = ref(false);
 const isDescriptionTruncated = ref(false);
-const descriptionElement = ref<HTMLElement>();
+const descriptionElement = ref<InstanceType<typeof RichDescription>>();
 
 const handleResize = (): void => {
     void updateDescriptionTruncation();
@@ -109,13 +103,7 @@ watch(() => props.item.description, () => {
 
 async function updateDescriptionTruncation(): Promise<void> {
     await nextTick();
-    const element = descriptionElement.value;
-    if (element === undefined) {
-        isDescriptionTruncated.value = false;
-        return;
-    }
-
-    isDescriptionTruncated.value = element.scrollHeight > element.clientHeight + 1;
+    isDescriptionTruncated.value = descriptionElement.value?.isTruncated() ?? false;
 }
 
 async function addGroupToMap(): Promise<void> {
