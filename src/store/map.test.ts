@@ -434,6 +434,38 @@ describe("catalog layer group lifecycle", () => {
         expect(removeSprite).toHaveBeenCalledOnce();
     });
 
+    test("shares one sprite across concurrent additions of the same URL", async () => {
+        const sources = new Map<string, unknown>();
+        const layers = new Map<string, unknown>();
+        // addSprite resolves on a later tick so both additions overlap inside
+        // the load window that used to add a duplicate sprite per caller.
+        const addSprite = vi.fn(async () => await Promise.resolve());
+        const removeSprite = vi.fn();
+        const mapStore = useMapStore();
+        mapStore.map = {
+            addSource: (id: string, source: unknown) => sources.set(id, source),
+            getSource: (id: string) => sources.get(id),
+            removeSource: (id: string) => sources.delete(id),
+            addLayer: (layer: { id: string }) => layers.set(layer.id, layer),
+            getLayer: (id: string) => layers.get(id),
+            removeLayer: (id: string) => layers.delete(id),
+            addSprite,
+            removeSprite,
+        };
+
+        const [first, second] = await Promise.all([
+            mapStore.addMapGroup(groupManifest()),
+            mapStore.addMapGroup(groupManifest()),
+        ]);
+        expect(addSprite).toHaveBeenCalledTimes(1);
+        expect(first.spriteRuntimeIds).toEqual(second.spriteRuntimeIds);
+
+        await mapStore.deleteMapLayer(first.id);
+        expect(removeSprite).not.toHaveBeenCalled();
+        await mapStore.deleteMapLayer(second.id);
+        expect(removeSprite).toHaveBeenCalledOnce();
+    });
+
     test("rolls back partial group additions", async () => {
         const sources = new Map<string, unknown>();
         const layers = new Map<string, unknown>();
