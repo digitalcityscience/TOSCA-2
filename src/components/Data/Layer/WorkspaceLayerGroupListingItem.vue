@@ -9,8 +9,8 @@
                     <span></span><span></span><span></span>
                 </div>
                 <div class="min-w-0 flex-1 space-y-1">
-                    <div class="flex min-w-0 flex-wrap items-center gap-2">
-                        <span class="truncate font-semibold text-highlighted">{{ item.title }}</span>
+                    <p class="layer-card-title font-semibold text-highlighted">{{ item.title }}</p>
+                    <div class="flex flex-wrap items-center gap-2">
                         <UBadge color="primary" variant="soft" size="sm" :label="t('workspace.groupItem.group')" />
                         <UBadge
                             color="neutral"
@@ -122,6 +122,12 @@ async function addGroupToMap(): Promise<void> {
 <style scoped>
 .group-layer-card {
     border-left: 3px solid color-mix(in srgb, var(--ui-primary) 68%, transparent);
+}
+
+.layer-card-title {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
 }
 
 .group-layer-mark {

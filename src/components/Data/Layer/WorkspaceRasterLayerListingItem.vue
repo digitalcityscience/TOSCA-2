@@ -4,8 +4,8 @@
             <template #header>
                 <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0 space-y-1">
-                        <div class="flex min-w-0 flex-wrap items-center gap-2">
-                            <span class="truncate font-semibold text-highlighted capitalize">{{ cleanLayerName }}</span>
+                        <p class="layer-card-title font-semibold text-highlighted capitalize">{{ cleanLayerName }}</p>
+                        <div class="flex flex-wrap items-center gap-2">
                             <UBadge color="neutral" variant="soft" size="sm" :label="t('workspace.layerItem.raster')" />
                             <UBadge v-if="hasTimeDimension" color="info" variant="soft" size="sm" icon="i-lucide-clock" :label="t('workspace.layerItem.time')" :title="t('workspace.layerItem.timeSupport')" />
                         </div>
@@ -165,5 +165,11 @@ async function add2Map(withTime: boolean): Promise<void> {
 }
 
 </script>
+
 <style scoped>
+.layer-card-title {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
+}
 </style>
