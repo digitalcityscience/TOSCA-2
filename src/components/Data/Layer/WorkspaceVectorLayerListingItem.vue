@@ -3,8 +3,8 @@
         <UCard class="workspace-layer-card bg-default/95 dark:bg-elevated/80" :ui="{ header: 'p-3 pb-2', body: 'p-3 pt-1', footer: 'p-3 pt-2' }">
             <template #header>
                 <div class="min-w-0 space-y-1">
-                    <div class="flex min-w-0 flex-wrap items-center gap-2">
-                        <span class="truncate font-semibold text-highlighted capitalize">{{ cleanLayerName }}</span>
+                    <p class="layer-card-title font-semibold text-highlighted capitalize">{{ cleanLayerName }}</p>
+                    <div class="flex flex-wrap items-center gap-2">
                         <UBadge color="neutral" variant="soft" size="sm" :label="t('workspace.layerItem.vector')" />
                         <UBadge v-if="dataType" color="info" variant="soft" size="sm" :label="dataType" />
                     </div>
@@ -220,3 +220,11 @@ async function add2Map(): Promise<void> {
 }
 
 </script>
+
+<style scoped>
+.layer-card-title {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
+}
+</style>
