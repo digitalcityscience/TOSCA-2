@@ -1,17 +1,26 @@
 <template>
     <div
         v-if="richHtml"
+        ref="rootElement"
         class="rich-description text-sm text-toned"
+        :class="{ 'rich-description-clamped': props.clampLines !== undefined }"
+        :style="clampStyle"
         data-testid="rich-description"
         v-html="richHtml"
     ></div>
-    <p v-else-if="fallback" class="whitespace-pre-line text-sm text-toned">
+    <p
+        v-else-if="fallback"
+        ref="rootElement"
+        class="whitespace-pre-line text-sm text-toned"
+        :class="{ 'rich-description-clamped': props.clampLines !== undefined }"
+        :style="clampStyle"
+    >
         {{ fallback }}
     </p>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, type CSSProperties } from "vue";
 import {
     descriptionDocumentToHtml,
     type EditorJsDescriptionContent,
@@ -20,12 +29,31 @@ import {
 const props = defineProps<{
     content?: EditorJsDescriptionContent | null;
     fallback?: string;
+    clampLines?: number;
 }>();
 
+const rootElement = ref<HTMLElement>();
 const richHtml = computed(() => descriptionDocumentToHtml(props.content));
+const clampStyle = computed<CSSProperties | undefined>(() => props.clampLines === undefined
+    ? undefined
+    : { "--rich-description-clamp-lines": String(props.clampLines) });
+
+function isTruncated(): boolean {
+    const element = rootElement.value;
+    return element !== undefined && element.scrollHeight > element.clientHeight + 1;
+}
+
+defineExpose({ isTruncated });
 </script>
 
 <style scoped>
+.rich-description-clamped {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: var(--rich-description-clamp-lines);
+}
+
 .rich-description :deep(p),
 .rich-description :deep(ol),
 .rich-description :deep(ul) {
@@ -45,6 +73,17 @@ const richHtml = computed(() => descriptionDocumentToHtml(props.content));
 .rich-description :deep(h2) { font-size: 1rem; }
 .rich-description :deep(h3) { font-size: 0.925rem; }
 .rich-description :deep(h4) { font-size: 0.875rem; }
+
+.rich-description :deep(strong),
+.rich-description :deep(b) {
+    color: inherit;
+    font-weight: 700;
+}
+
+.rich-description :deep(em),
+.rich-description :deep(i) {
+    font-style: italic;
+}
 
 .rich-description :deep(ol),
 .rich-description :deep(ul) {

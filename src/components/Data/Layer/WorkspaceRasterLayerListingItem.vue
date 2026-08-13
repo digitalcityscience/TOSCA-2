@@ -19,13 +19,11 @@
             </template>
             <div v-if="layerDetail" class="space-y-2">
                 <div v-if="hasDescription" class="space-y-1">
-                    <p v-if="!isSummaryExpanded" ref="summaryElement" class="line-clamp-2 whitespace-pre-line text-sm text-muted">
-                        {{ descriptionText }}
-                    </p>
                     <RichDescription
-                        v-else
+                        ref="summaryElement"
                         :content="layerDetail.coverage.description_content"
                         :fallback="descriptionText"
+                        :clamp-lines="isSummaryExpanded ? undefined : 2"
                     />
                     <UButton v-if="isSummaryTruncated || isSummaryExpanded" size="xs" color="neutral" variant="link" class="h-auto justify-start p-0" @click="isSummaryExpanded = !isSummaryExpanded">
                         {{ isSummaryExpanded ? t('workspace.layerItem.showLess') : t('workspace.layerItem.readMore') }}
@@ -80,7 +78,7 @@ const geoserver = useGeoserverStore()
 const layerDetail = ref<GeoserverRasterTypeLayerDetail>()
 const isSummaryExpanded = ref(false)
 const isSummaryTruncated = ref(false)
-const summaryElement = ref<HTMLElement>()
+const summaryElement = ref<InstanceType<typeof RichDescription>>()
 const descriptionText = computed(() => layerDetail.value?.coverage.description ?? "")
 const hasDescription = computed(() => descriptionText.value.length > 0)
 const hasKeywords = computed(() => (layerDetail.value?.coverage.keywords.string.length ?? 0) > 0)
@@ -109,13 +107,7 @@ watch(descriptionText, () => {
 
 async function updateSummaryTruncation(): Promise<void> {
     await nextTick()
-    const element = summaryElement.value
-    if (element === undefined) {
-        isSummaryTruncated.value = false
-        return
-    }
-
-    isSummaryTruncated.value = element.scrollHeight > element.clientHeight + 1
+    isSummaryTruncated.value = summaryElement.value?.isTruncated() ?? false
 }
 
 const mapStore = useMapStore()
