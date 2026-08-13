@@ -184,7 +184,10 @@ function providerBaseUrl(
         String(import.meta.env.VITE_GEOSERVER_BASE_URL ?? "").replace(/\/+$/, "");
 }
 export const useMapStore = defineStore("map", () => {
-    const spriteRegistry = new Map<string, { runtimeId: string; references: number }>();
+    const spriteRegistry = new Map<
+        string,
+        { runtimeId: string; references: number; loading?: Promise<void> }
+    >();
     const toast = useToast();
     /**
    * Reference to the map instance, which will be assigned once a MapLibre map is initialized.
@@ -800,10 +803,32 @@ export const useMapStore = defineStore("map", () => {
         const existing = spriteRegistry.get(url);
         if (existing !== undefined) {
             existing.references += 1;
+            // A concurrent acquire may still be loading this sprite; wait for
+            // that same load so callers never reference a sprite that has not
+            // finished attaching to the map yet.
+            if (existing.loading !== undefined) {
+                try {
+                    await existing.loading;
+                } catch (error) {
+                    existing.references -= 1;
+                    throw error;
+                }
+            }
             return existing.runtimeId;
         }
-        await map.value.addSprite(preferredRuntimeId, url);
-        spriteRegistry.set(url, { runtimeId: preferredRuntimeId, references: 1 });
+        // Reserve the registry slot synchronously, before awaiting addSprite, so
+        // concurrent acquires of the same URL share this single sprite and its
+        // reference count instead of each adding a duplicate.
+        const loading = map.value.addSprite(preferredRuntimeId, url) as Promise<void>;
+        const entry = { runtimeId: preferredRuntimeId, references: 1, loading };
+        spriteRegistry.set(url, entry);
+        try {
+            await loading;
+            entry.loading = undefined;
+        } catch (error) {
+            if (spriteRegistry.get(url) === entry) spriteRegistry.delete(url);
+            throw error;
+        }
         return preferredRuntimeId;
     }
 
