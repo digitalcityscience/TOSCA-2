@@ -209,6 +209,14 @@ async function add2Map(): Promise<void> {
                             : { layout: rewriteSpriteLayout(styleLayer.layout, spriteRuntimeId) }),
                     } as AddLayerObject)
                 })
+                if (spriteRuntimeId !== undefined && !spriteRegisteredOnLayer) {
+                    // The sprite was acquired but never attached to a logical
+                    // layer (e.g. the layer record could not be resolved), so
+                    // its owning layer will never release it. Drop the
+                    // reference now to avoid leaking the sprite.
+                    mapStore.releaseMapSprite(spriteRuntimeId)
+                    spriteRuntimeId = undefined
+                }
             }
         } catch (error) {
             if (spriteRuntimeId !== undefined && !spriteRegisteredOnLayer) {
