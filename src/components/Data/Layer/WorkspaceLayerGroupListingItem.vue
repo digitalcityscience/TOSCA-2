@@ -69,12 +69,12 @@ import { useToast } from "@helpers/toast";
 import RichDescription from "@components/Base/RichDescription.vue";
 
 const props = defineProps<{ item: CatalogLayerGroupListItem }>();
+const { t } = useI18n();
 const compositionLabel = computed(() => {
     if (props.item.composition === "VECTOR") return t("workspace.layerItem.vector");
     if (props.item.composition === "RASTER") return t("workspace.layerItem.raster");
     return t("workspace.layerItem.mixed");
 });
-const { t } = useI18n();
 const catalog = useGeoserverStore();
 const mapStore = useMapStore();
 const toast = useToast();
