@@ -820,7 +820,11 @@ export const useMapStore = defineStore("map", () => {
         // concurrent acquires of the same URL share this single sprite and its
         // reference count instead of each adding a duplicate.
         const loading = map.value.addSprite(preferredRuntimeId, url) as Promise<void>;
-        const entry = { runtimeId: preferredRuntimeId, references: 1, loading };
+        const entry: { runtimeId: string; references: number; loading?: Promise<void> } = {
+            runtimeId: preferredRuntimeId,
+            references: 1,
+            loading,
+        };
         spriteRegistry.set(url, entry);
         try {
             await loading;
