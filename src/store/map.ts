@@ -5,13 +5,43 @@ import {
     type CatalogGroupStyleLayer,
     type GeoserverRasterTypeLayerDetail,
     type GeoServerVectorTypeLayerDetail,
+    type PopupAttributeFeature,
 } from "./geoserver";
 import { type SourceSpecification, type AddLayerObject } from "maplibre-gl";
+import { MapboxOverlay } from "@deck.gl/mapbox";
+import { type PickingInfo, type FilterContext } from "@deck.gl/core";
+import { Tile3DLayer } from "@deck.gl/geo-layers";
+import { Tiles3DLoader } from "@loaders.gl/3d-tiles";
+import { getDistanceScales, lngLatToWorld } from "@math.gl/web-mercator";
+import { Matrix4 } from "@math.gl/core";
 import { getRandomHexColor, isNullOrEmpty } from "../core/helpers/functions";
 import { type FeatureCollection } from "@helpers/geojson";
 import { type MapStyleLegendContext } from "@helpers/mapStyleLegend";
 import { isEditableMapStyleColorProperty } from "@helpers/mapStyleEditing";
 import { useToast } from "@helpers/toast";
+
+/**
+ * Tile3DLayer's own `filterSubLayer` skips rendering a tile for the *picking*
+ * pass whenever its aggregate content origin projects more than a quarter of
+ * the viewport away from the picked point — a performance heuristic, not
+ * configurable via props. With a pitched camera and tall buildings, a click
+ * on the upper/side facade of a building can be screen-space-far from its
+ * tile's (roughly ground-level) origin, so real geometry silently fails to
+ * pick. Subclass to keep the normal tile-selection gate but skip that
+ * picking-only distance cull.
+ */
+class PickableTile3DLayer extends Tile3DLayer {
+    filterSubLayer(context: FilterContext): boolean {
+        const { tile } = context.layer.props as unknown as {
+            tile?: { selected?: boolean, viewportIds?: string[] }
+        };
+        if (tile?.selected !== true || tile.viewportIds?.includes(context.viewport.id) !== true) {
+            return false;
+        }
+        return true;
+    }
+}
+
 export interface LayerStyleOptions {
     paint?: Record<string, unknown>;
     layout?: Record<string, unknown>;
@@ -32,7 +62,7 @@ export interface CustomAddLayerObject {
     id: string;
     source: string;
     sourceType: SourceType;
-    type: MapLibreLayerTypes;
+    type: LayerRenderType;
     "source-layer"?: string;
     paint?: Record<string, unknown>;
     layout?: Record<string, unknown>;
@@ -65,8 +95,18 @@ export interface LayerObjectWithAttributes extends CustomAddLayerObject {
     mbStyleLegendContext?: MapStyleLegendContext;
     availableStyles?: MapLayerStyleOption[];
     activeStyleId?: string;
+    /**
+     * Which rendering pipeline owns this layer. Absent/"maplibre" means the id
+     * is a real MapLibre style layer; "deckgl" means it only exists as an
+     * entry in `deckLayerProps`, rendered through the interleaved deck.gl
+     * overlay, and none of the MapLibre paint/layout calls apply to it.
+     */
+    renderer?: LayerRenderer;
+    /** Source URL for a deck.gl `Tile3DLayer` (3D Tiles tileset.json). */
+    tilesetUrl?: string;
 }
-type SourceType = "geojson" | "geoserver";
+type SourceType = "geojson" | "geoserver" | "deckgl";
+export type LayerRenderer = "maplibre" | "deckgl";
 export type MapLibreLayerTypes =
   | "fill"
   | "line"
@@ -77,6 +117,8 @@ export type MapLibreLayerTypes =
   | "raster"
   | "hillshade"
   | "background";
+/** MapLibre style-spec types, plus synthetic types for non-MapLibre renderers. */
+export type LayerRenderType = MapLibreLayerTypes | "deckgl-tile3d";
 
 interface BaseLayerParams {
     sourceType: SourceType;
@@ -225,6 +267,148 @@ export const useMapStore = defineStore("map", () => {
     const paintVersion = ref<number>(0);
     /** Reactive mirror of MapLibre's terrain state for terrain-sensitive UI. */
     const terrainEnabled = ref<boolean>(false);
+    /**
+   * The interleaved deck.gl overlay control, created lazily the first time a
+   * deck.gl layer is added. `interleaved: true` lets deck.gl layers depth-sort
+   * against MapLibre's own layers instead of always drawing on top of them.
+   */
+    const deckOverlay = shallowRef<MapboxOverlay>();
+    /**
+   * Props for every active deck.gl layer, keyed by the same `identifier` used
+   * in `layersOnMap`. deck.gl layers are immutable, so a "prop update" (opacity,
+   * visibility, z-order) rebuilds this map's entry and reinstantiates the
+   * Layer from it in `syncDeckOverlay` — that is the normal deck.gl update
+   * pattern, not a workaround.
+   */
+    const deckLayerProps = new Map<string, Record<string, unknown>>();
+    /**
+   * Rebuilds every deck.gl Layer instance from `deckLayerProps` and pushes them
+   * to the overlay. Called after any add/remove/prop change.
+   */
+    function syncDeckOverlay(): void {
+        if (deckOverlay.value === undefined) return;
+        const layers = Array.from(deckLayerProps.values()).map(
+            (props) => new PickableTile3DLayer(props)
+        );
+        deckOverlay.value.setProps({ layers });
+    }
+    /**
+   * Lazily creates the interleaved deck.gl overlay and attaches it to the map.
+   * Safe to call multiple times; only the first call has an effect.
+   */
+    function initializeDeckOverlay(): void {
+        if (isNullOrEmpty(map.value) || deckOverlay.value !== undefined) return;
+        const overlay = new MapboxOverlay({ interleaved: true, layers: [] });
+        map.value.addControl(overlay);
+        deckOverlay.value = overlay;
+    }
+    /**
+   * Adds a 3D Tiles tileset (e.g. CityGML/CityJSON converted to 3D Tiles) as
+   * an interleaved deck.gl layer, and registers a sidebar entry for it.
+   *
+   * @param {string} params.identifier - Unique layer id.
+   * @param {string} params.tilesetUrl - URL of the tileset's root `tileset.json`.
+   * @param {string} [params.displayName] - Optional display name for the sidebar.
+   * @param {boolean} [params.showOnLayerList=true] - If true, shows in the sidebar.
+   */
+    function addDeckTilesetLayer(params: {
+        identifier: string
+        tilesetUrl: string
+        displayName?: string
+        showOnLayerList?: boolean
+    }): void {
+        if (isNullOrEmpty(map.value)) {
+            throw new Error("There is no map to add layer");
+        }
+        const { identifier, tilesetUrl, displayName, showOnLayerList = true } = params;
+        if (identifier === "") {
+            throw new Error("Identifier is required to add layer");
+        }
+        initializeDeckOverlay();
+        deckLayerProps.set(identifier, {
+            id: identifier,
+            data: tilesetUrl,
+            loader: Tiles3DLoader,
+            opacity: 1,
+            visible: true,
+            // "3d" (rather than plain true) enables depth-picking: the pick
+            // result's `coordinate` is the real 3D point unprojected onto the
+            // clicked surface, not a flat ray/plane approximation. We need
+            // that accurate 3D point for CPU-side nearest-vertex matching —
+            // see findNearestVertexBatchId — since b3dm content's GPU
+            // picking-color index can't distinguish individual buildings.
+            pickable: "3d",
+        });
+        syncDeckOverlay();
+        const layerRecord: LayerObjectWithAttributes = {
+            id: identifier,
+            source: identifier,
+            sourceType: "deckgl",
+            type: "deckgl-tile3d",
+            renderer: "deckgl",
+            showOnLayerList,
+            keepOnTop: false,
+            displayName,
+            tilesetUrl,
+        };
+        add2MapLayerList(layerRecord);
+        // Buildings are meaningless from a straight-down view; tilt the camera
+        // so the newly added 3D layer is actually visible.
+        if (map.value.getPitch() < 30) {
+            map.value.easeTo({ pitch: 60, duration: 800 });
+        }
+    }
+    /** Removes a deck.gl layer from the overlay. Does not touch `layersOnMap`. */
+    function removeDeckLayer(identifier: string): void {
+        deckLayerProps.delete(identifier);
+        syncDeckOverlay();
+    }
+    function setDeckLayerVisibility(identifier: string, visible: boolean): void {
+        const props = deckLayerProps.get(identifier);
+        if (props === undefined) return;
+        deckLayerProps.set(identifier, { ...props, visible });
+        syncDeckOverlay();
+    }
+    function setDeckLayerOpacity(identifier: string, opacity: number): void {
+        const props = deckLayerProps.get(identifier);
+        if (props === undefined) return;
+        deckLayerProps.set(identifier, { ...props, opacity });
+        syncDeckOverlay();
+    }
+    /**
+   * Updates which MapLibre style layer a deck.gl layer should render
+   * immediately below, mirroring MapLibre's own `moveLayer(id, beforeId)`
+   * semantics so drag-reorder can interleave 3D layers between 2D ones.
+   */
+    function setDeckLayerBeforeId(identifier: string, beforeId?: string): void {
+        const props = deckLayerProps.get(identifier);
+        if (props === undefined) return;
+        deckLayerProps.set(identifier, { ...props, beforeId });
+        syncDeckOverlay();
+    }
+    /**
+   * Picks every pickable deck.gl object under a click point (CSS pixel
+   * coordinates, same space as MapLibre's `event.point`, since the overlay
+   * is interleaved into the same canvas), mapped into the same
+   * `PopupAttributeFeature` shape the vector/raster attribute popup uses.
+   *
+   * @param {{x: number, y: number}} point - Click point in canvas CSS pixels.
+   */
+    function pickDeckObjects(point: { x: number, y: number }): PopupAttributeFeature[] {
+        if (deckOverlay.value === undefined) return [];
+        let picks: PickingInfo[];
+        try {
+            picks = deckOverlay.value.pickMultipleObjects({
+                x: point.x, y: point.y, radius: 5, depth: 5, unproject3D: true,
+            });
+        } catch (error) {
+            console.error("deck.gl pick failed", error);
+            return [];
+        }
+        return picks
+            .filter((pick) => pick.picked && pick.layer !== null)
+            .map((pick) => buildDeckPopupFeature(pick));
+    }
     /**
    * Asynchronously adds a new data source to Maplibre map sources. The source can be either GeoJSON data or a Geoserver vector tile source.
    * @param {SourceParams} sourceParams - The parameters for the source to add.
@@ -452,17 +636,21 @@ export const useMapStore = defineStore("map", () => {
         let beforeId;
         let index;
         if (layerType === "raster") {
-            const firstVectorLayer = layersOnMap.value.find((layer) => {
-                return layer.type !== "raster";
-            });
             const indexOfFirstVectorLayer = layersOnMap.value.findIndex((layer) => {
                 return layer.type !== "raster";
             });
             if (indexOfFirstVectorLayer !== -1) {
                 index = indexOfFirstVectorLayer;
             }
-            if (firstVectorLayer !== undefined) {
-                beforeId = firstVectorLayer.id;
+            // beforeId must reference a real MapLibre style layer. deck.gl
+            // entries (renderer === "deckgl") only exist as interleaved
+            // overlay layers, not in the style's own layer stack, so they
+            // cannot anchor `addLayer`'s beforeId — skip past them.
+            const firstAnchorableVectorLayer = layersOnMap.value.find((layer) => {
+                return layer.type !== "raster" && layer.renderer !== "deckgl";
+            });
+            if (firstAnchorableVectorLayer !== undefined) {
+                beforeId = firstAnchorableVectorLayer.id;
             }
         }
         // add layer object to map
@@ -493,6 +681,12 @@ export const useMapStore = defineStore("map", () => {
         identifier: string,
         information?: boolean
     ): Promise<void> {
+        const record = layersOnMap.value.find((l) => l.id === identifier);
+        if (record?.renderer === "deckgl") {
+            removeDeckLayer(identifier);
+            removeFromMapLayerList(identifier, information);
+            return;
+        }
         await new Promise<void>((resolve, reject) => {
             if (isNullOrEmpty(map.value)) {
                 reject(new Error("There is no map to delete layer from"));
@@ -562,7 +756,10 @@ export const useMapStore = defineStore("map", () => {
         for (const layer of layersOnMap.value) {
             // Groups remove all of their managed sources as part of the same
             // logical deletion, so do not queue their primary source twice.
-            if (layer.logicalKind !== "group") layerSources.add(layer.source);
+            // deck.gl layers have no MapLibre source to begin with.
+            if (layer.logicalKind !== "group" && layer.renderer !== "deckgl") {
+                layerSources.add(layer.source);
+            }
         }
         const layersToDelete = [...layersOnMap.value];
         // Delete all layers on the map
@@ -663,10 +860,15 @@ export const useMapStore = defineStore("map", () => {
             throw new Error(`Layer with identifier ${identifier} is not reorderable`);
         }
 
+        const movedLayerRecord = currentVisibleLayers[currentVisibleIndex];
         const nextVisibleLayers = [...currentVisibleLayers];
         const [movedLayer] = nextVisibleLayers.splice(currentVisibleIndex, 1);
         nextVisibleLayers.splice(targetVisibleTopIndex, 0, movedLayer);
 
+        // Both branches below resolve to the same thing: the id of the nearest
+        // real MapLibre layer above the moved layer's new position (deck.gl
+        // entries in between are skipped, since they are not part of
+        // MapLibre's own layer stack and cannot anchor a `beforeId`).
         const beforeId = getMapLibreBeforeIdForVisibleMove(
             nextVisibleLayers,
             targetVisibleTopIndex
@@ -676,15 +878,21 @@ export const useMapStore = defineStore("map", () => {
             return;
         }
 
-        moveMapLibreLayer(identifier, beforeId);
-        // Companions ride with their parent: re-issue moveLayer for each so
-        // they sit immediately above the parent in registration order.
-        const parent = layersOnMap.value.find((layer) => layer.id === identifier);
-        parent?.companionLayerIds?.forEach((companionId) => {
-            if (map.value?.getLayer(companionId) !== undefined) {
-                moveMapLibreLayer(companionId, beforeId);
-            }
-        });
+        if (movedLayerRecord.renderer === "deckgl") {
+            // Re-interleave the deck.gl layer at its new position among the
+            // MapLibre layers instead of moving a (nonexistent) style layer.
+            setDeckLayerBeforeId(identifier, beforeId);
+        } else {
+            moveMapLibreLayer(identifier, beforeId);
+            // Companions ride with their parent: re-issue moveLayer for each so
+            // they sit immediately above the parent in registration order.
+            const parent = layersOnMap.value.find((layer) => layer.id === identifier);
+            parent?.companionLayerIds?.forEach((companionId) => {
+                if (map.value?.getLayer(companionId) !== undefined) {
+                    moveMapLibreLayer(companionId, beforeId);
+                }
+            });
+        }
         moveLayerInState(identifier, beforeId);
     }
 
@@ -709,7 +917,11 @@ export const useMapStore = defineStore("map", () => {
             return;
         }
         const parentIndex = layersOnMap.value.findIndex((layer) => layer.id === parentId);
-        const aboveLayer = parentIndex >= 0 ? layersOnMap.value[parentIndex + 1] : undefined;
+        // beforeId must reference a real MapLibre style layer — skip past any
+        // deck.gl entries that may sit directly above the parent in the list.
+        const aboveLayer = parentIndex >= 0
+            ? layersOnMap.value.slice(parentIndex + 1).find((layer) => layer.renderer !== "deckgl")
+            : undefined;
         const insertBeforeId = aboveLayer?.id;
         try {
             map.value.addLayer(layerSpec, insertBeforeId);
@@ -926,8 +1138,15 @@ export const useMapStore = defineStore("map", () => {
         visibleLayersTopToBottom: LayerObjectWithAttributes[],
         targetVisibleTopIndex: number
     ): string | undefined {
-        if (targetVisibleTopIndex > 0) {
-            return visibleLayersTopToBottom[targetVisibleTopIndex - 1]?.id;
+        // Scan upward (toward the top of the sidebar) for the nearest entry
+        // that is an actual MapLibre style layer. deck.gl entries are skipped
+        // since MapLibre's `moveLayer`/`addLayer` beforeId must reference a
+        // real style layer id.
+        for (let i = targetVisibleTopIndex - 1; i >= 0; i--) {
+            const candidate = visibleLayersTopToBottom[i];
+            if (candidate.renderer !== "deckgl") {
+                return candidate.id;
+            }
         }
 
         return layersOnMap.value.find((layer) => layer.keepOnTop === true)?.id;
@@ -1307,6 +1526,14 @@ export const useMapStore = defineStore("map", () => {
         setRasterLayerTime,
         setStandaloneLayerStyle,
         setStandaloneLayerPaintColor,
+        deckOverlay,
+        initializeDeckOverlay,
+        addDeckTilesetLayer,
+        removeDeckLayer,
+        setDeckLayerVisibility,
+        setDeckLayerOpacity,
+        setDeckLayerBeforeId,
+        pickDeckObjects,
     };
 });
 
@@ -1385,6 +1612,138 @@ function opacityPropertiesForType(type: MapLibreLayerTypes): string[] {
         case "fill-extrusion": return ["fill-extrusion-opacity"];
         default: return [];
     }
+}
+
+/**
+ * Tile3DLayer's own `getPickingInfo` sets `info.object` to the whole loaded
+ * Tile3D (not the individual clicked building) — deck.gl's MeshLayer, which
+ * Tile3DLayer uses to render b3dm mesh content, is given the tile's
+ * per-vertex `_BATCHID` attribute as a `featureIds` prop specifically so
+ * `info.index` resolves to the picked *feature* (building) id rather than a
+ * raw vertex index. That id indexes directly into the b3dm batch table
+ * (`content.batchTableJson`, one array per property, one entry per building).
+ * This covers tilesets with a plain-JSON batch table (the common case);
+ * tilesets using a binary-encoded batch table would need loaders.gl's
+ * (currently unused) `Tile3DBatchTableParser` wired in separately.
+ */
+/**
+ * b3dm tiles always render through deck.gl's `ScenegraphLayer` (loaders.gl
+ * hardcodes that render path by file extension — see PickableTile3DLayer's
+ * `filterSubLayer` comment for the fuller trail), which has no per-vertex
+ * picking-color concept: `pick.index` always resolves to the tile's single
+ * "instance", never the individual building. GPU picking can't disambiguate
+ * buildings here, so this does it on the CPU instead.
+ *
+ * With `pickable: "3d"` on the layer, `pick.coordinate` is an accurate 3D
+ * point unprojected onto the actual clicked surface (not a flat-plane
+ * approximation). This finds the mesh vertex nearest that point and returns
+ * its `_BATCHID` (the same per-vertex glTF attribute read elsewhere for
+ * batch-table lookups). Comparison happens in Web Mercator "world" space —
+ * the exact same space and math (`addMetersToLngLat` /
+ * `getDistanceScales`) deck.gl's own METER_OFFSETS coordinate system uses
+ * internally to place `content.modelMatrix`-transformed vertices relative to
+ * `content.cartographicOrigin` — so this stays consistent with how the tile
+ * actually renders, without touching rendering itself (unlike an earlier,
+ * reverted attempt that tried to reroute the renderer and broke it).
+ *
+ * Deliberately horizontal (X/Y) only: Web Mercator "world" units and real
+ * meters (used for the vertical/Z axis) are different scales, and mixing
+ * them without a matching Z conversion would bias the match unpredictably.
+ * Buildings are horizontally separated, so X/Y alone is enough to identify
+ * which one was clicked.
+ */
+function findNearestVertexBatchId(
+    tile: { content?: any } | undefined,
+    pickCoordinate: number[] | undefined
+): number | undefined {
+    const content = tile?.content;
+    const positions = content?.gltf?.meshes?.[0]?.primitives?.[0]?.attributes?.POSITION?.value;
+    const batchIds = content?.gltf?.meshes?.[0]?.primitives?.[0]?.attributes?._BATCHID?.value;
+    const modelMatrix = content?.modelMatrix;
+    const origin = content?.cartographicOrigin as number[] | undefined;
+    if (
+        positions === undefined || batchIds === undefined || modelMatrix === undefined ||
+        origin === undefined || pickCoordinate === undefined
+    ) {
+        return undefined;
+    }
+
+    // ScenegraphLayer (the actual renderer for this content) walks the
+    // glTF's own node hierarchy and applies each node's matrix on top of
+    // Tile3DLayer's own `modelMatrix`. loaders.gl only "absorbs" a node's
+    // matrix into `modelMatrix` when that matrix carries an earth-scale
+    // (>100km) translation — a different optimization scenario. Our node's
+    // matrix is a pure rotation (zero translation), so it's never absorbed,
+    // and skipping it here (as an earlier version of this function did)
+    // silently produces vertex positions that don't match what's actually
+    // rendered — close enough to sometimes look plausible, but frequently
+    // the wrong building. Combine it into one transform, applied once.
+    const nodeMatrixArray = content?.gltf?.nodes?.[0]?.matrix as number[] | undefined;
+    const combinedMatrix = nodeMatrixArray !== undefined
+        ? new Matrix4(modelMatrix).multiplyRight(new Matrix4(nodeMatrixArray))
+        : modelMatrix;
+
+    const [originLng, originLat] = origin;
+    const { unitsPerMeter, unitsPerMeter2 = [0, 0, 0] } = getDistanceScales({
+        longitude: originLng, latitude: originLat, highPrecision: true,
+    });
+    const originWorld = lngLatToWorld([originLng, originLat]);
+    const pickWorld = lngLatToWorld(pickCoordinate);
+
+    let bestIndex = -1;
+    let bestDistSq = Infinity;
+    const vertexCount = positions.length / 3;
+    for (let i = 0; i < vertexCount; i++) {
+        const local: [number, number, number] = [positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]];
+        const [mx, my] = combinedMatrix.transformPoint(local) as number[];
+        const worldX = originWorld[0] + mx * (unitsPerMeter[0] + unitsPerMeter2[0] * my);
+        const worldY = originWorld[1] + my * (unitsPerMeter[1] + unitsPerMeter2[1] * my);
+        const dx = worldX - pickWorld[0];
+        const dy = worldY - pickWorld[1];
+        const distSq = dx * dx + dy * dy;
+        if (distSq < bestDistSq) {
+            bestDistSq = distSq;
+            bestIndex = i;
+        }
+    }
+    return bestIndex >= 0 ? (batchIds[bestIndex] as number) : undefined;
+}
+
+function buildDeckPopupFeature(pick: PickingInfo): PopupAttributeFeature {
+    const layerId = pick.layer!.id;
+    const tile = pick.object as {
+        id?: string
+        content?: { batchTableJson?: Record<string, unknown[]>, uri?: string }
+    } | undefined;
+    const batchTable = tile?.content?.batchTableJson;
+    const batchId = findNearestVertexBatchId(tile, pick.coordinate) ?? pick.index;
+    if (batchTable !== undefined && batchId >= 0) {
+        const rawProperties: Record<string, unknown> = {};
+        for (const [name, values] of Object.entries(batchTable)) {
+            if (Array.isArray(values) && batchId < values.length) {
+                rawProperties[name] = values[batchId];
+            }
+        }
+        // Some batch tables (e.g. vcs/CityGML-derived exports, like the
+        // Hamburg LoD3 demo) nest the actual semantic attributes
+        // (Gebaeudefunktion, Adresse, ...) inside a single "ATTRIBUTES"
+        // object, alongside internal/structural fields (ID, CLASSID,
+        // OLCS_GEOMETRYTYPE, PARENTPOSITION). Surface the nested object's
+        // own contents instead of those structural fields when present.
+        const nestedAttributes = Object.entries(rawProperties).find(
+            ([name, value]) => name.toUpperCase() === "ATTRIBUTES" &&
+                typeof value === "object" && value !== null && !Array.isArray(value)
+        )?.[1] as Record<string, unknown> | undefined;
+        const properties = nestedAttributes ?? rawProperties;
+        if (Object.keys(properties).length > 0) {
+            return { source: layerId, id: batchId, properties };
+        }
+    }
+    // Fallback so an unresolved hit still shows something instead of nothing.
+    return {
+        source: layerId,
+        properties: { tile: tile?.id ?? tile?.content?.uri ?? "unknown" },
+    };
 }
 /* eslint-disable */
 if (import.meta.hot) {

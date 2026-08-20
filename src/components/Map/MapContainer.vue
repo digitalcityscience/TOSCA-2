@@ -107,13 +107,18 @@ onMounted(() => {
                 void showAttributePopup(e)
             }
         })
+        // Interleaved deck.gl overlay for 3D layers (e.g. 3D Tiles buildings).
+        // Created eagerly so it can depth-sort against MapLibre layers added
+        // afterwards; it stays empty until a deck.gl layer is added.
+        mapStore.initializeDeckOverlay()
     }
     // Add scale control to the map.
     const scaleControl = new maplibre.ScaleControl()
     mapStore.map.addControl(scaleControl, "bottom-right");
 
-    // Add zoom controls to the map.
-    const zoomControl = new maplibre.NavigationControl()
+    // Add zoom controls to the map. `visualizePitch`/`visualizeRoll` expose a
+    // pitch control since 3D layers are meaningless from a straight-down view.
+    const zoomControl = new maplibre.NavigationControl({ visualizePitch: true })
     mapStore.map.addControl(zoomControl, "bottom-right");
 
     // Terrain is on initially through the style above. This control lets the
@@ -161,10 +166,18 @@ async function showAttributePopup(event: MapMouseEvent): Promise<void> {
     )
     const vectorFeatures = deduplicatePopupAttributeFeatures(matchedFeatures)
 
+    // deck.gl content (e.g. 3D Tiles buildings) isn't part of MapLibre's own
+    // source/layer model, so it can't be seen by queryRenderedFeatures above —
+    // it needs deck.gl's own picking API instead.
+    const deckFeatures = deduplicatePopupAttributeFeatures(mapStore.pickDeckObjects(event.point))
+
     const rasterLayers = mapStore.layersOnMap
         .slice()
         .reverse()
         .flatMap((layer): RasterFeatureInfoLayer[] => {
+            // deck.gl layers have no MapLibre layout property to read and are
+            // never GeoServer raster sources — picked separately above.
+            if (layer.renderer === "deckgl") return []
             if (mapStore.map.getLayoutProperty(layer.id, "visibility") === "none") return []
             if (layer.logicalKind === "group") {
                 return layer.groupManifest?.members.flatMap((member) => {
@@ -205,7 +218,7 @@ async function showAttributePopup(event: MapMouseEvent): Promise<void> {
         console.warn("Raster GetFeatureInfo failed", result.reason)
         return []
     })
-    const features = [...vectorFeatures, ...rasterFeatures]
+    const features = [...vectorFeatures, ...deckFeatures, ...rasterFeatures]
     if (features.length === 0) return
 
     clickedLayers.value = features

@@ -225,6 +225,12 @@
     },
     "listingItem": {
       "loadError": "Could not load workspace layers."
+    },
+    "demo3d": {
+      "accordionLabel": "3D Data (Demo)",
+      "itemTitle": "Hamburg LoD3 Buildings",
+      "itemDescription": "Untextured LoD3 building models for Hamburg, served as a Cesium 3D Tiles tileset. Rendered with deck.gl, interleaved with the MapLibre map.",
+      "badge": "3D Tileset"
     }
   },
   "participation": {
