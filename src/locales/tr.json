@@ -225,6 +225,12 @@
     },
     "listingItem": {
       "loadError": "Çalışma alanı katmanları yüklenemedi."
+    },
+    "demo3d": {
+      "accordionLabel": "3B Veri (Demo)",
+      "itemTitle": "Hamburg LoD3 Binaları",
+      "itemDescription": "Hamburg için dokusuz LoD3 bina modelleri, Cesium 3D Tiles tileset olarak sunulur. deck.gl ile render edilir, MapLibre haritasıyla iç içe geçirilir.",
+      "badge": "3B Tileset"
     }
   },
   "participation": {

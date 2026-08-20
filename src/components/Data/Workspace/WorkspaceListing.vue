@@ -7,7 +7,7 @@
             <template #header>
                 <p>{{ t('workspace.listing.title') }}</p>
         </template>
-            <div class="w-full p-3" v-if="props.workspaces && props.workspaces.length > 0">
+            <div class="w-full p-3">
                 <UAccordion
                     :items="workspaceAccordionItems"
                     type="multiple"
@@ -20,12 +20,11 @@
                     }"
                 >
                     <template #body="{ item }">
-                        <WorkspaceListingItem :workspace="item.workspace"></WorkspaceListingItem>
+                        <Workspace3DDataListingItem v-if="item.mock3d" />
+                        <WorkspaceListingItem v-else :workspace="item.workspace"></WorkspaceListingItem>
                     </template>
                 </UAccordion>
-            </div>
-            <div class="w-full p-3" v-else>
-                <UAlert class="w-full" color="info" variant="soft" :description="t('workspace.listing.noWorkspace')" />
+                <UAlert v-if="!props.workspaces || props.workspaces.length === 0" class="w-full mt-2" color="info" variant="soft" :description="t('workspace.listing.noWorkspace')" />
             </div>
         </BaseSlideoverSidebarComponent>
 </template>
@@ -34,6 +33,7 @@
 // Components
 import BaseSlideoverSidebarComponent from "@components/Base/BaseSlideoverSidebarComponent.vue";
 import WorkspaceListingItem from "./WorkspaceListingItem.vue";
+import Workspace3DDataListingItem from "./Workspace3DDataListingItem.vue";
 // JS-TS imports
 import { type WorkspaceListItem } from "@store/geoserver";
 
@@ -47,11 +47,21 @@ const { t } = useI18n();
 const props = defineProps<Props>()
 const sidebarID = "workspaceListing"
 const workspaceAccordionItems = computed(() => {
-    return props.workspaces?.map((workspace) => ({
+    const realWorkspaceItems = props.workspaces?.map((workspace) => ({
         label: `${workspace.provider.name} · ${workspace.name}`,
         value: `${workspace.provider.id}:${workspace.name}`,
         workspace,
+        mock3d: false,
     })) ?? []
+    // Synthetic accordion entry for the deck.gl 3D Tiles demo — see
+    // Workspace3DDataListingItem.vue for why this bypasses the real catalog.
+    const mock3dItem = {
+        label: t("workspace.demo3d.accordionLabel"),
+        value: "mock:3d-data",
+        workspace: undefined as unknown as WorkspaceListItem,
+        mock3d: true,
+    }
+    return [...realWorkspaceItems, mock3dItem]
 })
 
 const route = useRoute()

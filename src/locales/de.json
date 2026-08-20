@@ -225,6 +225,12 @@
     },
     "listingItem": {
       "loadError": "Arbeitsbereichsebenen konnten nicht geladen werden."
+    },
+    "demo3d": {
+      "accordionLabel": "3D-Daten (Demo)",
+      "itemTitle": "Hamburg LoD3-Gebäude",
+      "itemDescription": "Untexturierte LoD3-Gebäudemodelle für Hamburg, bereitgestellt als Cesium-3D-Tiles-Tileset. Gerendert mit deck.gl, interleaved mit der MapLibre-Karte.",
+      "badge": "3D-Tileset"
     }
   },
   "participation": {

@@ -33,7 +33,7 @@
                 <div class="layer-actions">
                     <UButton class="layer-icon-btn" icon="i-lucide-trash-2" color="error" variant="ghost" :aria-label="t('common.delete')"
                         @click="confirmDialogVisibility = true" />
-                    <UButton class="layer-icon-btn" icon="i-lucide-zoom-in" color="neutral" variant="ghost" :aria-label="t('map.layerItem.zoom')"
+                    <UButton v-if="props.layer.renderer !== 'deckgl'" class="layer-icon-btn" icon="i-lucide-zoom-in" color="neutral" variant="ghost" :aria-label="t('map.layerItem.zoom')"
                         @click="zoomToLayer" />
                     <UButton
                         class="layer-icon-btn"
@@ -183,7 +183,7 @@
                     <AttributeFiltering :layer="props.layer"></AttributeFiltering>
                     <GeometryFiltering :layer="props.layer"></GeometryFiltering>
                 </section>
-                <section v-if="props.layer.type !== 'raster' && !isGroupLayer" class="layer-section">
+                <section v-if="props.layer.type !== 'raster' && !isGroupLayer && props.layer.renderer !== 'deckgl'" class="layer-section">
                     <h4 class="layer-section-title">{{ t('map.layerItem.data') }}</h4>
                     <MapLayerResultTable :layer="props.layer"></MapLayerResultTable>
                 </section>
@@ -195,7 +195,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { type LayerObjectWithAttributes, type MapLibreLayerTypes, useMapStore } from "@store/map"
+import { type LayerObjectWithAttributes, type LayerRenderType, useMapStore } from "@store/map"
 import { useToast } from "@helpers/toast";
 import { isNullOrEmpty } from "@helpers/functions";
 import { createMapStyleLegendEntries } from "@helpers/mapStyleLegend";
@@ -416,13 +416,19 @@ const showLegend = computed<boolean>(() => {
 const showFiltering = computed<boolean>(() => {
     if (isGroupLayer.value) return false
     if (props.layer.type === "raster") return false
+    if (props.layer.renderer === "deckgl") return false
     return props.layer.filterLayer !== true
 })
 onMounted(() => {
-    syncStyleControls()
-    initialLayerHeaderIndicator.value = resolveLayerHeaderIndicator(props.layer.type);
-    if (mapStore.map.getLayoutProperty(props.layer.id, "visibility") === "none") {
-        checked.value = false
+    // deck.gl layers have no MapLibre paint/layout properties to read back —
+    // they start visible at full opacity per addDeckTilesetLayer, matching
+    // the checked/opacity refs' own defaults.
+    if (props.layer.renderer !== "deckgl") {
+        syncStyleControls()
+        initialLayerHeaderIndicator.value = resolveLayerHeaderIndicator(props.layer.type);
+        if (mapStore.map.getLayoutProperty(props.layer.id, "visibility") === "none") {
+            checked.value = false
+        }
     }
     void loadLegend()
 })
@@ -569,9 +575,17 @@ function clearPendingColorChanges(): void {
     pendingColorValues.value = {};
 }
 function changeLayerOpac(layerOpacity: any): void {
+    if (props.layer.renderer === "deckgl") {
+        mapStore.setDeckLayerOpacity(props.layer.id, Number(layerOpacity))
+        return
+    }
     mapStore.setLogicalLayerOpacity(props.layer, Number(layerOpacity))
 }
 function changeLayerVisibility(layerVisibility: boolean): void {
+    if (props.layer.renderer === "deckgl") {
+        mapStore.setDeckLayerVisibility(props.layer.id, layerVisibility)
+        return
+    }
     const value = layerVisibility ? "visible" : "none";
     mapStore.map.setLayoutProperty(props.layer.id, "visibility", value);
     // Mirror visibility on every companion so children (outlines, labels,
@@ -586,7 +600,9 @@ const confirmDialogVisibility = ref<boolean>(false)
 const toast = useToast();
 function deleteLayerConfirmation(layer: LayerObjectWithAttributes): void {
     mapStore.deleteMapLayer(layer.id, true).then(() => {
-        if (layer.logicalKind === "group") return
+        // Groups and deck.gl layers have no standalone MapLibre data source
+        // of their own to delete.
+        if (layer.logicalKind === "group" || layer.renderer === "deckgl") return
         try {
             mapStore.deleteMapDataSource(layer.source)
         } catch (error) {
@@ -629,7 +645,7 @@ onBeforeUnmount(() => {
     clearPendingColorChanges();
 })
 
-function resolveLayerHeaderIndicator(layerType: MapLibreLayerTypes): LayerHeaderIndicator {
+function resolveLayerHeaderIndicator(layerType: LayerRenderType): LayerHeaderIndicator {
     if (layerType === "raster") {
         return { kind: "raster", colors: [] };
     }
@@ -658,7 +674,7 @@ function resolveLayerHeaderIndicator(layerType: MapLibreLayerTypes): LayerHeader
         : { kind: "multi", colors: uniqueColors };
 }
 
-function getOpacityPaintProperty(layerType: MapLibreLayerTypes): string {
+function getOpacityPaintProperty(layerType: LayerRenderType): string {
     if (layerType === "circle") {
         return "circle-opacity";
     }
