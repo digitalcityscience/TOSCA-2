@@ -19,6 +19,7 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 import { toggleSlideoverSidebar } from "@helpers/slideoverSidebarRegistry";
+import { isCollabModeEnabled } from "@helpers/collabMode";
 
 interface Props {
     side: "left" | "right"
@@ -38,7 +39,7 @@ interface FrameItem {
 
 const frameLabel = computed(() => props.side === "left" ? t("map.sideFrame.leftLabel") : t("map.sideFrame.rightLabel"))
 const frameItems = computed(() => props.side === "left" ? leftItems.value : rightItems.value)
-const leftItems = computed<FrameItem[]>(() => [
+const baseLeftItems = computed<FrameItem[]>(() => [
     {
         id: "workspaceListing",
         label: t("map.sideFrame.datastores"),
@@ -93,19 +94,24 @@ const leftItems = computed<FrameItem[]>(() => [
             await router.push({ name: "geostory-list" })
         },
     },
-    {
-        id: "collab",
-        label: t("collab.activateTable"),
-        icon: "i-lucide-table-2",
-        action: async () => {
-            if (route.name === "collab-control") {
-                toggleSlideoverSidebar("collabControl")
-                return
-            }
-            await router.push({ name: "collab-control" })
-        },
-    },
 ])
+
+const collabItem = computed<FrameItem>(() => ({
+    id: "collab",
+    label: t("collab.activateTable"),
+    icon: "i-lucide-table-2",
+    action: async () => {
+        if (route.name === "collab-control") {
+            toggleSlideoverSidebar("collabControl")
+            return
+        }
+        await router.push({ name: "collab-control" })
+    },
+}))
+
+const leftItems = computed<FrameItem[]>(() =>
+    isCollabModeEnabled() ? [...baseLeftItems.value, collabItem.value] : baseLeftItems.value
+)
 
 const rightItems = computed<FrameItem[]>(() => [
     {

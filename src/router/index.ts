@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from "vue-router"
 import MapView from "../views/MapView.vue"
 import { useParticipationStore } from "@store/participation"
 import { useMapStore } from "@store/map"
+import { isCollabModeEnabled } from "@helpers/collabMode"
 
 const router = createRouter({
     history: createWebHistory(String(import.meta.env.VITE_BASE_URL)),
@@ -115,6 +116,20 @@ router.beforeEach((to, _from, next) => {
     if (to.name === "campaign-details"){
         const mapStore = useMapStore()
         mapStore.resetMapData().then(() => { }, () => { })
+    }
+    next()
+})
+
+// Additive Collab guard (ticket 02): does not modify the guard above.
+router.beforeEach((to, _from, next) => {
+    const collabRouteRequested = typeof to.name === "string" && to.name.startsWith("collab-")
+    if (collabRouteRequested && !isCollabModeEnabled()) {
+        next({ name: "home" })
+        return
+    }
+    if (to.name === "home" && isCollabModeEnabled()) {
+        next({ name: "collab-control" })
+        return
     }
     next()
 })
