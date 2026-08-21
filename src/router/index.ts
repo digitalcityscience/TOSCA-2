@@ -85,6 +85,18 @@ const router = createRouter({
             }
         },
         {
+            path: "/collab/control",
+            name: "collab-control",
+            components: {
+                default: MapView,
+                collab: async () => await import("../components/Collab/CollabControlSidebar.vue")
+            },
+            meta: {
+                sidebar: "collabControl",
+                sidebarPosition: "left"
+            }
+        },
+        {
             path: "/:catchAll(.*)",
             redirect: "/"
         }

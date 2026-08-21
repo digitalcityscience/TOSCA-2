@@ -63,6 +63,7 @@ watch(themeMode, (mode) => {
         <RouterView v-if="mapStore.map" name="participation"></RouterView>
         <RouterView v-if="mapStore.map" name="events"></RouterView>
         <RouterView v-if="mapStore.map" name="geostories"></RouterView>
+        <RouterView v-if="mapStore.map" name="collab"></RouterView>
       </main>
       <footer class="app-footer">
         <img class="app-footer-logo" :src="toscaLogo" alt="GIZ HCU DCS TOSCA" />

@@ -69,7 +69,8 @@
       "participation": "Beteiligung",
       "events": "Veranstaltungen",
       "geostories": "GeoStories",
-      "layers": "Ebenen"
+      "layers": "Ebenen",
+      "collab": "Tangible Table aktivieren"
     },
     "basemap": {
       "streets": "Straßen",
@@ -315,6 +316,13 @@
         "moderateLabel": "Mittel (5–15 Fälle/1.000)",
         "lowLabel": "Niedrig (<5 Fälle/1.000)"
       }
+    }
+  },
+  "collab": {
+    "activateTable": "Tangible Table aktivieren",
+    "control": {
+      "title": "Tangible-Table-Steuerung",
+      "placeholder": "Die Steuerungselemente für den Tangible Table erscheinen hier."
     }
   }
 }

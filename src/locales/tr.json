@@ -69,7 +69,8 @@
       "participation": "Katılım",
       "events": "Etkinlikler",
       "geostories": "Coğrafi Hikâyeler",
-      "layers": "Katmanlar"
+      "layers": "Katmanlar",
+      "collab": "Dokunsal Masayı Etkinleştir"
     },
     "basemap": {
       "streets": "Sokaklar",
@@ -315,6 +316,13 @@
         "moderateLabel": "Orta (1.000'de 5–15 vaka)",
         "lowLabel": "Düşük (1.000'de <5 vaka)"
       }
+    }
+  },
+  "collab": {
+    "activateTable": "Dokunsal Masayı Etkinleştir",
+    "control": {
+      "title": "Dokunsal Masa Kontrolü",
+      "placeholder": "Dokunsal masa kontrolleri burada görünecek."
     }
   }
 }

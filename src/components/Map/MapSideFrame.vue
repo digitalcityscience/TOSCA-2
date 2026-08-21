@@ -93,6 +93,18 @@ const leftItems = computed<FrameItem[]>(() => [
             await router.push({ name: "geostory-list" })
         },
     },
+    {
+        id: "collab",
+        label: t("collab.activateTable"),
+        icon: "i-lucide-table-2",
+        action: async () => {
+            if (route.name === "collab-control") {
+                toggleSlideoverSidebar("collabControl")
+                return
+            }
+            await router.push({ name: "collab-control" })
+        },
+    },
 ])
 
 const rightItems = computed<FrameItem[]>(() => [

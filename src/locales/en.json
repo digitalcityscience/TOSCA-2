@@ -69,7 +69,8 @@
       "participation": "Participation",
       "events": "Events",
       "geostories": "GeoStories",
-      "layers": "Layers"
+      "layers": "Layers",
+      "collab": "Activate Tangible Table"
     },
     "basemap": {
       "streets": "Streets",
@@ -315,6 +316,13 @@
         "moderateLabel": "Moderate (5–15 cases/1k)",
         "lowLabel": "Low (<5 cases/1k)"
       }
+    }
+  },
+  "collab": {
+    "activateTable": "Activate Tangible Table",
+    "control": {
+      "title": "Tangible Table Control",
+      "placeholder": "Tangible table controls will appear here."
     }
   }
 }
