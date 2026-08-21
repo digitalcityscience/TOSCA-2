@@ -322,7 +322,12 @@
     "activateTable": "Activate Tangible Table",
     "control": {
       "title": "Tangible Table Control",
-      "placeholder": "Tangible table controls will appear here."
+      "placeholder": "Tangible table controls will appear here.",
+      "openTable": "Open Table window",
+      "popupBlocked": "The Table window was blocked. Allow pop-ups for this site and try again."
+    },
+    "table": {
+      "disconnected": "Disconnected — recalibrate"
     }
   }
 }

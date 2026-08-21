@@ -98,6 +98,13 @@ const router = createRouter({
             }
         },
         {
+            path: "/collab/table",
+            name: "collab-table",
+            components: {
+                default: async () => await import("../components/Collab/CollabTableView.vue")
+            }
+        },
+        {
             path: "/:catchAll(.*)",
             redirect: "/"
         }

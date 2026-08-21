@@ -322,7 +322,12 @@
     "activateTable": "Dokunsal Masayı Etkinleştir",
     "control": {
       "title": "Dokunsal Masa Kontrolü",
-      "placeholder": "Dokunsal masa kontrolleri burada görünecek."
+      "placeholder": "Dokunsal masa kontrolleri burada görünecek.",
+      "openTable": "Masa penceresini aç",
+      "popupBlocked": "Masa penceresi engellendi. Bu site için açılır pencerelere izin verip tekrar deneyin."
+    },
+    "table": {
+      "disconnected": "Bağlantı kesildi — yeniden kalibre edin"
     }
   }
 }

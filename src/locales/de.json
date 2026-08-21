@@ -322,7 +322,12 @@
     "activateTable": "Tangible Table aktivieren",
     "control": {
       "title": "Tangible-Table-Steuerung",
-      "placeholder": "Die Steuerungselemente für den Tangible Table erscheinen hier."
+      "placeholder": "Die Steuerungselemente für den Tangible Table erscheinen hier.",
+      "openTable": "Tischfenster öffnen",
+      "popupBlocked": "Das Tischfenster wurde blockiert. Erlauben Sie Pop-ups für diese Seite und versuchen Sie es erneut."
+    },
+    "table": {
+      "disconnected": "Verbindung getrennt — neu kalibrieren"
     }
   }
 }
