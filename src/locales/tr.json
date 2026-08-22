@@ -342,10 +342,25 @@
         "loadFailed": "Collab bina yerleşim alanları yüklenemedi",
         "remove": "Kaldır",
         "restore": "Geri yükle"
+      },
+      "tracking": {
+        "title": "Canlı takip (simülasyon)",
+        "start": "Simülasyon takibini başlat",
+        "stop": "Durdur",
+        "active": "Takip etkin",
+        "requiresFootprints": "Önce yerleşim alanlarını yükleyin"
       }
     },
     "table": {
       "disconnected": "Bağlantı kesildi — yeniden kalibre edin"
+    },
+    "layers": {
+      "tableScenario": "Collab · Masa senaryosu",
+      "trackedFootprint": "Collab · Takip edilen yerleşim alanı",
+      "trackedBbox": "Collab · Takip edilen sınır kutusu",
+      "trackedOrientation": "Collab · Takip edilen yönelim",
+      "trackedId": "Collab · Takip edilen kimlik",
+      "trackedConfidence": "Collab · Takip edilen güven"
     }
   }
 }

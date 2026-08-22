@@ -22,10 +22,12 @@ import { useI18n } from "vue-i18n";
 import MapContainer from "@components/Map/MapContainer.vue";
 import { useMapStore } from "@store/map";
 import { useCollabSyncStore } from "@store/collabSync";
+import { useCollabTrackingRenderStore } from "@store/collabTrackingRender";
 
 const { t } = useI18n();
 const mapStore = useMapStore();
 const syncStore = useCollabSyncStore();
+const trackingRenderStore = useCollabTrackingRenderStore();
 
 let viewportLocked = false;
 
@@ -48,11 +50,13 @@ const stopMapWatch = watch(() => mapStore.map, lockViewport, { immediate: true }
 
 onMounted(() => {
     syncStore.startAsTable();
+    trackingRenderStore.startRendering("table");
 });
 
 onBeforeUnmount(() => {
     stopMapWatch();
     syncStore.stop();
+    trackingRenderStore.stop();
 });
 </script>
 

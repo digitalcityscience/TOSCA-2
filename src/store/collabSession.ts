@@ -51,10 +51,60 @@ export interface CollabSimulationState {
 }
 
 /**
+ * Derived calibration values both windows need but only Control can compute (plan §5b/§13):
+ * the table→AOI rotation offset, from Control's locally-selected AOI (`collabScenario.aoi`).
+ * Broadcast like any other session slice (ticket 08) so the Table window — which never runs AOI
+ * selection itself — renders tracked headings with the same offset Control does.
+ */
+export interface CollabCalibrationState {
+    rotationOffsetDeg: number;
+}
+
+/**
+ * Logical Collab layers the per-view layer-policy matrix governs (plan §13, ticket 08): the
+ * scenario footprint both views can show, plus the technical tracking overlays that are
+ * Control-only spill (B4) — footprint/bbox/orientation/id/confidence, mirroring the Vanilla
+ * reference (§5e).
+ */
+export type CollabLayerId =
+    | "scenarioFootprint"
+    | "trackedFootprint"
+    | "trackedBbox"
+    | "trackedOrientation"
+    | "trackedId"
+    | "trackedConfidence";
+
+/**
+ * Whether a logical layer renders in the Control View / Table View (plan §13). `table: "mask"`
+ * is reserved for the M3 subtract-mask option (plan §13 option 2); M1 only implements "don't
+ * render" (`false`) for the technical overlays.
+ */
+export interface CollabLayerPolicyEntry {
+    control: boolean;
+    table: boolean | "mask";
+}
+
+export type CollabLayerPolicy = Record<CollabLayerId, CollabLayerPolicyEntry>;
+
+/**
+ * M1 default (plan §13): Control sees every technical overlay; the Table/projector only ever
+ * sees footprints — "don't render" is the M1 masking strategy for bbox/id/orientation/confidence
+ * (plan §13 option 1, B4).
+ */
+export const DEFAULT_COLLAB_LAYER_POLICY: CollabLayerPolicy = {
+    scenarioFootprint: { control: true, table: true },
+    trackedFootprint: { control: true, table: true },
+    trackedBbox: { control: true, table: false },
+    trackedOrientation: { control: true, table: false },
+    trackedId: { control: true, table: false },
+    trackedConfidence: { control: true, table: false },
+};
+
+/**
  * Shared Collab session state: base city, scenario delta, live tracking, per-view state,
- * derived table render state, and a simulation placeholder. Composes existing TOSCA stores
- * (map/geoserver/backend) from within actions added by later tickets — this ticket only
- * establishes the six state slices (plan §10).
+ * derived table render state, a simulation placeholder, and the per-view layer-policy matrix.
+ * Composes existing TOSCA stores (map/geoserver/backend) from within actions added by later
+ * tickets — this ticket only establishes the six state slices (plan §10).
  */
 export const useCollabSessionStore = defineStore("collabSession", () => {
     const base = reactive<CollabBaseCityState>({ loaded: false, objects: [] });
@@ -67,6 +117,14 @@ export const useCollabSessionStore = defineStore("collabSession", () => {
     const view = reactive<CollabViewState>({ selection: null });
     const tableRender = reactive<CollabTableRenderState>({ visibleLayerIds: [] });
     const simulation = reactive<CollabSimulationState>({ jobs: [] });
+    const layerPolicy = reactive<CollabLayerPolicy>({ ...DEFAULT_COLLAB_LAYER_POLICY });
+    const calibration = reactive<CollabCalibrationState>({ rotationOffsetDeg: 0 });
+
+    /** Whether `layerId` should render for `windowKind`, per the current layer-policy matrix (plan §13). */
+    function isLayerVisible(layerId: CollabLayerId, windowKind: "control" | "table"): boolean {
+        const entry = layerPolicy[layerId];
+        return windowKind === "control" ? entry.control : entry.table !== false;
+    }
 
     /**
      * `Base City ⊖ removed ⊕ added ⊕ modified` — the scenario both windows render from. Reads
@@ -90,7 +148,10 @@ export const useCollabSessionStore = defineStore("collabSession", () => {
         view,
         tableRender,
         simulation,
+        layerPolicy,
+        calibration,
         currentScenario,
+        isLayerVisible,
     };
 });
 

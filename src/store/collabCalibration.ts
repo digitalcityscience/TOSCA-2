@@ -161,3 +161,41 @@ export function placeFootprintAt<T extends Polygon | MultiPolygon>(
     const translated = transformTranslate(footprint, moveDistance, moveBearing, { units: "meters" })
     return transformRotate(translated, rotationDeg, { pivot: targetCentre })
 }
+
+/**
+ * How far off due-east the AOI's "top" edge (`corners[0] → corners[1]`) runs — the table→AOI
+ * rotation offset the frontend must add to tracked headings (plan §5b caveat: `rotation` arrives
+ * in the table frame, not geo-transformed). `tablePixelCorners`' "no rotation" heading runs
+ * left→right along the table's top edge (bearing 90°/due east); this is how far the AOI's
+ * matching geographic edge deviates from that, so it can be added to a tracked pose's rotation
+ * before rendering (plan §13).
+ */
+export function tableToAoiRotationOffsetDeg(aoi: AOIExtent): number {
+    const [topLeft, topRight] = aoi.corners
+    return bearing(point(topLeft), point(topRight)) - 90
+}
+
+/** Rotation changes under this threshold between renders are ignored (plan §5e, mirrors Vanilla `map.js:116-122,128`). */
+export const ROTATION_JITTER_THRESHOLD_DEG = 5
+
+/**
+ * Derives a rendered footprint from a tracked pose (plan §13): places `footprint` at the pose's
+ * geographic centre via {@link placeFootprintAt}, applying the table→AOI rotation offset (plan
+ * §5b) and holding the previously-rendered rotation when the change is under the 5° jitter
+ * threshold (plan §5e) — translation always applies on every call; only rotation is smoothed.
+ */
+export function deriveTrackedFootprint<T extends Polygon | MultiPolygon>(
+    footprint: Feature<T>,
+    pose: { lng: number; lat: number; rotation: number },
+    previousRotationDeg: number | undefined,
+    rotationOffsetDeg: number
+): { feature: Feature<T>; appliedRotationDeg: number } {
+    const targetRotationDeg = pose.rotation + rotationOffsetDeg
+    const appliedRotationDeg =
+        previousRotationDeg !== undefined &&
+        Math.abs(targetRotationDeg - previousRotationDeg) < ROTATION_JITTER_THRESHOLD_DEG
+            ? previousRotationDeg
+            : targetRotationDeg
+    const feature = placeFootprintAt(footprint, [pose.lng, pose.lat], appliedRotationDeg)
+    return { feature, appliedRotationDeg }
+}

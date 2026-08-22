@@ -342,10 +342,25 @@
         "loadFailed": "Die Collab-Gebäudegrundrisse konnten nicht geladen werden",
         "remove": "Entfernen",
         "restore": "Wiederherstellen"
+      },
+      "tracking": {
+        "title": "Live-Tracking (simuliert)",
+        "start": "Simuliertes Tracking starten",
+        "stop": "Stopp",
+        "active": "Tracking aktiv",
+        "requiresFootprints": "Zuerst Grundrisse laden"
       }
     },
     "table": {
       "disconnected": "Verbindung getrennt — neu kalibrieren"
+    },
+    "layers": {
+      "tableScenario": "Collab · Tisch-Szenario",
+      "trackedFootprint": "Collab · Verfolgter Grundriss",
+      "trackedBbox": "Collab · Verfolgte Bounding-Box",
+      "trackedOrientation": "Collab · Verfolgte Ausrichtung",
+      "trackedId": "Collab · Verfolgte ID",
+      "trackedConfidence": "Collab · Verfolgte Konfidenz"
     }
   }
 }

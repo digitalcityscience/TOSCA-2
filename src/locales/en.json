@@ -342,10 +342,25 @@
         "loadFailed": "Could not load Collab building footprints",
         "remove": "Remove",
         "restore": "Restore"
+      },
+      "tracking": {
+        "title": "Live tracking (mock)",
+        "start": "Start mock tracking",
+        "stop": "Stop",
+        "active": "Tracking active",
+        "requiresFootprints": "Load footprints first"
       }
     },
     "table": {
       "disconnected": "Disconnected — recalibrate"
+    },
+    "layers": {
+      "tableScenario": "Collab · Table scenario",
+      "trackedFootprint": "Collab · Tracked footprint",
+      "trackedBbox": "Collab · Tracked bbox",
+      "trackedOrientation": "Collab · Tracked orientation",
+      "trackedId": "Collab · Tracked id",
+      "trackedConfidence": "Collab · Tracked confidence"
     }
   }
 }

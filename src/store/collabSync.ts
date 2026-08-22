@@ -5,6 +5,7 @@ import { reportDeveloperError } from "@helpers/userFacingError";
 import {
     useCollabSessionStore,
     type CollabBaseCityState,
+    type CollabCalibrationState,
     type CollabScenarioState,
     type CollabSimulationState,
     type CollabTableRenderState,
@@ -21,9 +22,10 @@ export interface CollabSessionSnapshot {
     tracking: Record<string, CollabTrackingObjectState>;
     tableRender: CollabTableRenderState;
     simulation: CollabSimulationState;
+    calibration: CollabCalibrationState;
 }
 
-const SNAPSHOT_SLICES = ["base", "scenario", "tracking", "tableRender", "simulation"] as const;
+const SNAPSHOT_SLICES = ["base", "scenario", "tracking", "tableRender", "simulation", "calibration"] as const;
 type SnapshotSlice = (typeof SNAPSHOT_SLICES)[number];
 
 /** Control → Table wire messages (plan §11). `patch` carries only the slices that changed. */
@@ -67,6 +69,10 @@ function cloneTableRender(value: CollabTableRenderState): CollabTableRenderState
 
 function cloneSimulation(value: CollabSimulationState): CollabSimulationState {
     return { jobs: [...value.jobs] };
+}
+
+function cloneCalibration(value: CollabCalibrationState): CollabCalibrationState {
+    return { rotationOffsetDeg: value.rotationOffsetDeg };
 }
 
 function slicesEqual(a: CollabSessionSnapshot, slice: SnapshotSlice, b: CollabSessionSnapshot): boolean {
@@ -129,6 +135,7 @@ export const useCollabSyncStore = defineStore("collabSync", () => {
             tracking: cloneTracking(session.tracking),
             tableRender: cloneTableRender(session.tableRender),
             simulation: cloneSimulation(session.simulation),
+            calibration: cloneCalibration(session.calibration),
         };
     }
 
@@ -141,6 +148,7 @@ export const useCollabSyncStore = defineStore("collabSync", () => {
         Object.assign(session.tracking, cloneTracking(snapshot.tracking));
         Object.assign(session.tableRender, cloneTableRender(snapshot.tableRender));
         Object.assign(session.simulation, cloneSimulation(snapshot.simulation));
+        Object.assign(session.calibration, cloneCalibration(snapshot.calibration));
     }
 
     function applyPatch(patch: Partial<CollabSessionSnapshot>): void {

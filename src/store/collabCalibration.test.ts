@@ -4,10 +4,13 @@ import { describe, expect, test } from "vitest";
 import type { AOIExtent, CollabTableConfig } from "./collabCalibration";
 import {
     DEFAULT_COLLAB_TABLE_CONFIG,
+    ROTATION_JITTER_THRESHOLD_DEG,
     buildMapCalibration,
     deriveGroundScale,
+    deriveTrackedFootprint,
     placeFootprintAt,
     tablePixelCorners,
+    tableToAoiRotationOffsetDeg,
 } from "./collabCalibration";
 
 const hamburgAOI: AOIExtent = {
@@ -162,5 +165,87 @@ describe("placeFootprintAt", () => {
         const unrotatedRadius = distance(point(targetCentre), point(unrotatedFirstVertex), { units: "meters" });
         const rotatedRadius = distance(point(targetCentre), point(rotatedFirstVertex), { units: "meters" });
         expect(rotatedRadius).toBeCloseTo(unrotatedRadius, 1);
+    });
+});
+
+describe("tableToAoiRotationOffsetDeg", () => {
+    test("is zero when the AOI's top edge runs due east (aligned with the table)", () => {
+        const alignedAoi: AOIExtent = {
+            corners: [
+                [9.98, 53.56],
+                [10.0, 53.56],
+                [10.0, 53.54],
+                [9.98, 53.54],
+            ],
+        };
+        expect(tableToAoiRotationOffsetDeg(alignedAoi)).toBeCloseTo(0, 1);
+    });
+
+    test("is non-zero when the AOI is rotated relative to the table", () => {
+        const rotatedAoi: AOIExtent = {
+            corners: [
+                [9.98, 53.56],
+                [10.0, 53.55],
+                [9.99, 53.53],
+                [9.97, 53.54],
+            ],
+        };
+        expect(tableToAoiRotationOffsetDeg(rotatedAoi)).not.toBeCloseTo(0, 1);
+    });
+});
+
+describe("deriveTrackedFootprint", () => {
+    const footprint = polygon([
+        [
+            [9.9899, 53.5499],
+            [9.9901, 53.5499],
+            [9.9901, 53.5501],
+            [9.9899, 53.5501],
+            [9.9899, 53.5499],
+        ],
+    ]);
+
+    test("applies the target rotation when there is no previous rotation", () => {
+        const { appliedRotationDeg } = deriveTrackedFootprint(footprint, { lng: 10, lat: 53.56, rotation: 30 }, undefined, 0);
+        expect(appliedRotationDeg).toBe(30);
+    });
+
+    test("adds the table→AOI rotation offset to the pose rotation", () => {
+        const { appliedRotationDeg } = deriveTrackedFootprint(footprint, { lng: 10, lat: 53.56, rotation: 30 }, undefined, 15);
+        expect(appliedRotationDeg).toBe(45);
+    });
+
+    test("holds the previous rotation when the change is under the jitter threshold", () => {
+        const { appliedRotationDeg } = deriveTrackedFootprint(
+            footprint,
+            { lng: 10, lat: 53.56, rotation: 30 + (ROTATION_JITTER_THRESHOLD_DEG - 1) },
+            30,
+            0
+        );
+        expect(appliedRotationDeg).toBe(30);
+    });
+
+    test("applies the new rotation once the change meets the jitter threshold", () => {
+        const { appliedRotationDeg } = deriveTrackedFootprint(
+            footprint,
+            { lng: 10, lat: 53.56, rotation: 30 + ROTATION_JITTER_THRESHOLD_DEG },
+            30,
+            0
+        );
+        expect(appliedRotationDeg).toBe(30 + ROTATION_JITTER_THRESHOLD_DEG);
+    });
+
+    test("always translates the footprint to the pose centre, even when rotation is smoothed", () => {
+        const targetCentre: [number, number] = [10.0, 53.56];
+        const { feature } = deriveTrackedFootprint(footprint, { lng: targetCentre[0], lat: targetCentre[1], rotation: 30.5 }, 30, 0);
+
+        const ring = feature.geometry.coordinates[0];
+        const lons = ring.map((c) => c[0]);
+        const lats = ring.map((c) => c[1]);
+        const placedCentre: [number, number] = [
+            (Math.min(...lons) + Math.max(...lons)) / 2,
+            (Math.min(...lats) + Math.max(...lats)) / 2,
+        ];
+        expect(distance(point(placedCentre), point(targetCentre), { units: "meters" })).toBeLessThan(0.5);
     });
 });

@@ -97,6 +97,34 @@
                 </li>
             </ul>
         </div>
+
+        <div class="mt-5 flex flex-col gap-2 border-t border-muted pt-4">
+            <h3 class="text-sm font-medium">{{ t("collab.control.tracking.title") }}</h3>
+            <UButton
+                v-if="!trackingRenderStore.active"
+                :label="t('collab.control.tracking.start')"
+                icon="i-lucide-play"
+                size="sm"
+                color="primary"
+                variant="soft"
+                :disabled="!collabSession.base.loaded"
+                @click="trackingRenderStore.startMockTracking()"
+            />
+            <UButton
+                v-else
+                :label="t('collab.control.tracking.stop')"
+                icon="i-lucide-square"
+                size="sm"
+                variant="ghost"
+                @click="trackingRenderStore.stopMockTracking()"
+            />
+            <p v-if="!collabSession.base.loaded" class="text-xs text-muted">
+                {{ t("collab.control.tracking.requiresFootprints") }}
+            </p>
+            <p v-else-if="trackingRenderStore.active" class="text-xs text-success">
+                {{ t("collab.control.tracking.active") }}
+            </p>
+        </div>
     </BaseSlideoverSidebarComponent>
 </template>
 
@@ -109,6 +137,7 @@ import { useToast } from "@helpers/toast";
 import { useCollabSyncStore } from "@store/collabSync";
 import { useCollabSessionStore } from "@store/collabSession";
 import { useCollabScenarioStore } from "@store/collabScenario";
+import { useCollabTrackingRenderStore } from "@store/collabTrackingRender";
 
 const sidebarID = "collabControl";
 const { t } = useI18n();
@@ -118,6 +147,7 @@ const toast = useToast();
 const syncStore = useCollabSyncStore();
 const collabSession = useCollabSessionStore();
 const scenarioStore = useCollabScenarioStore();
+const trackingRenderStore = useCollabTrackingRenderStore();
 
 const TABLE_WINDOW_NAME = "toscaCollabTable";
 
@@ -140,5 +170,6 @@ function isRemoved(id: string): boolean {
 
 onMounted(() => {
     syncStore.startAsControl();
+    trackingRenderStore.startRendering("control");
 });
 </script>
