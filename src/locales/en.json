@@ -343,6 +343,13 @@
         "remove": "Remove",
         "restore": "Restore"
       },
+      "masking": {
+        "title": "Table masking",
+        "description": "Choose how projected context near tracked physical objects renders on the Table (OD-2).",
+        "show": "Show (no masking)",
+        "hide": "Hide layer",
+        "mask": "Mask around objects"
+      },
       "tracking": {
         "title": "Live tracking (mock)",
         "start": "Start mock tracking",

@@ -343,6 +343,13 @@
         "remove": "Entfernen",
         "restore": "Wiederherstellen"
       },
+      "masking": {
+        "title": "Tisch-Maskierung",
+        "description": "Legt fest, wie projizierter Kontext in der Nähe verfolgter physischer Objekte auf dem Tisch dargestellt wird (OD-2).",
+        "show": "Anzeigen (keine Maskierung)",
+        "hide": "Ebene ausblenden",
+        "mask": "Um Objekte maskieren"
+      },
       "tracking": {
         "title": "Live-Tracking (simuliert)",
         "start": "Simuliertes Tracking starten",

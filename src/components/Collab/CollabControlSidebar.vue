@@ -99,6 +99,18 @@
         </div>
 
         <div class="mt-5 flex flex-col gap-2 border-t border-muted pt-4">
+            <h3 class="text-sm font-medium">{{ t("collab.control.masking.title") }}</h3>
+            <p class="text-xs text-muted">{{ t("collab.control.masking.description") }}</p>
+            <USelect
+                v-model="tableMaskingMode"
+                :items="maskingModeItems"
+                value-key="value"
+                :aria-label="t('collab.control.masking.title')"
+                class="w-full"
+            />
+        </div>
+
+        <div class="mt-5 flex flex-col gap-2 border-t border-muted pt-4">
             <h3 class="text-sm font-medium">{{ t("collab.control.tracking.title") }}</h3>
             <UButton
                 v-if="!trackingRenderStore.active"
@@ -129,7 +141,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import BaseSlideoverSidebarComponent from "@components/Base/BaseSlideoverSidebarComponent.vue";
@@ -150,6 +162,31 @@ const scenarioStore = useCollabScenarioStore();
 const trackingRenderStore = useCollabTrackingRenderStore();
 
 const TABLE_WINDOW_NAME = "toscaCollabTable";
+
+/** Table-masking options (ticket 10, OD-2): "hide" is the M1 default; "mask" is the M3 subtract option. */
+const maskingModeItems = [
+    { label: t("collab.control.masking.show"), value: "show" },
+    { label: t("collab.control.masking.hide"), value: "hide" },
+    { label: t("collab.control.masking.mask"), value: "mask" },
+];
+
+/**
+ * Bridges the sidebar's show/hide/mask selector to `collabSession.layerPolicy.scenarioFootprint`
+ * (ticket 10): lets an operator A/B the OD-2 masking options live on the real projector without a
+ * code change.
+ */
+const tableMaskingMode = computed<"show" | "hide" | "mask">({
+    get: () => {
+        const mode = collabSession.layerPolicy.scenarioFootprint.table;
+        if (mode === "mask") {
+            return "mask";
+        }
+        return mode ? "show" : "hide";
+    },
+    set: (mode) => {
+        collabSession.setLayerTableMode("scenarioFootprint", mode === "mask" ? "mask" : mode === "show");
+    },
+});
 
 /** Opens (or refocuses) the projector-facing `/collab/table` window (plan §11, ticket 06). */
 function openTableWindow(): void {

@@ -343,6 +343,13 @@
         "remove": "Kaldır",
         "restore": "Geri yükle"
       },
+      "masking": {
+        "title": "Masa maskeleme",
+        "description": "İzlenen fiziksel nesnelerin yakınındaki projekte edilen bağlamın Masa'da nasıl gösterileceğini seçin (OD-2).",
+        "show": "Göster (maskeleme yok)",
+        "hide": "Katmanı gizle",
+        "mask": "Nesnelerin çevresini maskele"
+      },
       "tracking": {
         "title": "Canlı takip (simülasyon)",
         "start": "Simülasyon takibini başlat",

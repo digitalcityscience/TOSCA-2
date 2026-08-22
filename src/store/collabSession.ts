@@ -127,6 +127,16 @@ export const useCollabSessionStore = defineStore("collabSession", () => {
     }
 
     /**
+     * Sets `layerId`'s Table-view policy at runtime (ticket 10, OD-2): lets an operator switch
+     * between the M1 "hide-layer" masking option and the M3 "mask" (subtract-physical-footprints)
+     * option live, on the real projector, without a code change — the additive mechanism the OD-2
+     * sufficiency evaluation needs, since only that evaluation can decide which option to keep.
+     */
+    function setLayerTableMode(layerId: CollabLayerId, mode: boolean | "mask"): void {
+        layerPolicy[layerId].table = mode;
+    }
+
+    /**
      * `Base City ⊖ removed ⊕ added ⊕ modified` — the scenario both windows render from. Reads
      * `base`/`scenario` only; never writes back to `base`, so the source dataset stays immutable.
      */
@@ -152,6 +162,7 @@ export const useCollabSessionStore = defineStore("collabSession", () => {
         calibration,
         currentScenario,
         isLayerVisible,
+        setLayerTableMode,
     };
 });
 

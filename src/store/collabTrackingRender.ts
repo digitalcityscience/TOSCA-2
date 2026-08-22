@@ -4,7 +4,7 @@ import bbox from "@turf/bbox";
 import { point } from "@turf/helpers";
 import transformTranslate from "@turf/transform-translate";
 import type { Position } from "geojson";
-import type { Feature, FeatureCollection, Polygon } from "@helpers/geojson";
+import type { Feature, FeatureCollection, MultiPolygon, Polygon } from "@helpers/geojson";
 import { reportDeveloperError } from "@helpers/userFacingError";
 import { resolveCollabTrackingWsUrl } from "@helpers/collabMode";
 import { i18n } from "../core/i18n";
@@ -12,6 +12,7 @@ import { useMapStore } from "./map";
 import { useCollabSessionStore, type CollabSceneObject, type CollabTrackingObjectState } from "./collabSession";
 import { toFeature, useCollabScenarioStore, type CollabBuildingObject } from "./collabScenario";
 import { deriveTrackedFootprint, tableToAoiRotationOffsetDeg } from "./collabCalibration";
+import { maskContextAroundPhysicalFootprints } from "./collabMasking";
 import {
     createMarkerObjectRegistry,
     MockTrackingSource,
@@ -307,12 +308,19 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             const policy = session.layerPolicy;
             const tracked = trackedRenderState();
 
-            if (windowKind === "table" && policy.scenarioFootprint.table === true) {
+            if (windowKind === "table" && policy.scenarioFootprint.table !== false) {
+                const scenarioData =
+                    policy.scenarioFootprint.table === "mask"
+                        ? maskContextAroundPhysicalFootprints(
+                            scenarioFeatureCollection() as FeatureCollection<Polygon | MultiPolygon>,
+                            tracked.footprints as FeatureCollection<Polygon | MultiPolygon>
+                        )
+                        : scenarioFeatureCollection();
                 await ensureFillLayer(
                     TABLE_SCENARIO_SOURCE_ID,
                     TABLE_SCENARIO_FILL_LAYER_ID,
                     TABLE_SCENARIO_OUTLINE_LAYER_ID,
-                    scenarioFeatureCollection(),
+                    scenarioData,
                     i18n.global.t("collab.layers.tableScenario"),
                     "#16a34a",
                     "#15803d"

@@ -45,16 +45,27 @@ export interface CollabTableConfig {
 }
 
 /**
+ * Reads the measured projection inset from `VITE_COLLAB_PROJECTION_INSET_CM` (ticket 10, B6):
+ * once edge-accuracy/seam-continuity testing on the real table picks a border size, it's set
+ * there — never hardcoded in this module. Unset/unparsable falls back to `0` (no border), the
+ * same neutral placeholder used before a physical measurement exists.
+ */
+function measuredProjectionInsetCm(): number {
+    const raw = Number(import.meta.env.VITE_COLLAB_PROJECTION_INSET_CM ?? "")
+    return Number.isFinite(raw) && raw >= 0 ? raw : 0
+}
+
+/**
  * Default config: physical table dimensions (plan §5a: 160×80 cm rig) and table-pixel density
  * (plan §5a/§5b: 10 px/cm, ~1600×800, fixed by Python's stitching pipeline) are real hardware/
- * protocol facts, not scale decisions. `projectionInset` defaults to no border — a neutral
- * placeholder, not a fixed border size (B6) — and callers are expected to override it from
- * measured/config values once physical testing (M3) picks a real one.
+ * protocol facts, not scale decisions. `projectionInset` reads the measured value from
+ * `VITE_COLLAB_PROJECTION_INSET_CM` (falling back to no border until physical testing, M3, sets
+ * one) — B6 forbids hardcoding a fixed border size.
  */
 export const DEFAULT_COLLAB_TABLE_CONFIG: CollabTableConfig = {
     physicalTable: { widthCm: 160, heightCm: 80 },
     tablePixelSpace: { pixelsPerCm: 10 },
-    projectionInset: { insetCm: 0 },
+    projectionInset: { insetCm: measuredProjectionInsetCm() },
 }
 
 /**
