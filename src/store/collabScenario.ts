@@ -147,7 +147,7 @@ export const useCollabScenarioStore = defineStore("collabScenario", () => {
                 sourceIdentifier: FOOTPRINT_SOURCE_ID,
                 geoJSONSrc: data,
                 isFilterLayer: false,
-                displayName: "Collab · Selectable buildings",
+                displayName: i18n.global.t("collab.layers.selectableFootprints"),
                 layerStyle: { paint: { "fill-color": "#2563eb", "fill-opacity": 0.35 } },
             });
             mapStore.addCompanionLayer(FOOTPRINT_FILL_LAYER_ID, {

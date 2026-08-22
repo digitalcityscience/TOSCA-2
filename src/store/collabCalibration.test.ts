@@ -5,6 +5,8 @@ import type { AOIExtent, CollabTableConfig } from "./collabCalibration";
 import {
     DEFAULT_COLLAB_TABLE_CONFIG,
     ROTATION_JITTER_THRESHOLD_DEG,
+    angularDistanceDeg,
+    aoiBoundingBox,
     buildMapCalibration,
     deriveGroundScale,
     deriveTrackedFootprint,
@@ -194,6 +196,27 @@ describe("tableToAoiRotationOffsetDeg", () => {
     });
 });
 
+describe("angularDistanceDeg (A5)", () => {
+    test("treats headings straddling the -180/+180 boundary as close, not ~360° apart", () => {
+        expect(angularDistanceDeg(179.6, -179.8)).toBeCloseTo(0.6, 5);
+    });
+
+    test("matches naive absolute difference away from the wrap boundary", () => {
+        expect(angularDistanceDeg(30, 45)).toBeCloseTo(15, 5);
+        expect(angularDistanceDeg(45, 30)).toBeCloseTo(15, 5);
+    });
+
+    test("is zero for identical headings, including at exactly ±180°", () => {
+        expect(angularDistanceDeg(180, -180)).toBeCloseTo(0, 5);
+    });
+});
+
+describe("aoiBoundingBox (A1/A2)", () => {
+    test("returns [minLng, minLat, maxLng, maxLat] spanning the AOI's corners", () => {
+        expect(aoiBoundingBox(hamburgAOI)).toEqual([9.98, 53.54, 10.0, 53.56]);
+    });
+});
+
 describe("deriveTrackedFootprint", () => {
     const footprint = polygon([
         [
@@ -233,6 +256,18 @@ describe("deriveTrackedFootprint", () => {
             0
         );
         expect(appliedRotationDeg).toBe(30 + ROTATION_JITTER_THRESHOLD_DEG);
+    });
+
+    test("A5: holds the previous rotation across the -180/+180 wrap when the true change is under the jitter threshold", () => {
+        const { appliedRotationDeg } = deriveTrackedFootprint(
+            footprint,
+            { lng: 10, lat: 53.56, rotation: -179.8 },
+            179.6,
+            0
+        );
+        // Naive Math.abs(-179.8 - 179.6) = 359.4, which would wrongly apply; the true circular
+        // distance is 0.6°, under the 5° threshold, so the previous rotation must be held.
+        expect(appliedRotationDeg).toBe(179.6);
     });
 
     test("always translates the footprint to the pose centre, even when rotation is smoothed", () => {

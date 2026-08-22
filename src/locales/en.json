@@ -355,7 +355,9 @@
         "start": "Start mock tracking",
         "stop": "Stop",
         "active": "Tracking active",
-        "requiresFootprints": "Load footprints first"
+        "requiresFootprints": "Load footprints first",
+        "suppressed": "Calibration in progress — showing last known positions",
+        "disconnected": "Tracking connection lost — showing last known positions"
       },
       "simulation": {
         "title": "Simulation (mock)",
@@ -369,6 +371,7 @@
       "disconnected": "Disconnected — recalibrate"
     },
     "layers": {
+      "selectableFootprints": "Collab · Selectable buildings",
       "tableScenario": "Collab · Table scenario",
       "trackedFootprint": "Collab · Tracked footprint",
       "trackedBbox": "Collab · Tracked bbox",

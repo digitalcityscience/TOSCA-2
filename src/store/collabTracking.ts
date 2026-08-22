@@ -16,10 +16,22 @@ export interface TrackingEvent {
     timestamp: number
 }
 
+/**
+ * Whether the tracking feed is currently trustworthy (A3): `live` — normal marker snapshots are
+ * being processed; `suppressed` — the feed is non-empty but every marker in it is Python's
+ * ignored calibration marker (none resolve to a tracked object), meaning Python is momentarily
+ * withholding normal object observations rather than reporting "no objects present"; `disconnected`
+ * — the transport itself (e.g. the WebSocket) is down. `suppressed`/`disconnected` both mean
+ * "freeze the last known poses", never "disappear everything" — only a genuine empty snapshot
+ * (`features: []`) or an explicit presence timeout means an object is actually gone.
+ */
+export type TrackingAvailability = "live" | "suppressed" | "disconnected"
+
 export interface TrackingSource {
     start(): void
     stop(): void
     onEvent(cb: (event: TrackingEvent) => void): void
+    onAvailabilityChange(cb: (availability: TrackingAvailability) => void): void
 }
 
 /**
@@ -43,7 +55,10 @@ export const IGNORED_MARKER_ID = 500
 /**
  * Python's orphaned runtime corner-gate ids (plan §17.4) — dangerous if an object mapping
  * reuses them, since `toJSON` would emit *only* those ids while any is visible. Reserved here
- * for documentation/validation, not enforced against a specific object (OD-4).
+ * for documentation/validation, not enforced against a specific object (OD-4). These are
+ * ordinary building marker ids in this codebase's contract, not calibration markers — see
+ * {@link IGNORED_MARKER_ID} for the id that plays that role (A3 suppression keys off it, not
+ * these).
  */
 export const RESERVED_BUILDING_MARKER_IDS: readonly number[] = [100, 101, 102, 103]
 
@@ -121,13 +136,27 @@ export class TrackingFeedNormalizer {
     private readonly registry: MarkerObjectRegistry
     private readonly presence: MarkerPresenceTracker
     private readonly lastPose = new Map<string, TrackingEvent["pose"]>()
+    private availability: TrackingAvailability = "live"
 
     constructor(registry: MarkerObjectRegistry, disappearTimeoutMs: number = DEFAULT_DISAPPEAR_TIMEOUT_MS) {
         this.registry = registry
         this.presence = new MarkerPresenceTracker(disappearTimeoutMs)
     }
 
-    /** Applies one snapshot (as Python would emit it) and returns the `TrackingEvent`s it produces. */
+    /** The availability {@link applySnapshot} most recently determined (A3). Starts `"live"`. */
+    currentAvailability(): TrackingAvailability {
+        return this.availability
+    }
+
+    /**
+     * Applies one snapshot (as Python would emit it) and returns the `TrackingEvent`s it produces.
+     * A non-empty snapshot where every feature is Python's ignored calibration marker (A3) is
+     * `suppressed`: presence is not observed at all this call, so absence during suppression can
+     * never trip the disappear timeout — the last known poses stay frozen until a snapshot with at
+     * least one real object resumes normal (`live`) processing. A genuinely empty snapshot
+     * (`features: []`) is `live` and still runs normal presence/timeout handling — Python reporting
+     * "no objects" is a real observation, not suppression.
+     */
     applySnapshot(featureCollection: TrackingMarkerFeatureCollection, timestamp: number): TrackingEvent[] {
         const events: TrackingEvent[] = []
         const presentObjectIds: string[] = []
@@ -152,6 +181,21 @@ export class TrackingFeedNormalizer {
             }
         }
 
+        // Deliberately broader than "only the ignored calibration marker": ANY non-empty snapshot
+        // that resolves zero registered objects is suppressed, including an id this registry
+        // simply doesn't (yet) map. The registry is data-driven (OD-4) and this module can't tell
+        // "Python is calibrating" apart from "a marker id isn't mapped yet" without redesigning
+        // the registry, which A3 explicitly says not to do. Freezing in both cases is the safe
+        // default for a PoC that must never mistake a transient state for "the table is empty" —
+        // the cost is a rare pathological case (every previously-tracked object genuinely vanishes
+        // in the same tick an unrelated unmapped marker appears) freezing instead of disappearing;
+        // that trade-off is accepted here rather than guessed away.
+        const isSuppressed = featureCollection.features.length > 0 && presentObjectIds.length === 0
+        this.availability = isSuppressed ? "suppressed" : "live"
+        if (isSuppressed) {
+            return events
+        }
+
         for (const objectId of this.presence.observe(presentObjectIds, timestamp)) {
             const pose = this.lastPose.get(objectId)
             if (pose === undefined) {
@@ -161,21 +205,6 @@ export class TrackingFeedNormalizer {
             this.lastPose.delete(objectId)
         }
 
-        return events
-    }
-
-    /**
-     * Forces every currently-tracked object into `disappeared` immediately, bypassing the
-     * absence+timeout wait. Used when the source itself terminates (e.g. a dropped WebSocket,
-     * ticket 09) — no further snapshots will arrive to let the normal timeout path run, so
-     * without this a lost connection would leave stale markers frozen on screen forever.
-     */
-    disappearAll(timestamp: number): TrackingEvent[] {
-        const events: TrackingEvent[] = []
-        for (const [objectId, pose] of this.lastPose) {
-            events.push({ type: "disappeared", objectId, pose, confidence: 0, timestamp })
-        }
-        this.lastPose.clear()
         return events
     }
 
@@ -237,6 +266,7 @@ export class MockTrackingSource implements TrackingSource {
     private readonly now: () => number
     private readonly normalizer: TrackingFeedNormalizer
     private readonly listeners: Array<(event: TrackingEvent) => void> = []
+    private readonly availabilityListeners: Array<(availability: TrackingAvailability) => void> = []
     private intervalId: ReturnType<typeof setInterval> | undefined
     private startedAt = 0
 
@@ -267,6 +297,10 @@ export class MockTrackingSource implements TrackingSource {
         this.listeners.push(cb)
     }
 
+    onAvailabilityChange(cb: (availability: TrackingAvailability) => void): void {
+        this.availabilityListeners.push(cb)
+    }
+
     private tick(): void {
         const timestamp = this.now()
         const elapsedMs = timestamp - this.startedAt
@@ -276,7 +310,11 @@ export class MockTrackingSource implements TrackingSource {
         }
 
         const featureCollection = toFeatureCollection(snapshot)
-        for (const event of this.normalizer.applySnapshot(featureCollection, timestamp)) {
+        const events = this.normalizer.applySnapshot(featureCollection, timestamp)
+        for (const availabilityListener of this.availabilityListeners) {
+            availabilityListener(this.normalizer.currentAvailability())
+        }
+        for (const event of events) {
             for (const listener of this.listeners) {
                 listener(event)
             }
@@ -362,6 +400,7 @@ export class RealTrackingSource implements TrackingSource {
     private readonly now: () => number
     private readonly createSocket: (url: string) => TrackingWebSocket
     private readonly listeners: Array<(event: TrackingEvent) => void> = []
+    private readonly availabilityListeners: Array<(availability: TrackingAvailability) => void> = []
     private socket: TrackingWebSocket | undefined
 
     constructor(options: RealTrackingSourceOptions) {
@@ -399,6 +438,10 @@ export class RealTrackingSource implements TrackingSource {
         this.listeners.push(cb)
     }
 
+    onAvailabilityChange(cb: (availability: TrackingAvailability) => void): void {
+        this.availabilityListeners.push(cb)
+    }
+
     private detachAndClose(socket: TrackingWebSocket): void {
         socket.onopen = null
         socket.onmessage = null
@@ -417,14 +460,19 @@ export class RealTrackingSource implements TrackingSource {
         if (!isTrackingFeatureCollection(data)) {
             return
         }
-        this.emitAll(this.normalizer.applySnapshot(data, this.now()))
+        const events = this.normalizer.applySnapshot(data, this.now())
+        this.emitAvailability(this.normalizer.currentAvailability())
+        this.emitAll(events)
     }
 
     /**
      * Runs when the connection itself is lost (close or error) rather than intentionally stopped
-     * — synthesizes `disappeared` for everything still tracked (plan §17.1's absence+timeout path
-     * never fires again once no more snapshots arrive) so a dropped socket doesn't leave stale
-     * markers frozen on screen.
+     * (A3): reports `disconnected` and freezes the last known poses instead of synthesizing
+     * `disappeared` for everything tracked. A dropped socket is a transport failure, not an
+     * observation that every physical building vanished from the table — erasing them here would
+     * make a momentary Wi-Fi/server hiccup look identical to someone clearing the table. Normal
+     * processing (including genuine disappearance via presence+timeout) resumes from this same
+     * frozen state once snapshots start arriving again.
      */
     private handleTermination(): void {
         if (this.socket === undefined) {
@@ -432,7 +480,7 @@ export class RealTrackingSource implements TrackingSource {
         }
         this.detachAndClose(this.socket)
         this.socket = undefined
-        this.emitAll(this.normalizer.disappearAll(this.now()))
+        this.emitAvailability("disconnected")
     }
 
     private emitAll(events: readonly TrackingEvent[]): void {
@@ -440,6 +488,12 @@ export class RealTrackingSource implements TrackingSource {
             for (const listener of this.listeners) {
                 listener(event)
             }
+        }
+    }
+
+    private emitAvailability(availability: TrackingAvailability): void {
+        for (const listener of this.availabilityListeners) {
+            listener(availability)
         }
     }
 }

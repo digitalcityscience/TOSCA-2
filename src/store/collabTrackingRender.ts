@@ -2,6 +2,7 @@ import { acceptHMRUpdate, defineStore } from "pinia";
 import { onScopeDispose, ref, watch } from "vue";
 import bbox from "@turf/bbox";
 import { point } from "@turf/helpers";
+import transformRotate from "@turf/transform-rotate";
 import transformTranslate from "@turf/transform-translate";
 import type { Position } from "geojson";
 import type { Feature, FeatureCollection, MultiPolygon, Polygon } from "@helpers/geojson";
@@ -20,6 +21,7 @@ import {
     type MarkerObjectRegistry,
     type MarkerObjectRegistryEntry,
     type MockTrackingSnapshot,
+    type TrackingAvailability,
     type TrackingEvent,
 } from "./collabTracking";
 
@@ -103,6 +105,27 @@ export function buildDemoMockTimeline(markerId: number, anchor: Position): MockT
 }
 
 /**
+ * The Control-View debug orientation arrow's tip, `appliedRotationDeg` degrees clockwise from
+ * `centre` (A6). Rotates a fixed due-east reference segment with `transformRotate` around
+ * `centre` — the exact function/pivot semantics `placeFootprintAt` uses to rotate the tracked
+ * footprint itself — instead of feeding `appliedRotationDeg` to `transformTranslate` as a compass
+ * bearing (0 = north), which used a different rotation datum than the footprint's own transform
+ * and made the debug arrow point somewhere other than the footprint's actual heading. This is a
+ * Control/debug visualization correction only; it does not touch the tracking protocol or the
+ * real hardware rotation sign (deferred to physical-table validation, B1).
+ */
+export function orientationArrowTip(centre: Position, appliedRotationDeg: number): Position {
+    const eastTip = transformTranslate(point(centre), ORIENTATION_LINE_METERS, 90, { units: "meters" });
+    const baseline = {
+        type: "Feature" as const,
+        properties: {},
+        geometry: { type: "LineString" as const, coordinates: [centre, eastTip.geometry.coordinates] },
+    };
+    const rotated = transformRotate(baseline, appliedRotationDeg, { pivot: centre });
+    return rotated.geometry.coordinates[1] as Position;
+}
+
+/**
  * Wires the mock tracking adapter (ticket 05) into the session (ticket 04) and renders both
  * views from the layer-policy matrix (plan §13, ticket 08 — the M1 tracer bullet). Owned here
  * rather than in `collabScenario`/`collabTracking` because it composes both plus the map store
@@ -124,7 +147,10 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     const mapStore = useMapStore();
 
     const active = ref(false);
+    const trackingAvailability = ref<TrackingAvailability>("live");
     const appliedRotationByObjectId = new Map<string, number>();
+    /** Keyed by source id (A4): the in-flight create-source-and-layer promise, so concurrent render ticks await the same creation instead of both racing `addMapDataSource`. */
+    const layerInitInFlight = new Map<string, Promise<void>>();
 
     let mockSource: MockTrackingSource | undefined;
     let realSource: RealTrackingSource | undefined;
@@ -190,12 +216,11 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             });
 
             const centre: Position = [tracked.pose.lng, tracked.pose.lat];
-            const tip = transformTranslate(point(centre), ORIENTATION_LINE_METERS, appliedRotationDeg, { units: "meters" });
             orientations.push({
                 type: "Feature",
                 id: objectId,
                 properties: {},
-                geometry: { type: "LineString", coordinates: [centre, tip.geometry.coordinates] },
+                geometry: { type: "LineString", coordinates: [centre, orientationArrowTip(centre, appliedRotationDeg)] },
             });
 
             ids.push({
@@ -245,12 +270,31 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     }
 
     /**
-     * Ensures `sourceId`+`layerId` exist with `layerType`/`layerStyle`, or just pushes `data`
-     * via `setData` if they already do (CLAUDE.md: live updates via `setData`, map touched only
-     * through the map store). Shared by the fill/line/symbol variants below — they differ only
-     * in the layer type and style they pass in.
+     * Runs `create` at most once per `key` even when called concurrently (A4): if a creation for
+     * `key` is already in flight, later callers await that same promise instead of also calling
+     * `addMapDataSource`/`addMapLayer` and racing MapLibre's duplicate-source guard. The in-flight
+     * entry is always removed afterwards (success or failure), so a failed creation can be retried
+     * on the next render tick rather than wedging `key` forever.
      */
-    async function ensureGeojsonLayer(
+    async function withInitLock(key: string, exists: () => boolean, create: () => Promise<void>): Promise<void> {
+        if (exists()) {
+            return;
+        }
+        const pending = layerInitInFlight.get(key);
+        if (pending !== undefined) {
+            await pending;
+            return;
+        }
+        const promise = create();
+        layerInitInFlight.set(key, promise);
+        try {
+            await promise;
+        } finally {
+            layerInitInFlight.delete(key);
+        }
+    }
+
+    async function createGeojsonSourceAndLayer(
         sourceId: string,
         layerId: string,
         layerType: "fill" | "line" | "symbol",
@@ -258,11 +302,6 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         displayName: string,
         layerStyle: { paint?: Record<string, unknown>; layout?: Record<string, unknown> }
     ): Promise<void> {
-        const existing = mapStore.map?.getSource(sourceId);
-        if (existing !== undefined) {
-            existing.setData(data);
-            return;
-        }
         await mapStore.addMapDataSource({ sourceType: "geojson", identifier: sourceId, isFilterLayer: false, geoJSONSrc: data });
         await mapStore.addMapLayer({
             sourceType: "geojson",
@@ -276,6 +315,30 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         });
     }
 
+    /**
+     * Ensures `sourceId`+`layerId` exist with `layerType`/`layerStyle`, or just pushes `data`
+     * via `setData` if they already do (CLAUDE.md: live updates via `setData`, map touched only
+     * through the map store). Shared by the line/symbol variants below — they differ only in the
+     * layer type and style they pass in. `ensureFillLayer` below has its own lock scope since it
+     * also owns a companion outline layer that must not be added twice either (A4).
+     */
+    async function ensureGeojsonLayer(
+        sourceId: string,
+        layerId: string,
+        layerType: "fill" | "line" | "symbol",
+        data: FeatureCollection,
+        displayName: string,
+        layerStyle: { paint?: Record<string, unknown>; layout?: Record<string, unknown> }
+    ): Promise<void> {
+        const sourceExists = (): boolean => mapStore.map?.getSource(sourceId) !== undefined;
+        if (!sourceExists()) {
+            await withInitLock(sourceId, sourceExists, () =>
+                createGeojsonSourceAndLayer(sourceId, layerId, layerType, data, displayName, layerStyle)
+            );
+        }
+        mapStore.map?.getSource(sourceId)?.setData(data);
+    }
+
     async function ensureFillLayer(
         sourceId: string,
         fillLayerId: string,
@@ -285,18 +348,21 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         fillColor: string,
         outlineColor: string
     ): Promise<void> {
-        const isNewLayer = mapStore.map?.getSource(sourceId) === undefined;
-        await ensureGeojsonLayer(sourceId, fillLayerId, "fill", data, displayName, {
-            paint: { "fill-color": fillColor, "fill-opacity": 0.45 },
-        });
-        if (isNewLayer) {
-            mapStore.addCompanionLayer(fillLayerId, {
-                id: outlineLayerId,
-                type: "line",
-                source: sourceId,
-                paint: { "line-color": outlineColor, "line-width": 1.5 },
+        const sourceExists = (): boolean => mapStore.map?.getSource(sourceId) !== undefined;
+        if (!sourceExists()) {
+            await withInitLock(sourceId, sourceExists, async () => {
+                await createGeojsonSourceAndLayer(sourceId, fillLayerId, "fill", data, displayName, {
+                    paint: { "fill-color": fillColor, "fill-opacity": 0.45 },
+                });
+                mapStore.addCompanionLayer(fillLayerId, {
+                    id: outlineLayerId,
+                    type: "line",
+                    source: sourceId,
+                    paint: { "line-color": outlineColor, "line-width": 1.5 },
+                });
             });
         }
+        mapStore.map?.getSource(sourceId)?.setData(data);
     }
 
     async function ensureLineLayer(
@@ -328,13 +394,33 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         });
     }
 
+    /**
+     * Runs one layer's `ensure*Layer` call, reporting (not throwing) on failure (A4): a duplicate-
+     * source/layer error or any other failure establishing one Collab layer must not prevent the
+     * remaining layers in the same `updateLayers` pass from being established.
+     */
+    async function safelyEnsure(label: string, run: () => Promise<void>): Promise<void> {
+        try {
+            await run();
+        } catch (error) {
+            reportDeveloperError(`collabTrackingRender.updateLayers.${label}`, error);
+        }
+    }
+
     /** Renders every Collab layer `windowKind` is allowed to show, per `collabSession.layerPolicy` (plan §13). */
     async function updateLayers(windowKind: "control" | "table"): Promise<void> {
+        let policy: typeof session.layerPolicy;
+        let tracked: ReturnType<typeof trackedRenderState>;
         try {
-            const policy = session.layerPolicy;
-            const tracked = trackedRenderState();
+            policy = session.layerPolicy;
+            tracked = trackedRenderState();
+        } catch (error) {
+            reportDeveloperError("collabTrackingRender.updateLayers.deriveState", error);
+            return;
+        }
 
-            if (windowKind === "table" && policy.scenarioFootprint.table !== false) {
+        if (windowKind === "table" && policy.scenarioFootprint.table !== false) {
+            await safelyEnsure("tableScenario", async () => {
                 const scenarioData =
                     policy.scenarioFootprint.table === "mask"
                         ? maskContextAroundPhysicalFootprints(
@@ -351,20 +437,24 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                     "#16a34a",
                     "#15803d"
                 );
-            }
+            });
+        }
 
-            if (session.isLayerVisible("simulationResult", windowKind)) {
-                await ensureSymbolLayer(
+        if (session.isLayerVisible("simulationResult", windowKind)) {
+            await safelyEnsure("simulationResult", () =>
+                ensureSymbolLayer(
                     SIMULATION_RESULT_SOURCE_ID,
                     SIMULATION_RESULT_LAYER_ID,
                     simulationResultFeatureCollection(),
                     i18n.global.t("collab.layers.simulationResult"),
                     1.8
-                );
-            }
+                )
+            );
+        }
 
-            if (session.isLayerVisible("trackedFootprint", windowKind)) {
-                await ensureFillLayer(
+        if (session.isLayerVisible("trackedFootprint", windowKind)) {
+            await safelyEnsure("trackedFootprint", () =>
+                ensureFillLayer(
                     TRACKED_FOOTPRINT_SOURCE_ID,
                     TRACKED_FOOTPRINT_FILL_LAYER_ID,
                     TRACKED_FOOTPRINT_OUTLINE_LAYER_ID,
@@ -372,49 +462,55 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                     i18n.global.t("collab.layers.trackedFootprint"),
                     "#f97316",
                     "#c2410c"
-                );
-            }
+                )
+            );
+        }
 
-            if (windowKind === "control") {
-                if (policy.trackedBbox.control) {
-                    await ensureLineLayer(
+        if (windowKind === "control") {
+            if (policy.trackedBbox.control) {
+                await safelyEnsure("trackedBbox", () =>
+                    ensureLineLayer(
                         TRACKED_BBOX_SOURCE_ID,
                         TRACKED_BBOX_LAYER_ID,
                         tracked.bboxes,
                         i18n.global.t("collab.layers.trackedBbox"),
                         "#dc2626"
-                    );
-                }
-                if (policy.trackedOrientation.control) {
-                    await ensureLineLayer(
+                    )
+                );
+            }
+            if (policy.trackedOrientation.control) {
+                await safelyEnsure("trackedOrientation", () =>
+                    ensureLineLayer(
                         TRACKED_ORIENTATION_SOURCE_ID,
                         TRACKED_ORIENTATION_LAYER_ID,
                         tracked.orientations,
                         i18n.global.t("collab.layers.trackedOrientation"),
                         "#7c3aed"
-                    );
-                }
-                if (policy.trackedId.control) {
-                    await ensureSymbolLayer(
+                    )
+                );
+            }
+            if (policy.trackedId.control) {
+                await safelyEnsure("trackedId", () =>
+                    ensureSymbolLayer(
                         TRACKED_ID_SOURCE_ID,
                         TRACKED_ID_LAYER_ID,
                         tracked.ids,
                         i18n.global.t("collab.layers.trackedId"),
                         -1.2
-                    );
-                }
-                if (policy.trackedConfidence.control) {
-                    await ensureSymbolLayer(
+                    )
+                );
+            }
+            if (policy.trackedConfidence.control) {
+                await safelyEnsure("trackedConfidence", () =>
+                    ensureSymbolLayer(
                         TRACKED_CONFIDENCE_SOURCE_ID,
                         TRACKED_CONFIDENCE_LAYER_ID,
                         tracked.confidences,
                         i18n.global.t("collab.layers.trackedConfidence"),
                         0.6
-                    );
-                }
+                    )
+                );
             }
-        } catch (error) {
-            reportDeveloperError("collabTrackingRender.updateLayers", error);
         }
     }
 
@@ -436,6 +532,10 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                     () => scenarioStore.aoi,
                     (aoi) => {
                         session.calibration.rotationOffsetDeg = aoi === null ? 0 : tableToAoiRotationOffsetDeg(aoi);
+                        // A1/A2: broadcast the selected AOI itself, not just its derived rotation
+                        // offset, so the Table window can fit its viewport to it instead of an
+                        // independent/generic one. Control stays authoritative — Table never sets this.
+                        session.calibration.aoi = aoi === null ? null : { corners: [...aoi.corners] as typeof aoi.corners };
                     },
                     { immediate: true }
                 )
@@ -477,6 +577,9 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             ? new MockTrackingSource({ registry })
             : new MockTrackingSource({ registry, timeline: resolvedTimeline });
         mockSource.onEvent((event) => applyTrackingEvent(session.tracking, event));
+        mockSource.onAvailabilityChange((availability) => {
+            trackingAvailability.value = availability;
+        });
         mockSource.start();
         active.value = true;
     }
@@ -502,6 +605,9 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
 
         realSource = new RealTrackingSource({ url, registry, calibration });
         realSource.onEvent((event) => applyTrackingEvent(session.tracking, event));
+        realSource.onAvailabilityChange((availability) => {
+            trackingAvailability.value = availability;
+        });
         realSource.start();
         active.value = true;
     }
@@ -530,6 +636,9 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         realSource?.stop();
         realSource = undefined;
         active.value = false;
+        // An intentional stop is not a tracking-availability problem — clear any stale
+        // suppressed/disconnected banner left over from before the operator stopped tracking.
+        trackingAvailability.value = "live";
     }
 
     /** Tears down the active tracking source and the render watch. Idempotent — safe on unmount and HMR. */
@@ -544,6 +653,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
 
     return {
         active,
+        trackingAvailability,
         startRendering,
         startMockTracking,
         stopMockTracking,

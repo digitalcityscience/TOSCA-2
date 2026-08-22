@@ -355,7 +355,9 @@
         "start": "Simülasyon takibini başlat",
         "stop": "Durdur",
         "active": "Takip etkin",
-        "requiresFootprints": "Önce yerleşim alanlarını yükleyin"
+        "requiresFootprints": "Önce yerleşim alanlarını yükleyin",
+        "suppressed": "Kalibrasyon sürüyor — son bilinen konumlar gösteriliyor",
+        "disconnected": "Takip bağlantısı kesildi — son bilinen konumlar gösteriliyor"
       },
       "simulation": {
         "title": "Simülasyon (mock)",
@@ -369,6 +371,7 @@
       "disconnected": "Bağlantı kesildi — yeniden kalibre edin"
     },
     "layers": {
+      "selectableFootprints": "Collab · Seçilebilir binalar",
       "tableScenario": "Collab · Masa senaryosu",
       "trackedFootprint": "Collab · Takip edilen yerleşim alanı",
       "trackedBbox": "Collab · Takip edilen sınır kutusu",

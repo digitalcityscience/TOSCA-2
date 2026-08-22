@@ -1,5 +1,6 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
 import { computed, reactive } from "vue";
+import type { AOIExtent } from "@store/collabCalibration";
 
 /**
  * One object in the Base City / Scenario dataset. Only `id` is meaningful to the store itself
@@ -65,12 +66,14 @@ export interface CollabSimulationState {
 
 /**
  * Derived calibration values both windows need but only Control can compute (plan §5b/§13):
- * the table→AOI rotation offset, from Control's locally-selected AOI (`collabScenario.aoi`).
- * Broadcast like any other session slice (ticket 08) so the Table window — which never runs AOI
- * selection itself — renders tracked headings with the same offset Control does.
+ * the table→AOI rotation offset and the AOI itself (A1/A2), from Control's locally-selected AOI
+ * (`collabScenario.aoi`). Broadcast like any other session slice (ticket 08) so the Table window
+ * — which never runs AOI selection itself — renders tracked headings with the same offset Control
+ * does, and fits its viewport to the same AOI Control selected rather than an independent one.
  */
 export interface CollabCalibrationState {
     rotationOffsetDeg: number;
+    aoi: AOIExtent | null;
 }
 
 /**
@@ -134,7 +137,7 @@ export const useCollabSessionStore = defineStore("collabSession", () => {
     const tableRender = reactive<CollabTableRenderState>({ visibleLayerIds: [] });
     const simulation = reactive<CollabSimulationState>({ running: false, results: [], lastRunAt: null });
     const layerPolicy = reactive<CollabLayerPolicy>({ ...DEFAULT_COLLAB_LAYER_POLICY });
-    const calibration = reactive<CollabCalibrationState>({ rotationOffsetDeg: 0 });
+    const calibration = reactive<CollabCalibrationState>({ rotationOffsetDeg: 0, aoi: null });
 
     /** Whether `layerId` should render for `windowKind`, per the current layer-policy matrix (plan §13). */
     function isLayerVisible(layerId: CollabLayerId, windowKind: "control" | "table"): boolean {

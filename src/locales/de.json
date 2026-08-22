@@ -355,7 +355,9 @@
         "start": "Simuliertes Tracking starten",
         "stop": "Stopp",
         "active": "Tracking aktiv",
-        "requiresFootprints": "Zuerst Grundrisse laden"
+        "requiresFootprints": "Zuerst Grundrisse laden",
+        "suppressed": "Kalibrierung läuft — letzte bekannte Positionen werden angezeigt",
+        "disconnected": "Tracking-Verbindung unterbrochen — letzte bekannte Positionen werden angezeigt"
       },
       "simulation": {
         "title": "Simulation (simuliert)",
@@ -369,6 +371,7 @@
       "disconnected": "Verbindung getrennt — neu kalibrieren"
     },
     "layers": {
+      "selectableFootprints": "Collab · Auswählbare Gebäude",
       "tableScenario": "Collab · Tisch-Szenario",
       "trackedFootprint": "Collab · Verfolgter Grundriss",
       "trackedBbox": "Collab · Verfolgte Bounding-Box",

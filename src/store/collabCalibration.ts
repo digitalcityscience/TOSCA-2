@@ -2,7 +2,7 @@ import type { Feature, MultiPolygon, Polygon, Position } from "geojson"
 import bbox from "@turf/bbox"
 import bearing from "@turf/bearing"
 import distance from "@turf/distance"
-import { point } from "@turf/helpers"
+import { point, polygon } from "@turf/helpers"
 import transformRotate from "@turf/transform-rotate"
 import transformTranslate from "@turf/transform-translate"
 
@@ -75,6 +75,17 @@ export const DEFAULT_COLLAB_TABLE_CONFIG: CollabTableConfig = {
  */
 export interface AOIExtent {
     corners: [Position, Position, Position, Position]
+}
+
+/**
+ * `[minLng, minLat, maxLng, maxLat]` bounding box of an AOI's corners (A1/A2) — used by the Table
+ * window to fit its viewport to the operator's selected AOI before locking it, instead of showing
+ * the generic `VITE_MAP_START_*` viewport. Control remains authoritative for the AOI itself; this
+ * is a pure derivation, not a second AOI-selection mechanism.
+ */
+export function aoiBoundingBox(aoi: AOIExtent): [number, number, number, number] {
+    const ring = [...aoi.corners, aoi.corners[0]]
+    return bbox(polygon([ring])) as [number, number, number, number]
 }
 
 /** One `pixel_position` ↔ `lat_lon_position` correspondence in the `map_calibration` handshake (plan §5b). */
@@ -190,10 +201,23 @@ export function tableToAoiRotationOffsetDeg(aoi: AOIExtent): number {
 export const ROTATION_JITTER_THRESHOLD_DEG = 5
 
 /**
+ * The shortest angular distance between two headings, in degrees, correctly handling the
+ * `-180°/+180°` wrap boundary (A5) — e.g. `179.6°` and `-179.8°` are ~0.6° apart, not 359.4°.
+ * A naive `Math.abs(a - b)` treats every wrap-around pair as maximally different, which would
+ * defeat the jitter threshold below right at the boundary a full-rotation tracked object crosses
+ * routinely.
+ */
+export function angularDistanceDeg(a: number, b: number): number {
+    const wrapped = ((a - b + 180) % 360 + 360) % 360 - 180
+    return Math.abs(wrapped)
+}
+
+/**
  * Derives a rendered footprint from a tracked pose (plan §13): places `footprint` at the pose's
  * geographic centre via {@link placeFootprintAt}, applying the table→AOI rotation offset (plan
  * §5b) and holding the previously-rendered rotation when the change is under the 5° jitter
- * threshold (plan §5e) — translation always applies on every call; only rotation is smoothed.
+ * threshold (plan §5e), measured as a wrap-safe circular distance (A5) — translation always
+ * applies on every call; only rotation is smoothed.
  */
 export function deriveTrackedFootprint<T extends Polygon | MultiPolygon>(
     footprint: Feature<T>,
@@ -204,7 +228,7 @@ export function deriveTrackedFootprint<T extends Polygon | MultiPolygon>(
     const targetRotationDeg = pose.rotation + rotationOffsetDeg
     const appliedRotationDeg =
         previousRotationDeg !== undefined &&
-        Math.abs(targetRotationDeg - previousRotationDeg) < ROTATION_JITTER_THRESHOLD_DEG
+        angularDistanceDeg(targetRotationDeg, previousRotationDeg) < ROTATION_JITTER_THRESHOLD_DEG
             ? previousRotationDeg
             : targetRotationDeg
     const feature = placeFootprintAt(footprint, [pose.lng, pose.lat], appliedRotationDeg)

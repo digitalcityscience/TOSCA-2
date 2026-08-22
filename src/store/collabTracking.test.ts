@@ -1,6 +1,12 @@
 import { describe, expect, test, vi } from "vitest";
 import type { MapCalibrationMessage } from "./collabCalibration";
-import type { MarkerObjectRegistry, TrackingEvent, TrackingMarkerFeatureCollection, TrackingWebSocket } from "./collabTracking";
+import type {
+    MarkerObjectRegistry,
+    TrackingAvailability,
+    TrackingEvent,
+    TrackingMarkerFeatureCollection,
+    TrackingWebSocket,
+} from "./collabTracking";
 import {
     DEFAULT_MOCK_TIMELINE,
     IGNORED_MARKER_ID,
@@ -117,6 +123,39 @@ describe("TrackingFeedNormalizer", () => {
         const normalizer = new TrackingFeedNormalizer(registry);
         const [event] = normalizer.applySnapshot(featureCollection([{ markerId: 182, lng: 10, lat: 53.5, rotation: 12 }]), 0);
         expect(Object.keys(event.pose).sort()).toEqual(["lat", "lng", "rotation"]);
+    });
+
+    test("A3: starts live, and a genuinely empty snapshot stays live (a real 'no objects' observation)", () => {
+        const normalizer = new TrackingFeedNormalizer(registry);
+        expect(normalizer.currentAvailability()).toBe("live");
+        normalizer.applySnapshot(featureCollection([]), 0);
+        expect(normalizer.currentAvailability()).toBe("live");
+    });
+
+    test("A3: a non-empty snapshot containing only the ignored calibration marker is suppressed, not disappeared", () => {
+        const normalizer = new TrackingFeedNormalizer(registry, 500);
+        normalizer.applySnapshot(featureCollection([{ markerId: 182, lng: 10, lat: 53.5, rotation: 0 }]), 0);
+
+        // Suppression lasts well past the disappear timeout — presence must not advance during it.
+        const duringSuppression = normalizer.applySnapshot(
+            featureCollection([{ markerId: IGNORED_MARKER_ID, lng: 0, lat: 0, rotation: 0 }]),
+            1000
+        );
+        expect(duringSuppression).toEqual([]);
+        expect(normalizer.currentAvailability()).toBe("suppressed");
+
+        // Real tracking resumes: the frozen pose is still there (an "updated"/no-op, not "appeared").
+        const resumed = normalizer.applySnapshot(featureCollection([{ markerId: 182, lng: 10, lat: 53.5, rotation: 0 }]), 1100);
+        expect(resumed).toEqual([]);
+        expect(normalizer.currentAvailability()).toBe("live");
+    });
+
+    test("A3: an unregistered (non-calibration) marker id alone also suppresses rather than disappearing", () => {
+        const normalizer = new TrackingFeedNormalizer(registry);
+        normalizer.applySnapshot(featureCollection([{ markerId: 182, lng: 10, lat: 53.5, rotation: 0 }]), 0);
+        const events = normalizer.applySnapshot(featureCollection([{ markerId: 999, lng: 1, lat: 1, rotation: 0 }]), 0);
+        expect(events).toEqual([]);
+        expect(normalizer.currentAvailability()).toBe("suppressed");
     });
 });
 
@@ -286,7 +325,7 @@ describe("RealTrackingSource", () => {
         expect(() => source.stop()).not.toThrow();
     });
 
-    test("onclose synthesizes disappeared for every tracked object instead of leaving markers frozen", () => {
+    test("onclose reports disconnected and freezes tracked objects instead of disappearing them (A3)", () => {
         const socket = new FakeSocket();
         let now = 0;
         const source = new RealTrackingSource({
@@ -297,7 +336,9 @@ describe("RealTrackingSource", () => {
             now: () => now,
         });
         const events: TrackingEvent[] = [];
+        const availabilities: TrackingAvailability[] = [];
         source.onEvent((e) => events.push(e));
+        source.onAvailabilityChange((a) => availabilities.push(a));
 
         source.start();
         socket.emitOpen();
@@ -307,22 +348,20 @@ describe("RealTrackingSource", () => {
         now = 5000;
         socket.onclose?.();
 
-        expect(events).toHaveLength(2);
-        expect(events[1]).toEqual<TrackingEvent>({
-            type: "disappeared",
-            objectId: "B-28",
-            pose: { lng: 10, lat: 53.5, rotation: 0 },
-            confidence: 0,
-            timestamp: 5000,
-        });
+        // A dropped connection must not synthesize a "disappeared" event — the last known pose
+        // is frozen, and the UI is told via availability instead.
+        expect(events).toHaveLength(1);
+        expect(availabilities).toEqual<TrackingAvailability[]>(["live", "disconnected"]);
     });
 
-    test("onerror reports a developer error and also synthesizes disappeared", () => {
+    test("onerror reports a developer error and reports disconnected without disappearing tracked objects", () => {
         const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
         const socket = new FakeSocket();
         const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, calibration, createSocket: () => socket });
         const events: TrackingEvent[] = [];
+        const availabilities: TrackingAvailability[] = [];
         source.onEvent((e) => events.push(e));
+        source.onAvailabilityChange((a) => availabilities.push(a));
 
         source.start();
         socket.emitOpen();
@@ -330,12 +369,13 @@ describe("RealTrackingSource", () => {
         socket.onerror?.(new Event("error"));
 
         expect(consoleError).toHaveBeenCalled();
-        expect(events.some((e) => e.type === "disappeared")).toBe(true);
+        expect(events.some((e) => e.type === "disappeared")).toBe(false);
+        expect(availabilities[availabilities.length - 1]).toBe("disconnected");
 
         consoleError.mockRestore();
     });
 
-    test("a re-start()/stop() cycle after termination does not double-emit disappeared", () => {
+    test("a re-start()/stop() cycle after termination does not throw", () => {
         const sockets: FakeSocket[] = [];
         const source = new RealTrackingSource({
             url: "ws://table-host:8053",
@@ -355,5 +395,26 @@ describe("RealTrackingSource", () => {
 
         // stop() after the socket already terminated itself must be a no-op, not a double-close.
         expect(() => source.stop()).not.toThrow();
+    });
+
+    test("a calibration-marker-only snapshot (only the ignored id) suppresses without disappearing tracked objects (A3)", () => {
+        const socket = new FakeSocket();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, calibration, createSocket: () => socket });
+        const events: TrackingEvent[] = [];
+        const availabilities: TrackingAvailability[] = [];
+        source.onEvent((e) => events.push(e));
+        source.onAvailabilityChange((a) => availabilities.push(a));
+
+        source.start();
+        socket.emitOpen();
+        socket.emitMessage(featureCollection([{ markerId: 182, lng: 10, lat: 53.5, rotation: 0 }]));
+        socket.emitMessage(featureCollection([{ markerId: IGNORED_MARKER_ID, lng: 0, lat: 0, rotation: 0 }]));
+
+        expect(events.some((e) => e.type === "disappeared")).toBe(false);
+        expect(availabilities).toEqual<TrackingAvailability[]>(["live", "suppressed"]);
+
+        // Real tracking resuming after suppression is "live" again, not a fresh "appeared".
+        socket.emitMessage(featureCollection([{ markerId: 182, lng: 10, lat: 53.5, rotation: 0 }]));
+        expect(availabilities).toEqual<TrackingAvailability[]>(["live", "suppressed", "live"]);
     });
 });

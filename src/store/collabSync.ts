@@ -72,7 +72,10 @@ function cloneSimulation(value: CollabSimulationState): CollabSimulationState {
 }
 
 function cloneCalibration(value: CollabCalibrationState): CollabCalibrationState {
-    return { rotationOffsetDeg: value.rotationOffsetDeg };
+    return {
+        rotationOffsetDeg: value.rotationOffsetDeg,
+        aoi: value.aoi === null ? null : { corners: [...value.aoi.corners] as typeof value.aoi.corners },
+    };
 }
 
 function slicesEqual(a: CollabSessionSnapshot, slice: SnapshotSlice, b: CollabSessionSnapshot): boolean {

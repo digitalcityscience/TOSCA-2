@@ -133,6 +133,12 @@
             <p v-if="!collabSession.base.loaded" class="text-xs text-muted">
                 {{ t("collab.control.tracking.requiresFootprints") }}
             </p>
+            <p v-else-if="trackingRenderStore.trackingAvailability === 'suppressed'" class="text-xs text-warning">
+                {{ t("collab.control.tracking.suppressed") }}
+            </p>
+            <p v-else-if="trackingRenderStore.trackingAvailability === 'disconnected'" class="text-xs text-warning">
+                {{ t("collab.control.tracking.disconnected") }}
+            </p>
             <p v-else-if="trackingRenderStore.active" class="text-xs text-success">
                 {{ t("collab.control.tracking.active") }}
             </p>
@@ -159,7 +165,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed, onBeforeUnmount, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import BaseSlideoverSidebarComponent from "@components/Base/BaseSlideoverSidebarComponent.vue";
@@ -228,5 +234,15 @@ function isRemoved(id: string): boolean {
 onMounted(() => {
     syncStore.startAsControl();
     trackingRenderStore.startRendering("control");
+});
+
+/**
+ * Mirrors `CollabTableView`'s cleanup pattern (plan §11/§13): stops broadcasting and rendering
+ * when the operator navigates away from Collab, so a lingering sidebar doesn't keep publishing
+ * snapshots or writing map layers after the route/view it belongs to is gone.
+ */
+onBeforeUnmount(() => {
+    syncStore.stop();
+    trackingRenderStore.stop();
 });
 </script>

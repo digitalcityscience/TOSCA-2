@@ -21,11 +21,14 @@ import { onBeforeUnmount, onMounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import MapContainer from "@components/Map/MapContainer.vue";
 import { useMapStore } from "@store/map";
+import { useCollabSessionStore } from "@store/collabSession";
 import { useCollabSyncStore } from "@store/collabSync";
 import { useCollabTrackingRenderStore } from "@store/collabTrackingRender";
+import { aoiBoundingBox } from "@store/collabCalibration";
 
 const { t } = useI18n();
 const mapStore = useMapStore();
+const session = useCollabSessionStore();
 const syncStore = useCollabSyncStore();
 const trackingRenderStore = useCollabTrackingRenderStore();
 
@@ -46,7 +49,35 @@ function lockViewport(): void {
     viewportLocked = true;
 }
 
-const stopMapWatch = watch(() => mapStore.map, lockViewport, { immediate: true });
+/**
+ * Fits the Table map to the Control-selected AOI (A1/A2) and only then locks the viewport, so the
+ * projector shows the exact Collab AOI instead of the generic `VITE_MAP_START_*` viewport before
+ * being frozen in place. Runs again on every `map`/`session.calibration.aoi` change so it also
+ * covers the (re)load/localStorage-recovery path (`collabSync.startAsTable` may populate `aoi`
+ * before or after the map itself becomes ready).
+ */
+function fitToAoiThenLock(): void {
+    const map = mapStore.map;
+    const aoi = session.calibration.aoi;
+    // Intentionally never locks while `aoi` is null (A1/A2: lock only AFTER the AOI is
+    // established) — if Control never selects an AOI, the Table stays pannable on its generic
+    // startup viewport rather than freezing on the wrong one. This is a deliberate behavior
+    // change from the pre-fix "lock unconditionally once the map is ready".
+    if (map === undefined || aoi === null || viewportLocked) {
+        return;
+    }
+    const [minLng, minLat, maxLng, maxLat] = aoiBoundingBox(aoi);
+    map.fitBounds(
+        [
+            [minLng, minLat],
+            [maxLng, maxLat],
+        ],
+        { padding: 0, animate: false }
+    );
+    lockViewport();
+}
+
+const stopFitWatch = watch(() => [mapStore.map, session.calibration.aoi] as const, fitToAoiThenLock, { immediate: true });
 
 onMounted(() => {
     syncStore.startAsTable();
@@ -54,7 +85,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-    stopMapWatch();
+    stopFitWatch();
     syncStore.stop();
     trackingRenderStore.stop();
 });
