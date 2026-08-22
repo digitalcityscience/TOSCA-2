@@ -356,6 +356,13 @@
         "stop": "Durdur",
         "active": "Takip etkin",
         "requiresFootprints": "Önce yerleşim alanlarını yükleyin"
+      },
+      "simulation": {
+        "title": "Simülasyon (mock)",
+        "description": "TOSCA henüz bir simülasyon istemcisi sunmuyor — bu, sonuç görünümünün önceden test edilebilmesi için bir mock yer tutucu çalıştırır.",
+        "run": "Simülasyonu çalıştır",
+        "running": "Çalışıyor…",
+        "resultCount": "{count} sonuç"
       }
     },
     "table": {
@@ -367,7 +374,8 @@
       "trackedBbox": "Collab · Takip edilen sınır kutusu",
       "trackedOrientation": "Collab · Takip edilen yönelim",
       "trackedId": "Collab · Takip edilen kimlik",
-      "trackedConfidence": "Collab · Takip edilen güven"
+      "trackedConfidence": "Collab · Takip edilen güven",
+      "simulationResult": "Collab · Simülasyon sonucu"
     }
   }
 }

@@ -43,6 +43,9 @@ const TRACKED_ID_LAYER_ID = "collabTrackedId-symbol";
 const TRACKED_CONFIDENCE_SOURCE_ID = "collabTrackedConfidence";
 const TRACKED_CONFIDENCE_LAYER_ID = "collabTrackedConfidence-symbol";
 
+const SIMULATION_RESULT_SOURCE_ID = "collabSimulationResult";
+const SIMULATION_RESULT_LAYER_ID = "collabSimulationResult-symbol";
+
 /** Demo mock timeline's east offset (metres) for the "moved" snapshot — arbitrary but visible at map scale. */
 const DEMO_MOVE_METERS = 5;
 /** Demo mock timeline's orientation-indicator line length (metres). */
@@ -219,6 +222,29 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     }
 
     /**
+     * Derives the Simulation State slice's render product (ticket 11, plan §20 M4): one label
+     * point per result, anchored at its scenario object's known footprint centre. Results with no
+     * matching scenario object (e.g. a stale run after the object was removed) are skipped.
+     */
+    function simulationResultFeatureCollection(): FeatureCollection {
+        const features: Feature[] = [];
+        for (const result of session.simulation.results) {
+            const known = knownFootprint(result.objectId);
+            if (known === undefined) {
+                continue;
+            }
+            const [minX, minY, maxX, maxY] = bbox(known);
+            features.push({
+                type: "Feature",
+                id: result.objectId,
+                properties: { label: String(result.metric) },
+                geometry: { type: "Point", coordinates: [(minX + maxX) / 2, (minY + maxY) / 2] },
+            });
+        }
+        return { type: "FeatureCollection", features };
+    }
+
+    /**
      * Ensures `sourceId`+`layerId` exist with `layerType`/`layerStyle`, or just pushes `data`
      * via `setData` if they already do (CLAUDE.md: live updates via `setData`, map touched only
      * through the map store). Shared by the fill/line/symbol variants below — they differ only
@@ -327,6 +353,16 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                 );
             }
 
+            if (session.isLayerVisible("simulationResult", windowKind)) {
+                await ensureSymbolLayer(
+                    SIMULATION_RESULT_SOURCE_ID,
+                    SIMULATION_RESULT_LAYER_ID,
+                    simulationResultFeatureCollection(),
+                    i18n.global.t("collab.layers.simulationResult"),
+                    1.8
+                );
+            }
+
             if (session.isLayerVisible("trackedFootprint", windowKind)) {
                 await ensureFillLayer(
                     TRACKED_FOOTPRINT_SOURCE_ID,
@@ -408,7 +444,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
 
         stopFns.push(
             watch(
-                () => [session.currentScenario, session.tracking, session.calibration] as const,
+                () => [session.currentScenario, session.tracking, session.calibration, session.simulation.results] as const,
                 () => {
                     void updateLayers(windowKind);
                 },

@@ -356,6 +356,13 @@
         "stop": "Stop",
         "active": "Tracking active",
         "requiresFootprints": "Load footprints first"
+      },
+      "simulation": {
+        "title": "Simulation (mock)",
+        "description": "TOSCA does not yet expose a simulation client — this runs a mock stand-in so the results view can be tested ahead of time.",
+        "run": "Run simulation",
+        "running": "Running…",
+        "resultCount": "{count} result(s)"
       }
     },
     "table": {
@@ -367,7 +374,8 @@
       "trackedBbox": "Collab · Tracked bbox",
       "trackedOrientation": "Collab · Tracked orientation",
       "trackedId": "Collab · Tracked id",
-      "trackedConfidence": "Collab · Tracked confidence"
+      "trackedConfidence": "Collab · Tracked confidence",
+      "simulationResult": "Collab · Simulation result"
     }
   }
 }

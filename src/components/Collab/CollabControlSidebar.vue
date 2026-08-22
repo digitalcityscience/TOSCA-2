@@ -137,6 +137,24 @@
                 {{ t("collab.control.tracking.active") }}
             </p>
         </div>
+
+        <div class="mt-5 flex flex-col gap-2 border-t border-muted pt-4">
+            <h3 class="text-sm font-medium">{{ t("collab.control.simulation.title") }}</h3>
+            <p class="text-xs text-muted">{{ t("collab.control.simulation.description") }}</p>
+            <UButton
+                :label="collabSession.simulation.running ? t('collab.control.simulation.running') : t('collab.control.simulation.run')"
+                icon="i-lucide-play-circle"
+                size="sm"
+                color="primary"
+                variant="soft"
+                :loading="collabSession.simulation.running"
+                :disabled="!collabSession.base.loaded || collabSession.simulation.running"
+                @click="simulationStore.runSimulation()"
+            />
+            <p v-if="collabSession.simulation.lastRunAt !== null" class="text-xs text-success">
+                {{ t("collab.control.simulation.resultCount", { count: collabSession.simulation.results.length }) }}
+            </p>
+        </div>
     </BaseSlideoverSidebarComponent>
 </template>
 
@@ -150,6 +168,7 @@ import { useCollabSyncStore } from "@store/collabSync";
 import { useCollabSessionStore } from "@store/collabSession";
 import { useCollabScenarioStore } from "@store/collabScenario";
 import { useCollabTrackingRenderStore } from "@store/collabTrackingRender";
+import { useCollabSimulationStore } from "@store/collabSimulation";
 
 const sidebarID = "collabControl";
 const { t } = useI18n();
@@ -160,6 +179,7 @@ const syncStore = useCollabSyncStore();
 const collabSession = useCollabSessionStore();
 const scenarioStore = useCollabScenarioStore();
 const trackingRenderStore = useCollabTrackingRenderStore();
+const simulationStore = useCollabSimulationStore();
 
 const TABLE_WINDOW_NAME = "toscaCollabTable";
 

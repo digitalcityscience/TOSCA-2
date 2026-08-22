@@ -45,9 +45,22 @@ export interface CollabTableRenderState {
     visibleLayerIds: string[];
 }
 
-/** Placeholder for jobs/results once a TOSCA simulation client exists to wire against. */
+/**
+ * One simulation result attached to a scenario object (ticket 11, plan §20 M4). `metric` is a
+ * generic numeric result placeholder — TOSCA's real simulation client (not yet shipped, see
+ * `collabSimulation.ts`) determines the actual result schema; this shape only needs to be enough
+ * to prove the "run → populate → render via layer policy" wiring end to end with a mock client.
+ */
+export interface CollabSimulationResultObject {
+    objectId: string;
+    metric: number;
+}
+
+/** Simulation State slice (ticket 04 placeholder, filled in by ticket 11's `collabSimulation.ts`). */
 export interface CollabSimulationState {
-    jobs: unknown[];
+    running: boolean;
+    results: CollabSimulationResultObject[];
+    lastRunAt: number | null;
 }
 
 /**
@@ -72,7 +85,8 @@ export type CollabLayerId =
     | "trackedBbox"
     | "trackedOrientation"
     | "trackedId"
-    | "trackedConfidence";
+    | "trackedConfidence"
+    | "simulationResult";
 
 /**
  * Whether a logical layer renders in the Control View / Table View (plan §13). `table: "mask"`
@@ -98,6 +112,8 @@ export const DEFAULT_COLLAB_LAYER_POLICY: CollabLayerPolicy = {
     trackedOrientation: { control: true, table: false },
     trackedId: { control: true, table: false },
     trackedConfidence: { control: true, table: false },
+    // Simulation results are projector-appropriate (ticket 11 acceptance) — shown on both views.
+    simulationResult: { control: true, table: true },
 };
 
 /**
@@ -116,7 +132,7 @@ export const useCollabSessionStore = defineStore("collabSession", () => {
     const tracking = reactive<Record<string, CollabTrackingObjectState>>({});
     const view = reactive<CollabViewState>({ selection: null });
     const tableRender = reactive<CollabTableRenderState>({ visibleLayerIds: [] });
-    const simulation = reactive<CollabSimulationState>({ jobs: [] });
+    const simulation = reactive<CollabSimulationState>({ running: false, results: [], lastRunAt: null });
     const layerPolicy = reactive<CollabLayerPolicy>({ ...DEFAULT_COLLAB_LAYER_POLICY });
     const calibration = reactive<CollabCalibrationState>({ rotationOffsetDeg: 0 });
 

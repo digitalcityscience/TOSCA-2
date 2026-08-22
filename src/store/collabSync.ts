@@ -68,7 +68,7 @@ function cloneTableRender(value: CollabTableRenderState): CollabTableRenderState
 }
 
 function cloneSimulation(value: CollabSimulationState): CollabSimulationState {
-    return { jobs: [...value.jobs] };
+    return { running: value.running, results: [...value.results], lastRunAt: value.lastRunAt };
 }
 
 function cloneCalibration(value: CollabCalibrationState): CollabCalibrationState {

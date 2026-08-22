@@ -356,6 +356,13 @@
         "stop": "Stopp",
         "active": "Tracking aktiv",
         "requiresFootprints": "Zuerst Grundrisse laden"
+      },
+      "simulation": {
+        "title": "Simulation (simuliert)",
+        "description": "TOSCA stellt noch keinen Simulationsclient bereit — dies führt einen simulierten Platzhalter aus, damit die Ergebnisansicht vorab getestet werden kann.",
+        "run": "Simulation ausführen",
+        "running": "Läuft…",
+        "resultCount": "{count} Ergebnis(se)"
       }
     },
     "table": {
@@ -367,7 +374,8 @@
       "trackedBbox": "Collab · Verfolgte Bounding-Box",
       "trackedOrientation": "Collab · Verfolgte Ausrichtung",
       "trackedId": "Collab · Verfolgte ID",
-      "trackedConfidence": "Collab · Verfolgte Konfidenz"
+      "trackedConfidence": "Collab · Verfolgte Konfidenz",
+      "simulationResult": "Collab · Simulationsergebnis"
     }
   }
 }
