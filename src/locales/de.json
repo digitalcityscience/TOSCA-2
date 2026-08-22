@@ -324,7 +324,25 @@
       "title": "Tangible-Table-Steuerung",
       "placeholder": "Die Steuerungselemente für den Tangible Table erscheinen hier.",
       "openTable": "Tischfenster öffnen",
-      "popupBlocked": "Das Tischfenster wurde blockiert. Erlauben Sie Pop-ups für diese Seite und versuchen Sie es erneut."
+      "popupBlocked": "Das Tischfenster wurde blockiert. Erlauben Sie Pop-ups für diese Seite und versuchen Sie es erneut.",
+      "aoi": {
+        "title": "Interessengebiet",
+        "description": "Zeichnen Sie ein Interessengebiet in Hamburg für den Tangible Table.",
+        "select": "Gebiet auswählen",
+        "finish": "Fertig",
+        "cancel": "Abbrechen",
+        "selected": "Gebiet ausgewählt",
+        "drawFirst": "Zeichnen Sie zuerst ein Interessengebiet-Polygon",
+        "aspectRatioInvalid": "Das Seitenverhältnis des gewählten Gebiets passt nicht zum Tisch — anpassen und erneut versuchen"
+      },
+      "footprints": {
+        "title": "Gebäudegrundrisse",
+        "load": "Auswählbare Grundrisse laden",
+        "loadRequiresAoi": "Wählen Sie zuerst ein Interessengebiet aus",
+        "loadFailed": "Die Collab-Gebäudegrundrisse konnten nicht geladen werden",
+        "remove": "Entfernen",
+        "restore": "Wiederherstellen"
+      }
     },
     "table": {
       "disconnected": "Verbindung getrennt — neu kalibrieren"

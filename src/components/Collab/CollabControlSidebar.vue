@@ -20,6 +20,83 @@
             class="mt-3"
             @click="openTableWindow"
         />
+
+        <div class="mt-5 flex flex-col gap-2 border-t border-muted pt-4">
+            <h3 class="text-sm font-medium">{{ t("collab.control.aoi.title") }}</h3>
+            <p class="text-xs text-muted">{{ t("collab.control.aoi.description") }}</p>
+            <div class="flex gap-2">
+                <UButton
+                    v-if="!scenarioStore.aoiSelectionInProgress"
+                    :label="t('collab.control.aoi.select')"
+                    icon="i-lucide-square-dashed-mouse-pointer"
+                    size="sm"
+                    variant="soft"
+                    @click="scenarioStore.startAoiSelection"
+                />
+                <template v-else>
+                    <UButton
+                        :label="t('collab.control.aoi.finish')"
+                        icon="i-lucide-check"
+                        size="sm"
+                        color="primary"
+                        @click="finishAoi"
+                    />
+                    <UButton
+                        :label="t('collab.control.aoi.cancel')"
+                        icon="i-lucide-x"
+                        size="sm"
+                        variant="ghost"
+                        @click="scenarioStore.cancelAoiSelection"
+                    />
+                </template>
+            </div>
+            <p v-if="scenarioStore.aoi !== null" class="text-xs text-success">
+                {{ t("collab.control.aoi.selected") }}
+            </p>
+        </div>
+
+        <div class="mt-5 flex flex-col gap-2 border-t border-muted pt-4">
+            <h3 class="text-sm font-medium">{{ t("collab.control.footprints.title") }}</h3>
+            <UButton
+                :label="t('collab.control.footprints.load')"
+                icon="i-lucide-building-2"
+                size="sm"
+                variant="soft"
+                :disabled="scenarioStore.aoi === null"
+                @click="scenarioStore.loadFixtureFootprints"
+            />
+            <p v-if="scenarioStore.aoi === null" class="text-xs text-muted">
+                {{ t("collab.control.footprints.loadRequiresAoi") }}
+            </p>
+            <ul v-if="collabSession.base.loaded" class="mt-2 flex max-h-64 flex-col gap-1 overflow-y-auto text-sm">
+                <li
+                    v-for="building in scenarioStore.selectableBuildings"
+                    :key="building.properties.id"
+                    class="flex items-center justify-between gap-2"
+                >
+                    <span :class="{ 'line-through text-muted': isRemoved(building.properties.id) }">
+                        {{ building.properties.id }}
+                    </span>
+                    <UButton
+                        v-if="!isRemoved(building.properties.id)"
+                        :label="t('collab.control.footprints.remove')"
+                        icon="i-lucide-trash-2"
+                        size="xs"
+                        color="error"
+                        variant="ghost"
+                        @click="scenarioStore.removeBuilding(building.properties.id)"
+                    />
+                    <UButton
+                        v-else
+                        :label="t('collab.control.footprints.restore')"
+                        icon="i-lucide-undo-2"
+                        size="xs"
+                        variant="ghost"
+                        @click="scenarioStore.restoreBuilding(building.properties.id)"
+                    />
+                </li>
+            </ul>
+        </div>
     </BaseSlideoverSidebarComponent>
 </template>
 
@@ -30,6 +107,8 @@ import { useI18n } from "vue-i18n";
 import BaseSlideoverSidebarComponent from "@components/Base/BaseSlideoverSidebarComponent.vue";
 import { useToast } from "@helpers/toast";
 import { useCollabSyncStore } from "@store/collabSync";
+import { useCollabSessionStore } from "@store/collabSession";
+import { useCollabScenarioStore } from "@store/collabScenario";
 
 const sidebarID = "collabControl";
 const { t } = useI18n();
@@ -37,6 +116,8 @@ const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 const syncStore = useCollabSyncStore();
+const collabSession = useCollabSessionStore();
+const scenarioStore = useCollabScenarioStore();
 
 const TABLE_WINDOW_NAME = "toscaCollabTable";
 
@@ -47,6 +128,14 @@ function openTableWindow(): void {
     if (tableWindow === null) {
         toast.add({ severity: "warning", summary: t("collab.control.popupBlocked") });
     }
+}
+
+function finishAoi(): void {
+    scenarioStore.finishAoiSelection();
+}
+
+function isRemoved(id: string): boolean {
+    return collabSession.scenario.removedBuildings.includes(id);
 }
 
 onMounted(() => {

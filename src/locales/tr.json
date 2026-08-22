@@ -324,7 +324,25 @@
       "title": "Dokunsal Masa Kontrolü",
       "placeholder": "Dokunsal masa kontrolleri burada görünecek.",
       "openTable": "Masa penceresini aç",
-      "popupBlocked": "Masa penceresi engellendi. Bu site için açılır pencerelere izin verip tekrar deneyin."
+      "popupBlocked": "Masa penceresi engellendi. Bu site için açılır pencerelere izin verip tekrar deneyin.",
+      "aoi": {
+        "title": "İlgi alanı",
+        "description": "Dokunsal masa için Hamburg'da bir ilgi alanı çizin.",
+        "select": "İlgi alanı seç",
+        "finish": "Bitir",
+        "cancel": "İptal",
+        "selected": "İlgi alanı seçildi",
+        "drawFirst": "Önce bir ilgi alanı poligonu çizin",
+        "aspectRatioInvalid": "Seçilen alanın en-boy oranı masayla uyuşmuyor — düzeltip tekrar deneyin"
+      },
+      "footprints": {
+        "title": "Bina yerleşim alanları",
+        "load": "Seçilebilir yerleşim alanlarını yükle",
+        "loadRequiresAoi": "Önce bir ilgi alanı seçin",
+        "loadFailed": "Collab bina yerleşim alanları yüklenemedi",
+        "remove": "Kaldır",
+        "restore": "Geri yükle"
+      }
     },
     "table": {
       "disconnected": "Bağlantı kesildi — yeniden kalibre edin"

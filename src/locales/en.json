@@ -324,7 +324,25 @@
       "title": "Tangible Table Control",
       "placeholder": "Tangible table controls will appear here.",
       "openTable": "Open Table window",
-      "popupBlocked": "The Table window was blocked. Allow pop-ups for this site and try again."
+      "popupBlocked": "The Table window was blocked. Allow pop-ups for this site and try again.",
+      "aoi": {
+        "title": "Area of interest",
+        "description": "Draw an AOI in Hamburg for the tangible table.",
+        "select": "Select AOI",
+        "finish": "Finish",
+        "cancel": "Cancel",
+        "selected": "AOI selected",
+        "drawFirst": "Draw an AOI polygon first",
+        "aspectRatioInvalid": "Selected AOI's aspect ratio doesn't match the table — adjust and retry"
+      },
+      "footprints": {
+        "title": "Building footprints",
+        "load": "Load selectable footprints",
+        "loadRequiresAoi": "Select an AOI first",
+        "loadFailed": "Could not load Collab building footprints",
+        "remove": "Remove",
+        "restore": "Restore"
+      }
     },
     "table": {
       "disconnected": "Disconnected — recalibrate"
