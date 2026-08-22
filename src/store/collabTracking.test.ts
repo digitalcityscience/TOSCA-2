@@ -1,9 +1,11 @@
 import { describe, expect, test, vi } from "vitest";
-import type { MarkerObjectRegistry, TrackingEvent, TrackingMarkerFeatureCollection } from "./collabTracking";
+import type { MapCalibrationMessage } from "./collabCalibration";
+import type { MarkerObjectRegistry, TrackingEvent, TrackingMarkerFeatureCollection, TrackingWebSocket } from "./collabTracking";
 import {
     DEFAULT_MOCK_TIMELINE,
     IGNORED_MARKER_ID,
     MockTrackingSource,
+    RealTrackingSource,
     RESERVED_BUILDING_MARKER_IDS,
     TrackingFeedNormalizer,
     createMarkerObjectRegistry,
@@ -161,5 +163,197 @@ describe("MockTrackingSource", () => {
         expect(events.length).toBe(countAfterFirstTick);
 
         vi.useRealTimers();
+    });
+});
+
+/** A minimal fake of the browser `WebSocket` surface `RealTrackingSource` uses. */
+class FakeSocket implements TrackingWebSocket {
+    onopen: (() => void) | null = null;
+    onmessage: ((event: { data: string }) => void) | null = null;
+    onclose: (() => void) | null = null;
+    onerror: ((event: unknown) => void) | null = null;
+    sent: string[] = [];
+    closed = false;
+
+    send(data: string): void {
+        this.sent.push(data);
+    }
+
+    close(): void {
+        this.closed = true;
+    }
+
+    emitOpen(): void {
+        this.onopen?.();
+    }
+
+    emitMessage(data: unknown): void {
+        this.onmessage?.({ data: JSON.stringify(data) });
+    }
+}
+
+const calibration: MapCalibrationMessage = {
+    type: "map_calibration",
+    points: [{ pixel_position: [0, 0], lat_lon_position: [53.5, 10] }],
+};
+
+describe("RealTrackingSource", () => {
+    test("sends exactly one map_calibration on connect", () => {
+        const socket = new FakeSocket();
+        const source = new RealTrackingSource({
+            url: "ws://table-host:8053",
+            registry,
+            calibration,
+            createSocket: () => socket,
+        });
+
+        source.start();
+        socket.emitOpen();
+
+        expect(socket.sent).toEqual([JSON.stringify(calibration)]);
+    });
+
+    test("normalizes an incoming GeoJSON FeatureCollection into TrackingEvents via the shared normalizer", () => {
+        const socket = new FakeSocket();
+        let now = 0;
+        const source = new RealTrackingSource({
+            url: "ws://table-host:8053",
+            registry,
+            calibration,
+            createSocket: () => socket,
+            now: () => now,
+        });
+        const events: TrackingEvent[] = [];
+        source.onEvent((e) => events.push(e));
+
+        source.start();
+        socket.emitOpen();
+        now = 100;
+        socket.emitMessage(featureCollection([{ markerId: 182, lng: 10, lat: 53.5, rotation: 0 }]));
+
+        expect(events).toEqual<TrackingEvent[]>([
+            { type: "appeared", objectId: "B-28", pose: { lng: 10, lat: 53.5, rotation: 0 }, confidence: 1, timestamp: 100 },
+        ]);
+    });
+
+    test("ignores the pre-calibration raw table-pixel dict — never treats it as the tracking contract (plan §5b/§5d)", () => {
+        const socket = new FakeSocket();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, calibration, createSocket: () => socket });
+        const events: TrackingEvent[] = [];
+        source.onEvent((e) => events.push(e));
+
+        source.start();
+        socket.emitOpen();
+        socket.emitMessage({ 182: [120, 80, 45, "000"] });
+
+        expect(events).toEqual([]);
+    });
+
+    test("ignores malformed (non-JSON) messages instead of throwing", () => {
+        const socket = new FakeSocket();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, calibration, createSocket: () => socket });
+        source.onEvent(() => {
+            throw new Error("should not be called");
+        });
+
+        source.start();
+        socket.emitOpen();
+        expect(() => socket.onmessage?.({ data: "not json" })).not.toThrow();
+    });
+
+    test("start() is idempotent (does not open a second socket) and stop() closes it and detaches handlers", () => {
+        const sockets: FakeSocket[] = [];
+        const source = new RealTrackingSource({
+            url: "ws://table-host:8053",
+            registry,
+            calibration,
+            createSocket: () => {
+                const socket = new FakeSocket();
+                sockets.push(socket);
+                return socket;
+            },
+        });
+
+        source.start();
+        source.start();
+        expect(sockets.length).toBe(1);
+
+        source.stop();
+        expect(sockets[0]?.closed).toBe(true);
+        expect(sockets[0]?.onmessage).toBeNull();
+
+        // idempotent: calling stop() again with no open socket must not throw
+        expect(() => source.stop()).not.toThrow();
+    });
+
+    test("onclose synthesizes disappeared for every tracked object instead of leaving markers frozen", () => {
+        const socket = new FakeSocket();
+        let now = 0;
+        const source = new RealTrackingSource({
+            url: "ws://table-host:8053",
+            registry,
+            calibration,
+            createSocket: () => socket,
+            now: () => now,
+        });
+        const events: TrackingEvent[] = [];
+        source.onEvent((e) => events.push(e));
+
+        source.start();
+        socket.emitOpen();
+        socket.emitMessage(featureCollection([{ markerId: 182, lng: 10, lat: 53.5, rotation: 0 }]));
+        expect(events).toHaveLength(1);
+
+        now = 5000;
+        socket.onclose?.();
+
+        expect(events).toHaveLength(2);
+        expect(events[1]).toEqual<TrackingEvent>({
+            type: "disappeared",
+            objectId: "B-28",
+            pose: { lng: 10, lat: 53.5, rotation: 0 },
+            confidence: 0,
+            timestamp: 5000,
+        });
+    });
+
+    test("onerror reports a developer error and also synthesizes disappeared", () => {
+        const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        const socket = new FakeSocket();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, calibration, createSocket: () => socket });
+        const events: TrackingEvent[] = [];
+        source.onEvent((e) => events.push(e));
+
+        source.start();
+        socket.emitOpen();
+        socket.emitMessage(featureCollection([{ markerId: 182, lng: 10, lat: 53.5, rotation: 0 }]));
+        socket.onerror?.(new Event("error"));
+
+        expect(consoleError).toHaveBeenCalled();
+        expect(events.some((e) => e.type === "disappeared")).toBe(true);
+
+        consoleError.mockRestore();
+    });
+
+    test("a re-start()/stop() cycle after termination does not double-emit disappeared", () => {
+        const sockets: FakeSocket[] = [];
+        const source = new RealTrackingSource({
+            url: "ws://table-host:8053",
+            registry,
+            calibration,
+            createSocket: () => {
+                const socket = new FakeSocket();
+                sockets.push(socket);
+                return socket;
+            },
+        });
+
+        source.start();
+        sockets[0]?.emitOpen();
+        sockets[0]?.emitMessage(featureCollection([{ markerId: 182, lng: 10, lat: 53.5, rotation: 0 }]));
+        sockets[0]?.onclose?.();
+
+        // stop() after the socket already terminated itself must be a no-op, not a double-close.
+        expect(() => source.stop()).not.toThrow();
     });
 });

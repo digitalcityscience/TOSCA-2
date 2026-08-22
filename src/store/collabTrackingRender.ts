@@ -6,6 +6,7 @@ import transformTranslate from "@turf/transform-translate";
 import type { Position } from "geojson";
 import type { Feature, FeatureCollection, Polygon } from "@helpers/geojson";
 import { reportDeveloperError } from "@helpers/userFacingError";
+import { resolveCollabTrackingWsUrl } from "@helpers/collabMode";
 import { i18n } from "../core/i18n";
 import { useMapStore } from "./map";
 import { useCollabSessionStore, type CollabSceneObject, type CollabTrackingObjectState } from "./collabSession";
@@ -14,6 +15,7 @@ import { deriveTrackedFootprint, tableToAoiRotationOffsetDeg } from "./collabCal
 import {
     createMarkerObjectRegistry,
     MockTrackingSource,
+    RealTrackingSource,
     type MarkerObjectRegistry,
     type MarkerObjectRegistryEntry,
     type MockTrackingSnapshot,
@@ -121,6 +123,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     const appliedRotationByObjectId = new Map<string, number>();
 
     let mockSource: MockTrackingSource | undefined;
+    let realSource: RealTrackingSource | undefined;
     let stopWatch: (() => void) | undefined;
 
     function knownFootprint(objectId: string): Feature<Polygon> | undefined {
@@ -421,14 +424,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         return { markerId: first.properties.marker_id, centre: [(minX + maxX) / 2, (minY + maxY) / 2] };
     }
 
-    /**
-     * Starts the Milestone-1 mock tracking loop (plan §14): builds the marker→object registry
-     * from whatever base city is loaded, anchors the default demo timeline on the first known
-     * building (falling back to the adapter's own default timeline if none is loaded yet), and
-     * writes every emitted event into `collabSession.tracking`.
-     */
-    function startMockTracking(timeline?: readonly MockTrackingSnapshot[]): void {
-        stopMockTracking();
+    function startMockTimeline(timeline?: readonly MockTrackingSnapshot[]): void {
         const registry = buildMarkerRegistryFromBase(session.base.objects);
         const anchor = firstKnownAnchor();
         const resolvedTimeline = timeline ?? (anchor === undefined ? undefined : buildDemoMockTimeline(anchor.markerId, anchor.centre));
@@ -441,13 +437,58 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         active.value = true;
     }
 
+    /**
+     * Starts the Milestone-2 real tracking loop (plan §5c/§14, ticket 09): builds the same
+     * marker→object registry `startMockTracking` uses and feeds `RealTrackingSource` events into
+     * `applyTrackingEvent`/`session.tracking` unchanged — a pure transport swap behind
+     * `TrackingSource`. Requires the operator to have already selected an AOI
+     * (`scenarioStore.mapCalibration`, ticket 07); reports a developer error and leaves tracking
+     * inactive rather than connecting with a stale/absent AOI.
+     */
+    function startRealTracking(url: string): void {
+        const calibration = scenarioStore.mapCalibration;
+        if (calibration === null) {
+            reportDeveloperError(
+                "collabTrackingRender.startRealTracking",
+                new Error("no AOI-derived map_calibration — select an AOI (ticket 07) before starting real tracking")
+            );
+            return;
+        }
+        const registry = buildMarkerRegistryFromBase(session.base.objects);
+
+        realSource = new RealTrackingSource({ url, registry, calibration });
+        realSource.onEvent((event) => applyTrackingEvent(session.tracking, event));
+        realSource.start();
+        active.value = true;
+    }
+
+    /**
+     * Starts tracking (plan §14, ticket 09): `RealTrackingSource` when
+     * `VITE_COLLAB_TRACKING_WS_URL` is configured, `MockTrackingSource` otherwise (plan §14's
+     * Milestone-1 default) — the swap the operator/UI never has to know about (ticket 09 "zero
+     * changes to views/stores"). An explicit `timeline` always forces the mock, since it only
+     * makes sense as a scripted demo/dev timeline.
+     */
+    function startMockTracking(timeline?: readonly MockTrackingSnapshot[]): void {
+        stopMockTracking();
+        const url = timeline === undefined ? resolveCollabTrackingWsUrl() : undefined;
+        if (url === undefined) {
+            startMockTimeline(timeline);
+        } else {
+            startRealTracking(url);
+        }
+    }
+
+    /** Stops whichever tracking source (mock or real) is currently active. Idempotent. */
     function stopMockTracking(): void {
         mockSource?.stop();
         mockSource = undefined;
+        realSource?.stop();
+        realSource = undefined;
         active.value = false;
     }
 
-    /** Tears down the mock source and the render watch. Idempotent — safe on unmount and HMR. */
+    /** Tears down the active tracking source and the render watch. Idempotent — safe on unmount and HMR. */
     function stop(): void {
         stopWatch?.();
         stopWatch = undefined;

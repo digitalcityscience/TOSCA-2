@@ -179,4 +179,66 @@ describe("collabTrackingRender store", () => {
 
         expect(session.calibration.rotationOffsetDeg).toBe(12);
     });
+
+    test("startMockTracking(timeline) always uses the mock, even with a table host configured — an explicit timeline is a dev/demo override", () => {
+        vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
+        vi.useFakeTimers();
+        vi.setSystemTime(0);
+
+        const trackingRender = useCollabTrackingRenderStore();
+        trackingRender.startMockTracking([{ atMs: 0, features: [{ markerId: 1, lng: 10, lat: 53.55, rotation: 0 }] }]);
+
+        expect(trackingRender.active).toBe(true);
+        trackingRender.stopMockTracking();
+
+        vi.useRealTimers();
+        vi.unstubAllEnvs();
+    });
+
+    test("startMockTracking() reports a developer error and stays inactive when a table host is configured without an AOI calibration (ticket 09)", () => {
+        vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
+        const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+        const trackingRender = useCollabTrackingRenderStore();
+        trackingRender.startMockTracking();
+
+        expect(trackingRender.active).toBe(false);
+        expect(consoleError).toHaveBeenCalled();
+
+        consoleError.mockRestore();
+        vi.unstubAllEnvs();
+    });
+
+    test("startMockTracking() swaps to RealTrackingSource (ticket 09) when a table host + AOI calibration are configured — the operator/UI call unchanged", () => {
+        vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
+
+        class FakeSocket {
+            onopen: (() => void) | null = null;
+            onmessage: ((event: { data: string }) => void) | null = null;
+            onclose: (() => void) | null = null;
+            onerror: ((event: unknown) => void) | null = null;
+            sent: string[] = [];
+            send(data: string): void {
+                this.sent.push(data);
+            }
+            close(): void {}
+        }
+        vi.stubGlobal("WebSocket", FakeSocket as unknown as typeof WebSocket);
+
+        const scenarioStore = useCollabScenarioStore();
+        scenarioStore.mapCalibration = {
+            type: "map_calibration",
+            points: [{ pixel_position: [0, 0], lat_lon_position: [53.5, 10] }],
+        };
+
+        const trackingRender = useCollabTrackingRenderStore();
+        trackingRender.startMockTracking();
+
+        expect(trackingRender.active).toBe(true);
+        trackingRender.stopMockTracking();
+        expect(trackingRender.active).toBe(false);
+
+        vi.unstubAllEnvs();
+        vi.unstubAllGlobals();
+    });
 });

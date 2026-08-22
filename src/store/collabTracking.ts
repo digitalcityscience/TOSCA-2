@@ -1,4 +1,6 @@
 import type { Feature, FeatureCollection, Point } from "geojson"
+import { reportDeveloperError } from "@helpers/userFacingError"
+import type { MapCalibrationMessage } from "./collabCalibration"
 
 /**
  * Transport-agnostic tracking boundary (plan §14, B1/B3). Views/stores program against
@@ -162,6 +164,21 @@ export class TrackingFeedNormalizer {
         return events
     }
 
+    /**
+     * Forces every currently-tracked object into `disappeared` immediately, bypassing the
+     * absence+timeout wait. Used when the source itself terminates (e.g. a dropped WebSocket,
+     * ticket 09) — no further snapshots will arrive to let the normal timeout path run, so
+     * without this a lost connection would leave stale markers frozen on screen forever.
+     */
+    disappearAll(timestamp: number): TrackingEvent[] {
+        const events: TrackingEvent[] = []
+        for (const [objectId, pose] of this.lastPose) {
+            events.push({ type: "disappeared", objectId, pose, confidence: 0, timestamp })
+        }
+        this.lastPose.clear()
+        return events
+    }
+
     private resolveObjectId(feature: Feature<Point, TrackingMarkerFeatureProperties>): string | undefined {
         const markerId = feature.properties.marker_id
         if (markerId === IGNORED_MARKER_ID) {
@@ -292,5 +309,137 @@ function toFeatureCollection(snapshot: MockTrackingSnapshot): TrackingMarkerFeat
                 confidence: feature.confidence,
             },
         })),
+    }
+}
+
+/**
+ * The subset of the browser `WebSocket` interface {@link RealTrackingSource} needs — injectable
+ * so tests can supply a fake instead of a real socket (plan §5b/§14, ticket 09).
+ */
+export interface TrackingWebSocket {
+    onopen: (() => void) | null
+    onmessage: ((event: { data: string }) => void) | null
+    onclose: (() => void) | null
+    onerror: ((event: unknown) => void) | null
+    send(data: string): void
+    close(): void
+}
+
+export interface RealTrackingSourceOptions {
+    /** `ws://<table-host>:8053` — `server.py --client web` (plan §5a/§5b, OD-1 resolved). */
+    url: string
+    registry: MarkerObjectRegistry
+    /** Built by `collabCalibration.buildMapCalibration` (ticket 03) from the operator's chosen AOI. */
+    calibration: MapCalibrationMessage
+    /** Absence-timeout for synthesized `disappeared` (plan §17.1). Default 1000ms. */
+    disappearTimeoutMs?: number
+    now?: () => number
+    /** Defaults to the global `WebSocket` constructor; overridable for tests. */
+    createSocket?: (url: string) => TrackingWebSocket
+}
+
+function defaultCreateSocket(url: string): TrackingWebSocket {
+    return new WebSocket(url) as unknown as TrackingWebSocket
+}
+
+function isTrackingFeatureCollection(data: unknown): data is TrackingMarkerFeatureCollection {
+    return typeof data === "object" && data !== null && (data as { type?: unknown }).type === "FeatureCollection"
+}
+
+/**
+ * Milestone-2 `TrackingSource` (plan §5c/§14, ticket 09): a pure transport swap for
+ * {@link MockTrackingSource}. Connects to `:8053`, sends **one** `map_calibration` on open (built
+ * by `collabCalibration` from the operator's chosen AOI — this adapter never builds it itself),
+ * then feeds every subsequent message through the same {@link TrackingFeedNormalizer} the mock
+ * uses. Messages that are not a GeoJSON `FeatureCollection` are Python's pre-calibration raw
+ * table-pixel dict (plan §5b/§5d) — never the tracking contract — and are ignored; TOSCA already
+ * knows the AOI locally and does not need to read table-pixel corner markers to calibrate.
+ */
+export class RealTrackingSource implements TrackingSource {
+    private readonly url: string
+    private readonly calibrationMessage: MapCalibrationMessage
+    private readonly normalizer: TrackingFeedNormalizer
+    private readonly now: () => number
+    private readonly createSocket: (url: string) => TrackingWebSocket
+    private readonly listeners: Array<(event: TrackingEvent) => void> = []
+    private socket: TrackingWebSocket | undefined
+
+    constructor(options: RealTrackingSourceOptions) {
+        this.url = options.url
+        this.calibrationMessage = options.calibration
+        this.normalizer = new TrackingFeedNormalizer(options.registry, options.disappearTimeoutMs)
+        this.now = options.now ?? Date.now
+        this.createSocket = options.createSocket ?? defaultCreateSocket
+    }
+
+    start(): void {
+        if (this.socket !== undefined) {
+            return
+        }
+        const socket = this.createSocket(this.url)
+        socket.onopen = () => socket.send(JSON.stringify(this.calibrationMessage))
+        socket.onmessage = (event) => this.handleMessage(event.data)
+        socket.onerror = (event) => {
+            reportDeveloperError("collabTracking.RealTrackingSource", event instanceof Error ? event : new Error("WebSocket error"))
+            this.handleTermination()
+        }
+        socket.onclose = () => this.handleTermination()
+        this.socket = socket
+    }
+
+    stop(): void {
+        if (this.socket === undefined) {
+            return
+        }
+        this.detachAndClose(this.socket)
+        this.socket = undefined
+    }
+
+    onEvent(cb: (event: TrackingEvent) => void): void {
+        this.listeners.push(cb)
+    }
+
+    private detachAndClose(socket: TrackingWebSocket): void {
+        socket.onopen = null
+        socket.onmessage = null
+        socket.onclose = null
+        socket.onerror = null
+        socket.close()
+    }
+
+    private handleMessage(raw: string): void {
+        let data: unknown
+        try {
+            data = JSON.parse(raw)
+        } catch {
+            return
+        }
+        if (!isTrackingFeatureCollection(data)) {
+            return
+        }
+        this.emitAll(this.normalizer.applySnapshot(data, this.now()))
+    }
+
+    /**
+     * Runs when the connection itself is lost (close or error) rather than intentionally stopped
+     * — synthesizes `disappeared` for everything still tracked (plan §17.1's absence+timeout path
+     * never fires again once no more snapshots arrive) so a dropped socket doesn't leave stale
+     * markers frozen on screen.
+     */
+    private handleTermination(): void {
+        if (this.socket === undefined) {
+            return
+        }
+        this.detachAndClose(this.socket)
+        this.socket = undefined
+        this.emitAll(this.normalizer.disappearAll(this.now()))
+    }
+
+    private emitAll(events: readonly TrackingEvent[]): void {
+        for (const event of events) {
+            for (const listener of this.listeners) {
+                listener(event)
+            }
+        }
     }
 }
