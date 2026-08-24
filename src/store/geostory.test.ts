@@ -70,6 +70,11 @@ describe("geostory store", () => {
             id: "story-1",
             title: "Story",
             summary: "Summary",
+            content: {
+                blocks: [
+                    { type: "paragraph", data: { text: "The story itself" } },
+                ],
+            },
             layers: [],
         }));
 
@@ -77,6 +82,8 @@ describe("geostory store", () => {
         const detail = await geostory.getStoryDetail("story-1");
 
         expect(detail.id).toBe("story-1");
+        expect(detail.content.blocks?.[0].data?.text).toBe("The story itself");
+        expect("context" in detail).toBe(false);
         expect(geostory.selectedStory?.id).toBe("story-1");
         expect(fetchMock.mock.calls[0][0].toString()).toBe(
             "http://localhost:8000/api/v1/stories/story-1/"

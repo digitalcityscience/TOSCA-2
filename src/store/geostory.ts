@@ -35,19 +35,13 @@ export interface GeoStoryListResponse {
 }
 
 export interface GeoStoryEditorContent {
-    blocks?: GeoStoryEditorBlock[];
+    blocks: GeoStoryEditorBlock[];
 }
 
 export interface GeoStoryEditorBlock {
     id?: string;
     type: string;
     data?: Record<string, unknown>;
-}
-
-export interface GeoStoryContext {
-    id: string;
-    title: string;
-    content: GeoStoryEditorContent | null;
 }
 
 export interface GeoStoryLayerSummary {
@@ -79,7 +73,7 @@ export interface GeoStoryFeatureLink {
 
 export interface GeoStoryDetail extends GeoStoryListItem {
     status: string;
-    context: GeoStoryContext | null;
+    content: GeoStoryEditorContent;
     layers: GeoStoryLayerLink[];
     feature_links: GeoStoryFeatureLink[];
     updated_at: string;
