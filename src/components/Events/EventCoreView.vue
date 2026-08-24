@@ -73,8 +73,8 @@
             </section>
 
             <EditorJsReadonly
-                v-if="contextContent.blocks.length > 0"
-                :data="contextContent"
+                v-if="eventContent.blocks.length > 0"
+                :data="eventContent"
             />
 
             <section v-if="event.taxonomy_assignments.length > 0" class="grid gap-3">
@@ -142,9 +142,9 @@ const props = defineProps<{
 const dateLabel = computed(() => formatEventDate(props.event.start_datetime));
 const locationLabel = computed(() => eventLocationLabel(props.event.location_mode));
 const locationColor = computed(() => eventLocationColor(props.event.location_mode));
-const contextContent = computed(() => ({
-    ...props.event.context?.content,
-    blocks: props.event.context?.content?.blocks ?? [],
+const eventContent = computed(() => ({
+    ...props.event.content,
+    blocks: props.event.content.blocks ?? [],
 }));
 const hasAccessInformation = computed(() => {
     return [

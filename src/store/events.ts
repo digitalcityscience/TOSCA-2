@@ -129,13 +129,11 @@ export interface EventEditorBlock {
     data?: Record<string, unknown>;
 }
 
-export interface EventContext {
-    id: string;
-    title: string;
-    content: {
-        blocks?: EventEditorBlock[];
-    } | null;
+export interface EventEditorContent {
+    blocks: EventEditorBlock[];
 }
+
+export type EventContentSource = "event" | "series" | "empty";
 
 export interface PublicHealthProfile {
     target_age_note: string;
@@ -211,7 +209,9 @@ export interface EventFeatureLink {
 }
 
 export interface EventDetail extends EventListItem {
-    context: EventContext | null;
+    content: EventEditorContent;
+    content_override: EventEditorContent | null;
+    content_source: EventContentSource;
     profile_key: string;
     profile: PublicHealthProfile | null;
     location: unknown;
@@ -241,6 +241,7 @@ export interface EventDetail extends EventListItem {
 export interface EventSeriesDetail {
     id: string;
     name: string;
+    default_content: EventEditorContent;
     occurrences?: EventListItem[];
 }
 

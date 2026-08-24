@@ -82,8 +82,8 @@
                     color="info"
                     variant="subtle"
                     icon="i-lucide-file-text"
-                    title="No narrative content"
-                    description="This story does not have narrative content yet."
+                    title="No story content"
+                    description="This story does not have content yet."
                 />
 
                 <section v-if="story.feature_links.length > 0" class="grid gap-2">
@@ -139,8 +139,8 @@ const story = computed<GeoStoryDetail | undefined>(() => {
 });
 const heroImageUrl = computed(() => resolveBackendMediaUrl(story.value?.hero_image_url));
 const storyContent = computed(() => ({
-    ...story.value?.context?.content,
-    blocks: story.value?.context?.content?.blocks ?? [],
+    ...story.value?.content,
+    blocks: story.value?.content?.blocks ?? [],
 }));
 const renderableLayerCount = computed(() => {
     return story.value?.layers.filter((item) => {

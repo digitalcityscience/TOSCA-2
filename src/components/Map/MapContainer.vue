@@ -32,16 +32,46 @@ onMounted(() => {
     const lng = Number.isNaN(configuredLng) ? 9.993163 : configuredLng
     const lat = Number.isNaN(configuredLat) ? 53.552123 : configuredLat
     const zoom = Number.isNaN(Number(import.meta.env.VITE_MAP_START_ZOOM)) ? 15 : Number(import.meta.env.VITE_MAP_START_ZOOM);
+    const mapTilerApiKey = import.meta.env.VITE_MAPTILER_API_KEY
+    const terrainTileJsonUrl = `https://api.maptiler.com/tiles/terrain-rgb-v2/tiles.json?key=${mapTilerApiKey}`
+    const hillshadeTileJsonUrl = `https://api.maptiler.com/tiles/hillshade/tiles.json?key=${mapTilerApiKey}`
+    const terrain = {
+        source: "terrain-dem",
+        exaggeration: 1,
+    } as const
     mapStore.map = new maplibre.Map({
         container: "map",
         style: {
             version: 8,
             glyphs: "/fonts/{fontstack}/{range}.pbf",
-            sources: {},
-            layers: []
+            sources: {
+                // MapLibre renders its native raster, fill, and line layers
+                // onto this MapTiler DEM-backed surface.
+                "terrain-dem": {
+                    type: "raster-dem",
+                    url: terrainTileJsonUrl,
+                    tileSize: 512,
+                    maxzoom: 14,
+                },
+                // MapTiler's hillshade dataset is pre-rendered raster imagery,
+                // not elevation data for MapLibre's `hillshade` layer.
+                "terrain-hillshade": {
+                    type: "raster",
+                    url: hillshadeTileJsonUrl,
+                },
+            },
+            layers: [
+                {
+                    id: "terrain-hillshade",
+                    type: "raster",
+                    source: "terrain-hillshade",
+                },
+            ],
+            terrain,
         },
         center: [lng, lat], // starting position [lng, lat]
-        zoom // starting zoom
+        zoom, // starting zoom
+        maxPitch: 85,
     })
     if (mapStore.map !== undefined) {
         /**
@@ -82,6 +112,11 @@ onMounted(() => {
     const zoomControl = new maplibre.NavigationControl()
     mapStore.map.addControl(zoomControl, "bottom-right");
 
+    // Terrain is on initially through the style above. This control lets the
+    // user flatten/re-enable it without changing the selected surface texture
+    // (streets or satellite) or any MapLibre data-layer visibility.
+    mapStore.map.addControl(new maplibre.TerrainControl(terrain), "bottom-right");
+
     const options: BaseMapControlOptions = {
         maps:[
             {
@@ -112,7 +147,7 @@ async function showAttributePopup(event: MapMouseEvent): Promise<void> {
     attributePopup = undefined
 
     const interactiveLayers = mapStore.map.getStyle().layers
-        .filter((layer: { type: string }) => layer.type !== "heatmap" && layer.type !== "raster")
+        .filter((layer: { type: string }) => !["background", "heatmap", "hillshade", "raster"].includes(layer.type))
         .map((layer: { id: string }) => layer.id)
     const renderedFeatures = mapStore.map.queryRenderedFeatures(event.point, {
         layers: interactiveLayers,

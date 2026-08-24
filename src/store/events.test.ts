@@ -137,6 +137,13 @@ describe("events store", () => {
             .mockResolvedValueOnce(jsonResponse({
                 id: "event-1",
                 title: "Event",
+                content: {
+                    blocks: [
+                        { type: "paragraph", data: { text: "Series event content" } },
+                    ],
+                },
+                content_override: null,
+                content_source: "series",
             }));
 
         const events = useEventsStore();
@@ -145,6 +152,10 @@ describe("events store", () => {
 
         expect(events.onlineEvents).toHaveLength(1);
         expect(detail.id).toBe("event-1");
+        expect(detail.content.blocks?.[0].data?.text).toBe("Series event content");
+        expect(detail.content_override).toBeNull();
+        expect(detail.content_source).toBe("series");
+        expect("context" in detail).toBe(false);
         expect(events.selectedEvent?.id).toBe("event-1");
         expect(fetchMock.mock.calls[0][0].toString()).toBe(
             "http://localhost:8000/api/v1/events/map/?bbox=9%2C53%2C10%2C54"
