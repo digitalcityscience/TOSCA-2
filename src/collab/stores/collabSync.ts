@@ -1,6 +1,6 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
 import { onScopeDispose, ref, watch } from "vue";
-import { BroadcastCollabChannel, COLLAB_CHANNEL_NAME, type CollabChannel } from "../collab/collabChannel";
+import { BroadcastCollabChannel, COLLAB_CHANNEL_NAME, type CollabChannel } from "../helpers/collabChannel";
 import { reportDeveloperError } from "@helpers/userFacingError";
 import {
     useCollabSessionStore,

@@ -5,7 +5,7 @@ import bbox from "@turf/bbox";
 import bearing from "@turf/bearing";
 import { point } from "@turf/helpers";
 import type { Polygon, Position } from "geojson";
-import type { CollabChannel } from "./collabChannel";
+import type { CollabChannel } from "./helpers/collabChannel";
 import type { CollabBuildingFixtureProperties } from "./fixtures/collabBuildingFixture";
 
 vi.mock("@helpers/toast", () => ({
@@ -59,29 +59,29 @@ const { addMapDataSource, addMapLayer, addCompanionLayer, fakeSources } = vi.hoi
 
 vi.mock("@store/map", () => ({
     useMapStore: () => ({
-        map: { getSource: (id: string) => fakeSources.get(id) },
+        map: { getSource: (id: string) => fakeSources.get(id), isStyleLoaded: () => true },
         addMapDataSource,
         addMapLayer,
         addCompanionLayer,
     }),
 }));
 
-import { useCollabSessionStore, DEFAULT_COLLAB_LAYER_POLICY, type CollabSceneObject } from "../store/collabSession";
-import { useCollabScenarioStore, extentFromPolygon, isAspectRatioValid, toFeature } from "../store/collabScenario";
-import { useCollabSyncStore, type CollabSyncMessage } from "../store/collabSync";
+import { useCollabSessionStore, DEFAULT_COLLAB_LAYER_POLICY, type CollabSceneObject } from "./stores/collabSession";
+import { useCollabScenarioStore, extentFromPolygon, isAspectRatioValid, toFeature } from "./stores/collabScenario";
+import { useCollabSyncStore, type CollabSyncMessage } from "./stores/collabSync";
 import {
     useCollabTrackingRenderStore,
     buildMarkerRegistryFromBase,
     applyTrackingEvent,
     orientationArrowTip,
-} from "../store/collabTrackingRender";
+} from "./stores/collabTrackingRender";
 import {
     buildMapCalibration,
     aoiBoundingBox,
     deriveTrackedFootprint,
     DEFAULT_COLLAB_TABLE_CONFIG,
-} from "../store/collabCalibration";
-import { TrackingFeedNormalizer, type TrackingMarkerFeatureCollection } from "../store/collabTracking";
+} from "./stores/collabCalibration";
+import { TrackingFeedNormalizer, type TrackingMarkerFeatureCollection } from "./stores/collabTracking";
 
 /** Deterministic in-memory {@link CollabChannel} pair (mirrors collabSync.test.ts). */
 class PairedTestChannel<TMessage> implements CollabChannel<TMessage> {

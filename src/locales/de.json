@@ -327,13 +327,16 @@
       "popupBlocked": "Das Tischfenster wurde blockiert. Erlauben Sie Pop-ups für diese Seite und versuchen Sie es erneut.",
       "aoi": {
         "title": "Interessengebiet",
-        "description": "Zeichnen Sie ein Interessengebiet in Hamburg für den Tangible Table.",
+        "description": "Verschieben und zoomen Sie die Karte unter dem Rahmen, um ein Interessengebiet für den Tangible Table zu wählen.",
         "select": "Gebiet auswählen",
         "finish": "Fertig",
         "cancel": "Abbrechen",
         "selected": "Gebiet ausgewählt",
-        "drawFirst": "Zeichnen Sie zuerst ein Interessengebiet-Polygon",
-        "aspectRatioInvalid": "Das Seitenverhältnis des gewählten Gebiets passt nicht zum Tisch — anpassen und erneut versuchen"
+        "viewfinderReady": "Ausreichend gezoomt — bereit zum Abschließen",
+        "viewfinderZoomIn": "Weiter hineinzoomen, um dieses Gebiet zu wählen",
+        "zoomInFirst": "Zoomen Sie hinein, bis der Rahmen grün wird",
+        "aspectRatioInvalid": "Das Seitenverhältnis des gewählten Gebiets passt nicht zum Tisch — anpassen und erneut versuchen",
+        "viewfinderFailed": "Der Auswahlrahmen konnte nicht gezeichnet werden"
       },
       "footprints": {
         "title": "Gebäudegrundrisse",
@@ -359,6 +362,17 @@
         "suppressed": "Kalibrierung läuft — letzte bekannte Positionen werden angezeigt",
         "disconnected": "Tracking-Verbindung unterbrochen — letzte bekannte Positionen werden angezeigt"
       },
+      "python": {
+        "title": "Python-Tracking-Server",
+        "connecting": "Verbindet…",
+        "connected": "Verbunden",
+        "reconnecting": "Verbindet erneut…",
+        "disconnected": "Getrennt",
+        "markers": {
+          "title": "Referenzmarker",
+          "camera": "Kamera {cameraId}"
+        }
+      },
       "simulation": {
         "title": "Simulation (simuliert)",
         "description": "TOSCA stellt noch keinen Simulationsclient bereit — dies führt einen simulierten Platzhalter aus, damit die Ergebnisansicht vorab getestet werden kann.",
@@ -371,6 +385,7 @@
       "disconnected": "Verbindung getrennt — neu kalibrieren"
     },
     "layers": {
+      "aoiViewfinder": "Collab · Auswahlrahmen (Interessengebiet)",
       "selectableFootprints": "Collab · Auswählbare Gebäude",
       "tableScenario": "Collab · Tisch-Szenario",
       "trackedFootprint": "Collab · Verfolgter Grundriss",

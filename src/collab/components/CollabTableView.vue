@@ -21,10 +21,10 @@ import { onBeforeUnmount, onMounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import MapContainer from "@components/Map/MapContainer.vue";
 import { useMapStore } from "@store/map";
-import { useCollabSessionStore } from "@store/collabSession";
-import { useCollabSyncStore } from "@store/collabSync";
-import { useCollabTrackingRenderStore } from "@store/collabTrackingRender";
-import { aoiBoundingBox } from "@store/collabCalibration";
+import { useCollabSessionStore } from "../stores/collabSession";
+import { useCollabSyncStore } from "../stores/collabSync";
+import { useCollabTrackingRenderStore } from "../stores/collabTrackingRender";
+import { aoiBoundingBox } from "../stores/collabCalibration";
 
 const { t } = useI18n();
 const mapStore = useMapStore();

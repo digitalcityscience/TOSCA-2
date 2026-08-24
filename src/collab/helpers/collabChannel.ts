@@ -24,8 +24,18 @@ export class BroadcastCollabChannel<TMessage> implements CollabChannel<TMessage>
         this.channel = new BroadcastChannel(name)
     }
 
+    /**
+     * A `message` built from Pinia state (as every `collabSync` snapshot/patch is) still carries
+     * Vue's reactive `Proxy` wrappers on its nested arrays/objects even after `collabSync`'s
+     * per-slice `clone*` helpers shallow-copy the outer object — spreading `[...aoi.corners]`
+     * copies the array but not the still-proxied `[lng, lat]` tuples inside it. The structured
+     * clone algorithm `postMessage` uses cannot clone those Proxies and throws synchronously
+     * ("could not be cloned"), silently dropping the whole message. Routing through a JSON
+     * round-trip strips every Proxy down to plain data first — safe here because the same
+     * snapshot already survives an identical round-trip in `writeStoredSnapshot`.
+     */
     publish(message: TMessage): void {
-        this.channel?.postMessage(message)
+        this.channel?.postMessage(JSON.parse(JSON.stringify(message)) as TMessage)
     }
 
     subscribe(listener: (message: TMessage) => void): () => void {

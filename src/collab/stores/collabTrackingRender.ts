@@ -7,9 +7,9 @@ import transformTranslate from "@turf/transform-translate";
 import type { Position } from "geojson";
 import type { Feature, FeatureCollection, MultiPolygon, Polygon } from "@helpers/geojson";
 import { reportDeveloperError } from "@helpers/userFacingError";
-import { resolveCollabTrackingWsUrl } from "@helpers/collabMode";
-import { i18n } from "../core/i18n";
-import { useMapStore } from "./map";
+import { resolveCollabTrackingWsUrl } from "../helpers/collabMode";
+import { i18n } from "../../core/i18n";
+import { useMapStore } from "@store/map";
 import { useCollabSessionStore, type CollabSceneObject, type CollabTrackingObjectState } from "./collabSession";
 import { toFeature, useCollabScenarioStore, type CollabBuildingObject } from "./collabScenario";
 import { deriveTrackedFootprint, tableToAoiRotationOffsetDeg } from "./collabCalibration";
@@ -17,13 +17,26 @@ import { maskContextAroundPhysicalFootprints } from "./collabMasking";
 import {
     createMarkerObjectRegistry,
     MockTrackingSource,
+    REFERENCE_MARKERS,
     RealTrackingSource,
     type MarkerObjectRegistry,
     type MarkerObjectRegistryEntry,
     type MockTrackingSnapshot,
+    type PythonConnectionState,
     type TrackingAvailability,
     type TrackingEvent,
 } from "./collabTracking";
+
+const REFERENCE_MARKER_IDS: ReadonlySet<number> = new Set(REFERENCE_MARKERS.map((marker) => marker.id));
+
+/**
+ * `RealTrackingSource`'s Python transport state, widened with `"mock"` for when
+ * `MockTrackingSource` is active (marker-health-plan §1) — the Control panel's "Python" row has
+ * nothing to report in that case (there is no `:8053` socket), so the UI treats `"mock"` as "hide
+ * this section" rather than inventing a connected/disconnected reading for a transport that
+ * doesn't exist.
+ */
+export type CollabPythonConnectionState = PythonConnectionState | "mock"
 
 const TABLE_SCENARIO_SOURCE_ID = "collabTableScenario";
 const TABLE_SCENARIO_FILL_LAYER_ID = "collabTableScenario-fill";
@@ -148,6 +161,16 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
 
     const active = ref(false);
     const trackingAvailability = ref<TrackingAvailability>("live");
+    /** Transport state to Python's `:8053` socket (marker-health-plan §1) — independent of `trackingAvailability`. `"mock"` while `MockTrackingSource` is active. */
+    const pythonConnectionState = ref<CollabPythonConnectionState>("mock");
+    /**
+     * Which of `REFERENCE_MARKERS`' corner-marker ids have been seen at least once since tracking
+     * started (marker-health-plan §3) — sticky, exactly like Vanilla's `marker-received` CSS class
+     * (`COUP-table-web-interface/js/calibration.js:17-22`): once a marker lights up it stays lit for
+     * the session, it never reverts on a single missed frame. Cleared back to empty only when
+     * tracking (re)starts.
+     */
+    const detectedReferenceMarkerIds = ref<ReadonlySet<number>>(new Set());
     const appliedRotationByObjectId = new Map<string, number>();
     /** Keyed by source id (A4): the in-flight create-source-and-layer promise, so concurrent render ticks await the same creation instead of both racing `addMapDataSource`. */
     const layerInitInFlight = new Map<string, Promise<void>>();
@@ -407,8 +430,27 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         }
     }
 
+    /**
+     * Resolves once `mapStore.map`'s style has finished loading. `updateLayers` runs from an
+     * `{ immediate: true }` watcher on mount (plan §13), which can fire before MapContainer's
+     * async style load completes — calling `addSource`/`addLayer`/`setData` before then throws
+     * MapLibre's "Style is not done loading." Polls for the map instance itself (it's assigned
+     * synchronously in `onMounted`, so this settles almost immediately) then waits on its own
+     * one-time `load` event — no rival listener is left behind afterwards.
+     */
+    async function waitForStyleLoaded(): Promise<void> {
+        while (mapStore.map === undefined) {
+            await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        if (mapStore.map.isStyleLoaded()) {
+            return;
+        }
+        await new Promise<void>((resolve) => mapStore.map.once("load", () => resolve()));
+    }
+
     /** Renders every Collab layer `windowKind` is allowed to show, per `collabSession.layerPolicy` (plan §13). */
     async function updateLayers(windowKind: "control" | "table"): Promise<void> {
+        await waitForStyleLoaded();
         let policy: typeof session.layerPolicy;
         let tracked: ReturnType<typeof trackedRenderState>;
         try {
@@ -580,6 +622,10 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         mockSource.onAvailabilityChange((availability) => {
             trackingAvailability.value = availability;
         });
+        // No Python transport exists for the mock source — nothing for the Control panel's
+        // Python/reference-marker rows to report (marker-health-plan §1).
+        pythonConnectionState.value = "mock";
+        detectedReferenceMarkerIds.value = new Set();
         mockSource.start();
         active.value = true;
     }
@@ -607,6 +653,17 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         realSource.onEvent((event) => applyTrackingEvent(session.tracking, event));
         realSource.onAvailabilityChange((availability) => {
             trackingAvailability.value = availability;
+        });
+        realSource.onConnectionStateChange((state) => {
+            pythonConnectionState.value = state;
+        });
+        // Sticky: an id, once seen among a snapshot's marker ids, stays "detected" (marker-health-plan §3).
+        realSource.onMarkerSnapshot((markerIds) => {
+            const newlySeen = markerIds.filter((id) => REFERENCE_MARKER_IDS.has(id) && !detectedReferenceMarkerIds.value.has(id));
+            if (newlySeen.length === 0) {
+                return;
+            }
+            detectedReferenceMarkerIds.value = new Set([...detectedReferenceMarkerIds.value, ...newlySeen]);
         });
         realSource.start();
         active.value = true;
@@ -639,6 +696,8 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         // An intentional stop is not a tracking-availability problem — clear any stale
         // suppressed/disconnected banner left over from before the operator stopped tracking.
         trackingAvailability.value = "live";
+        pythonConnectionState.value = "mock";
+        detectedReferenceMarkerIds.value = new Set();
     }
 
     /** Tears down the active tracking source and the render watch. Idempotent — safe on unmount and HMR. */
@@ -654,6 +713,8 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     return {
         active,
         trackingAvailability,
+        pythonConnectionState,
+        detectedReferenceMarkerIds,
         startRendering,
         startMockTracking,
         stopMockTracking,

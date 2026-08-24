@@ -1,6 +1,6 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
 import { computed, reactive } from "vue";
-import type { AOIExtent } from "@store/collabCalibration";
+import type { AOIExtent } from "./collabCalibration";
 
 /**
  * One object in the Base City / Scenario dataset. Only `id` is meaningful to the store itself

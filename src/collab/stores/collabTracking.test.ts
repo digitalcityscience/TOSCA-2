@@ -2,6 +2,7 @@ import { describe, expect, test, vi } from "vitest";
 import type { MapCalibrationMessage } from "./collabCalibration";
 import type {
     MarkerObjectRegistry,
+    PythonConnectionState,
     TrackingAvailability,
     TrackingEvent,
     TrackingMarkerFeatureCollection,
@@ -352,6 +353,10 @@ describe("RealTrackingSource", () => {
         // is frozen, and the UI is told via availability instead.
         expect(events).toHaveLength(1);
         expect(availabilities).toEqual<TrackingAvailability[]>(["live", "disconnected"]);
+
+        // An unexpected drop schedules a reconnect (marker-health-plan §2); stop() here just
+        // cancels it so the test doesn't leave a dangling timer.
+        source.stop();
     });
 
     test("onerror reports a developer error and reports disconnected without disappearing tracked objects", () => {
@@ -372,6 +377,7 @@ describe("RealTrackingSource", () => {
         expect(events.some((e) => e.type === "disappeared")).toBe(false);
         expect(availabilities[availabilities.length - 1]).toBe("disconnected");
 
+        source.stop(); // cancels the reconnect an unexpected drop schedules (marker-health-plan §2)
         consoleError.mockRestore();
     });
 
@@ -416,5 +422,227 @@ describe("RealTrackingSource", () => {
         // Real tracking resuming after suppression is "live" again, not a fresh "appeared".
         socket.emitMessage(featureCollection([{ markerId: 182, lng: 10, lat: 53.5, rotation: 0 }]));
         expect(availabilities).toEqual<TrackingAvailability[]>(["live", "suppressed", "live"]);
+    });
+});
+
+describe("RealTrackingSource — Python connection state & auto-reconnect (marker-health-plan §1/§2)", () => {
+    function socketFactory(): { createSocket: () => TrackingWebSocket; sockets: FakeSocket[] } {
+        const sockets: FakeSocket[] = [];
+        return {
+            sockets,
+            createSocket: () => {
+                const socket = new FakeSocket();
+                sockets.push(socket);
+                return socket;
+            },
+        };
+    }
+
+    test("successful connection: connecting -> connected", () => {
+        const { createSocket, sockets } = socketFactory();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, calibration, createSocket });
+        const states: PythonConnectionState[] = [];
+        source.onConnectionStateChange((s) => states.push(s));
+
+        source.start();
+        expect(states).toEqual<PythonConnectionState[]>(["connecting"]);
+
+        sockets[0]?.emitOpen();
+        expect(states).toEqual<PythonConnectionState[]>(["connecting", "connected"]);
+
+        source.stop();
+    });
+
+    test("connection failure (onerror before onopen) reports disconnected and schedules exactly one reconnect", () => {
+        vi.useFakeTimers();
+        const { createSocket, sockets } = socketFactory();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, calibration, createSocket });
+        const states: PythonConnectionState[] = [];
+        source.onConnectionStateChange((s) => states.push(s));
+
+        source.start();
+        sockets[0]?.onerror?.(new Event("error"));
+
+        expect(states).toEqual<PythonConnectionState[]>(["connecting", "reconnecting"]);
+        expect(sockets).toHaveLength(1);
+
+        vi.advanceTimersByTime(1000);
+        expect(sockets).toHaveLength(2); // exactly one reconnect attempt fired
+
+        source.stop();
+        vi.useRealTimers();
+    });
+
+    test("unexpected disconnect (onclose after connected) transitions to reconnecting, not disconnected", () => {
+        vi.useFakeTimers();
+        const { createSocket, sockets } = socketFactory();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, calibration, createSocket });
+        const states: PythonConnectionState[] = [];
+        source.onConnectionStateChange((s) => states.push(s));
+
+        source.start();
+        sockets[0]?.emitOpen();
+        sockets[0]?.onclose?.();
+
+        expect(states).toEqual<PythonConnectionState[]>(["connecting", "connected", "reconnecting"]);
+
+        source.stop();
+        vi.useRealTimers();
+    });
+
+    test("reconnect: automatically opens a new socket and re-sends map_calibration, without the operator pressing Start Tracking again", () => {
+        vi.useFakeTimers();
+        const { createSocket, sockets } = socketFactory();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, calibration, createSocket });
+
+        source.start();
+        sockets[0]?.emitOpen();
+        sockets[0]?.onclose?.();
+
+        vi.advanceTimersByTime(1000);
+        expect(sockets).toHaveLength(2);
+
+        sockets[1]?.emitOpen();
+        expect(sockets[1]?.sent).toEqual([JSON.stringify(calibration)]);
+
+        source.stop();
+        vi.useRealTimers();
+    });
+
+    test("successful recovery: tracking availability and connection state both return to normal after reconnect", () => {
+        vi.useFakeTimers();
+        const { createSocket, sockets } = socketFactory();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, calibration, createSocket });
+        const states: PythonConnectionState[] = [];
+        const availabilities: TrackingAvailability[] = [];
+        source.onConnectionStateChange((s) => states.push(s));
+        source.onAvailabilityChange((a) => availabilities.push(a));
+
+        source.start();
+        sockets[0]?.emitOpen();
+        sockets[0]?.emitMessage(featureCollection([{ markerId: 182, lng: 10, lat: 53.5, rotation: 0 }]));
+        sockets[0]?.onclose?.();
+        vi.advanceTimersByTime(1000);
+        sockets[1]?.emitOpen();
+        sockets[1]?.emitMessage(featureCollection([{ markerId: 182, lng: 10, lat: 53.5, rotation: 0 }]));
+
+        expect(states).toEqual<PythonConnectionState[]>(["connecting", "connected", "reconnecting", "reconnecting", "connected"]);
+        expect(availabilities[availabilities.length - 1]).toBe("live");
+
+        source.stop();
+        vi.useRealTimers();
+    });
+
+    test("repeated disconnects do not create duplicate sockets or overlapping reconnect timers", () => {
+        vi.useFakeTimers();
+        const { createSocket, sockets } = socketFactory();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, calibration, createSocket });
+
+        source.start();
+        sockets[0]?.emitOpen();
+        sockets[0]?.onclose?.();
+        // A second onclose on the same (already-terminated) socket must not schedule a second timer.
+        sockets[0]?.onclose?.();
+        // Calling start() again while a reconnect is already pending must not open a second socket either.
+        source.start();
+
+        vi.advanceTimersByTime(1000);
+        expect(sockets).toHaveLength(2); // exactly one reconnect, not two
+
+        // Backoff grows and stays single-flight across multiple failures.
+        sockets[1]?.onerror?.(new Event("error"));
+        vi.advanceTimersByTime(2000);
+        expect(sockets).toHaveLength(3);
+
+        source.stop();
+        vi.useRealTimers();
+    });
+
+    test("explicit Stop Tracking cancels any pending reconnect and never reconnects afterward", () => {
+        vi.useFakeTimers();
+        const { createSocket, sockets } = socketFactory();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, calibration, createSocket });
+        const states: PythonConnectionState[] = [];
+        source.onConnectionStateChange((s) => states.push(s));
+
+        source.start();
+        sockets[0]?.emitOpen();
+        sockets[0]?.onclose?.();
+        expect(states[states.length - 1]).toBe("reconnecting");
+
+        source.stop();
+        expect(states[states.length - 1]).toBe("disconnected");
+
+        vi.advanceTimersByTime(60_000);
+        expect(sockets).toHaveLength(1); // no reconnect ever fired
+
+        vi.useRealTimers();
+    });
+
+    test("preserves last-known building poses across an unexpected disconnect and reconnect", () => {
+        vi.useFakeTimers();
+        const { createSocket, sockets } = socketFactory();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, calibration, createSocket });
+        const events: TrackingEvent[] = [];
+        source.onEvent((e) => events.push(e));
+
+        source.start();
+        sockets[0]?.emitOpen();
+        sockets[0]?.emitMessage(featureCollection([{ markerId: 182, lng: 10, lat: 53.5, rotation: 0 }]));
+        sockets[0]?.onclose?.();
+        vi.advanceTimersByTime(1000);
+
+        // No "disappeared" was synthesized purely from the transport drop — the pose is still
+        // frozen, so the very next snapshot at the same pose is a no-op, not a fresh "appeared".
+        sockets[1]?.emitOpen();
+        sockets[1]?.emitMessage(featureCollection([{ markerId: 182, lng: 10, lat: 53.5, rotation: 0 }]));
+        expect(events).toHaveLength(1); // only the original "appeared" — nothing re-synthesized
+        expect(events[0]?.type).toBe("appeared");
+
+        source.stop();
+        vi.useRealTimers();
+    });
+});
+
+describe("RealTrackingSource — onMarkerSnapshot (marker-health-plan §3, no dedicated Python message)", () => {
+    // Python never strips reference/corner marker ids out of the ordinary tracking feed
+    // (table_to_geojson.py/marker.py pass every detected id through) — these ids simply show up as
+    // regular features alongside real building markers, exactly like Vanilla's raw marker dict did.
+    test("relays every marker_id present in an ordinary FeatureCollection snapshot, including ones with no registry entry", () => {
+        const socket = new FakeSocket();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, calibration, createSocket: () => socket });
+        const snapshots: Array<readonly number[]> = [];
+        source.onMarkerSnapshot((ids) => snapshots.push(ids));
+
+        source.start();
+        socket.emitOpen();
+        socket.emitMessage(
+            featureCollection([
+                { markerId: 182, lng: 10, lat: 53.5, rotation: 0 }, // a real, registered building
+                { markerId: 72, lng: 10.001, lat: 53.501, rotation: 0 }, // a reference/corner marker
+            ])
+        );
+
+        expect(snapshots).toEqual([[182, 72]]);
+
+        source.stop();
+    });
+
+    test("onMarkerSnapshot never resolves to TrackingEvents by itself (unregistered ids stay out of the tracking contract)", () => {
+        const socket = new FakeSocket();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, calibration, createSocket: () => socket });
+        const events: TrackingEvent[] = [];
+        const snapshots: Array<readonly number[]> = [];
+        source.onEvent((e) => events.push(e));
+        source.onMarkerSnapshot((ids) => snapshots.push(ids));
+
+        source.start();
+        socket.emitOpen();
+        socket.emitMessage(featureCollection([{ markerId: 72, lng: 10, lat: 53.5, rotation: 0 }]));
+
+        expect(snapshots).toEqual([[72]]);
+        expect(events).toEqual([]); // marker 72 has no registry entry — normalizer ignores it
+
+        source.stop();
     });
 });

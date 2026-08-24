@@ -241,4 +241,86 @@ describe("collabTrackingRender store", () => {
         vi.unstubAllEnvs();
         vi.unstubAllGlobals();
     });
+
+    test("mock tracking reports pythonConnectionState 'mock' and no detected reference markers (marker-health-plan §1)", () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(0);
+
+        const trackingRender = useCollabTrackingRenderStore();
+        trackingRender.startMockTracking([{ atMs: 0, features: [] }]);
+
+        expect(trackingRender.pythonConnectionState).toBe("mock");
+        expect(trackingRender.detectedReferenceMarkerIds.size).toBe(0);
+
+        trackingRender.stopMockTracking();
+        vi.useRealTimers();
+    });
+
+    test("real tracking wires RealTrackingSource's connection state and reference-marker detection into the store, sticky (marker-health-plan §1/§3)", () => {
+        vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
+
+        class FakeSocket {
+            onopen: (() => void) | null = null;
+            onmessage: ((event: { data: string }) => void) | null = null;
+            onclose: (() => void) | null = null;
+            onerror: ((event: unknown) => void) | null = null;
+            sent: string[] = [];
+            send(data: string): void {
+                this.sent.push(data);
+            }
+            close(): void {}
+        }
+        const sockets: FakeSocket[] = [];
+        vi.stubGlobal(
+            "WebSocket",
+            function FakeWebSocket() {
+                const created = new FakeSocket();
+                sockets.push(created);
+                return created;
+            } as unknown as typeof WebSocket
+        );
+        const socket = (): FakeSocket | undefined => sockets[sockets.length - 1];
+
+        const scenarioStore = useCollabScenarioStore();
+        scenarioStore.mapCalibration = {
+            type: "map_calibration",
+            points: [{ pixel_position: [0, 0], lat_lon_position: [53.5, 10] }],
+        };
+
+        const trackingRender = useCollabTrackingRenderStore();
+        trackingRender.startMockTracking();
+
+        expect(trackingRender.pythonConnectionState).toBe("connecting");
+
+        socket()?.onopen?.();
+        expect(trackingRender.pythonConnectionState).toBe("connected");
+
+        // Reference marker 72 arrives as an ordinary feature in the regular tracking feed — no
+        // dedicated Python message, same feed real buildings ride on.
+        socket()?.onmessage?.({
+            data: JSON.stringify({
+                type: "FeatureCollection",
+                features: [{ type: "Feature", geometry: { type: "Point", coordinates: [10, 53.5] }, properties: { marker_id: 72, rotation: 0 } }],
+            }),
+        });
+
+        expect(trackingRender.detectedReferenceMarkerIds.has(72)).toBe(true);
+        expect(trackingRender.detectedReferenceMarkerIds.has(63)).toBe(false);
+
+        // Sticky: 72 dropping out of a later snapshot must not un-detect it.
+        socket()?.onmessage?.({
+            data: JSON.stringify({ type: "FeatureCollection", features: [] }),
+        });
+        expect(trackingRender.detectedReferenceMarkerIds.has(72)).toBe(true);
+
+        socket()?.onclose?.();
+        expect(trackingRender.pythonConnectionState).toBe("reconnecting");
+
+        trackingRender.stopMockTracking();
+        expect(trackingRender.pythonConnectionState).toBe("mock");
+        expect(trackingRender.detectedReferenceMarkerIds.size).toBe(0);
+
+        vi.unstubAllEnvs();
+        vi.unstubAllGlobals();
+    });
 });

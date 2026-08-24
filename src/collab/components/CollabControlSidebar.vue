@@ -38,7 +38,9 @@
                         :label="t('collab.control.aoi.finish')"
                         icon="i-lucide-check"
                         size="sm"
-                        color="primary"
+                        :color="scenarioStore.viewfinderValid ? 'primary' : 'neutral'"
+                        :variant="scenarioStore.viewfinderValid ? 'solid' : 'soft'"
+                        :disabled="!scenarioStore.viewfinderValid"
                         @click="finishAoi"
                     />
                     <UButton
@@ -50,6 +52,14 @@
                     />
                 </template>
             </div>
+            <p
+                v-if="scenarioStore.aoiSelectionInProgress"
+                class="flex items-center gap-1.5 text-xs"
+                :class="scenarioStore.viewfinderValid ? 'text-success' : 'text-error'"
+            >
+                <span class="size-2 shrink-0 rounded-full" :class="scenarioStore.viewfinderValid ? 'bg-success' : 'bg-error'" />
+                {{ t(scenarioStore.viewfinderValid ? "collab.control.aoi.viewfinderReady" : "collab.control.aoi.viewfinderZoomIn") }}
+            </p>
             <p v-if="scenarioStore.aoi !== null" class="text-xs text-success">
                 {{ t("collab.control.aoi.selected") }}
             </p>
@@ -144,6 +154,27 @@
             </p>
         </div>
 
+        <div v-if="trackingRenderStore.pythonConnectionState !== 'mock'" class="mt-5 flex flex-col gap-2 border-t border-muted pt-4">
+            <h3 class="text-sm font-medium">{{ t("collab.control.python.title") }}</h3>
+            <p class="flex items-center gap-1.5 text-xs" :class="pythonStatusTextClass">
+                <span class="size-2 shrink-0 rounded-full" :class="pythonStatusDotClass" />
+                {{ t(`collab.control.python.${trackingRenderStore.pythonConnectionState}`) }}
+            </p>
+
+            <h4 class="mt-2 text-xs font-medium text-muted">{{ t("collab.control.python.markers.title") }}</h4>
+            <ul class="flex flex-col gap-1 text-xs">
+                <li v-for="marker in referenceMarkers" :key="`${marker.cameraId}-${marker.id}`" class="flex items-center gap-1.5">
+                    <UIcon
+                        :name="isMarkerDetected(marker.id) ? 'i-lucide-check' : 'i-lucide-x'"
+                        :class="isMarkerDetected(marker.id) ? 'text-success' : 'text-muted'"
+                        class="size-3.5 shrink-0"
+                    />
+                    <span>{{ t("collab.control.python.markers.camera", { cameraId: marker.cameraId }) }} — {{ marker.id }}</span>
+                    <span class="text-muted">({{ marker.position }})</span>
+                </li>
+            </ul>
+        </div>
+
         <div class="mt-5 flex flex-col gap-2 border-t border-muted pt-4">
             <h3 class="text-sm font-medium">{{ t("collab.control.simulation.title") }}</h3>
             <p class="text-xs text-muted">{{ t("collab.control.simulation.description") }}</p>
@@ -170,11 +201,12 @@ import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import BaseSlideoverSidebarComponent from "@components/Base/BaseSlideoverSidebarComponent.vue";
 import { useToast } from "@helpers/toast";
-import { useCollabSyncStore } from "@store/collabSync";
-import { useCollabSessionStore } from "@store/collabSession";
-import { useCollabScenarioStore } from "@store/collabScenario";
-import { useCollabTrackingRenderStore } from "@store/collabTrackingRender";
-import { useCollabSimulationStore } from "@store/collabSimulation";
+import { useCollabSyncStore } from "../stores/collabSync";
+import { useCollabSessionStore } from "../stores/collabSession";
+import { useCollabScenarioStore } from "../stores/collabScenario";
+import { useCollabTrackingRenderStore } from "../stores/collabTrackingRender";
+import { useCollabSimulationStore } from "../stores/collabSimulation";
+import { REFERENCE_MARKERS } from "../stores/collabTracking";
 
 const sidebarID = "collabControl";
 const { t } = useI18n();
@@ -201,6 +233,37 @@ const maskingModeItems = [
  * (ticket 10): lets an operator A/B the OD-2 masking options live on the real projector without a
  * code change.
  */
+const referenceMarkers = REFERENCE_MARKERS;
+
+function isMarkerDetected(markerId: number): boolean {
+    return trackingRenderStore.detectedReferenceMarkerIds.has(markerId);
+}
+
+/** Compact status-dot color for the Python connection row (marker-health-plan §1/§5). */
+const pythonStatusDotClass = computed(() => {
+    switch (trackingRenderStore.pythonConnectionState) {
+        case "connected":
+            return "bg-success";
+        case "connecting":
+        case "reconnecting":
+            return "bg-warning";
+        default:
+            return "bg-error";
+    }
+});
+
+const pythonStatusTextClass = computed(() => {
+    switch (trackingRenderStore.pythonConnectionState) {
+        case "connected":
+            return "text-success";
+        case "connecting":
+        case "reconnecting":
+            return "text-warning";
+        default:
+            return "text-error";
+    }
+});
+
 const tableMaskingMode = computed<"show" | "hide" | "mask">({
     get: () => {
         const mode = collabSession.layerPolicy.scenarioFootprint.table;
@@ -214,13 +277,23 @@ const tableMaskingMode = computed<"show" | "hide" | "mask">({
     },
 });
 
-/** Opens (or refocuses) the projector-facing `/collab/table` window (plan §11, ticket 06). */
+/**
+ * Opens (or refocuses) the projector-facing `/collab/table` window (plan §11, ticket 06).
+ * A `windowFeatures` string is required here — without one, browsers open a same-window tab
+ * instead of a separate OS window, which defeats dragging the table view to a second screen.
+ * Best-effort positions it past the primary display's width so it lands on an extended monitor.
+ */
 function openTableWindow(): void {
     const { href } = router.resolve({ name: "collab-table" });
-    const tableWindow = window.open(href, TABLE_WINDOW_NAME);
+    const width = window.screen.availWidth;
+    const height = window.screen.availHeight;
+    const features = `popup=yes,left=${width},top=0,width=${width},height=${height}`;
+    const tableWindow = window.open(href, TABLE_WINDOW_NAME, features);
     if (tableWindow === null) {
         toast.add({ severity: "warning", summary: t("collab.control.popupBlocked") });
+        return;
     }
+    tableWindow.focus();
 }
 
 function finishAoi(): void {

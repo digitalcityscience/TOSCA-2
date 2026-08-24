@@ -27,6 +27,44 @@ export interface TrackingEvent {
  */
 export type TrackingAvailability = "live" | "suppressed" | "disconnected"
 
+/**
+ * Transport connection state to Python's `:8053` WebSocket — deliberately separate from
+ * {@link TrackingAvailability} (marker-health-plan §1): a `live`/`suppressed` tracking feed
+ * always implies `connected`, but `connected` does not imply `live` (Python may be connected and
+ * momentarily withholding object observations). `connecting` — first attempt after `start()`;
+ * `connected` — socket open; `reconnecting` — the socket dropped unexpectedly and
+ * {@link RealTrackingSource} is retrying automatically; `disconnected` — no socket and no retry in
+ * flight (either never started, or `stop()` was called explicitly).
+ */
+export type PythonConnectionState = "connecting" | "connected" | "reconnecting" | "disconnected"
+
+/** One of the four physical reference/corner markers a camera's calibration expects, per `calibration_markers.json`. */
+export interface ReferenceMarkerConfig {
+    cameraId: string
+    id: number
+    position: "top_left" | "top_right" | "bottom_right" | "bottom_left"
+}
+
+/**
+ * The reference/corner markers `calibration_markers.json` currently configures per camera (two
+ * cameras, four corners each) — mirrors the exact values in that file. Python never has to be
+ * asked for this list: like the old Vanilla `MARKER_ID_TO_KEY` (`COUP-table-web-interface/js/state.js`),
+ * these ids already arrive unfiltered in every ordinary tracking snapshot once the socket is open
+ * (`table_to_geojson.py`/`marker.py` never strip them out) — no dedicated Python message needed to
+ * see them. If the physical corner markers are ever re-taped to different ArUco ids, update this
+ * list to match the new `calibration_markers.json`.
+ */
+export const REFERENCE_MARKERS: readonly ReferenceMarkerConfig[] = [
+    { cameraId: "170", id: 72, position: "top_left" },
+    { cameraId: "170", id: 63, position: "top_right" },
+    { cameraId: "170", id: 62, position: "bottom_right" },
+    { cameraId: "170", id: 40, position: "bottom_left" },
+    { cameraId: "282", id: 60, position: "top_left" },
+    { cameraId: "282", id: 52, position: "top_right" },
+    { cameraId: "282", id: 48, position: "bottom_right" },
+    { cameraId: "282", id: 65, position: "bottom_left" },
+]
+
 export interface TrackingSource {
     start(): void
     stop(): void
@@ -374,6 +412,13 @@ export interface RealTrackingSourceOptions {
     now?: () => number
     /** Defaults to the global `WebSocket` constructor; overridable for tests. */
     createSocket?: (url: string) => TrackingWebSocket
+    /** First reconnect delay after an unexpected drop (marker-health-plan §2). Default 1000ms. */
+    reconnectBaseDelayMs?: number
+    /** Reconnect backoff ceiling — doubles each attempt up to this cap. Default 10000ms. */
+    reconnectMaxDelayMs?: number
+    /** Defaults to the global `setTimeout`/`clearTimeout`; overridable for tests. */
+    setTimeoutFn?: (handler: () => void, delayMs: number) => ReturnType<typeof setTimeout>
+    clearTimeoutFn?: (handle: ReturnType<typeof setTimeout>) => void
 }
 
 function defaultCreateSocket(url: string): TrackingWebSocket {
@@ -399,9 +444,20 @@ export class RealTrackingSource implements TrackingSource {
     private readonly normalizer: TrackingFeedNormalizer
     private readonly now: () => number
     private readonly createSocket: (url: string) => TrackingWebSocket
+    private readonly reconnectBaseDelayMs: number
+    private readonly reconnectMaxDelayMs: number
+    private readonly setTimeoutFn: (handler: () => void, delayMs: number) => ReturnType<typeof setTimeout>
+    private readonly clearTimeoutFn: (handle: ReturnType<typeof setTimeout>) => void
     private readonly listeners: Array<(event: TrackingEvent) => void> = []
     private readonly availabilityListeners: Array<(availability: TrackingAvailability) => void> = []
+    private readonly connectionStateListeners: Array<(state: PythonConnectionState) => void> = []
+    private readonly markerSnapshotListeners: Array<(markerIds: readonly number[]) => void> = []
     private socket: TrackingWebSocket | undefined
+    /** Set only while a reconnect attempt is pending (marker-health-plan §2: never more than one in flight). */
+    private reconnectTimer: ReturnType<typeof setTimeout> | undefined
+    private reconnectAttempt = 0
+    /** True only after an explicit {@link stop} — distinguishes "operator stopped" from "connection dropped" so only the latter reconnects. */
+    private explicitlyStopped = true
 
     constructor(options: RealTrackingSourceOptions) {
         this.url = options.url
@@ -409,29 +465,36 @@ export class RealTrackingSource implements TrackingSource {
         this.normalizer = new TrackingFeedNormalizer(options.registry, options.disappearTimeoutMs)
         this.now = options.now ?? Date.now
         this.createSocket = options.createSocket ?? defaultCreateSocket
+        this.reconnectBaseDelayMs = options.reconnectBaseDelayMs ?? 1000
+        this.reconnectMaxDelayMs = options.reconnectMaxDelayMs ?? 10_000
+        this.setTimeoutFn = options.setTimeoutFn ?? ((handler, delayMs) => setTimeout(handler, delayMs))
+        this.clearTimeoutFn = options.clearTimeoutFn ?? ((handle) => clearTimeout(handle))
     }
 
+    /**
+     * Connects (or reconnects) to `:8053`. A no-op while a socket is already open or a reconnect
+     * is already pending, so overlapping `start()` calls — or a reconnect racing an operator's
+     * manual "Start Tracking" click — can never create a second socket/timer loop.
+     */
     start(): void {
-        if (this.socket !== undefined) {
+        if (this.socket !== undefined || this.reconnectTimer !== undefined) {
             return
         }
-        const socket = this.createSocket(this.url)
-        socket.onopen = () => socket.send(JSON.stringify(this.calibrationMessage))
-        socket.onmessage = (event) => this.handleMessage(event.data)
-        socket.onerror = (event) => {
-            reportDeveloperError("collabTracking.RealTrackingSource", event instanceof Error ? event : new Error("WebSocket error"))
-            this.handleTermination()
-        }
-        socket.onclose = () => this.handleTermination()
-        this.socket = socket
+        this.explicitlyStopped = false
+        this.reconnectAttempt = 0
+        this.connect()
     }
 
+    /** Explicit stop (marker-health-plan §2): cancels any pending reconnect and closes the socket; never reconnects afterward. */
     stop(): void {
-        if (this.socket === undefined) {
-            return
+        this.explicitlyStopped = true
+        this.cancelReconnect()
+        if (this.socket !== undefined) {
+            this.detachAndClose(this.socket)
+            this.socket = undefined
         }
-        this.detachAndClose(this.socket)
-        this.socket = undefined
+        this.reconnectAttempt = 0
+        this.emitConnectionState("disconnected")
     }
 
     onEvent(cb: (event: TrackingEvent) => void): void {
@@ -440,6 +503,40 @@ export class RealTrackingSource implements TrackingSource {
 
     onAvailabilityChange(cb: (availability: TrackingAvailability) => void): void {
         this.availabilityListeners.push(cb)
+    }
+
+    /** Python transport connection state (marker-health-plan §1) — independent of tracking availability. */
+    onConnectionStateChange(cb: (state: PythonConnectionState) => void): void {
+        this.connectionStateListeners.push(cb)
+    }
+
+    /**
+     * Fires with every `marker_id` present in an incoming tracking snapshot (unfiltered — building
+     * ids, `IGNORED_MARKER_ID`, and any configured {@link REFERENCE_MARKERS} corner marker all pass
+     * through as-is). Python already includes reference-marker ids in the ordinary tracking feed
+     * without being asked (same as Vanilla's `calibration.js` reading its raw marker dict directly,
+     * `COUP-table-web-interface/js/calibration.js:48-55`) — this is that same relay, nothing new on
+     * the wire.
+     */
+    onMarkerSnapshot(cb: (markerIds: readonly number[]) => void): void {
+        this.markerSnapshotListeners.push(cb)
+    }
+
+    private connect(): void {
+        this.emitConnectionState(this.reconnectAttempt === 0 ? "connecting" : "reconnecting")
+        const socket = this.createSocket(this.url)
+        socket.onopen = () => {
+            this.reconnectAttempt = 0
+            this.emitConnectionState("connected")
+            socket.send(JSON.stringify(this.calibrationMessage))
+        }
+        socket.onmessage = (event) => this.handleMessage(event.data)
+        socket.onerror = (event) => {
+            reportDeveloperError("collabTracking.RealTrackingSource", event instanceof Error ? event : new Error("WebSocket error"))
+            this.handleTermination()
+        }
+        socket.onclose = () => this.handleTermination()
+        this.socket = socket
     }
 
     private detachAndClose(socket: TrackingWebSocket): void {
@@ -460,6 +557,7 @@ export class RealTrackingSource implements TrackingSource {
         if (!isTrackingFeatureCollection(data)) {
             return
         }
+        this.emitMarkerSnapshot(data.features.map((feature) => feature.properties.marker_id))
         const events = this.normalizer.applySnapshot(data, this.now())
         this.emitAvailability(this.normalizer.currentAvailability())
         this.emitAll(events)
@@ -473,6 +571,10 @@ export class RealTrackingSource implements TrackingSource {
      * make a momentary Wi-Fi/server hiccup look identical to someone clearing the table. Normal
      * processing (including genuine disappearance via presence+timeout) resumes from this same
      * frozen state once snapshots start arriving again.
+     *
+     * Unless this was reached via an explicit {@link stop} (which already set `explicitlyStopped`
+     * before closing), an unexpected drop schedules exactly one reconnect attempt
+     * (marker-health-plan §2) — the operator never has to press "Start Tracking" again.
      */
     private handleTermination(): void {
         if (this.socket === undefined) {
@@ -481,6 +583,37 @@ export class RealTrackingSource implements TrackingSource {
         this.detachAndClose(this.socket)
         this.socket = undefined
         this.emitAvailability("disconnected")
+
+        if (this.explicitlyStopped) {
+            this.emitConnectionState("disconnected")
+            return
+        }
+        this.emitConnectionState("reconnecting")
+        this.scheduleReconnect()
+    }
+
+    /** Schedules the next reconnect attempt with exponential backoff, capped at `reconnectMaxDelayMs`. Never schedules a second one on top of a pending attempt. */
+    private scheduleReconnect(): void {
+        if (this.reconnectTimer !== undefined) {
+            return
+        }
+        const delayMs = Math.min(this.reconnectBaseDelayMs * 2 ** this.reconnectAttempt, this.reconnectMaxDelayMs)
+        this.reconnectAttempt += 1
+        this.reconnectTimer = this.setTimeoutFn(() => {
+            this.reconnectTimer = undefined
+            if (this.explicitlyStopped) {
+                return
+            }
+            this.connect()
+        }, delayMs)
+    }
+
+    private cancelReconnect(): void {
+        if (this.reconnectTimer === undefined) {
+            return
+        }
+        this.clearTimeoutFn(this.reconnectTimer)
+        this.reconnectTimer = undefined
     }
 
     private emitAll(events: readonly TrackingEvent[]): void {
@@ -494,6 +627,18 @@ export class RealTrackingSource implements TrackingSource {
     private emitAvailability(availability: TrackingAvailability): void {
         for (const listener of this.availabilityListeners) {
             listener(availability)
+        }
+    }
+
+    private emitConnectionState(state: PythonConnectionState): void {
+        for (const listener of this.connectionStateListeners) {
+            listener(state)
+        }
+    }
+
+    private emitMarkerSnapshot(markerIds: readonly number[]): void {
+        for (const listener of this.markerSnapshotListeners) {
+            listener(markerIds)
         }
     }
 }

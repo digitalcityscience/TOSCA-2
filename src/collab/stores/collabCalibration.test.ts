@@ -10,6 +10,7 @@ import {
     buildMapCalibration,
     deriveGroundScale,
     deriveTrackedFootprint,
+    isAoiZoomSufficient,
     placeFootprintAt,
     tablePixelCorners,
     tableToAoiRotationOffsetDeg,
@@ -30,6 +31,7 @@ describe("tablePixelCorners", () => {
             physicalTable: { widthCm: 200, heightCm: 100 },
             tablePixelSpace: { pixelsPerCm: 5 },
             projectionInset: { insetCm: 10 },
+            aoiScaleTarget: { groundScale: 500 },
         };
         expect(tablePixelCorners(config)).toEqual([
             [50, 50],
@@ -80,6 +82,7 @@ describe("deriveGroundScale", () => {
             physicalTable: { widthCm: 160, heightCm: 80 },
             tablePixelSpace: { pixelsPerCm: 10 },
             projectionInset: { insetCm: 0 },
+            aoiScaleTarget: { groundScale: 500 },
         };
         const groundWidthMeters = distance(
             point(hamburgAOI.corners[0]),
@@ -104,6 +107,41 @@ describe("deriveGroundScale", () => {
         expect(deriveGroundScale(hamburgAOI, withInset)).toBeGreaterThan(
             deriveGroundScale(hamburgAOI, noInset)
         );
+    });
+});
+
+describe("isAoiZoomSufficient", () => {
+    test("rejects an AOI zoomed out further than the configured target ground scale", () => {
+        const config: CollabTableConfig = {
+            ...DEFAULT_COLLAB_TABLE_CONFIG,
+            aoiScaleTarget: { groundScale: 1 }, // tiny target: any real AOI is "too zoomed out"
+        };
+        expect(isAoiZoomSufficient(hamburgAOI, config)).toBe(false);
+    });
+
+    test("accepts an AOI at or beyond (more zoomed in than) the configured target ground scale", () => {
+        const config: CollabTableConfig = {
+            ...DEFAULT_COLLAB_TABLE_CONFIG,
+            aoiScaleTarget: { groundScale: 1_000_000 }, // huge target: any real AOI is zoomed in enough
+        };
+        expect(isAoiZoomSufficient(hamburgAOI, config)).toBe(true);
+    });
+
+    test("a smaller (more zoomed-in) AOI never fails once a larger one already passes", () => {
+        const config: CollabTableConfig = {
+            ...DEFAULT_COLLAB_TABLE_CONFIG,
+            aoiScaleTarget: { groundScale: deriveGroundScale(hamburgAOI, DEFAULT_COLLAB_TABLE_CONFIG) },
+        };
+        const tighterAoi: AOIExtent = {
+            corners: [
+                [9.985, 53.555],
+                [9.995, 53.555],
+                [9.995, 53.545],
+                [9.985, 53.545],
+            ],
+        };
+        expect(isAoiZoomSufficient(hamburgAOI, config)).toBe(true);
+        expect(isAoiZoomSufficient(tighterAoi, config)).toBe(true);
     });
 });
 

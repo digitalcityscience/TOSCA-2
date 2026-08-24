@@ -327,13 +327,16 @@
       "popupBlocked": "Masa penceresi engellendi. Bu site için açılır pencerelere izin verip tekrar deneyin.",
       "aoi": {
         "title": "İlgi alanı",
-        "description": "Dokunsal masa için Hamburg'da bir ilgi alanı çizin.",
+        "description": "Dokunsal masa için bir ilgi alanı seçmek üzere haritayı çerçevenin altında kaydırıp yakınlaştırın.",
         "select": "İlgi alanı seç",
         "finish": "Bitir",
         "cancel": "İptal",
         "selected": "İlgi alanı seçildi",
-        "drawFirst": "Önce bir ilgi alanı poligonu çizin",
-        "aspectRatioInvalid": "Seçilen alanın en-boy oranı masayla uyuşmuyor — düzeltip tekrar deneyin"
+        "viewfinderReady": "Yeterince yakınlaştırıldı — bitirmeye hazır",
+        "viewfinderZoomIn": "Bu alanı seçmek için daha fazla yakınlaştırın",
+        "zoomInFirst": "Önce çerçeve yeşile dönene kadar yakınlaştırın",
+        "aspectRatioInvalid": "Seçilen alanın en-boy oranı masayla uyuşmuyor — düzeltip tekrar deneyin",
+        "viewfinderFailed": "Seçim çerçevesi çizilemedi"
       },
       "footprints": {
         "title": "Bina yerleşim alanları",
@@ -359,6 +362,17 @@
         "suppressed": "Kalibrasyon sürüyor — son bilinen konumlar gösteriliyor",
         "disconnected": "Takip bağlantısı kesildi — son bilinen konumlar gösteriliyor"
       },
+      "python": {
+        "title": "Python takip sunucusu",
+        "connecting": "Bağlanıyor…",
+        "connected": "Bağlı",
+        "reconnecting": "Yeniden bağlanıyor…",
+        "disconnected": "Bağlantı yok",
+        "markers": {
+          "title": "Referans işaretçiler",
+          "camera": "Kamera {cameraId}"
+        }
+      },
       "simulation": {
         "title": "Simülasyon (mock)",
         "description": "TOSCA henüz bir simülasyon istemcisi sunmuyor — bu, sonuç görünümünün önceden test edilebilmesi için bir mock yer tutucu çalıştırır.",
@@ -371,6 +385,7 @@
       "disconnected": "Bağlantı kesildi — yeniden kalibre edin"
     },
     "layers": {
+      "aoiViewfinder": "Collab · İlgi alanı seçim çerçevesi",
       "selectableFootprints": "Collab · Seçilebilir binalar",
       "tableScenario": "Collab · Masa senaryosu",
       "trackedFootprint": "Collab · Takip edilen yerleşim alanı",

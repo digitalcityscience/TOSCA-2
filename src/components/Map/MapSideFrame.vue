@@ -19,7 +19,7 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 import { toggleSlideoverSidebar } from "@helpers/slideoverSidebarRegistry";
-import { isCollabModeEnabled } from "@helpers/collabMode";
+import { isCollabModeEnabled } from "../../collab/helpers/collabMode";
 
 interface Props {
     side: "left" | "right"

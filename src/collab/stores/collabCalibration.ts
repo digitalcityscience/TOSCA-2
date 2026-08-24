@@ -37,11 +37,22 @@ export interface ProjectionInsetConfig {
     insetCm: number
 }
 
+/**
+ * The target real-world:table ground scale (same ratio {@link deriveGroundScale} returns —
+ * real-world metres per table metre) an operator's AOI selection should be zoomed to before it's
+ * accepted. Explicitly configurable, like `ProjectionInsetConfig` — B6 forbids fixing this until
+ * physical-table testing (M3) picks a final number.
+ */
+export interface AoiScaleTargetConfig {
+    groundScale: number
+}
+
 /** Full config the calibration/scale routines read from — nothing below is hardcoded in the routines themselves. */
 export interface CollabTableConfig {
     physicalTable: PhysicalTableConfig
     tablePixelSpace: TablePixelSpaceConfig
     projectionInset: ProjectionInsetConfig
+    aoiScaleTarget: AoiScaleTargetConfig
 }
 
 /**
@@ -56,16 +67,32 @@ function measuredProjectionInsetCm(): number {
 }
 
 /**
+ * Reads the target AOI ground scale from `VITE_COLLAB_TARGET_GROUND_SCALE` (B6: "do not invent a
+ * fixed scale", `TOSCA-Collab-First-idea.md` §"real-world AOI size"/`Implementation-Plan.md` B6) —
+ * final number is set here once M3 physical-table testing picks one, never hardcoded in the
+ * validation routine itself. Unset/unparsable falls back to `500`, the same order-of-magnitude
+ * placeholder already used as a non-committed reference point elsewhere in the docs (and in
+ * `client_test_web.py`'s sample ~1000m×500m AOI over an ~1.6m×0.8m table) — a working default for
+ * the PoC, not a scale decision.
+ */
+function targetGroundScale(): number {
+    const raw = Number(import.meta.env.VITE_COLLAB_TARGET_GROUND_SCALE ?? "")
+    return Number.isFinite(raw) && raw > 0 ? raw : 500
+}
+
+/**
  * Default config: physical table dimensions (plan §5a: 160×80 cm rig) and table-pixel density
  * (plan §5a/§5b: 10 px/cm, ~1600×800, fixed by Python's stitching pipeline) are real hardware/
- * protocol facts, not scale decisions. `projectionInset` reads the measured value from
- * `VITE_COLLAB_PROJECTION_INSET_CM` (falling back to no border until physical testing, M3, sets
- * one) — B6 forbids hardcoding a fixed border size.
+ * protocol facts, not scale decisions. `projectionInset` and `aoiScaleTarget` read their measured
+ * values from `VITE_COLLAB_PROJECTION_INSET_CM` / `VITE_COLLAB_TARGET_GROUND_SCALE` (falling back
+ * to provisional placeholders until physical testing, M3, sets final ones) — B6 forbids hardcoding
+ * either.
  */
 export const DEFAULT_COLLAB_TABLE_CONFIG: CollabTableConfig = {
     physicalTable: { widthCm: 160, heightCm: 80 },
     tablePixelSpace: { pixelsPerCm: 10 },
     projectionInset: { insetCm: measuredProjectionInsetCm() },
+    aoiScaleTarget: { groundScale: targetGroundScale() },
 }
 
 /**
@@ -156,6 +183,17 @@ export function deriveGroundScale(aoi: AOIExtent, config: CollabTableConfig): nu
     const groundWidthMeters = distance(point(topLeft), point(topRight), { units: "meters" })
     const usableTableWidthMeters = usableTableWidthCm(config) / 100
     return groundWidthMeters / usableTableWidthMeters
+}
+
+/**
+ * Whether a candidate AOI is zoomed in enough to accept: its ground scale must be at or below
+ * `config.aoiScaleTarget.groundScale` (fewer real-world metres packed into each table metre than
+ * the target = zoomed in enough or more). A *smaller* selected area (higher zoom, lower ground
+ * scale) always passes — only "too zoomed out" (ground scale above target) is invalid, matching
+ * the operator being free to pick a tighter AOI with no penalty.
+ */
+export function isAoiZoomSufficient(aoi: AOIExtent, config: CollabTableConfig): boolean {
+    return deriveGroundScale(aoi, config) <= config.aoiScaleTarget.groundScale
 }
 
 function bboxCentre(feature: Feature<Polygon | MultiPolygon>): Position {

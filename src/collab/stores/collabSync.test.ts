@@ -1,7 +1,7 @@
 import { createPinia, setActivePinia } from "pinia";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { nextTick } from "vue";
-import type { CollabChannel } from "../collab/collabChannel";
+import type { CollabChannel } from "../helpers/collabChannel";
 import { useCollabSessionStore } from "./collabSession";
 import { COLLAB_SNAPSHOT_STORAGE_KEY, useCollabSyncStore, type CollabSyncMessage } from "./collabSync";
 

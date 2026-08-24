@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from "vue-router"
 import MapView from "../views/MapView.vue"
 import { useParticipationStore } from "@store/participation"
 import { useMapStore } from "@store/map"
-import { isCollabModeEnabled } from "@helpers/collabMode"
+import { isCollabModeEnabled } from "../collab/helpers/collabMode"
 
 const router = createRouter({
     history: createWebHistory(String(import.meta.env.VITE_BASE_URL)),
@@ -90,7 +90,7 @@ const router = createRouter({
             name: "collab-control",
             components: {
                 default: MapView,
-                collab: async () => await import("../components/Collab/CollabControlSidebar.vue")
+                collab: async () => await import("../collab/components/CollabControlSidebar.vue")
             },
             meta: {
                 sidebar: "collabControl",
@@ -101,7 +101,7 @@ const router = createRouter({
             path: "/collab/table",
             name: "collab-table",
             components: {
-                default: async () => await import("../components/Collab/CollabTableView.vue")
+                default: async () => await import("../collab/components/CollabTableView.vue")
             }
         },
         {

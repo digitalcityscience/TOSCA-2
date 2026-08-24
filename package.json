@@ -11,6 +11,7 @@
   "scripts": {
     "docs": "typedoc",
     "dev": "vite --mode development",
+    "dev:collab": "vite --mode collab",
     "lint": "eslint .",
     "test": "vitest",
     "build": "vue-tsc && vite build --mode production",

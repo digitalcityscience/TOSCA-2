@@ -327,13 +327,16 @@
       "popupBlocked": "The Table window was blocked. Allow pop-ups for this site and try again.",
       "aoi": {
         "title": "Area of interest",
-        "description": "Draw an AOI in Hamburg for the tangible table.",
+        "description": "Pan and zoom the map under the frame to choose an AOI for the tangible table.",
         "select": "Select AOI",
         "finish": "Finish",
         "cancel": "Cancel",
         "selected": "AOI selected",
-        "drawFirst": "Draw an AOI polygon first",
-        "aspectRatioInvalid": "Selected AOI's aspect ratio doesn't match the table — adjust and retry"
+        "viewfinderReady": "Zoomed in enough — ready to finish",
+        "viewfinderZoomIn": "Zoom in further to select this area",
+        "zoomInFirst": "Zoom in until the frame turns green first",
+        "aspectRatioInvalid": "Selected AOI's aspect ratio doesn't match the table — adjust and retry",
+        "viewfinderFailed": "Couldn't draw the AOI selection frame"
       },
       "footprints": {
         "title": "Building footprints",
@@ -359,6 +362,17 @@
         "suppressed": "Calibration in progress — showing last known positions",
         "disconnected": "Tracking connection lost — showing last known positions"
       },
+      "python": {
+        "title": "Python tracking server",
+        "connecting": "Connecting…",
+        "connected": "Connected",
+        "reconnecting": "Reconnecting…",
+        "disconnected": "Disconnected",
+        "markers": {
+          "title": "Reference markers",
+          "camera": "Camera {cameraId}"
+        }
+      },
       "simulation": {
         "title": "Simulation (mock)",
         "description": "TOSCA does not yet expose a simulation client — this runs a mock stand-in so the results view can be tested ahead of time.",
@@ -371,6 +385,7 @@
       "disconnected": "Disconnected — recalibrate"
     },
     "layers": {
+      "aoiViewfinder": "Collab · AOI selection frame",
       "selectableFootprints": "Collab · Selectable buildings",
       "tableScenario": "Collab · Table scenario",
       "trackedFootprint": "Collab · Tracked footprint",

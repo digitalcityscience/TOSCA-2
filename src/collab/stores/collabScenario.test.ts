@@ -15,8 +15,9 @@ import {
     toFeature,
     toSceneObject,
     useCollabScenarioStore,
+    viewfinderScreenCorners,
 } from "./collabScenario";
-import type { CollabBuildingFixtureProperties } from "../collab/fixtures/collabBuildingFixture";
+import type { CollabBuildingFixtureProperties } from "../fixtures/collabBuildingFixture";
 
 function buildingFeature(
     id: string,
@@ -85,6 +86,37 @@ describe("isAspectRatioValid", () => {
             ],
         };
         expect(isAspectRatioValid(aoi, config)).toBe(false);
+    });
+});
+
+describe("viewfinderScreenCorners", () => {
+    const config: CollabTableConfig = DEFAULT_COLLAB_TABLE_CONFIG; // 160x80 -> 2:1
+
+    test("locks the rectangle's screen aspect ratio to the table's, regardless of canvas shape", () => {
+        const corners = viewfinderScreenCorners(1200, 800, config);
+        const [topLeft, topRight, bottomRight] = corners;
+        const width = topRight[0] - topLeft[0];
+        const height = bottomRight[1] - topRight[1];
+        expect(width / height).toBeCloseTo(2, 5);
+    });
+
+    test("centres the rectangle on the canvas", () => {
+        const canvasWidth = 1200;
+        const canvasHeight = 800;
+        const corners = viewfinderScreenCorners(canvasWidth, canvasHeight, config);
+        const [topLeft, topRight, bottomRight] = corners;
+        const centerX = (topLeft[0] + topRight[0]) / 2;
+        const centerY = (topLeft[1] + bottomRight[1]) / 2;
+        expect(centerX).toBeCloseTo(canvasWidth / 2, 5);
+        expect(centerY).toBeCloseTo(canvasHeight / 2, 5);
+    });
+
+    test("shrinks to fit whichever canvas dimension is the binding constraint", () => {
+        // A tall, narrow canvas: width is the binding constraint for a 2:1 rectangle.
+        const corners = viewfinderScreenCorners(400, 1000, config);
+        const [topLeft, topRight] = corners;
+        const width = topRight[0] - topLeft[0];
+        expect(width).toBeLessThanOrEqual(400);
     });
 });
 
