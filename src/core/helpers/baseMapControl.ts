@@ -30,17 +30,18 @@ export class BaseMapControl implements IControl {
 
     onAdd(map: maplibregl.Map): HTMLElement {
         /**
-         * Add basemaps to the map.
-         * We should check if the map is loaded before adding the basemaps. Also if there is already another layers
-         * on the map, we should add the basemaps before the first layer.
+         * Add basemaps to the map once it's loaded. `firstLayerId` must be read inside
+         * `initializeBasemaps`, not here: at `onAdd` time the style is still empty (the map was
+         * just constructed), so capturing it early always resolves to `undefined` — which makes
+         * `addLayer` append the raster basemap to the very top of the stack once `load` fires,
+         * covering any layer added in the meantime (e.g. Terra Draw's, if the user starts drawing
+         * before the map finishes loading).
          */
-        const layers = map.getStyle()?.layers;
-        const firstLayerId: string|undefined = layers !== undefined && layers.length > 0 ? layers[0].id : undefined;
         if (map.loaded()) {
-            this.initializeBasemaps(map, firstLayerId);
+            this.initializeBasemaps(map);
         } else {
             map.on("load", () => {
-                this.initializeBasemaps(map, firstLayerId);
+                this.initializeBasemaps(map);
             })
         }
         return this.container;
@@ -50,7 +51,9 @@ export class BaseMapControl implements IControl {
         this.container.parentNode?.removeChild(this.container);
     }
 
-    private initializeBasemaps(map: maplibregl.Map, firstLayerId?: string): void {
+    private initializeBasemaps(map: maplibregl.Map): void {
+        const layers = map.getStyle()?.layers;
+        const firstLayerId: string|undefined = layers !== undefined && layers.length > 0 ? layers[0].id : undefined;
         this.options.maps.forEach((basemap) => {
             this.addBasemapSource(map, basemap);
             this.addBasemapLayer(map, basemap, firstLayerId);
