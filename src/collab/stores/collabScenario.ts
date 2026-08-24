@@ -108,14 +108,20 @@ const VIEWFINDER_INVALID_COLOR = "#dc2626";
  * GeoJSON, not freehand draw" AOI mechanism: the operator pans/zooms the basemap under a
  * fixed-ratio rectangle instead of drawing one by hand, so the selected AOI's aspect ratio is
  * always correct by construction.
+ *
+ * `obscuredLeftPx` shrinks the usable region from the left before centring — the Control sidebar
+ * floats over the map's west edge while AOI selection runs, so centring on the full canvas would
+ * put the rectangle visually off-center in the space actually visible to the operator.
  */
 export function viewfinderScreenCorners(
     canvasWidth: number,
     canvasHeight: number,
-    config: CollabTableConfig
+    config: CollabTableConfig,
+    obscuredLeftPx = 0
 ): [[number, number], [number, number], [number, number], [number, number]] {
     const aspectRatio = config.physicalTable.widthCm / config.physicalTable.heightCm;
-    const maxWidth = canvasWidth * VIEWFINDER_SCREEN_FRACTION;
+    const visibleWidth = Math.max(0, canvasWidth - obscuredLeftPx);
+    const maxWidth = visibleWidth * VIEWFINDER_SCREEN_FRACTION;
     const maxHeight = canvasHeight * VIEWFINDER_SCREEN_FRACTION;
     let boxWidth = maxWidth;
     let boxHeight = boxWidth / aspectRatio;
@@ -123,7 +129,7 @@ export function viewfinderScreenCorners(
         boxHeight = maxHeight;
         boxWidth = boxHeight * aspectRatio;
     }
-    const centerX = canvasWidth / 2;
+    const centerX = obscuredLeftPx + visibleWidth / 2;
     const centerY = canvasHeight / 2;
     const left = centerX - boxWidth / 2;
     const right = centerX + boxWidth / 2;
@@ -253,6 +259,22 @@ export const useCollabScenarioStore = defineStore("collabScenario", () => {
     }
 
     /**
+     * Width, in canvas-pixels, that the Control sidebar (`BaseSlideoverSidebarComponent`, id
+     * "collabControl") currently occludes from the map's west edge. Measured from the live DOM
+     * rather than hardcoded so it tracks the sidebar's actual rendered width (`w-[min(24rem,
+     * calc(100vw-5rem))]`) across breakpoints instead of drifting out of sync with its CSS.
+     */
+    function controlSidebarObscuredLeftPx(canvas: HTMLCanvasElement): number {
+        const sidebarEl = document.getElementById("collabControl");
+        if (sidebarEl === null) {
+            return 0;
+        }
+        const sidebarRight = sidebarEl.getBoundingClientRect().right;
+        const canvasLeft = canvas.getBoundingClientRect().left;
+        return Math.max(0, sidebarRight - canvasLeft);
+    }
+
+    /**
      * Recomputes `viewfinderExtent`/`viewfinderValid` from the current map view — the viewfinder
      * rectangle's on-screen position/size never changes while selecting; only its geographic
      * extent does, as the operator pans/zooms the basemap under it.
@@ -263,7 +285,8 @@ export const useCollabScenarioStore = defineStore("collabScenario", () => {
             return;
         }
         const canvas = map.getCanvas();
-        const screenCorners = viewfinderScreenCorners(canvas.clientWidth, canvas.clientHeight, tableConfig.value);
+        const obscuredLeftPx = controlSidebarObscuredLeftPx(canvas);
+        const screenCorners = viewfinderScreenCorners(canvas.clientWidth, canvas.clientHeight, tableConfig.value, obscuredLeftPx);
         const corners = screenCorners.map((screenPoint) => {
             const { lng, lat } = map.unproject(screenPoint);
             return [lng, lat] as Position;
