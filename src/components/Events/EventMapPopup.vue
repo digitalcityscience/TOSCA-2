@@ -1,9 +1,7 @@
 <template>
     <article class="event-popup grid gap-3">
         <div class="flex flex-wrap gap-1.5">
-            <UBadge :color="locationColor" variant="subtle">
-                {{ locationLabel }}
-            </UBadge>
+            <EventLocationBadge :mode="event.location_mode" />
             <UBadge v-if="seriesLabel !== ''" color="info" variant="subtle" icon="i-lucide-repeat-2">
                 {{ seriesLabel }}
             </UBadge>
@@ -45,10 +43,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { type EventMapProperties } from "@store/events";
+import EventLocationBadge from "./EventLocationBadge.vue";
 import { previewTaxonomyChips } from "./taxonomyChips";
 import {
-    eventLocationColor,
-    eventLocationLabel,
     eventSeriesPosition,
     formatEventDate,
 } from "./eventPresentation";
@@ -62,8 +59,6 @@ const emit = defineEmits<{
 }>();
 
 const dateLabel = computed(() => formatEventDate(props.event.start_datetime));
-const locationLabel = computed(() => eventLocationLabel(props.event.location_mode));
-const locationColor = computed(() => eventLocationColor(props.event.location_mode));
 const seriesLabel = computed(() => {
     return eventSeriesPosition(props.event.occurrence_index, props.event.total_occurrences);
 });

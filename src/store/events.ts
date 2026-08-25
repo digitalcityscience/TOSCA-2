@@ -22,6 +22,15 @@ const EVENT_SERIES_API_PATH = "/api/v1/event-series";
 const EVENT_TYPES_API_PATH = "/api/v1/event-types";
 const EVENT_TAXONOMY_API_PATH = "/api/v1/event-taxonomy";
 
+// Administrative extent of Hamburg (west, south, east, north). Event map
+// data is loaded once for this extent and clustered locally by MapLibre.
+export const HAMBURG_EVENT_BBOX: [number, number, number, number] = [
+    8.4205518,
+    53.3951118,
+    10.3252805,
+    53.9646546,
+];
+
 export type EventLocationMode =
     | "physical"
     | "online"
@@ -328,10 +337,13 @@ export const useEventsStore = defineStore("events", () => {
     const loadingMap = ref(false);
     const loadingDetail = ref(false);
     const loadingRegistries = ref(false);
+    const loadedMapRequestKey = ref("");
     const error = ref("");
     const filters = ref<EventFilters>({
         include_past: false,
     });
+    let activeMapRequest: Promise<void> | undefined;
+    let activeMapRequestKey = "";
 
     function setFilters(nextFilters: EventFilters): void {
         filters.value = {
@@ -406,20 +418,43 @@ export const useEventsStore = defineStore("events", () => {
         }
     }
 
-    async function loadEventMap(bbox?: [number, number, number, number]): Promise<void> {
+    async function loadEventMap(): Promise<void> {
+        const requestUrl = buildEventMapUrl(filters.value, HAMBURG_EVENT_BBOX);
+        const requestKey = requestUrl.toString();
+        if (loadedMapRequestKey.value === requestKey) {
+            return;
+        }
+        if (activeMapRequest !== undefined && activeMapRequestKey === requestKey) {
+            return await activeMapRequest;
+        }
+
         loadingMap.value = true;
+        activeMapRequestKey = requestKey;
+        const request = fetchEventMap(requestUrl, requestKey);
+        activeMapRequest = request;
         try {
-            const response = await fetchBackendJson<EventMapResponse>(
-                buildEventMapUrl(filters.value, bbox),
-                "Event"
-            );
+            await request;
+        } finally {
+            if (activeMapRequest === request) {
+                activeMapRequest = undefined;
+                activeMapRequestKey = "";
+                loadingMap.value = false;
+            }
+        }
+    }
+
+    async function fetchEventMap(requestUrl: URL, requestKey: string): Promise<void> {
+        try {
+            const response = await fetchBackendJson<EventMapResponse>(requestUrl, "Event");
+            if (activeMapRequestKey !== requestKey) {
+                return;
+            }
             spatialEvents.value = response.spatial_events;
             onlineEvents.value = response.online_events;
+            loadedMapRequestKey.value = requestKey;
         } catch (err) {
             reportDeveloperError("Loading event map data", err);
             throw err;
-        } finally {
-            loadingMap.value = false;
         }
     }
 

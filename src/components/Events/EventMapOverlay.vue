@@ -5,7 +5,7 @@
 <script setup lang="ts">
 import maplibre, { type GeoJSONSource, type MapMouseEvent, type Popup } from "maplibre-gl";
 import { h, onBeforeUnmount, onMounted, render, watch } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import {
     getEventFeatureId,
     type EventMapProperties,
@@ -16,10 +16,14 @@ import { useToast } from "@helpers/toast";
 import { reportDeveloperError } from "@helpers/userFacingError";
 import EventClusterPopup from "./EventClusterPopup.vue";
 import EventMapPopup from "./EventMapPopup.vue";
+import { parseEventPointLocation } from "./eventLocation";
 
 const EVENT_SOURCE_ID = "events-route-source";
 const EVENT_LAYER_ID = "events-route-pins";
 const EVENT_CLUSTER_COUNT_LAYER_ID = "events-route-cluster-count";
+const SELECTED_EVENT_SOURCE_ID = "events-selected-event-source";
+const SELECTED_EVENT_HALO_LAYER_ID = "events-selected-event-halo";
+const SELECTED_EVENT_LAYER_ID = "events-selected-event-pin";
 const EVENT_INTERACTIVE_LAYER_IDS = [
     EVENT_CLUSTER_COUNT_LAYER_ID,
     EVENT_LAYER_ID,
@@ -27,6 +31,7 @@ const EVENT_INTERACTIVE_LAYER_IDS = [
 
 const events = useEventsStore();
 const mapStore = useMapStore();
+const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 let popup: Popup | undefined;
@@ -39,7 +44,6 @@ onMounted(() => {
 onBeforeUnmount(() => {
     popup?.remove();
     if (mapStore.map !== undefined) {
-        mapStore.map.off("moveend", refreshFromViewport);
         mapStore.map.off("click", handleMapClick);
         mapStore.map.off("styledata", restoreOverlayAfterStyleChange);
         EVENT_INTERACTIVE_LAYER_IDS.forEach((layerId) => {
@@ -59,9 +63,10 @@ watch(
 );
 
 watch(
-    () => events.filters,
+    [() => route.name, () => events.selectedEvent],
     () => {
-        refreshFromViewport();
+        updateSourceData();
+        updateSelectedEventSourceData();
     },
     { deep: true }
 );
@@ -69,8 +74,6 @@ watch(
 async function setupOverlay(): Promise<void> {
     await waitForMapStyle();
     installOverlay();
-    refreshFromViewport();
-    mapStore.map.on("moveend", refreshFromViewport);
     mapStore.map.on("click", handleMapClick);
     mapStore.map.on("styledata", restoreOverlayAfterStyleChange);
     EVENT_INTERACTIVE_LAYER_IDS.forEach((layerId) => {
@@ -154,20 +157,65 @@ function installOverlay(): void {
             layout: {
                 "text-field": "{point_count_abbreviated}",
                 "text-size": 13,
+                // The app only bundles this glyph stack. MapLibre otherwise requests
+                // its implicit default font, receives the SPA HTML fallback, and its
+                // PBF decoder reports the misleading "Unimplemented type: 4" error.
+                "text-font": ["Open Sans Regular"],
             },
             paint: {
                 "text-color": "#ffffff",
             },
         });
     }
+
+    if (mapStore.map.getSource(SELECTED_EVENT_SOURCE_ID) === undefined) {
+        mapStore.map.addSource(SELECTED_EVENT_SOURCE_ID, {
+            type: "geojson",
+            data: selectedEventFeatureCollection(),
+        });
+    }
+
+    if (mapStore.map.getLayer(SELECTED_EVENT_HALO_LAYER_ID) === undefined) {
+        mapStore.map.addLayer({
+            id: SELECTED_EVENT_HALO_LAYER_ID,
+            type: "circle",
+            source: SELECTED_EVENT_SOURCE_ID,
+            paint: {
+                "circle-color": selectedEventColorExpression(),
+                "circle-radius": 19,
+                "circle-opacity": 0.22,
+                "circle-stroke-color": selectedEventColorExpression(),
+                "circle-stroke-opacity": 0.8,
+                "circle-stroke-width": 2,
+            },
+        });
+    }
+
+    if (mapStore.map.getLayer(SELECTED_EVENT_LAYER_ID) === undefined) {
+        mapStore.map.addLayer({
+            id: SELECTED_EVENT_LAYER_ID,
+            type: "circle",
+            source: SELECTED_EVENT_SOURCE_ID,
+            paint: {
+                "circle-color": selectedEventColorExpression(),
+                "circle-radius": 10,
+                "circle-opacity": 1,
+                "circle-stroke-color": "#ffffff",
+                "circle-stroke-width": 3,
+            },
+        });
+    }
+    // Style changes can recreate the regular event layers after this marker.
+    // Reassert the order so the selected location always remains visible.
+    mapStore.map.moveLayer(SELECTED_EVENT_HALO_LAYER_ID);
+    mapStore.map.moveLayer(SELECTED_EVENT_LAYER_ID);
     overlayInstalled = true;
 }
 
 function restoreOverlayAfterStyleChange(): void {
     if (
         !overlayInstalled ||
-        !mapStore.map.isStyleLoaded() ||
-        mapStore.map.getSource(EVENT_SOURCE_ID) !== undefined
+        !mapStore.map.isStyleLoaded()
     ) {
         return;
     }
@@ -176,6 +224,15 @@ function restoreOverlayAfterStyleChange(): void {
 
 function removeOverlay(): void {
     overlayInstalled = false;
+    if (mapStore.map.getLayer(SELECTED_EVENT_LAYER_ID) !== undefined) {
+        mapStore.map.removeLayer(SELECTED_EVENT_LAYER_ID);
+    }
+    if (mapStore.map.getLayer(SELECTED_EVENT_HALO_LAYER_ID) !== undefined) {
+        mapStore.map.removeLayer(SELECTED_EVENT_HALO_LAYER_ID);
+    }
+    if (mapStore.map.getSource(SELECTED_EVENT_SOURCE_ID) !== undefined) {
+        mapStore.map.removeSource(SELECTED_EVENT_SOURCE_ID);
+    }
     if (mapStore.map.getLayer(EVENT_CLUSTER_COUNT_LAYER_ID) !== undefined) {
         mapStore.map.removeLayer(EVENT_CLUSTER_COUNT_LAYER_ID);
     }
@@ -192,17 +249,48 @@ function updateSourceData(): void {
     source?.setData(normalizedSpatialEvents());
 }
 
-function refreshFromViewport(): void {
-    if (mapStore.map === undefined) {
-        return;
+function updateSelectedEventSourceData(): void {
+    const source = mapStore.map?.getSource(SELECTED_EVENT_SOURCE_ID) as GeoJSONSource | undefined;
+    source?.setData(selectedEventFeatureCollection());
+}
+
+function selectedEventFeatureCollection(): GeoJSON.FeatureCollection<GeoJSON.Point> {
+    const selectedEvent = events.selectedEvent;
+    if (
+        route.name !== "event-detail" ||
+        selectedEvent === undefined ||
+        !["physical", "hybrid"].includes(selectedEvent.location_mode)
+    ) {
+        return { type: "FeatureCollection", features: [] };
     }
-    const bounds = mapStore.map.getBounds();
-    events.loadEventMap([
-        bounds.getWest(),
-        bounds.getSouth(),
-        bounds.getEast(),
-        bounds.getNorth(),
-    ]).catch(showError);
+
+    const coordinates = parseEventPointLocation(selectedEvent.location);
+    if (coordinates === undefined) {
+        return { type: "FeatureCollection", features: [] };
+    }
+
+    return {
+        type: "FeatureCollection",
+        features: [{
+            type: "Feature",
+            id: selectedEvent.id,
+            geometry: { type: "Point", coordinates },
+            properties: {
+                id: selectedEvent.id,
+                location_mode: selectedEvent.location_mode,
+                title: selectedEvent.title,
+            },
+        }],
+    };
+}
+
+function selectedEventColorExpression(): maplibre.ExpressionSpecification {
+    return [
+        "match",
+        ["get", "location_mode"],
+        "hybrid", "#f59e0b",
+        "#127369",
+    ];
 }
 
 function handleMapClick(event: MapMouseEvent): void {
@@ -319,9 +407,22 @@ function isClusterFeature(feature: maplibre.MapGeoJSONFeature): boolean {
 }
 
 function normalizedSpatialEvents(): GeoJSON.FeatureCollection {
+    const selectedEventId = route.name === "event-detail"
+        ? events.selectedEvent?.id
+        : undefined;
     return {
         ...events.spatialEvents,
-        features: events.spatialEvents.features.map(normalizeSingleFeature),
+        features: events.spatialEvents.features
+            .filter((feature) => {
+                if (selectedEventId === undefined) {
+                    return true;
+                }
+                return getEventFeatureId(
+                    feature.id,
+                    feature.properties ?? undefined
+                ) !== selectedEventId;
+            })
+            .map(normalizeSingleFeature),
     };
 }
 

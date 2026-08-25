@@ -41,7 +41,21 @@ export function eventLocationColor(mode: EventLocationMode): EventBadgeColor {
     if (mode === "hybrid") {
         return "warning";
     }
+    if (mode === "by_arrangement") {
+        return "neutral";
+    }
     return "success";
+}
+
+export function eventLocationIcon(mode: EventLocationMode): string {
+    const icons: Record<EventLocationMode, string> = {
+        physical: "i-lucide-map-pin",
+        online: "i-lucide-monitor",
+        hybrid: "i-lucide-panels-top-left",
+        by_arrangement: "i-lucide-message-circle-question",
+        home_visit: "i-lucide-house",
+    };
+    return icons[mode] ?? "i-lucide-map-pin";
 }
 
 export function eventSeriesPosition(
