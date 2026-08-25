@@ -5,20 +5,114 @@ import {
     buildCatalogLayersUrl,
     buildCatalogProvidersUrl,
     buildCatalogResourceUrl,
+    buildCatalogStylesUrl,
+    buildCatalogStyleUrl,
     buildCatalogWorkspacesUrl,
     buildRasterFeatureInfoUrl,
     buildWmsLegendUrl,
+    catalogLayerStyleReferences,
     deduplicatePopupAttributeFeatures,
     type CatalogProvider,
     type GeoserverRasterTypeLayerDetail,
     type GeoServerVectorTypeLayerDetail,
     queryRasterFeatureInfo,
     resolveLegendUrl,
+    selectCatalogStyleLayers,
     type RasterFeatureInfoLayer,
     type RasterFeatureInfoPoint,
     type WorkspaceListItem,
     useGeoserverStore,
 } from "./geoserver";
+
+describe("catalog layer styles", () => {
+    test("resolves GeoServer alternatives through the provider-scoped Django catalog", () => {
+        const references = catalogLayerStyleReferences({
+            name: "districts",
+            type: "VECTOR",
+            defaultStyle: { name: "default", href: "/styles/default" },
+            styles: {
+                style: [
+                    { name: "labels", href: "https://geoserver.test/styles/labels" },
+                    { name: "outline", href: "https://geoserver.test/styles/outline" },
+                ],
+            },
+            resource: { "@class": "featureType", name: "districts", href: "/resource" },
+            attribution: { logoWidth: 0, logoHeight: 0 },
+            dateCreated: "2026-08-24",
+            dateModified: "2026-08-24",
+        }, [
+            {
+                id: "style-labels",
+                name: "labels",
+                qualified_name: "Hamburg:labels",
+                title: "With labels",
+                description: "",
+                format: "mbstyle",
+                scope: "workspace",
+                provider: { id: "provider-1", name: "Primary" },
+                workspace: { id: "workspace-1", name: "Hamburg" },
+                validation_state: "VALID",
+                remote_state: "SYNCED",
+                content_hash: "abc",
+                sprite_asset_id: null,
+            },
+            {
+                id: "style-outline",
+                name: "outline",
+                qualified_name: "Hamburg:outline",
+                title: "Outline",
+                description: "",
+                format: "mbstyle",
+                scope: "workspace",
+                provider: { id: "provider-1", name: "Primary" },
+                workspace: { id: "workspace-1", name: "Hamburg" },
+                validation_state: "VALID",
+                remote_state: "SYNCED",
+                content_hash: "def",
+                sprite_asset_id: null,
+            },
+        ], "provider-1", "Hamburg");
+
+        expect(references.map((style) => style.name)).toEqual([
+            "default",
+            "labels",
+            "outline",
+        ]);
+        expect(new URL(references[1].href).pathname).toBe(
+            "/api/v1/catalog/providers/provider-1/styles/style-labels"
+        );
+    });
+
+    test("keeps fill, outline, and symbol passes for the same source layer", () => {
+        const layers = selectCatalogStyleLayers([
+            {
+                id: "stadtteil-polygons",
+                type: "fill",
+                "source-layer": "Stadtteil_ab_01012011_etrs",
+                paint: { "fill-color": "#4C78A8" },
+            },
+            {
+                id: "stadtteil-outlines",
+                type: "line",
+                "source-layer": "Stadtteil_ab_01012011_etrs",
+                paint: { "line-color": "#FF0000", "line-width": 1 },
+            },
+            {
+                id: "stadtteil-labels",
+                type: "symbol",
+                "source-layer": "Stadtteil_ab_01012011_etrs",
+                layout: { "text-field": "{Stadtteil}" },
+            },
+        ], {
+            name: "district-labels",
+            href: "/styles/district-labels",
+        }, "Stadtteil_ab_01012011_etrs");
+
+        expect(layers.map((layer) => layer.type)).toEqual(["fill", "line", "symbol"]);
+        expect(layers[2].layout?.["text-field"]).toBe("{Stadtteil}");
+    });
+
+});
 
 describe("WMS legends", () => {
     test("adds the assigned style to a generated group-member legend URL", () => {
@@ -239,8 +333,40 @@ describe("catalog store", () => {
         );
         expect(buildCatalogResourceUrl("provider/1", "Harbour City", "rain/2026").toString()).toBe(
             "http://localhost:8000/api/v1/catalog/providers/provider%2F1/" +
-            "workspaces/Harbour%20City/resources/rain%2F2026"
+                "workspaces/Harbour%20City/resources/rain%2F2026"
         );
+        expect(buildCatalogStylesUrl("provider/1").toString()).toBe(
+            "http://localhost:8000/api/v1/catalog/providers/provider%2F1/styles"
+        );
+        expect(buildCatalogStyleUrl("provider/1", "style/1").toString()).toBe(
+            "http://localhost:8000/api/v1/catalog/providers/provider%2F1/styles/style%2F1"
+        );
+    });
+
+    test("loads styles from the provider-scoped Django catalog", async () => {
+        fetchMock.mockResolvedValueOnce(jsonResponse([{
+            id: "style-1",
+            name: "district-labels",
+            qualified_name: "Hamburg:district-labels",
+            title: "District labels",
+            description: "",
+            format: "mbstyle",
+            scope: "workspace",
+            provider: { id: "provider/1", name: "Primary" },
+            workspace: { id: "workspace-1", name: "Hamburg" },
+            validation_state: "VALID",
+            remote_state: "SYNCED",
+            content_hash: "abc",
+            sprite_asset_id: null,
+        }]));
+
+        const catalog = useGeoserverStore();
+        const styles = await catalog.getStyleList("provider/1");
+
+        expect(fetchMock.mock.calls[0][0].toString()).toBe(
+            "http://localhost:8000/api/v1/catalog/providers/provider%2F1/styles"
+        );
+        expect(styles[0]).toMatchObject({ id: "style-1", format: "mbstyle" });
     });
 
     test("loads providers before their workspaces and retains provider ownership", async () => {

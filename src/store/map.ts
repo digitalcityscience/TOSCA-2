@@ -19,6 +19,14 @@ export interface LayerStyleOptions {
     maxzoom?: number;
     visibility?: "none" | "visible";
 }
+export interface MapLayerStyleOption {
+    id: string;
+    name: string;
+    title?: string;
+    isDefault?: boolean;
+    layers: CatalogGroupStyleLayer[];
+    spriteUrl?: string;
+}
 export interface CustomAddLayerObject {
     id: string;
     source: string;
@@ -28,6 +36,8 @@ export interface CustomAddLayerObject {
     paint?: Record<string, unknown>;
     layout?: Record<string, unknown>;
     filter?: unknown[];
+    minzoom?: number;
+    maxzoom?: number;
     filterLayer?: boolean;
     layerData?: FeatureCollection;
     displayName?: string;
@@ -52,6 +62,8 @@ export interface LayerObjectWithAttributes extends CustomAddLayerObject {
     spriteRuntimeIds?: string[];
     mbStyleLayers?: CatalogLayerGroupManifest["layers"];
     mbStyleLegendContext?: MapStyleLegendContext;
+    availableStyles?: MapLayerStyleOption[];
+    activeStyleId?: string;
 }
 type SourceType = "geojson" | "geoserver";
 export type MapLibreLayerTypes =
@@ -1108,6 +1120,130 @@ export const useMapStore = defineStore("map", () => {
         (source as unknown as { setTiles: (tiles: string[]) => void }).setTiles([url]);
         layer.time = time;
     }
+
+    /** Replace every render pass for a standalone layer with another MBStyle. */
+    async function setStandaloneLayerStyle(
+        identifier: string,
+        styleId: string
+    ): Promise<void> {
+        if (isNullOrEmpty(map.value)) {
+            throw new Error("There is no map to update");
+        }
+        const layer = layersOnMap.value.find((candidate) => candidate.id === identifier);
+        if (layer === undefined || layer.logicalKind === "group") {
+            throw new Error(`Standalone layer ${identifier} not found`);
+        }
+        if (layer.activeStyleId === styleId) return;
+        const selectedStyle = layer.availableStyles?.find((style) => style.id === styleId);
+        if (selectedStyle === undefined || selectedStyle.layers.length === 0) {
+            throw new Error(`Style ${styleId} is not available for layer ${identifier}`);
+        }
+
+        const oldLayerIds = [identifier, ...(layer.companionLayerIds ?? [])];
+        const mapStyleLayers = (map.value.getStyle?.().layers ?? []) as AddLayerObject[];
+        const oldIdSet = new Set(oldLayerIds);
+        const oldLayerSpecs = mapStyleLayers.filter((candidate) => oldIdSet.has(candidate.id));
+        const lastOldIndex = mapStyleLayers.reduce(
+            (last, candidate, index) => oldIdSet.has(candidate.id) ? index : last,
+            -1
+        );
+        const beforeId = lastOldIndex >= 0
+            ? mapStyleLayers[lastOldIndex + 1]?.id
+            : undefined;
+        const wasHidden = map.value.getLayoutProperty?.(identifier, "visibility") === "none";
+        const oldSpriteRuntimeIds = [...(layer.spriteRuntimeIds ?? [])];
+        let newSpriteRuntimeId: string | undefined;
+
+        if (selectedStyle.spriteUrl !== undefined) {
+            newSpriteRuntimeId = await acquireMapSprite(
+                selectedStyle.spriteUrl,
+                `sprite-${sanitizeRuntimePart(identifier)}-${sanitizeRuntimePart(selectedStyle.id)}`
+            );
+        }
+
+        // The sprite fetch above can outlive the layer: it may be deleted (or
+        // the whole map reset) while we were awaiting. Bail out instead of
+        // re-adding layers against a source that no longer exists.
+        if (
+            isNullOrEmpty(map.value) ||
+            layersOnMap.value.find((candidate) => candidate.id === identifier) === undefined
+        ) {
+            if (newSpriteRuntimeId !== undefined) releaseMapSprite(newSpriteRuntimeId);
+            throw new Error(`Layer ${identifier} is no longer available`);
+        }
+
+        const selectedStyleLayers = selectedStyle.layers.map((styleLayer) => ({
+            ...styleLayer,
+            metadata: {
+                ...(styleLayer.metadata ?? {}),
+                "tosca:member-id": "standalone",
+                "tosca:style-id": "standalone-style",
+            },
+        }));
+        const nextLayerSpecs = selectedStyleLayers.map((styleLayer, index) => {
+            const layout = rewriteSpriteLayout(styleLayer.layout ?? {}, newSpriteRuntimeId);
+            return {
+                ...styleLayer,
+                id: index === 0 ? identifier : `${identifier}:style:${index}`,
+                type: styleLayer.type as MapLibreLayerTypes,
+                source: layer.source,
+                ...(layer["source-layer"] === undefined
+                    ? {}
+                    : { "source-layer": layer["source-layer"] }),
+                ...(styleLayer.paint === undefined
+                    ? {}
+                    : { paint: rewriteSpritePaint(styleLayer.paint, newSpriteRuntimeId) }),
+                ...(Object.keys(layout).length === 0 && !wasHidden
+                    ? {}
+                    : { layout: { ...layout, ...(wasHidden ? { visibility: "none" } : {}) } }),
+            } as unknown as AddLayerObject;
+        });
+
+        const addedLayerIds: string[] = [];
+        try {
+            [...oldLayerIds].reverse().forEach((layerId) => {
+                if (map.value.getLayer(layerId) !== undefined) map.value.removeLayer(layerId);
+            });
+            nextLayerSpecs.forEach((specification) => {
+                map.value.addLayer(specification, beforeId);
+                addedLayerIds.push(specification.id);
+            });
+        } catch (error) {
+            [...addedLayerIds].reverse().forEach((layerId) => {
+                if (map.value.getLayer(layerId) !== undefined) map.value.removeLayer(layerId);
+            });
+            oldLayerSpecs.forEach((specification) => map.value.addLayer(specification, beforeId));
+            if (newSpriteRuntimeId !== undefined) releaseMapSprite(newSpriteRuntimeId);
+            throw error;
+        }
+
+        const primary = nextLayerSpecs[0] as unknown as CatalogGroupStyleLayer;
+        for (const key of ["paint", "layout", "filter", "minzoom", "maxzoom"] as const) {
+            delete layer[key];
+        }
+        layer.type = primary.type as MapLibreLayerTypes;
+        layer.paint = primary.paint;
+        layer.layout = primary.layout;
+        layer.filter = primary.filter;
+        layer.minzoom = primary.minzoom;
+        layer.maxzoom = primary.maxzoom;
+        layer.companionLayerIds = nextLayerSpecs.slice(1).map((specification) => specification.id);
+        layer.mbStyleLayers = selectedStyleLayers;
+        layer.mbStyleLegendContext = {
+            members: [{ id: "standalone", title: layer.displayName ?? layer.source }],
+            styles: {
+                "standalone-style": {
+                    sprite_id: selectedStyle.spriteUrl === undefined ? null : "standalone-sprite",
+                },
+            },
+            sprites: selectedStyle.spriteUrl === undefined
+                ? {}
+                : { "standalone-sprite": { url: selectedStyle.spriteUrl } },
+        };
+        layer.activeStyleId = selectedStyle.id;
+        layer.spriteRuntimeIds = newSpriteRuntimeId === undefined ? [] : [newSpriteRuntimeId];
+        oldSpriteRuntimeIds.forEach(releaseMapSprite);
+    }
     return {
         map,
         layersOnMap,
@@ -1129,6 +1265,7 @@ export const useMapStore = defineStore("map", () => {
         resetMapData,
         geometryConversion,
         setRasterLayerTime,
+        setStandaloneLayerStyle,
     };
 });
 
@@ -1140,12 +1277,21 @@ export function rewriteSpriteLayout(
     layout: Record<string, unknown>,
     spriteRuntimeId?: string
 ): Record<string, unknown> {
-    if (spriteRuntimeId === undefined || layout["icon-image"] === undefined) return { ...layout };
-    const iconImage = layout["icon-image"];
-    return {
-        ...layout,
-        "icon-image": prefixSpriteReference(iconImage, spriteRuntimeId),
-    };
+    const rewritten = { ...layout };
+    if (spriteRuntimeId !== undefined && rewritten["icon-image"] !== undefined) {
+        rewritten["icon-image"] = prefixSpriteReference(
+            rewritten["icon-image"],
+            spriteRuntimeId
+        );
+    }
+    // MapLibre's implicit default is a two-font stack, but this app only ships
+    // glyph PBFs for Open Sans Regular. Without an explicit text-font, the
+    // missing two-font URL falls through to index.html and the PBF decoder
+    // reports the misleading error "Unimplemented type".
+    if (rewritten["text-field"] !== undefined && rewritten["text-font"] === undefined) {
+        rewritten["text-font"] = ["Open Sans Regular"];
+    }
+    return rewritten;
 }
 
 export function rewriteSpritePaint(

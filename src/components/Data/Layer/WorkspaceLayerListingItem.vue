@@ -22,12 +22,16 @@
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 import {
+    catalogLayerStyleReferences,
+    selectCatalogStyleLayers,
     type CatalogGroupStyleLayer,
+    type CatalogStyleListItem,
     type GeoserverLayerInfo,
     type GeoserverLayerListItem,
     type WorkspaceListItem,
     useGeoserverStore,
 } from "@store/geoserver";
+import type { MapLayerStyleOption } from "@store/map";
 import { useToast } from "@helpers/toast";
 import { reportDeveloperError } from "@helpers/userFacingError";
 import WorkspaceRasterLayerListingItem from "./WorkspaceRasterLayerListingItem.vue";
@@ -41,8 +45,8 @@ export interface LayerStylingPaint {
     paint: object
 }
 export interface LayerStylingBundle {
-    layers: CatalogGroupStyleLayer[];
-    spriteUrl?: string;
+    styles: MapLayerStyleOption[];
+    defaultStyleId: string;
 }
 const props = defineProps<Props>()
 const { t } = useI18n();
@@ -58,18 +62,61 @@ async function loadLayerInformation(): Promise<void> {
         const response = await geoserver.getLayerInformation(props.item, props.workspace)
         layerInformation.value = response.layer
         try {
-            const style = await geoserver.getLayerStyling(response.layer.defaultStyle.href)
-            if (Array.isArray(style?.layers) && style.layers.length > 0){
-                const selectedIds = response.layer.defaultStyle.styleLayerIds ?? []
-                const selectedLayers = selectedIds.length > 0
-                    ? style.layers.filter((layer: CatalogGroupStyleLayer) => selectedIds.includes(layer.id))
-                    : style.layers.filter((layer: CatalogGroupStyleLayer) =>
-                        layer.source === props.item.name || layer["source-layer"] === props.item.name
+            let catalogStyles: CatalogStyleListItem[] = []
+            try {
+                catalogStyles = await geoserver.getStyleList(props.workspace.provider.id)
+            } catch (styleListError) {
+                reportDeveloperError(
+                    `Loading style catalog for provider ${props.workspace.provider.id}`,
+                    styleListError
+                )
+            }
+            const references = catalogLayerStyleReferences(
+                response.layer,
+                catalogStyles,
+                props.workspace.provider.id,
+                props.workspace.name
+            )
+            const loadedStyles = await Promise.all(references.map(async (reference, index) => {
+                try {
+                    const style = await geoserver.getLayerStyling(reference.href)
+                    if (!Array.isArray(style?.layers) || style.layers.length === 0) return undefined
+                    const selectedLayers = selectCatalogStyleLayers(
+                        style.layers as CatalogGroupStyleLayer[],
+                        reference,
+                        props.item.name
                     )
+                    const optionId = reference.id ?? reference.assignmentId ?? reference.href
+                    return {
+                        id: optionId,
+                        name: reference.name,
+                        title: reference.title ?? reference.name,
+                        isDefault: index === 0,
+                        layers: selectedLayers.map((layer: CatalogGroupStyleLayer) => ({ ...layer })),
+                        ...(typeof style.sprite === "string" ? { spriteUrl: style.sprite } : {}),
+                    } satisfies MapLayerStyleOption
+                } catch (styleError) {
+                    reportDeveloperError(
+                        `Loading optional style ${reference.name} for ${props.workspace.name}:${props.item.name}`,
+                        styleError
+                    )
+                    return undefined
+                }
+            }))
+            const availableStyles: MapLayerStyleOption[] = loadedStyles.flatMap(
+                (style) => style === undefined ? [] : [style]
+            )
+            if (availableStyles.length > 0) {
+                // The reference flagged isDefault may have failed to load and
+                // been dropped above; fall back to the first survivor so one
+                // option is always marked default.
+                if (!availableStyles.some((style) => style.isDefault)) {
+                    availableStyles[0].isDefault = true
+                }
+                const defaultStyle = availableStyles.find((style) => style.isDefault) ?? availableStyles[0]
                 layerStyling.value = {
-                    layers: (selectedLayers.length > 0 ? selectedLayers : [style.layers[0]])
-                        .map((layer: CatalogGroupStyleLayer) => ({ ...layer })),
-                    ...(typeof style.sprite === "string" ? { spriteUrl: style.sprite } : {}),
+                    styles: availableStyles,
+                    defaultStyleId: defaultStyle.id,
                 }
             }
         } catch (styleError) {

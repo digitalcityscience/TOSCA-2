@@ -197,15 +197,22 @@ export interface GeoServerFeatureTypeAttribute {
   nillable: boolean;
   binding: string;
 }
+export interface CatalogLayerStyleReference {
+  id?: string;
+  name: string;
+  title?: string;
+  href: string;
+  assignmentId?: string | null;
+  styleLayerIds?: string[];
+  format?: "mbstyle" | "sld" | null;
+}
 export interface GeoserverLayerInfo {
   name: string;
   type: string;
-  defaultStyle: {
-    name: string;
-    href: string;
-    assignmentId?: string | null;
-    styleLayerIds?: string[];
-    format?: "mbstyle" | "sld" | null;
+  defaultStyle: CatalogLayerStyleReference;
+  /** GeoServer-shaped alternative assignments; resolved through the Django style catalog. */
+  styles?: CatalogLayerStyleReference[] | {
+    style: CatalogLayerStyleReference | CatalogLayerStyleReference[]
   };
   resource: {
     "@class": string;
@@ -219,6 +226,83 @@ export interface GeoserverLayerInfo {
   dateCreated: string;
   dateModified: string;
 }
+
+export interface CatalogStyleListItem {
+  id: string;
+  name: string;
+  qualified_name: string;
+  title: string;
+  description: string;
+  format: "mbstyle" | "sld";
+  scope: "global" | "workspace";
+  provider: { id: string; name: string; engine_type?: string };
+  workspace: { id: string; name: string } | null;
+  validation_state: string;
+  remote_state: string;
+  content_hash: string;
+  sprite_asset_id: string | null;
+}
+
+/** Return the default style followed by every unique alternative style. */
+export function catalogLayerStyleReferences(
+  layer: GeoserverLayerInfo,
+  catalogStyles: CatalogStyleListItem[] = [],
+  providerId?: string,
+  workspaceName?: string
+): CatalogLayerStyleReference[] {
+  const nativeStyleValue = Array.isArray(layer.styles)
+    ? layer.styles
+    : layer.styles?.style;
+  const nativeAlternatives = nativeStyleValue === undefined
+    ? []
+    : Array.isArray(nativeStyleValue) ? nativeStyleValue : [nativeStyleValue];
+  const candidates = [
+    layer.defaultStyle,
+    ...nativeAlternatives.flatMap((remoteStyle) => {
+      const catalogStyle = catalogStyles.find(
+        (style) => style.qualified_name === remoteStyle.name
+      ) ?? catalogStyles.find(
+        (style) => style.name === remoteStyle.name && style.workspace?.name === workspaceName
+      ) ?? catalogStyles.find(
+        (style) => style.name === remoteStyle.name && style.scope === "global"
+      );
+      if (catalogStyle === undefined || providerId === undefined) return [];
+      return [{
+        id: catalogStyle.id,
+        name: catalogStyle.name,
+        title: catalogStyle.title || catalogStyle.name,
+        href: buildCatalogStyleUrl(providerId, catalogStyle.id).toString(),
+        format: catalogStyle.format,
+        styleLayerIds: remoteStyle.styleLayerIds,
+      }];
+    }),
+  ];
+  const seen = new Set<string>();
+  return candidates.filter((style) => {
+    if (style?.href === undefined || style.href === "") return false;
+    const key = style.name;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/** Select every render pass in a style document that belongs to one catalog layer. */
+export function selectCatalogStyleLayers(
+  layers: CatalogGroupStyleLayer[],
+  reference: CatalogLayerStyleReference,
+  layerName: string
+): CatalogGroupStyleLayer[] {
+  if (layers.length === 0) return [];
+  const selectedIds = reference.styleLayerIds ?? [];
+  const matchingLayers = selectedIds.length > 0
+    ? layers.filter((layer) => selectedIds.includes(layer.id))
+    : layers.filter((layer) =>
+        layer.source === layerName || layer["source-layer"] === layerName
+      );
+  return matchingLayers.length > 0 ? matchingLayers : [layers[0]];
+}
+
 export interface GeoserverLayerInfoResponse {
   layer: GeoserverLayerInfo;
   provider?: CatalogProvider;
@@ -533,6 +617,20 @@ export function buildCatalogLayersUrl(
   return new URL(
     `${CATALOG_API_PATH}/providers/${encodeURIComponent(providerId)}` +
       `/workspaces/${encodeURIComponent(workspaceName)}/layers`,
+    getBackendRootUrl()
+  );
+}
+
+export function buildCatalogStylesUrl(providerId: string): URL {
+  return new URL(
+    `${CATALOG_API_PATH}/providers/${encodeURIComponent(providerId)}/styles`,
+    getBackendRootUrl()
+  );
+}
+
+export function buildCatalogStyleUrl(providerId: string, styleRef: string): URL {
+  return new URL(
+    `${buildCatalogStylesUrl(providerId).pathname}/${encodeURIComponent(styleRef)}`,
     getBackendRootUrl()
   );
 }
@@ -896,6 +994,7 @@ export const useGeoserverStore = defineStore("geoserver", () => {
   const loadingCatalog = ref(false);
   const catalogError = ref("");
   const wmsCapabilitiesCache = new Map<string, Promise<WmsCapabilities>>();
+  const styleListCache = new Map<string, Promise<CatalogStyleListItem[]>>();
   let catalogLoadPromise: Promise<WorkspaceListResponse> | undefined;
 
   async function getProviderList(force = false): Promise<CatalogProvider[]> {
@@ -1122,6 +1221,28 @@ export const useGeoserverStore = defineStore("geoserver", () => {
     };
   }
 
+  /** List valid styles from Django's provider-scoped catalog. */
+  async function getStyleList(
+    providerId: string,
+    force = false
+  ): Promise<CatalogStyleListItem[]> {
+    if (!force) {
+      const cached = styleListCache.get(providerId);
+      if (cached !== undefined) return await cached;
+    }
+    const request = fetchBackendJson<CatalogStyleListItem[]>(
+      buildCatalogStylesUrl(providerId),
+      "Catalog styles"
+    );
+    styleListCache.set(providerId, request);
+    try {
+      return await request;
+    } catch (error) {
+      if (styleListCache.get(providerId) === request) styleListCache.delete(providerId);
+      throw error;
+    }
+  }
+
   /**
    * Retrieves vector or raster resource details through the Django catalog.
    *
@@ -1331,6 +1452,7 @@ export const useGeoserverStore = defineStore("geoserver", () => {
     getLayerList,
     getWorkspaceList,
     getLayerInformation,
+    getStyleList,
     getLayerGroup,
     getLayerDetail,
     getProviderBaseUrlForWorkspace,
