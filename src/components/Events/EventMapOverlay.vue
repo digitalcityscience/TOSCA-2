@@ -63,7 +63,7 @@ watch(
 );
 
 watch(
-    [() => route.name, () => events.selectedEvent],
+    [() => route.name, () => route.params.eventId, () => events.selectedEvent],
     () => {
         updateSourceData();
         updateSelectedEventSourceData();
@@ -255,10 +255,28 @@ function updateSelectedEventSourceData(): void {
 }
 
 function selectedEventFeatureCollection(): GeoJSON.FeatureCollection<GeoJSON.Point> {
+    const routeEventId = selectedRouteEventId();
+    const mapFeature = events.spatialEvents.features.find((feature) => {
+        return getEventFeatureId(feature.id, feature.properties ?? undefined) === routeEventId;
+    });
+    if (
+        mapFeature?.geometry.type === "Point" &&
+        ["physical", "hybrid"].includes(String(mapFeature.properties?.location_mode))
+    ) {
+        return {
+            type: "FeatureCollection",
+            features: [{
+                ...mapFeature,
+                properties: normalizeFeatureProperties(mapFeature.properties ?? {}),
+            }],
+        };
+    }
+
     const selectedEvent = events.selectedEvent;
     if (
-        route.name !== "event-detail" ||
+        routeEventId === "" ||
         selectedEvent === undefined ||
+        selectedEvent.id !== routeEventId ||
         !["physical", "hybrid"].includes(selectedEvent.location_mode)
     ) {
         return { type: "FeatureCollection", features: [] };
@@ -407,14 +425,12 @@ function isClusterFeature(feature: maplibre.MapGeoJSONFeature): boolean {
 }
 
 function normalizedSpatialEvents(): GeoJSON.FeatureCollection {
-    const selectedEventId = route.name === "event-detail"
-        ? events.selectedEvent?.id
-        : undefined;
+    const selectedEventId = selectedRouteEventId();
     return {
         ...events.spatialEvents,
         features: events.spatialEvents.features
             .filter((feature) => {
-                if (selectedEventId === undefined) {
+                if (selectedEventId === "") {
                     return true;
                 }
                 return getEventFeatureId(
@@ -424,6 +440,14 @@ function normalizedSpatialEvents(): GeoJSON.FeatureCollection {
             })
             .map(normalizeSingleFeature),
     };
+}
+
+function selectedRouteEventId(): string {
+    if (route.name !== "event-detail") {
+        return "";
+    }
+    const eventId = route.params.eventId;
+    return Array.isArray(eventId) ? String(eventId[0] ?? "") : String(eventId ?? "");
 }
 
 function normalizeSingleFeature(feature: GeoJSON.Feature): GeoJSON.Feature {

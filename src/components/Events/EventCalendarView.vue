@@ -51,23 +51,55 @@
                     >
                         <div class="calendar-day-number">{{ day.date.getDate() }}</div>
                         <div class="grid gap-1">
-                            <UButton
+                            <UTooltip
                                 v-for="event in eventsByDay(day.date)"
                                 :key="event.id"
-                                :to="{ name: 'event-detail', params: { eventId: event.id } }"
-                                :color="eventLocationColor(event.location_mode)"
-                                variant="soft"
-                                size="xs"
-                                class="calendar-event"
-                                :icon="eventLocationIcon(event.location_mode)"
-                                :title="`${eventLocationLabel(event.location_mode)} — ${event.title}`"
-                                :aria-label="`${eventLocationLabel(event.location_mode)}, ${formatEventTime(event.start_datetime)} ${event.title}`"
+                                :delay-duration="150"
+                                :content="{ side: 'top', sideOffset: 8, collisionPadding: 12 }"
+                                :ui="{
+                                    content: 'calendar-event-tooltip',
+                                }"
                             >
-                                <span class="calendar-event-label">
-                                    <strong>{{ formatEventTime(event.start_datetime) }}</strong>
-                                    {{ event.title }}
-                                </span>
-                            </UButton>
+                                <UButton
+                                    :to="{ name: 'event-detail', params: { eventId: event.id } }"
+                                    :color="eventLocationColor(event.location_mode)"
+                                    variant="soft"
+                                    size="xs"
+                                    class="calendar-event w-full"
+                                    :icon="eventLocationIcon(event.location_mode)"
+                                    :aria-label="`${eventLocationLabel(event.location_mode)}, ${formatEventTime(event.start_datetime)} ${event.title}`"
+                                >
+                                    <span class="calendar-event-label">
+                                        <strong>{{ formatEventTime(event.start_datetime) }}</strong>
+                                        {{ event.title }}
+                                    </span>
+                                </UButton>
+
+                                <template #content>
+                                    <article class="grid gap-2 text-left">
+                                        <UBadge
+                                            :color="eventLocationColor(event.location_mode)"
+                                            variant="soft"
+                                            size="sm"
+                                            :icon="eventLocationIcon(event.location_mode)"
+                                            class="w-fit font-semibold"
+                                        >
+                                            {{ eventLocationLabel(event.location_mode) }}
+                                        </UBadge>
+                                        <h4 class="text-sm font-semibold leading-snug">{{ event.title }}</h4>
+                                        <p class="flex items-center gap-1.5 text-xs font-medium text-toned">
+                                            <UIcon name="i-lucide-calendar-clock" class="size-3.5 shrink-0 text-muted" />
+                                            <span>{{ formatEventPreviewDate(event.start_datetime) }}</span>
+                                        </p>
+                                        <p v-if="event.summary !== ''" class="line-clamp-3 text-xs leading-relaxed text-toned">
+                                            {{ event.summary }}
+                                        </p>
+                                        <p v-if="event.location_mode === 'online'" class="text-xs font-medium text-info">
+                                            Online event — no physical map location
+                                        </p>
+                                    </article>
+                                </template>
+                            </UTooltip>
                         </div>
                     </div>
                 </div>
@@ -145,6 +177,21 @@ function eventsByDay(date: Date): EventListItem[] {
     });
 }
 
+function formatEventPreviewDate(value: string): string {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+    return new Intl.DateTimeFormat(undefined, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+    }).format(date);
+}
+
 function goToPreviousMonth(): void {
     visibleMonth.value = new Date(visibleMonth.value.getFullYear(), visibleMonth.value.getMonth() - 1, 1);
 }
@@ -220,5 +267,20 @@ function isSameDay(a: Date, b: Date): boolean {
     text-overflow: ellipsis;
     white-space: nowrap;
     font-size: 0.7rem;
+}
+:global(.calendar-event-tooltip) {
+    z-index: 90 !important;
+    display: block !important;
+    width: 17rem;
+    max-width: calc(100vw - 1.5rem);
+    height: auto !important;
+    border: 1px solid var(--ui-border-accented) !important;
+    border-radius: 0.625rem !important;
+    background: var(--ui-bg) !important;
+    color: var(--ui-text) !important;
+    padding: 0.75rem !important;
+    opacity: 1 !important;
+    box-shadow: 0 12px 30px rgb(15 23 42 / 0.22) !important;
+    backdrop-filter: none !important;
 }
 </style>
