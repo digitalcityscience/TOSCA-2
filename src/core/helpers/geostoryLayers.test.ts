@@ -8,6 +8,7 @@ function makeStory(): GeoStoryDetail {
         layers: [
             {
                 display_order: 2,
+                style_assignment: null,
                 layer: {
                     id: "private-layer",
                     name: "private",
@@ -21,6 +22,15 @@ function makeStory(): GeoStoryDetail {
             },
             {
                 display_order: 1,
+                style_assignment: {
+                    id: "roads-assignment",
+                    style_id: "roads-style",
+                    name: "story-roads",
+                    qualified_name: "city:story-roads",
+                    role: "alternate",
+                    format: "mbstyle",
+                    style_layer_ids: ["roads-fill", "roads-outline"],
+                },
                 layer: {
                     id: "roads-layer",
                     name: "roads",
@@ -34,6 +44,7 @@ function makeStory(): GeoStoryDetail {
             },
             {
                 display_order: 0,
+                style_assignment: null,
                 layer: {
                     id: "draft-layer",
                     name: "draft",
@@ -83,6 +94,11 @@ describe("loadGeostoryLayersOnMap", () => {
             getLayerInformation: vi.fn(async () => {
                 callOrder.push("catalog");
                 return {
+                    provider: {
+                        id: "provider-1",
+                        name: "GeoServer",
+                        base_url: "https://maps.example.test/geoserver",
+                    },
                     layer: {
                         name: "roads",
                         type: "VECTOR",
@@ -99,6 +115,26 @@ describe("loadGeostoryLayersOnMap", () => {
                 };
             }),
             getLayerDetail: vi.fn(async () => makeVectorDetail()),
+            getLayerStyling: vi.fn(async () => ({
+                version: 8,
+                sources: {},
+                layers: [
+                    {
+                        id: "roads-fill",
+                        type: "fill",
+                        source: "roads",
+                        "source-layer": "roads",
+                        paint: { "fill-color": "#336699" },
+                    },
+                    {
+                        id: "roads-outline",
+                        type: "line",
+                        source: "roads",
+                        "source-layer": "roads",
+                        paint: { "line-color": "#ffffff" },
+                    },
+                ],
+            })),
         };
         const mapStore = {
             map: { fitBounds: vi.fn() },
@@ -111,6 +147,8 @@ describe("loadGeostoryLayersOnMap", () => {
             addMapLayer: vi.fn(async () => {
                 callOrder.push("layer");
             }),
+            addCompanionLayer: vi.fn(),
+            layersOnMap: [],
             geometryConversion: vi.fn((): "fill" => "fill"),
         };
 
@@ -128,6 +166,24 @@ describe("loadGeostoryLayersOnMap", () => {
         );
         expect(mapStore.addMapDataSource).toHaveBeenCalledTimes(1);
         expect(mapStore.addMapLayer).toHaveBeenCalledTimes(1);
+        expect(geoserverStore.getLayerStyling).toHaveBeenCalledWith(
+            expect.stringContaining(
+                "/api/v1/catalog/providers/provider-1/styles/roads-style"
+            )
+        );
+        expect(mapStore.addMapLayer).toHaveBeenCalledWith(expect.objectContaining({
+            layerType: "fill",
+            layerStyle: expect.objectContaining({
+                paint: { "fill-color": "#336699" },
+            }),
+        }));
+        expect(mapStore.addCompanionLayer).toHaveBeenCalledWith(
+            expect.any(String),
+            expect.objectContaining({
+                type: "line",
+                paint: { "line-color": "#ffffff" },
+            })
+        );
         expect(mapStore.map.fitBounds).toHaveBeenCalledTimes(1);
     });
 });
