@@ -75,4 +75,12 @@ describe("collabSession store", () => {
         expect(store.tableRender).toBeDefined();
         expect(store.simulation).toBeDefined();
     });
+
+    test("calibration defaults to idle/no-AOI/revision 0 (ticket 11)", () => {
+        const store = useCollabSessionStore();
+
+        expect(store.calibration.phase).toBe("idle");
+        expect(store.calibration.aoi).toBeNull();
+        expect(store.calibration.revision).toBe(0);
+    });
 });

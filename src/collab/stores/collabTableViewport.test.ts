@@ -1,0 +1,125 @@
+import { createPinia, setActivePinia } from "pinia";
+import { beforeEach, describe, expect, test, vi } from "vitest";
+import { nextTick } from "vue";
+import { useCollabSessionStore } from "./collabSession";
+import { startTableViewportSync } from "./collabTableViewport";
+
+/** Just enough of `maplibregl.Map`'s interaction-handler surface for `startTableViewportSync`. */
+function fakeInteractionHandler() {
+    return { disable: vi.fn(), enable: vi.fn() };
+}
+
+function fakeMap() {
+    return {
+        fitBounds: vi.fn(),
+        dragPan: fakeInteractionHandler(),
+        dragRotate: fakeInteractionHandler(),
+        scrollZoom: fakeInteractionHandler(),
+        doubleClickZoom: fakeInteractionHandler(),
+        touchZoomRotate: fakeInteractionHandler(),
+        keyboard: fakeInteractionHandler(),
+        boxZoom: fakeInteractionHandler(),
+    };
+}
+
+const hamburgAoi = {
+    corners: [
+        [9.98, 53.56],
+        [10.0, 53.56],
+        [10.0, 53.54],
+        [9.98, 53.54],
+    ] as [[number, number], [number, number], [number, number], [number, number]],
+};
+
+describe("startTableViewportSync (ticket 11)", () => {
+    beforeEach(() => {
+        setActivePinia(createPinia());
+    });
+
+    test("does nothing while there is no map, even with an AOI already set", () => {
+        const session = useCollabSessionStore();
+        session.calibration.aoi = hamburgAoi;
+        const mapStore = { map: undefined as ReturnType<typeof fakeMap> | undefined };
+
+        const stop = startTableViewportSync(session, mapStore as never);
+        stop();
+    });
+
+    test("does nothing while there is a map but no AOI yet — stays pannable on the generic viewport", () => {
+        const session = useCollabSessionStore();
+        const map = fakeMap();
+        const mapStore = { map: map as ReturnType<typeof fakeMap> | undefined };
+
+        const stop = startTableViewportSync(session, mapStore as never);
+
+        expect(map.fitBounds).not.toHaveBeenCalled();
+        expect(map.dragPan.disable).not.toHaveBeenCalled();
+        stop();
+    });
+
+    test("fits to the AOI bounds, then locks every interaction handler, once both map and AOI are present", () => {
+        const session = useCollabSessionStore();
+        const map = fakeMap();
+        const mapStore = { map: map as ReturnType<typeof fakeMap> | undefined };
+        session.calibration.aoi = hamburgAoi;
+
+        const stop = startTableViewportSync(session, mapStore as never);
+
+        expect(map.fitBounds).toHaveBeenCalledTimes(1);
+        expect(map.fitBounds).toHaveBeenCalledWith(
+            [
+                [9.98, 53.54],
+                [10.0, 53.56],
+            ],
+            { padding: 0, animate: false }
+        );
+        expect(map.dragPan.disable).toHaveBeenCalledTimes(1);
+        expect(map.dragRotate.disable).toHaveBeenCalledTimes(1);
+        expect(map.scrollZoom.disable).toHaveBeenCalledTimes(1);
+        expect(map.doubleClickZoom.disable).toHaveBeenCalledTimes(1);
+        expect(map.touchZoomRotate.disable).toHaveBeenCalledTimes(1);
+        expect(map.keyboard.disable).toHaveBeenCalledTimes(1);
+        expect(map.boxZoom.disable).toHaveBeenCalledTimes(1);
+        stop();
+    });
+
+    test("locks only once — a later AOI change does not fit/lock again", async () => {
+        const session = useCollabSessionStore();
+        const map = fakeMap();
+        const mapStore = { map: map as ReturnType<typeof fakeMap> | undefined };
+        session.calibration.aoi = hamburgAoi;
+
+        const stop = startTableViewportSync(session, mapStore as never);
+        expect(map.fitBounds).toHaveBeenCalledTimes(1);
+
+        session.calibration.aoi = {
+            corners: [
+                [9.5, 53.6],
+                [9.6, 53.6],
+                [9.6, 53.5],
+                [9.5, 53.5],
+            ],
+        };
+        await nextTick();
+
+        expect(map.fitBounds).toHaveBeenCalledTimes(1);
+        expect(map.dragPan.disable).toHaveBeenCalledTimes(1);
+        stop();
+    });
+
+    test("a Table opened with no AOI, then later given one once Control confirms it, still fits and locks", async () => {
+        const session = useCollabSessionStore();
+        const map = fakeMap();
+        const mapStore = { map: map as ReturnType<typeof fakeMap> | undefined };
+
+        const stop = startTableViewportSync(session, mapStore as never);
+        expect(map.fitBounds).not.toHaveBeenCalled();
+
+        session.calibration.aoi = hamburgAoi;
+        await nextTick();
+
+        expect(map.fitBounds).toHaveBeenCalledTimes(1);
+        expect(map.dragPan.disable).toHaveBeenCalledTimes(1);
+        stop();
+    });
+});

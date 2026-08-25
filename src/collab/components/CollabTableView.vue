@@ -1,5 +1,5 @@
 <template>
-    <div class="collab-table">
+    <div class="collab-table" :class="{ 'collab-table--presenting': session.calibration.phase === 'presenting' }">
         <div v-if="!syncStore.connected" class="collab-table-disconnected">
             <UIcon name="i-lucide-plug-zap" class="size-5 shrink-0" />
             <span>{{ t("collab.table.disconnected") }}</span>
@@ -15,16 +15,20 @@
  * `/collab/table` — the projector-facing window (plan §9/§11, ticket 06). A separate app
  * instance with its own MapLibre map (the one-map rule is per document, plan §0): a pure
  * `BroadcastChannel` subscriber that renders `useCollabSessionStore` and never mutates it. Once
- * the map is up, its viewport is locked (no pan/zoom/rotate) so the projected image stays put.
+ * the map is up, its viewport is fit to the AOI and locked (`collabTableViewport.ts`) so the
+ * projected image stays put. While `session.calibration.phase === "presenting"` (ticket 11),
+ * `collabTrackingRender.ts` additionally hides the basemap/scenario layers and renders the four
+ * calibration marker images — this component only supplies the high-contrast backdrop for that
+ * via the `.collab-table--presenting` class below.
  */
-import { onBeforeUnmount, onMounted, watch } from "vue";
+import { onBeforeUnmount, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import MapContainer from "@components/Map/MapContainer.vue";
 import { useMapStore } from "@store/map";
 import { useCollabSessionStore } from "../stores/collabSession";
 import { useCollabSyncStore } from "../stores/collabSync";
 import { useCollabTrackingRenderStore } from "../stores/collabTrackingRender";
-import { aoiBoundingBox } from "../stores/collabCalibration";
+import { startTableViewportSync } from "../stores/collabTableViewport";
 
 const { t } = useI18n();
 const mapStore = useMapStore();
@@ -32,60 +36,16 @@ const session = useCollabSessionStore();
 const syncStore = useCollabSyncStore();
 const trackingRenderStore = useCollabTrackingRenderStore();
 
-let viewportLocked = false;
-
-function lockViewport(): void {
-    const map = mapStore.map;
-    if (map === undefined || viewportLocked) {
-        return;
-    }
-    map.dragPan.disable();
-    map.dragRotate.disable();
-    map.scrollZoom.disable();
-    map.doubleClickZoom.disable();
-    map.touchZoomRotate.disable();
-    map.keyboard.disable();
-    map.boxZoom.disable();
-    viewportLocked = true;
-}
-
-/**
- * Fits the Table map to the Control-selected AOI (A1/A2) and only then locks the viewport, so the
- * projector shows the exact Collab AOI instead of the generic `VITE_MAP_START_*` viewport before
- * being frozen in place. Runs again on every `map`/`session.calibration.aoi` change so it also
- * covers the (re)load/localStorage-recovery path (`collabSync.startAsTable` may populate `aoi`
- * before or after the map itself becomes ready).
- */
-function fitToAoiThenLock(): void {
-    const map = mapStore.map;
-    const aoi = session.calibration.aoi;
-    // Intentionally never locks while `aoi` is null (A1/A2: lock only AFTER the AOI is
-    // established) — if Control never selects an AOI, the Table stays pannable on its generic
-    // startup viewport rather than freezing on the wrong one. This is a deliberate behavior
-    // change from the pre-fix "lock unconditionally once the map is ready".
-    if (map === undefined || aoi === null || viewportLocked) {
-        return;
-    }
-    const [minLng, minLat, maxLng, maxLat] = aoiBoundingBox(aoi);
-    map.fitBounds(
-        [
-            [minLng, minLat],
-            [maxLng, maxLat],
-        ],
-        { padding: 0, animate: false }
-    );
-    lockViewport();
-}
-
-const stopFitWatch = watch(() => [mapStore.map, session.calibration.aoi] as const, fitToAoiThenLock, { immediate: true });
+let stopViewportSync: (() => void) | undefined;
 
 onMounted(() => {
     syncStore.startAsTable();
     trackingRenderStore.startRendering("table");
+    stopViewportSync = startTableViewportSync(session, mapStore);
 });
 
 onBeforeUnmount(() => {
-    stopFitWatch();
+    stopViewportSync?.();
     syncStore.stop();
     trackingRenderStore.stop();
 });
@@ -100,6 +60,11 @@ onBeforeUnmount(() => {
 .collab-table-map {
     width: 100%;
     height: 100%;
+}
+/* ticket 11: clean, high-contrast backdrop once the basemap/scenario layers are hidden for
+   calibration presentation — the cameras need to read the marker images reliably. */
+.collab-table--presenting .collab-table-map {
+    background: #050505;
 }
 .collab-table-disconnected {
     position: absolute;

@@ -343,7 +343,9 @@
         "title": "Calibration status",
         "noAoi": "Select an AOI to begin calibration",
         "uncalibrated": "Connected, uncalibrated — recalibration required",
-        "calibrated": "Calibrated"
+        "calibrated": "Calibrated",
+        "presenting": "Table is presenting calibration markers — position the cameras, then exit to resume the normal projected view",
+        "exitPresentation": "Exit calibration presentation"
       },
       "footprints": {
         "title": "Building footprints",

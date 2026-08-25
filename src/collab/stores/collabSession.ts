@@ -65,15 +65,33 @@ export interface CollabSimulationState {
 }
 
 /**
+ * Whether the Table window is presenting the four map-calibration reference markers (ticket 11,
+ * fix-tickets). `"idle"` — normal Table rendering (scenario/tracked footprints etc.); `"presenting"`
+ * — Table shows only the `200`-`203` marker images at the AOI corners so the cameras can read them,
+ * with everything else hidden. A future ticket (real four-marker calibration) is expected to add
+ * further phases (e.g. `"calibrated"`) once it lands — kept to these two for now (YAGNI).
+ */
+export type CollabCalibrationPhase = "idle" | "presenting";
+
+/**
  * Derived calibration values both windows need but only Control can compute (plan §5b/§13):
  * the table→AOI rotation offset and the AOI itself (A1/A2), from Control's locally-selected AOI
  * (`collabScenario.aoi`). Broadcast like any other session slice (ticket 08) so the Table window
  * — which never runs AOI selection itself — renders tracked headings with the same offset Control
  * does, and fits its viewport to the same AOI Control selected rather than an independent one.
+ *
+ * `phase` and `revision` (ticket 11, fix-tickets): Control is the only writer for this whole slice
+ * — Table only ever reads it. `revision` is a monotonically increasing counter Control bumps on
+ * every write here (AOI change, phase change), so Table's watchers always have something to react
+ * to even on a write that happens to leave `aoi`/`phase`'s own values structurally unchanged (e.g.
+ * re-confirming the same AOI) — Control and Table must never disagree about what the projector is
+ * currently showing.
  */
 export interface CollabCalibrationState {
     rotationOffsetDeg: number;
     aoi: AOIExtent | null;
+    phase: CollabCalibrationPhase;
+    revision: number;
 }
 
 /**
@@ -138,7 +156,7 @@ export const useCollabSessionStore = defineStore("collabSession", () => {
     const tableRender = reactive<CollabTableRenderState>({ visibleLayerIds: [] });
     const simulation = reactive<CollabSimulationState>({ running: false, results: [], lastRunAt: null });
     const layerPolicy = reactive<CollabLayerPolicy>({ ...DEFAULT_COLLAB_LAYER_POLICY });
-    const calibration = reactive<CollabCalibrationState>({ rotationOffsetDeg: 0, aoi: null });
+    const calibration = reactive<CollabCalibrationState>({ rotationOffsetDeg: 0, aoi: null, phase: "idle", revision: 0 });
 
     /** Whether `layerId` should render for `windowKind`, per the current layer-policy matrix (plan §13). */
     function isLayerVisible(layerId: CollabLayerId, windowKind: "control" | "table"): boolean {

@@ -1,6 +1,6 @@
 import distance from "@turf/distance";
 import { point, polygon } from "@turf/helpers";
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import type { AOIExtent, CollabTableConfig } from "./collabCalibration";
 import {
     DEFAULT_COLLAB_TABLE_CONFIG,
@@ -8,6 +8,7 @@ import {
     angularDistanceDeg,
     aoiBoundingBox,
     buildMapCalibration,
+    calibrationMarkerSizePx,
     deriveGroundScale,
     deriveTrackedFootprint,
     isAoiZoomSufficient,
@@ -24,6 +25,29 @@ const hamburgAOI: AOIExtent = {
         [9.98, 53.54],
     ],
 };
+
+describe("calibrationMarkerSizePx (ticket 11)", () => {
+    afterEach(() => {
+        vi.unstubAllEnvs();
+    });
+
+    test("falls back to a documented placeholder when unset", () => {
+        vi.stubEnv("VITE_COLLAB_CALIBRATION_MARKER_SIZE_PX", undefined);
+        expect(calibrationMarkerSizePx()).toBe(80);
+    });
+
+    test("reads the configured value from VITE_COLLAB_CALIBRATION_MARKER_SIZE_PX", () => {
+        vi.stubEnv("VITE_COLLAB_CALIBRATION_MARKER_SIZE_PX", "150");
+        expect(calibrationMarkerSizePx()).toBe(150);
+    });
+
+    test("falls back for an unparsable/non-positive value rather than propagating garbage", () => {
+        vi.stubEnv("VITE_COLLAB_CALIBRATION_MARKER_SIZE_PX", "not-a-number");
+        expect(calibrationMarkerSizePx()).toBe(80);
+        vi.stubEnv("VITE_COLLAB_CALIBRATION_MARKER_SIZE_PX", "-10");
+        expect(calibrationMarkerSizePx()).toBe(80);
+    });
+});
 
 describe("tablePixelCorners", () => {
     test("reads width/height/inset from config, not from a fixed constant", () => {

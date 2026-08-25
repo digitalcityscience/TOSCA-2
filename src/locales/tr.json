@@ -343,7 +343,9 @@
         "title": "Kalibrasyon durumu",
         "noAoi": "Kalibrasyona başlamak için bir ilgi alanı seçin",
         "uncalibrated": "Bağlı, kalibre edilmedi — yeniden kalibrasyon gerekli",
-        "calibrated": "Kalibre edildi"
+        "calibrated": "Kalibre edildi",
+        "presenting": "Masa kalibrasyon işaretçilerini gösteriyor — kameraları konumlandırın, ardından normal görünüme dönmek için çıkın",
+        "exitPresentation": "Kalibrasyon sunumundan çık"
       },
       "footprints": {
         "title": "Bina yerleşim alanları",

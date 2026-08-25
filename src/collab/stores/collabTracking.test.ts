@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
-import type { MapCalibrationMessage } from "./collabCalibration";
+import type { AOIExtent, MapCalibrationMessage } from "./collabCalibration";
 import type {
     MarkerObjectRegistry,
     PythonConnectionState,
@@ -20,6 +20,8 @@ import {
     RESERVED_BUILDING_MARKER_IDS,
     RESERVED_MARKER_REGISTRY,
     TrackingFeedNormalizer,
+    aoiCornerForMapMarker,
+    calibrationMarkerImageUrl,
     createMarkerObjectRegistry,
     reservedMarkerRole,
 } from "./collabTracking";
@@ -88,6 +90,39 @@ describe("reserved marker id registry (ticket 08)", () => {
         for (const id of RESERVED_BUILDING_MARKER_IDS) {
             expect(reservedMarkerRole(id)).toBe("building-reserved");
         }
+    });
+});
+
+describe("aoiCornerForMapMarker (ticket 11)", () => {
+    const aoi: AOIExtent = {
+        corners: [
+            [9.98, 53.56], // top-left
+            [10.0, 53.56], // top-right
+            [10.0, 53.54], // bottom-right
+            [9.98, 53.54], // bottom-left
+        ],
+    };
+
+    test("resolves each MAP_CALIBRATION_MARKERS corner role to the matching AOI corner", () => {
+        expect(aoiCornerForMapMarker(aoi, "top_left")).toEqual([9.98, 53.56]);
+        expect(aoiCornerForMapMarker(aoi, "top_right")).toEqual([10.0, 53.56]);
+        expect(aoiCornerForMapMarker(aoi, "bottom_right")).toEqual([10.0, 53.54]);
+        expect(aoiCornerForMapMarker(aoi, "bottom_left")).toEqual([9.98, 53.54]);
+    });
+
+    test("agrees with MAP_CALIBRATION_MARKERS' own id-to-corner mapping (200 top-left ... 203 bottom-right)", () => {
+        const byId = new Map(MAP_CALIBRATION_MARKERS.map((marker) => [marker.id, marker.corner]));
+        expect(aoiCornerForMapMarker(aoi, byId.get(200)!)).toEqual(aoi.corners[0]);
+        expect(aoiCornerForMapMarker(aoi, byId.get(201)!)).toEqual(aoi.corners[1]);
+        expect(aoiCornerForMapMarker(aoi, byId.get(202)!)).toEqual(aoi.corners[3]);
+        expect(aoiCornerForMapMarker(aoi, byId.get(203)!)).toEqual(aoi.corners[2]);
+    });
+});
+
+describe("calibrationMarkerImageUrl (ticket 11)", () => {
+    test("returns a distinct public-asset path per marker id", () => {
+        expect(calibrationMarkerImageUrl(200)).toBe("/collab/calibration-markers/4x4_1000-200.svg");
+        expect(calibrationMarkerImageUrl(203)).toBe("/collab/calibration-markers/4x4_1000-203.svg");
     });
 });
 

@@ -343,7 +343,9 @@
         "title": "Kalibrierungsstatus",
         "noAoi": "Wählen Sie ein Interessengebiet aus, um mit der Kalibrierung zu beginnen",
         "uncalibrated": "Verbunden, nicht kalibriert — Neukalibrierung erforderlich",
-        "calibrated": "Kalibriert"
+        "calibrated": "Kalibriert",
+        "presenting": "Der Tisch zeigt die Kalibrierungsmarker an — Kameras positionieren, dann beenden, um zur normalen Projektion zurückzukehren",
+        "exitPresentation": "Kalibrierungsanzeige beenden"
       },
       "footprints": {
         "title": "Gebäudegrundrisse",

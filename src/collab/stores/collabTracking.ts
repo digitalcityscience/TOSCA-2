@@ -1,6 +1,6 @@
-import type { Feature, FeatureCollection, Point } from "geojson"
+import type { Feature, FeatureCollection, Point, Position } from "geojson"
 import { reportDeveloperError } from "@helpers/userFacingError"
-import type { MapCalibrationMessage } from "./collabCalibration"
+import type { AOIExtent, MapCalibrationMessage } from "./collabCalibration"
 
 /**
  * Transport-agnostic tracking boundary (plan §14, B1/B3). Views/stores program against
@@ -125,6 +125,38 @@ export const MAP_CALIBRATION_MARKERS: readonly MapCalibrationMarkerConfig[] = [
 
 /** Every {@link MAP_CALIBRATION_MARKERS} id, for cheap membership checks ("does this raw snapshot id matter for calibration readiness?"). */
 export const MAP_CALIBRATION_MARKER_IDS: ReadonlySet<number> = new Set(MAP_CALIBRATION_MARKERS.map((marker) => marker.id))
+
+/**
+ * Resolves the geographic corner of `aoi` a given map-calibration marker's `corner` role occupies
+ * (ticket 11, fix-tickets) — the deterministic AOI-corner position Table renders that marker's
+ * image at. `AOIExtent.corners` is ordered top-left/top-right/bottom-right/bottom-left
+ * (`collabCalibration.ts`); this maps {@link MapCalibrationMarkerCorner}'s four named roles onto
+ * that fixed order rather than relying on index arithmetic at every call site.
+ */
+export function aoiCornerForMapMarker(aoi: AOIExtent, corner: MapCalibrationMarkerCorner): Position {
+    const [topLeft, topRight, bottomRight, bottomLeft] = aoi.corners
+    switch (corner) {
+        case "top_left":
+            return topLeft
+        case "top_right":
+            return topRight
+        case "bottom_right":
+            return bottomRight
+        case "bottom_left":
+            return bottomLeft
+    }
+}
+
+/**
+ * Static asset URL for one {@link MAP_CALIBRATION_MARKERS} id's reference-marker image (ticket 11,
+ * fix-tickets). Served from `public/collab/calibration-markers/` — see that folder's `README.md`
+ * for provenance (unchanged copies of `COUP-table-web-interface/4x4_1000-{id}.svg`, the exact
+ * marker images/corner mapping the Vanilla system already uses). Plain public-path string, not a
+ * bundled import, so no build-time asset processing is involved.
+ */
+export function calibrationMarkerImageUrl(markerId: number): string {
+    return `/collab/calibration-markers/4x4_1000-${markerId}.svg`
+}
 
 /** The role a reserved/special marker id plays, per {@link RESERVED_MARKER_REGISTRY}. */
 export type ReservedMarkerRole = "camera-reference" | "map-calibration" | "ignored" | "building-reserved"

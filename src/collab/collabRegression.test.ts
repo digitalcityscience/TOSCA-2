@@ -374,6 +374,48 @@ describe("8/10 Control/Table synchronization + snapshot recovery", () => {
         expect(reopenedSession.calibration.aoi).toEqual(controlSession.calibration.aoi);
         reopenedSync.stop();
     });
+
+    test("ticket 11: the calibration-presentation flag + revision propagate Control -> Table live, and survive a Table reopen via localStorage", async () => {
+        localStorage.clear();
+
+        setActivePinia(createPinia());
+        const controlSession = useCollabSessionStore();
+        const controlSync = useCollabSyncStore();
+        expect(controlSession.calibration.phase).toBe("idle");
+
+        setActivePinia(createPinia());
+        const tableSession = useCollabSessionStore();
+        const tableSync = useCollabSyncStore();
+
+        const [controlChannel, tableChannel] = PairedTestChannel.createPair<CollabSyncMessage>();
+        controlSync.startAsControl(controlChannel);
+        tableSync.startAsTable(tableChannel);
+        await nextTick();
+        expect(tableSession.calibration.phase).toBe("idle");
+
+        // Control (only) flips into presentation mode — Table never writes this itself.
+        controlSession.calibration.phase = "presenting";
+        controlSession.calibration.revision += 1;
+        await nextTick();
+
+        expect(tableSession.calibration.phase).toBe("presenting");
+        expect(tableSession.calibration.revision).toBe(controlSession.calibration.revision);
+
+        controlSync.stop();
+        tableSync.stop();
+
+        // A reopened Table, with no live Control connection, recovers the presenting phase from
+        // localStorage rather than defaulting back to "idle".
+        setActivePinia(createPinia());
+        const reopenedSession = useCollabSessionStore();
+        const reopenedSync = useCollabSyncStore();
+        const disconnectedChannel = new PairedTestChannel<CollabSyncMessage>();
+        reopenedSync.startAsTable(disconnectedChannel);
+
+        expect(reopenedSession.calibration.phase).toBe("presenting");
+        expect(reopenedSession.calibration.revision).toBe(controlSession.calibration.revision);
+        reopenedSync.stop();
+    });
 });
 
 describe("16 Control orientation-arrow datum alignment", () => {

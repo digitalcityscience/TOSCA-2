@@ -5,6 +5,7 @@ import { point } from "@turf/helpers";
 import transformRotate from "@turf/transform-rotate";
 import transformTranslate from "@turf/transform-translate";
 import type { Position } from "geojson";
+import maplibre, { type Map as MapLibreMap, type Marker as MapLibreMarker } from "maplibre-gl";
 import type { Feature, FeatureCollection, MultiPolygon, Polygon } from "@helpers/geojson";
 import { reportDeveloperError } from "@helpers/userFacingError";
 import { useToast } from "@helpers/toast";
@@ -14,11 +15,14 @@ import { i18n } from "../../core/i18n";
 import { useMapStore } from "@store/map";
 import { useCollabSessionStore, type CollabSceneObject, type CollabTrackingObjectState } from "./collabSession";
 import { toFeature, useCollabScenarioStore, type CollabBuildingObject } from "./collabScenario";
-import { deriveTrackedFootprint, tableToAoiRotationOffsetDeg } from "./collabCalibration";
+import { calibrationMarkerSizePx, deriveTrackedFootprint, tableToAoiRotationOffsetDeg, type AOIExtent } from "./collabCalibration";
 import { maskContextAroundPhysicalFootprints } from "./collabMasking";
 import {
+    aoiCornerForMapMarker,
+    calibrationMarkerImageUrl,
     createMarkerObjectRegistry,
     MAP_CALIBRATION_MARKER_IDS,
+    MAP_CALIBRATION_MARKERS,
     MockTrackingSource,
     REFERENCE_MARKERS,
     RealTrackingSource,
@@ -64,6 +68,21 @@ const TRACKED_CONFIDENCE_LAYER_ID = "collabTrackedConfidence-symbol";
 
 const SIMULATION_RESULT_SOURCE_ID = "collabSimulationResult";
 const SIMULATION_RESULT_LAYER_ID = "collabSimulationResult-symbol";
+
+/**
+ * Every Collab-managed layer id that can exist on the Table window (ticket 11, fix-tickets) — the
+ * ones {@link syncCalibrationPresentation} hides while presenting, alongside the basemap. Control-
+ * only layer ids (bbox/orientation/confidence) are deliberately excluded: they are never created on
+ * Table in the first place (see `updateLayers`'s `windowKind === "control"` gates below).
+ */
+const TABLE_MANAGED_LAYER_IDS: readonly string[] = [
+    TABLE_SCENARIO_FILL_LAYER_ID,
+    TABLE_SCENARIO_OUTLINE_LAYER_ID,
+    TRACKED_FOOTPRINT_FILL_LAYER_ID,
+    TRACKED_FOOTPRINT_OUTLINE_LAYER_ID,
+    TRACKED_ID_LAYER_ID,
+    SIMULATION_RESULT_LAYER_ID,
+];
 
 /** Demo mock timeline's east offset (metres) for the "moved" snapshot — arbitrary but visible at map scale. */
 const DEMO_MOVE_METERS = 5;
@@ -146,6 +165,53 @@ export function orientationArrowTip(centre: Position, appliedRotationDeg: number
 }
 
 /**
+ * Hides every currently-visible raster (basemap) layer plus every already-created
+ * {@link TABLE_MANAGED_LAYER_IDS} layer, and returns the ids it actually changed (ticket 11,
+ * fix-tickets) — so `syncCalibrationPresentation` can restore exactly those, and only those, once
+ * presentation mode ends. Idempotent: a layer already hidden (by this or anything else) is left
+ * alone and not included in the returned list.
+ */
+export function hideNonCalibrationLayers(map: MapLibreMap): string[] {
+    const hidden: string[] = [];
+    const styleLayers = map.getStyle()?.layers ?? [];
+    const candidateIds = [
+        ...styleLayers.filter((layer) => layer.type === "raster").map((layer) => layer.id),
+        ...TABLE_MANAGED_LAYER_IDS,
+    ];
+    for (const id of candidateIds) {
+        if (map.getLayer(id) === undefined) {
+            continue;
+        }
+        const current = map.getLayoutProperty(id, "visibility") ?? "visible";
+        if (current !== "none") {
+            map.setLayoutProperty(id, "visibility", "none");
+            hidden.push(id);
+        }
+    }
+    return hidden;
+}
+
+/** Reverses {@link hideNonCalibrationLayers}: sets `visibility` back to `"visible"` for every given id that still exists. */
+export function restoreHiddenLayers(map: MapLibreMap, ids: readonly string[]): void {
+    for (const id of ids) {
+        if (map.getLayer(id) !== undefined) {
+            map.setLayoutProperty(id, "visibility", "visible");
+        }
+    }
+}
+
+/** Builds one calibration marker's `<img>` element, sized per {@link calibrationMarkerSizePx} (ticket 11). */
+function buildCalibrationMarkerElement(markerId: number): HTMLImageElement {
+    const el = document.createElement("img");
+    el.src = calibrationMarkerImageUrl(markerId);
+    el.alt = String(markerId);
+    const sizePx = calibrationMarkerSizePx();
+    el.style.width = `${sizePx}px`;
+    el.style.height = `${sizePx}px`;
+    return el;
+}
+
+/**
  * Wires the mock tracking adapter (ticket 05) into the session (ticket 04) and renders both
  * views from the layer-policy matrix (plan §13, ticket 08 — the M1 tracer bullet). Owned here
  * rather than in `collabScenario`/`collabTracking` because it composes both plus the map store
@@ -195,6 +261,10 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     let mockSource: MockTrackingSource | undefined;
     let realSource: RealTrackingSource | undefined;
     let stopWatch: (() => void) | undefined;
+    /** Live `maplibregl.Marker` instances for the four calibration markers, keyed by marker id (ticket 11). */
+    const calibrationMarkers = new Map<number, MapLibreMarker>();
+    /** Layer ids {@link syncCalibrationPresentation} hid — restored verbatim once presentation mode ends. */
+    let hiddenLayerIds: string[] = [];
 
     function knownFootprint(objectId: string): Feature<Polygon> | undefined {
         const object = session.currentScenario.find((candidate) => candidate.id === objectId);
@@ -465,9 +535,61 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         await new Promise<void>((resolve) => mapStore.map.once("load", () => resolve()));
     }
 
+    /**
+     * Keeps the Table window's calibration-presentation overlay in sync with
+     * `session.calibration.phase` (ticket 11, fix-tickets): while `"presenting"`, ensures the four
+     * `200`-`203` marker images sit at the AOI's corners and every basemap/Collab layer is hidden;
+     * otherwise removes the markers and restores exactly what this function itself hid. Control
+     * never calls this — the calibration overlay is Table-only, matching "Control keeps its own
+     * basemap for operator context."
+     */
+    function syncCalibrationPresentation(): void {
+        const map = mapStore.map as MapLibreMap | undefined;
+        const aoi: AOIExtent | null = session.calibration.aoi;
+        const presenting = session.calibration.phase === "presenting" && map !== undefined && aoi !== null;
+
+        if (!presenting) {
+            if (map !== undefined && hiddenLayerIds.length > 0) {
+                restoreHiddenLayers(map, hiddenLayerIds);
+            }
+            hiddenLayerIds = [];
+            for (const marker of calibrationMarkers.values()) {
+                marker.remove();
+            }
+            calibrationMarkers.clear();
+            return;
+        }
+
+        if (hiddenLayerIds.length === 0) {
+            hiddenLayerIds = hideNonCalibrationLayers(map);
+        }
+        for (const config of MAP_CALIBRATION_MARKERS) {
+            const corner = aoiCornerForMapMarker(aoi, config.corner);
+            const existing = calibrationMarkers.get(config.id);
+            if (existing === undefined) {
+                const marker = new maplibre.Marker({ element: buildCalibrationMarkerElement(config.id) })
+                    .setLngLat(corner as [number, number])
+                    .addTo(map);
+                calibrationMarkers.set(config.id, marker);
+            } else {
+                existing.setLngLat(corner as [number, number]);
+            }
+        }
+    }
+
     /** Renders every Collab layer `windowKind` is allowed to show, per `collabSession.layerPolicy` (plan §13). */
     async function updateLayers(windowKind: "control" | "table"): Promise<void> {
         await waitForStyleLoaded();
+
+        if (windowKind === "table") {
+            syncCalibrationPresentation();
+            if (session.calibration.phase === "presenting") {
+                // Calibration presentation is exclusive on Table (ticket 11): none of the normal
+                // scenario/tracked/simulation layers below may reach the map while it's active.
+                return;
+            }
+        }
+
         let policy: typeof session.layerPolicy;
         let tracked: ReturnType<typeof trackedRenderState>;
         try {
@@ -614,6 +736,9 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                         // offset, so the Table window can fit its viewport to it instead of an
                         // independent/generic one. Control stays authoritative — Table never sets this.
                         session.calibration.aoi = aoi === null ? null : { corners: [...aoi.corners] as typeof aoi.corners };
+                        // ticket 11: bump on every write to this slice, not only when the derived
+                        // values happen to change structurally (see CollabCalibrationState's doc).
+                        session.calibration.revision += 1;
                     },
                     { immediate: true }
                 )
@@ -793,6 +918,23 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         trackingAvailability.value = "live";
     }
 
+    /**
+     * Enters calibration-presentation mode (ticket 11, fix-tickets): Control calls this — never
+     * Table — typically right after opening the Table window, since Table always fits+locks to the
+     * AOI before rendering anything else regardless. A no-op-safe write: idempotent to call again
+     * while already presenting (e.g. refocusing an already-open Table window).
+     */
+    function enterCalibrationPresentation(): void {
+        session.calibration.phase = "presenting";
+        session.calibration.revision += 1;
+    }
+
+    /** Leaves calibration-presentation mode — a clean seam for the real four-marker calibration flow to call once calibration succeeds. */
+    function exitCalibrationPresentation(): void {
+        session.calibration.phase = "idle";
+        session.calibration.revision += 1;
+    }
+
     /** Tears down every tracking source, the Python transport, and the render watch. Idempotent — safe on unmount and HMR. */
     function stop(): void {
         stopWatch?.();
@@ -800,6 +942,11 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         stopMockTracking();
         disconnectPythonTransport();
         appliedRotationByObjectId.clear();
+        for (const marker of calibrationMarkers.values()) {
+            marker.remove();
+        }
+        calibrationMarkers.clear();
+        hiddenLayerIds = [];
     }
 
     onScopeDispose(stop);
@@ -814,6 +961,8 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         startMockTracking,
         stopMockTracking,
         retryPythonConnection,
+        enterCalibrationPresentation,
+        exitCalibrationPresentation,
         stop,
     };
 });

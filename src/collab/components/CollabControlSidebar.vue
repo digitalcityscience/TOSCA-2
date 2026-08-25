@@ -134,6 +134,15 @@
                 <span class="size-2 shrink-0 rounded-full" :class="calibrationStatusDotClass" />
                 {{ calibrationStatusText }}
             </p>
+            <UButton
+                v-if="collabSession.calibration.phase === 'presenting'"
+                :label="t('collab.control.calibration.exitPresentation')"
+                icon="i-lucide-eye-off"
+                size="xs"
+                variant="soft"
+                class="self-start"
+                @click="trackingRenderStore.exitCalibrationPresentation()"
+            />
         </div>
 
         <div v-if="!isRealTableRoute" class="mt-5 flex flex-col gap-2 border-t border-muted pt-4">
@@ -328,13 +337,18 @@ const pythonStatusTextClass = computed(() => {
 });
 
 /**
- * "Calibration status" text (ticket 09): distinguishes "no AOI yet" from "connected-uncalibrated,
- * recalibration required" (the only reachable state until ticket 12's real four-marker flow can
- * ever set `scenarioStore.calibrated`) from "calibrated".
+ * "Calibration status" text (ticket 09, extended by ticket 11): distinguishes "no AOI yet" from
+ * "Table is presenting calibration markers" (ticket 11 — takes priority over the plain
+ * uncalibrated/calibrated distinction, since it's an active, exitable mode, not just a status
+ * reading) from "connected-uncalibrated, recalibration required" (the only reachable state until
+ * ticket 12's real four-marker flow can ever set `scenarioStore.calibrated`) from "calibrated".
  */
 const calibrationStatusText = computed(() => {
     if (scenarioStore.aoi === null) {
         return t("collab.control.calibration.noAoi");
+    }
+    if (collabSession.calibration.phase === "presenting") {
+        return t("collab.control.calibration.presenting");
     }
     return t(scenarioStore.calibrated ? "collab.control.calibration.calibrated" : "collab.control.calibration.uncalibrated");
 });
@@ -343,12 +357,18 @@ const calibrationStatusDotClass = computed(() => {
     if (scenarioStore.aoi === null) {
         return "bg-muted";
     }
+    if (collabSession.calibration.phase === "presenting") {
+        return "bg-primary";
+    }
     return scenarioStore.calibrated ? "bg-success" : "bg-warning";
 });
 
 const calibrationStatusTextClass = computed(() => {
     if (scenarioStore.aoi === null) {
         return "text-muted";
+    }
+    if (collabSession.calibration.phase === "presenting") {
+        return "text-primary";
     }
     return scenarioStore.calibrated ? "text-success" : "text-warning";
 });
@@ -383,6 +403,10 @@ function openTableWindow(): void {
         return;
     }
     tableWindow.focus();
+    // ticket 11: Table always fits+locks to the AOI first regardless, so Control can enter
+    // presentation mode as soon as the window is opened rather than waiting on a signal back from
+    // Table (which never writes to shared session state — see collabTrackingRender.ts).
+    trackingRenderStore.enterCalibrationPresentation();
 }
 
 function finishAoi(): void {

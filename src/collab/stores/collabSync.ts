@@ -75,6 +75,8 @@ function cloneCalibration(value: CollabCalibrationState): CollabCalibrationState
     return {
         rotationOffsetDeg: value.rotationOffsetDeg,
         aoi: value.aoi === null ? null : { corners: [...value.aoi.corners] as typeof value.aoi.corners },
+        phase: value.phase,
+        revision: value.revision,
     };
 }
 

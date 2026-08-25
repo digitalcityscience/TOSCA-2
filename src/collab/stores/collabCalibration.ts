@@ -81,6 +81,20 @@ function targetGroundScale(): number {
 }
 
 /**
+ * Reads the calibration-marker rendered size, in screen pixels, from
+ * `VITE_COLLAB_CALIBRATION_MARKER_SIZE_PX` (ticket 11, fix-tickets): the Table window's viewport is
+ * locked at a fixed zoom once fit to the AOI (never panned/zoomed afterward), so a fixed screen-pixel
+ * size — not a geo-sized footprint — is enough. Camera ArUco recognition depends on this value; the
+ * final number only comes from physical testing on the real table/camera rig (mirrors
+ * `measuredProjectionInsetCm`'s B6 pattern). Unset/unparsable falls back to `80`, a working
+ * not-yet-measured placeholder, never hardcoded into the rendering routine itself.
+ */
+export function calibrationMarkerSizePx(): number {
+    const raw = Number(import.meta.env.VITE_COLLAB_CALIBRATION_MARKER_SIZE_PX ?? "")
+    return Number.isFinite(raw) && raw > 0 ? raw : 80
+}
+
+/**
  * Default config: physical table dimensions (plan §5a: 160×80 cm rig) and table-pixel density
  * (plan §5a/§5b: 10 px/cm, ~1600×800, fixed by Python's stitching pipeline) are real hardware/
  * protocol facts, not scale decisions. `projectionInset` and `aoiScaleTarget` read their measured
