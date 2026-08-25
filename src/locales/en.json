@@ -360,7 +360,8 @@
         "active": "Tracking active",
         "requiresFootprints": "Load footprints first",
         "suppressed": "Calibration in progress — showing last known positions",
-        "disconnected": "Tracking connection lost — showing last known positions"
+        "disconnected": "Tracking connection lost — showing last known positions",
+        "noAoi": "Select an area of interest before starting tracking"
       },
       "python": {
         "title": "Python tracking server",

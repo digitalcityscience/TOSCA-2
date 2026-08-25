@@ -1,8 +1,10 @@
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
+const toastAdd = vi.hoisted(() => vi.fn());
+
 vi.mock("@helpers/toast", () => ({
-    useToast: () => ({ add: vi.fn() }),
+    useToast: () => ({ add: toastAdd }),
 }));
 
 import type { CollabSceneObject, CollabTrackingObjectState } from "./collabSession";
@@ -104,6 +106,7 @@ describe("collabSession layer policy", () => {
 describe("collabTrackingRender store", () => {
     beforeEach(() => {
         setActivePinia(createPinia());
+        toastAdd.mockClear();
     });
 
     test("startMockTracking replays a timeline into session.tracking; stopMockTracking halts it", () => {
@@ -180,6 +183,79 @@ describe("collabTrackingRender store", () => {
         expect(session.calibration.rotationOffsetDeg).toBe(12);
     });
 
+    test("startMockTracking() forces MockTrackingSource when VITE_COLLAB_TRACKING_MODE is \"mock\", even with a WS URL and AOI calibration configured (ticket 03)", () => {
+        vi.stubEnv("VITE_COLLAB_TRACKING_MODE", "mock");
+        vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
+        vi.useFakeTimers();
+        vi.setSystemTime(0);
+
+        const scenarioStore = useCollabScenarioStore();
+        scenarioStore.mapCalibration = {
+            type: "map_calibration",
+            points: [{ pixel_position: [0, 0], lat_lon_position: [53.5, 10] }],
+        };
+
+        const trackingRender = useCollabTrackingRenderStore();
+        trackingRender.startMockTracking();
+
+        expect(trackingRender.active).toBe(true);
+        expect(trackingRender.pythonConnectionState).toBe("mock");
+
+        trackingRender.stopMockTracking();
+        vi.useRealTimers();
+        vi.unstubAllEnvs();
+    });
+
+    test("startMockTracking() uses RealTrackingSource when VITE_COLLAB_TRACKING_MODE is \"real\" and a WS URL + AOI calibration are configured (ticket 03)", () => {
+        vi.stubEnv("VITE_COLLAB_TRACKING_MODE", "real");
+        vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
+
+        class FakeSocket {
+            onopen: (() => void) | null = null;
+            onmessage: ((event: { data: string }) => void) | null = null;
+            onclose: (() => void) | null = null;
+            onerror: ((event: unknown) => void) | null = null;
+            sent: string[] = [];
+            send(data: string): void {
+                this.sent.push(data);
+            }
+            close(): void {}
+        }
+        vi.stubGlobal("WebSocket", FakeSocket as unknown as typeof WebSocket);
+
+        const scenarioStore = useCollabScenarioStore();
+        scenarioStore.mapCalibration = {
+            type: "map_calibration",
+            points: [{ pixel_position: [0, 0], lat_lon_position: [53.5, 10] }],
+        };
+
+        const trackingRender = useCollabTrackingRenderStore();
+        trackingRender.startMockTracking();
+
+        expect(trackingRender.active).toBe(true);
+        expect(trackingRender.pythonConnectionState).toBe("connecting");
+
+        trackingRender.stopMockTracking();
+        vi.unstubAllEnvs();
+        vi.unstubAllGlobals();
+    });
+
+    test("startMockTracking() falls back to MockTrackingSource in \"real\" mode when no WS URL is configured (safety net, ticket 03)", () => {
+        vi.stubEnv("VITE_COLLAB_TRACKING_MODE", "real");
+        vi.useFakeTimers();
+        vi.setSystemTime(0);
+
+        const trackingRender = useCollabTrackingRenderStore();
+        trackingRender.startMockTracking();
+
+        expect(trackingRender.active).toBe(true);
+        expect(trackingRender.pythonConnectionState).toBe("mock");
+
+        trackingRender.stopMockTracking();
+        vi.useRealTimers();
+        vi.unstubAllEnvs();
+    });
+
     test("startMockTracking(timeline) always uses the mock, even with a table host configured — an explicit timeline is a dev/demo override", () => {
         vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
         vi.useFakeTimers();
@@ -195,7 +271,7 @@ describe("collabTrackingRender store", () => {
         vi.unstubAllEnvs();
     });
 
-    test("startMockTracking() reports a developer error and stays inactive when a table host is configured without an AOI calibration (ticket 09)", () => {
+    test("startMockTracking() reports a developer error, surfaces a visible toast, and stays inactive when a table host is configured without an AOI calibration (ticket 01/09)", () => {
         vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
         const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
@@ -204,6 +280,10 @@ describe("collabTrackingRender store", () => {
 
         expect(trackingRender.active).toBe(false);
         expect(consoleError).toHaveBeenCalled();
+        expect(toastAdd).toHaveBeenCalledWith({
+            severity: "warning",
+            summary: "Select an area of interest before starting tracking",
+        });
 
         consoleError.mockRestore();
         vi.unstubAllEnvs();

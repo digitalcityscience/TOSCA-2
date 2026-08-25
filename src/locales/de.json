@@ -360,7 +360,8 @@
         "active": "Tracking aktiv",
         "requiresFootprints": "Zuerst Grundrisse laden",
         "suppressed": "Kalibrierung läuft — letzte bekannte Positionen werden angezeigt",
-        "disconnected": "Tracking-Verbindung unterbrochen — letzte bekannte Positionen werden angezeigt"
+        "disconnected": "Tracking-Verbindung unterbrochen — letzte bekannte Positionen werden angezeigt",
+        "noAoi": "Wählen Sie einen Interessenbereich aus, bevor Sie das Tracking starten"
       },
       "python": {
         "title": "Python-Tracking-Server",

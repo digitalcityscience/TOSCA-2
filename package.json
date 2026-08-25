@@ -12,6 +12,7 @@
     "docs": "typedoc",
     "dev": "vite --mode development",
     "dev:collab": "vite --mode collab",
+    "dev:collab:mock": "vite --mode collab.mock",
     "lint": "eslint .",
     "test": "vitest",
     "build": "vue-tsc && vite build --mode production",

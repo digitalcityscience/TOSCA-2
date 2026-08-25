@@ -7,7 +7,8 @@ import transformTranslate from "@turf/transform-translate";
 import type { Position } from "geojson";
 import type { Feature, FeatureCollection, MultiPolygon, Polygon } from "@helpers/geojson";
 import { reportDeveloperError } from "@helpers/userFacingError";
-import { resolveCollabTrackingWsUrl } from "../helpers/collabMode";
+import { useToast } from "@helpers/toast";
+import { resolveCollabTrackingMode, resolveCollabTrackingWsUrl } from "../helpers/collabMode";
 import { i18n } from "../../core/i18n";
 import { useMapStore } from "@store/map";
 import { useCollabSessionStore, type CollabSceneObject, type CollabTrackingObjectState } from "./collabSession";
@@ -158,6 +159,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     const session = useCollabSessionStore();
     const scenarioStore = useCollabScenarioStore();
     const mapStore = useMapStore();
+    const toast = useToast();
 
     const active = ref(false);
     const trackingAvailability = ref<TrackingAvailability>("live");
@@ -635,8 +637,9 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
      * marker→object registry `startMockTracking` uses and feeds `RealTrackingSource` events into
      * `applyTrackingEvent`/`session.tracking` unchanged — a pure transport swap behind
      * `TrackingSource`. Requires the operator to have already selected an AOI
-     * (`scenarioStore.mapCalibration`, ticket 07); reports a developer error and leaves tracking
-     * inactive rather than connecting with a stale/absent AOI.
+     * (`scenarioStore.mapCalibration`, ticket 07); surfaces a toast and leaves tracking inactive
+     * rather than connecting with a stale/absent AOI (ticket 01 — the operator must never see the
+     * "Start Tracking" button silently do nothing).
      */
     function startRealTracking(url: string): void {
         const calibration = scenarioStore.mapCalibration;
@@ -645,6 +648,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                 "collabTrackingRender.startRealTracking",
                 new Error("no AOI-derived map_calibration — select an AOI (ticket 07) before starting real tracking")
             );
+            toast.add({ severity: "warning", summary: i18n.global.t("collab.control.tracking.noAoi") });
             return;
         }
         const registry = buildMarkerRegistryFromBase(session.base.objects);
@@ -670,15 +674,19 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     }
 
     /**
-     * Starts tracking (plan §14, ticket 09): `RealTrackingSource` when
-     * `VITE_COLLAB_TRACKING_WS_URL` is configured, `MockTrackingSource` otherwise (plan §14's
-     * Milestone-1 default) — the swap the operator/UI never has to know about (ticket 09 "zero
-     * changes to views/stores"). An explicit `timeline` always forces the mock, since it only
-     * makes sense as a scripted demo/dev timeline.
+     * Starts tracking (plan §14, ticket 09; explicit mode switch ticket 03): `RealTrackingSource`
+     * when `VITE_COLLAB_TRACKING_MODE` resolves to `"real"` (the default) and
+     * `VITE_COLLAB_TRACKING_WS_URL` is configured, `MockTrackingSource` otherwise — the swap the
+     * operator/UI never has to know about (ticket 09 "zero changes to views/stores"). Mode
+     * `"mock"` forces `MockTrackingSource` even when a WS URL happens to be set (no more
+     * accidentally-real dev sessions just because `.env.collab` carries a URL); an unset/empty URL
+     * still falls back to mock as a safety net even in `"real"` mode. An explicit `timeline`
+     * always forces the mock, since it only makes sense as a scripted demo/dev timeline.
      */
     function startMockTracking(timeline?: readonly MockTrackingSnapshot[]): void {
         stopMockTracking();
-        const url = timeline === undefined ? resolveCollabTrackingWsUrl() : undefined;
+        const url =
+            timeline === undefined && resolveCollabTrackingMode() === "real" ? resolveCollabTrackingWsUrl() : undefined;
         if (url === undefined) {
             startMockTimeline(timeline);
         } else {

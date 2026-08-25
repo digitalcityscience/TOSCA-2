@@ -16,3 +16,18 @@ export function resolveCollabTrackingWsUrl(): string | undefined {
     const raw = String(import.meta.env.VITE_COLLAB_TRACKING_WS_URL ?? "").trim()
     return raw === "" ? undefined : raw
 }
+
+export type CollabTrackingMode = "mock" | "real"
+
+/**
+ * Explicit `TrackingSource` switch (ticket 03), driven by `VITE_COLLAB_TRACKING_MODE`. `"mock"`
+ * is the only value that opts in to forcing `MockTrackingSource` — every other value, including
+ * unset, resolves to `"real"` so a bare `VITE_COLLAB_TRACKING_WS_URL` keeps behaving as it did
+ * before this switch existed (callers still fall back to mock when that URL is absent). This
+ * makes the no-hardware dev path (`.env.collab.mock`) an intentional opt-in rather than something
+ * that happens only by omitting the URL.
+ */
+export function resolveCollabTrackingMode(): CollabTrackingMode {
+    const raw = String(import.meta.env.VITE_COLLAB_TRACKING_MODE ?? "").trim().toLowerCase()
+    return raw === "mock" ? "mock" : "real"
+}

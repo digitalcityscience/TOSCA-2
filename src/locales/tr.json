@@ -360,7 +360,8 @@
         "active": "Takip etkin",
         "requiresFootprints": "Önce yerleşim alanlarını yükleyin",
         "suppressed": "Kalibrasyon sürüyor — son bilinen konumlar gösteriliyor",
-        "disconnected": "Takip bağlantısı kesildi — son bilinen konumlar gösteriliyor"
+        "disconnected": "Takip bağlantısı kesildi — son bilinen konumlar gösteriliyor",
+        "noAoi": "Takibi başlatmadan önce bir ilgi alanı seçin"
       },
       "python": {
         "title": "Python takip sunucusu",
