@@ -2,6 +2,7 @@
 import { defineConfig, loadEnv } from "vite";
 import vue from "@vitejs/plugin-vue";
 import ui from "@nuxt/ui/vite";
+import { NuxtIconBundle } from "@nuxt/icon/vite";
 import vueI18n from "@intlify/unplugin-vue-i18n/vite";
 import { resolve } from "path";
 
@@ -21,6 +22,15 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       vue(),
+      NuxtIconBundle({
+        scan: {
+          globInclude: [
+            "src/**/*.{vue,js,ts,jsx,tsx}",
+            "node_modules/@nuxt/ui/dist/**/*.{vue,js,mjs,ts,jsx,tsx}",
+          ],
+          globExclude: [],
+        },
+      }),
       ui({
         ui: {
           button: {

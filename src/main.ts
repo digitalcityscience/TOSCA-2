@@ -5,6 +5,7 @@ import router from "./router"
 import "./style.css"
 import App from "./App.vue"
 import "@material-design-icons/font";
+import "virtual:nuxt-icon-bundle/register"
 import { i18n } from "./core/i18n"
 
 const pinia = createPinia()
