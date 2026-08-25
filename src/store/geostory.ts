@@ -58,8 +58,19 @@ export interface GeoStoryLayerSummary {
     publishing_state: string;
 }
 
+export interface GeoStoryStyleAssignment {
+    id: string;
+    style_id: string;
+    name: string;
+    qualified_name: string;
+    role: "default" | "alternate";
+    format: "mbstyle" | "sld";
+    style_layer_ids: string[];
+}
+
 export interface GeoStoryLayerLink {
     layer: GeoStoryLayerSummary;
+    style_assignment: GeoStoryStyleAssignment | null;
     display_order: number;
 }
 

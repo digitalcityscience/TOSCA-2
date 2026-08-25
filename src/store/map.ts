@@ -117,6 +117,8 @@ export interface GeoServerSourceParams extends BaseDataSourceParams {
     layer: GeoServerVectorTypeLayerDetail | GeoserverRasterTypeLayerDetail;
     sourceDataType: "vector" | "raster";
     sourceProtocol?: "wms" | "wmts";
+    /** Pinned GeoServer style name used for server-rendered raster tiles. */
+    styleName?: string;
     /** Single ISO 8601 instant or "start/end" range for the WMS TIME param. */
     time?: string;
 }
@@ -144,13 +146,14 @@ function buildWmsRasterTileUrl(opts: {
     workspace: string
     layerName: string
     time?: string
+    styleName?: string
 }): string {
     const params = new URLSearchParams({
         REQUEST: "GetMap",
         SERVICE: "WMS",
         VERSION: "1.3.0",
         LAYERS: `${opts.workspace}:${opts.layerName}`,
-        STYLES: "",
+        STYLES: opts.styleName ?? "",
         CRS: "EPSG:3857",
         WIDTH: "256",
         HEIGHT: "256",
@@ -170,13 +173,14 @@ function buildWmtsTileUrl(opts: {
     workspace: string
     layerName: string
     format: "image/png" | "application/vnd.mapbox-vector-tile"
+    styleName?: string
 }): string {
     const params = new URLSearchParams({
         REQUEST: "GetTile",
         SERVICE: "WMTS",
         VERSION: "1.0.0",
         LAYER: `${opts.workspace}:${opts.layerName}`,
-        STYLE: "",
+        STYLE: opts.styleName ?? "",
         TILEMATRIX: "EPSG:900913:{z}",
         TILEMATRIXSET: "EPSG:900913",
         TILECOL: "{x}",
@@ -287,6 +291,7 @@ export const useMapStore = defineStore("map", () => {
                                     workspace: params.workspaceName,
                                     layerName: (params.layer as GeoserverRasterTypeLayerDetail).coverage.name,
                                     time: params.time,
+                                    styleName: params.styleName,
                                 }),
                             ],
                         });
@@ -307,6 +312,7 @@ export const useMapStore = defineStore("map", () => {
                                     workspace: params.workspaceName,
                                     layerName: (params.layer as GeoserverRasterTypeLayerDetail).coverage.name,
                                     format: "image/png",
+                                    styleName: params.styleName,
                                 }),
                             ],
                             tileSize: 256,
