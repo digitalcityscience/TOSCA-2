@@ -102,6 +102,27 @@
       "color": "Color",
       "changeColor": "Change Color",
       "layerColorHex": "Layer color hex code",
+      "chooseStyleColor": "Choose {property}",
+      "styleColorDataDriven": "Data-driven",
+      "styleColorUnsupportedFormat": "Format locked",
+      "styleColor": {
+        "fill": "Fill color",
+        "outline": "Outline color",
+        "line": "Line color",
+        "circle": "Point color",
+        "stroke": "Point border",
+        "text": "Text color",
+        "text-halo": "Text halo",
+        "icon": "Icon color",
+        "icon-halo": "Icon halo",
+        "extrusion": "Extrusion color"
+      },
+      "styleFixed": {
+        "group": "Layer-group styles are fixed.",
+        "multi-pass": "This multi-pass style is fixed. Choose another variant to change its appearance.",
+        "unsupported-layer": "Color editing is not available for this layer type.",
+        "no-colors": "This style does not declare an editable color."
+      },
       "opacity": "Opacity",
       "changeOpacity": "Change Opacity",
       "legend": "Legend",

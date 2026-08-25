@@ -10,6 +10,7 @@ import { type SourceSpecification, type AddLayerObject } from "maplibre-gl";
 import { getRandomHexColor, isNullOrEmpty } from "../core/helpers/functions";
 import { type FeatureCollection } from "@helpers/geojson";
 import { type MapStyleLegendContext } from "@helpers/mapStyleLegend";
+import { isEditableMapStyleColorProperty } from "@helpers/mapStyleEditing";
 import { useToast } from "@helpers/toast";
 export interface LayerStyleOptions {
     paint?: Record<string, unknown>;
@@ -218,6 +219,8 @@ export const useMapStore = defineStore("map", () => {
    * not a Vue ref.
    */
     const paintVersion = ref<number>(0);
+    /** Reactive mirror of MapLibre's terrain state for terrain-sensitive UI. */
+    const terrainEnabled = ref<boolean>(false);
     /**
    * Asynchronously adds a new data source to Maplibre map sources. The source can be either GeoJSON data or a Geoserver vector tile source.
    * @param {SourceParams} sourceParams - The parameters for the source to add.
@@ -1121,6 +1124,36 @@ export const useMapStore = defineStore("map", () => {
         layer.time = time;
     }
 
+    /** Update one declared color on an editable, single-pass standalone style. */
+    function setStandaloneLayerPaintColor(
+        identifier: string,
+        property: string,
+        color: string
+    ): void {
+        if (isNullOrEmpty(map.value)) {
+            throw new Error("There is no map to update");
+        }
+        const layer = layersOnMap.value.find((candidate) => candidate.id === identifier);
+        if (layer === undefined || layer.logicalKind === "group") {
+            throw new Error(`Standalone layer ${identifier} not found`);
+        }
+        if ((layer.mbStyleLayers?.length ?? 0) > 1) {
+            throw new Error(`Multi-pass style ${identifier} cannot be edited directly`);
+        }
+        if (!isEditableMapStyleColorProperty(layer.type, property)) {
+            throw new Error(`${property} is not an editable color for ${layer.type}`);
+        }
+
+        map.value.setPaintProperty(identifier, property, color);
+        layer.paint = { ...(layer.paint ?? {}), [property]: color };
+        if (layer.mbStyleLayers?.length === 1) {
+            layer.mbStyleLayers = layer.mbStyleLayers.map((styleLayer, index) => index === 0
+                ? { ...styleLayer, paint: { ...(styleLayer.paint ?? {}), [property]: color } }
+                : styleLayer
+            );
+        }
+    }
+
     /** Replace every render pass for a standalone layer with another MBStyle. */
     async function setStandaloneLayerStyle(
         identifier: string,
@@ -1262,10 +1295,12 @@ export const useMapStore = defineStore("map", () => {
         layerOwnsSource,
         displayNameForSource,
         paintVersion,
+        terrainEnabled,
         resetMapData,
         geometryConversion,
         setRasterLayerTime,
         setStandaloneLayerStyle,
+        setStandaloneLayerPaintColor,
     };
 });
 

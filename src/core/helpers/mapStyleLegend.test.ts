@@ -1,8 +1,5 @@
 import { describe, expect, test } from "vitest";
-import {
-    createMapStyleLegendEntries,
-    hasSingleEditableMapStyleColor,
-} from "./mapStyleLegend";
+import { createMapStyleLegendEntries } from "./mapStyleLegend";
 
 describe("createMapStyleLegendEntries", () => {
     test("creates one entry for every renderable layer in a group MBStyle", () => {
@@ -62,43 +59,5 @@ describe("createMapStyleLegendEntries", () => {
                 tint: "#16a34a",
             },
         });
-    });
-});
-
-describe("hasSingleEditableMapStyleColor", () => {
-    test("allows one literal color in one catalog style layer", () => {
-        expect(hasSingleEditableMapStyleColor([{
-            id: "district-fill",
-            type: "fill",
-            paint: { "fill-color": "#4338ca", "fill-opacity": 0.5 },
-        }], "fill-color")).toBe(true);
-    });
-
-    test("rejects colors derived from feature attributes", () => {
-        expect(hasSingleEditableMapStyleColor([{
-            id: "district-fill",
-            type: "fill",
-            paint: {
-                "fill-color": ["match", ["get", "category"], "park", "#16a34a", "#64748b"],
-            },
-        }], "fill-color")).toBe(false);
-    });
-
-    test("rejects a style containing more than one color", () => {
-        expect(hasSingleEditableMapStyleColor([{
-            id: "district-fill",
-            type: "fill",
-            paint: {
-                "fill-color": "#4338ca",
-                "fill-outline-color": "#1e1b4b",
-            },
-        }], "fill-color")).toBe(false);
-    });
-
-    test("rejects catalog styles composed from multiple render layers", () => {
-        expect(hasSingleEditableMapStyleColor([
-            { id: "district-fill", type: "fill", paint: { "fill-color": "#4338ca" } },
-            { id: "district-border", type: "line", paint: { "line-color": "#4338ca" } },
-        ], "fill-color")).toBe(false);
     });
 });

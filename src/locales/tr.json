@@ -102,6 +102,27 @@
       "color": "Renk",
       "changeColor": "Rengi Değiştir",
       "layerColorHex": "Katman rengi hex kodu",
+      "chooseStyleColor": "{property} seç",
+      "styleColorDataDriven": "Veriye bağlı",
+      "styleColorUnsupportedFormat": "Biçim kilitli",
+      "styleColor": {
+        "fill": "Dolgu rengi",
+        "outline": "Dış çizgi rengi",
+        "line": "Çizgi rengi",
+        "circle": "Nokta rengi",
+        "stroke": "Nokta kenarlığı",
+        "text": "Metin rengi",
+        "text-halo": "Metin halesi",
+        "icon": "Simge rengi",
+        "icon-halo": "Simge halesi",
+        "extrusion": "Ekstrüzyon rengi"
+      },
+      "styleFixed": {
+        "group": "Katman grubu stilleri sabittir.",
+        "multi-pass": "Bu çok geçişli stil sabittir. Görünümü değiştirmek için başka bir varyant seçin.",
+        "unsupported-layer": "Bu katman türünde renk düzenleme kullanılamaz.",
+        "no-colors": "Bu stil düzenlenebilir bir renk tanımlamıyor."
+      },
       "opacity": "Opaklık",
       "changeOpacity": "Opaklığı Değiştir",
       "legend": "Lejant",

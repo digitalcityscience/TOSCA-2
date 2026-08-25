@@ -72,19 +72,57 @@
                             @update:model-value="changeLayerStyle"
                         />
                     </label>
-                    <label v-if="hasEditableLayerColor" class="layer-row pointer-events-none">
-                        <span class="layer-row-label">{{ t('map.layerItem.color') }}</span>
-                        <div class="layer-color-controls pointer-events-auto">
-                            <UColorPicker :aria-label="t('map.layerItem.changeColor')" format="hex" v-model="colorPickerValue" />
-                            <UInput
-                                class="layer-color-input"
-                                :aria-label="t('map.layerItem.layerColorHex')"
-                                v-model="colorHexInput"
-                                maxlength="7"
-                                @update:model-value="applyColorHexInput"
+                    <div v-if="styleEditingCapabilities.mode === 'editable'" class="layer-style-colors">
+                        <div v-for="styleColor in styleColorControls" :key="styleColor.property" class="layer-row">
+                            <span class="layer-row-label">{{ t(styleColorLabelKey(styleColor.label)) }}</span>
+                            <UPopover
+                                v-if="styleColor.status === 'editable' && styleColor.pickerValue !== undefined"
+                                :content="{ side: 'bottom', align: 'end', collisionPadding: 12 }"
+                                :ui="{ content: 'z-[80]' }"
+                            >
+                                <UButton
+                                    class="layer-color-trigger"
+                                    color="neutral"
+                                    variant="outline"
+                                    size="sm"
+                                    :aria-label="t('map.layerItem.chooseStyleColor', { property: t(styleColorLabelKey(styleColor.label)) })"
+                                >
+                                    <template #leading>
+                                        <span
+                                            class="layer-color-swatch"
+                                            :style="{ backgroundColor: styleColor.pickerValue }"
+                                            aria-hidden="true"
+                                        />
+                                    </template>
+                                    <span class="layer-color-value">{{ styleColor.pickerValue.toUpperCase() }}</span>
+                                </UButton>
+                                <template #content>
+                                    <div class="layer-color-popover">
+                                        <UColorPicker
+                                            :aria-label="t('map.layerItem.chooseStyleColor', { property: t(styleColorLabelKey(styleColor.label)) })"
+                                            :model-value="styleColor.pickerValue"
+                                            format="hex"
+                                            size="sm"
+                                            @update:model-value="queueLayerColorChange(styleColor.property, $event)"
+                                        />
+                                    </div>
+                                </template>
+                            </UPopover>
+                            <UBadge
+                                v-else
+                                color="neutral"
+                                variant="soft"
+                                size="sm"
+                                :label="styleColor.status === 'data-driven'
+                                    ? t('map.layerItem.styleColorDataDriven')
+                                    : t('map.layerItem.styleColorUnsupportedFormat')"
                             />
                         </div>
-                    </label>
+                    </div>
+                    <div v-else class="layer-style-fixed text-muted">
+                        <UIcon name="i-lucide-lock-keyhole" aria-hidden="true" />
+                        <span>{{ t(styleFixedReasonKey(styleEditingCapabilities.reason)) }}</span>
+                    </div>
                     <label class="layer-row">
                         <span class="layer-row-label">{{ t('map.layerItem.opacity') }}</span>
                         <USlider :aria-label="t('map.layerItem.changeOpacity')" class="grow" v-model="opacity" :step="0.1" :min=0
@@ -160,10 +198,16 @@ import { useI18n } from "vue-i18n";
 import { type LayerObjectWithAttributes, type MapLibreLayerTypes, useMapStore } from "@store/map"
 import { useToast } from "@helpers/toast";
 import { isNullOrEmpty } from "@helpers/functions";
+import { createMapStyleLegendEntries } from "@helpers/mapStyleLegend";
 import {
-    createMapStyleLegendEntries,
-    hasSingleEditableMapStyleColor,
-} from "@helpers/mapStyleLegend";
+    type MapStyleColorControl,
+    type MapStyleColorLabel,
+    type MapStyleFixedReason,
+    isMapStyleColorControlAvailable,
+    mapStyleColorProperties,
+    normalizeEditableHexColor,
+    resolveMapStyleEditingCapabilities,
+} from "@helpers/mapStyleEditing";
 import {
     type GeoserverRasterTypeLayerDetail,
     type GeoServerVectorTypeLayerDetail,
@@ -192,18 +236,6 @@ const failedGroupLegendKeys = ref<Set<string>>(new Set())
 const groupLegendLoading = ref<boolean>(false)
 const centralGroupLegendError = ref<boolean>(false)
 const layerPanelOpen = ref<boolean>(false)
-const color = ref<string>("000000")
-const colorHexInput = ref<string>("#000000")
-const colorPickerValue = computed({
-    get: () => `#${color.value}`,
-    set: (value: string | undefined) => {
-        const normalizedColor = normalizeHexColorInput(value);
-        if (normalizedColor === undefined) return;
-        color.value = normalizedColor;
-        colorHexInput.value = `#${normalizedColor}`;
-        queueLayerColorChange(normalizedColor);
-    }
-})
 const opacity = ref<number>(1)
 const checked = ref<boolean>(true)
 const selectedStyleId = ref<string>(props.layer.activeStyleId ?? "")
@@ -216,7 +248,8 @@ const styleSelectItems = computed(() => (props.layer.availableStyles ?? []).map(
         : style.title ?? style.name,
     value: style.id,
 })))
-let pendingColorChangeTimeout: ReturnType<typeof setTimeout> | undefined;
+const pendingColorValues = ref<Record<string, string>>({});
+const pendingColorChangeTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 
 // addMapLayer renders this item before its asynchronously loaded catalog
 // styles are attached. Keep the selector synchronized with that later update.
@@ -266,15 +299,6 @@ const layerHeaderIndicator = computed<LayerHeaderIndicator>(() => {
     void mapStore.paintVersion;
     void initialLayerHeaderIndicator.value;
     if (isGroupLayer.value) return { kind: "multi", colors: [] };
-    const editableColorProperty = getEditableColorPaintProperty(props.layer.type);
-    if (editableColorProperty !== "" && initialLayerHeaderIndicator.value?.kind === "single") {
-        return { kind: "single", colors: [`#${color.value}`] };
-    }
-
-    if (initialLayerHeaderIndicator.value !== undefined) {
-        return resolveLayerHeaderIndicator(props.layer.type);
-    }
-
     return resolveLayerHeaderIndicator(props.layer.type);
 })
 const layerHeaderIndicatorStyle = computed<Record<string, string>>(() => {
@@ -303,18 +327,42 @@ const hasTimeDimension = computed<boolean>(() => {
     if (details?.coverage === undefined) return false
     return getTimeDimension(details.coverage) !== null
 })
-const hasEditableLayerColor = computed<boolean>(() => {
-    if (isGroupLayer.value) return false
+const styleEditingCapabilities = computed(() => {
     void mapStore.paintVersion;
-    const colorProperty = getEditableColorPaintProperty(props.layer.type);
-    if (colorProperty === "" || typeof getLayerPaintProperty(colorProperty) !== "string") {
-        return false;
-    }
-
-    const catalogStyleLayers = props.layer.mbStyleLayers;
-    return catalogStyleLayers === undefined ||
-        hasSingleEditableMapStyleColor(catalogStyleLayers, colorProperty);
+    return resolveMapStyleEditingCapabilities({
+        logicalKind: props.layer.logicalKind,
+        layerType: props.layer.type,
+        paint: props.layer.paint,
+        styleLayers: props.layer.mbStyleLayers,
+    });
 })
+const styleColorControls = computed<MapStyleColorControl[]>(() => {
+    if (styleEditingCapabilities.value.mode !== "editable") return [];
+    void mapStore.paintVersion;
+    return styleEditingCapabilities.value.colors
+        .filter(({ property }) => isMapStyleColorControlAvailable(
+            property,
+            mapStore.terrainEnabled
+        ))
+        .map((colorControl) => {
+            const pendingValue = pendingColorValues.value[colorControl.property];
+            const runtimeValue = pendingValue ?? getLayerPaintProperty(colorControl.property);
+            const pickerValue = normalizeEditableHexColor(runtimeValue);
+            return {
+                ...colorControl,
+                value: runtimeValue,
+                ...(pickerValue === undefined ? {} : { pickerValue }),
+                status: pickerValue !== undefined
+                    ? "editable"
+                    : Array.isArray(runtimeValue) || isRecord(runtimeValue)
+                        ? "data-driven"
+                        : "unsupported-format",
+            };
+        });
+})
+const hasEditableStyleColors = computed(() => styleColorControls.value.some(
+    ({ status }) => status === "editable"
+))
 const visibleGroupLegendImages = computed<GroupLegendImage[]>(() => {
     return groupLegendImages.value.filter((legend) => !failedGroupLegendKeys.value.has(legend.key))
 })
@@ -357,7 +405,7 @@ const showServerLegend = computed<boolean>(() => {
     }
     if ((props.layer.mbStyleLayers?.length ?? 0) > 0) return false
     if (legendUrl.value === undefined || legendError.value) return false
-    if (hasEditableLayerColor.value) return false
+    if (hasEditableStyleColors.value) return false
     return true
 })
 const showLegend = computed<boolean>(() => {
@@ -370,23 +418,8 @@ const showFiltering = computed<boolean>(() => {
     if (props.layer.type === "raster") return false
     return props.layer.filterLayer !== true
 })
-/**
- * Exposes the editable color paint property when it is an expression (array).
- * Reserved for a future legend component; consumers can read this via
- * `defineExpose` if/when an MBStyleLegend is added to this repo.
- */
-const _layerLegendStyle = computed<unknown[] | undefined>(() => {
-    void mapStore.paintVersion;
-    const prop = getEditableColorPaintProperty(props.layer.type);
-    if (prop === "") return undefined;
-    const value = getLayerPaintProperty(prop);
-    if (!Array.isArray(value)) return undefined;
-    return value as unknown[];
-})
-void _layerLegendStyle.value;
-
 onMounted(() => {
-    syncPrimaryStyleControls()
+    syncStyleControls()
     initialLayerHeaderIndicator.value = resolveLayerHeaderIndicator(props.layer.type);
     if (mapStore.map.getLayoutProperty(props.layer.id, "visibility") === "none") {
         checked.value = false
@@ -394,14 +427,8 @@ onMounted(() => {
     void loadLegend()
 })
 
-function syncPrimaryStyleControls(): void {
-    const colorProperty = getEditableColorPaintProperty(props.layer.type);
+function syncStyleControls(): void {
     const opacityProperty = getOpacityPaintProperty(props.layer.type);
-
-    if (colorProperty !== "" && typeof getLayerPaintProperty(colorProperty) === "string") {
-        color.value = normalizeColorPickerValue(getLayerPaintProperty(colorProperty) as string);
-        colorHexInput.value = `#${color.value}`;
-    }
     if (opacityProperty !== "" && !isNullOrEmpty(getLayerPaintProperty(opacityProperty))) {
         opacity.value = getLayerPaintProperty(opacityProperty) as number;
     } else {
@@ -416,7 +443,8 @@ async function changeLayerStyle(value: unknown): Promise<void> {
     try {
         await mapStore.setStandaloneLayerStyle(props.layer.id, value)
         selectedStyleId.value = value
-        syncPrimaryStyleControls()
+        clearPendingColorChanges()
+        syncStyleControls()
         initialLayerHeaderIndicator.value = resolveLayerHeaderIndicator(props.layer.type)
     } catch (error) {
         selectedStyleId.value = previousStyleId
@@ -509,45 +537,36 @@ function handleCentralGroupLegendError(): void {
 function markGroupLegendFailed(key: string): void {
     failedGroupLegendKeys.value = new Set([...failedGroupLegendKeys.value, key])
 }
-function changeLayerColor(color: string): void {
-    const prop = getEditableColorPaintProperty(props.layer.type);
-    if (prop === "") {
-        return;
-    }
-
-    const nextColor = `#${color}`;
-    if (getLayerPaintProperty(prop) === nextColor) {
+function changeLayerColor(property: string, nextColor: string): void {
+    if (getLayerPaintProperty(property) === nextColor) {
         return;
     }
 
     try {
-        mapStore.map.setPaintProperty(props.layer.id, prop, nextColor)
+        mapStore.setStandaloneLayerPaintColor(props.layer.id, property, nextColor)
     } catch (error) {
-        console.error(`Could not update ${props.layer.id} layer color`, error);
+        console.error(`Could not update ${props.layer.id} ${property}`, error);
     }
 }
-function queueLayerColorChange(nextColor: unknown): void {
-    const normalizedColor = normalizeHexColorInput(nextColor);
-    if (normalizedColor === undefined) {
-        return;
-    }
-
-    if (pendingColorChangeTimeout !== undefined) {
-        clearTimeout(pendingColorChangeTimeout);
-    }
-
-    pendingColorChangeTimeout = setTimeout(() => {
-        pendingColorChangeTimeout = undefined;
-        changeLayerColor(normalizedColor);
-    }, 120);
-}
-function applyColorHexInput(value: string | number | undefined): void {
-    if (typeof value !== "string") return;
-    const normalizedColor = normalizeHexColorInput(value);
+function queueLayerColorChange(property: string, nextColor: unknown): void {
+    const normalizedColor = normalizeEditableHexColor(nextColor);
     if (normalizedColor === undefined) return;
-    color.value = normalizedColor;
-    colorHexInput.value = `#${normalizedColor}`;
-    queueLayerColorChange(normalizedColor);
+    pendingColorValues.value = { ...pendingColorValues.value, [property]: normalizedColor };
+
+    const pendingTimeout = pendingColorChangeTimeouts.get(property);
+    if (pendingTimeout !== undefined) clearTimeout(pendingTimeout);
+
+    pendingColorChangeTimeouts.set(property, setTimeout(() => {
+        pendingColorChangeTimeouts.delete(property);
+        changeLayerColor(property, normalizedColor);
+        const { [property]: _completed, ...remainingValues } = pendingColorValues.value;
+        pendingColorValues.value = remainingValues;
+    }, 120));
+}
+function clearPendingColorChanges(): void {
+    pendingColorChangeTimeouts.forEach((timeout) => clearTimeout(timeout));
+    pendingColorChangeTimeouts.clear();
+    pendingColorValues.value = {};
 }
 function changeLayerOpac(layerOpacity: any): void {
     mapStore.setLogicalLayerOpacity(props.layer, Number(layerOpacity))
@@ -607,9 +626,7 @@ function zoomToLayer(): void {
 }
 
 onBeforeUnmount(() => {
-    if (pendingColorChangeTimeout !== undefined) {
-        clearTimeout(pendingColorChangeTimeout);
-    }
+    clearPendingColorChanges();
 })
 
 function resolveLayerHeaderIndicator(layerType: MapLibreLayerTypes): LayerHeaderIndicator {
@@ -626,36 +643,19 @@ function resolveLayerHeaderIndicator(layerType: MapLibreLayerTypes): LayerHeader
         };
     }
 
-    const colorProperty = getEditableColorPaintProperty(layerType);
-    if (colorProperty === "") {
+    const colors = mapStyleColorProperties(layerType)
+        .filter((property) => isMapStyleColorControlAvailable(
+            property,
+            mapStore.terrainEnabled
+        ))
+        .flatMap((property) => extractColorLiterals(getLayerPaintProperty(property)));
+    const uniqueColors = [...new Set(colors)].slice(0, 4);
+    if (uniqueColors.length === 0) {
         return { kind: "unknown", colors: [] };
     }
-
-    const paintColor = getLayerPaintProperty(colorProperty);
-    if (typeof paintColor === "string") {
-        return { kind: "single", colors: [paintColor] };
-    }
-
-    const colors = extractColorLiterals(paintColor);
-    if (colors.length > 0) {
-        return { kind: "multi", colors };
-    }
-
-    return { kind: "unknown", colors: [] };
-}
-
-function getEditableColorPaintProperty(layerType: MapLibreLayerTypes): string {
-    if (layerType === "circle") {
-        return "circle-color";
-    }
-    if (layerType === "fill") {
-        return "fill-color";
-    }
-    if (layerType === "line") {
-        return "line-color";
-    }
-
-    return "";
+    return uniqueColors.length === 1
+        ? { kind: "single", colors: uniqueColors }
+        : { kind: "multi", colors: uniqueColors };
 }
 
 function getOpacityPaintProperty(layerType: MapLibreLayerTypes): string {
@@ -687,20 +687,6 @@ function getLayerPaintProperty(property: string): unknown {
     }
 
     return mapStore.map.getPaintProperty(props.layer.id, property);
-}
-
-function normalizeColorPickerValue(value: string): string {
-    return value.startsWith("#") ? value.substring(1) : value;
-}
-
-function normalizeHexColorInput(value: unknown): string | undefined {
-    if (typeof value !== "string") {
-        return undefined;
-    }
-
-    const normalizedColor = normalizeColorPickerValue(value);
-
-    return /^[0-9a-f]{6}$/i.test(normalizedColor) ? normalizedColor : undefined;
 }
 
 function extractColorLiterals(value: unknown): string[] {
@@ -750,6 +736,18 @@ function isColorLiteral(value: string): boolean {
         /^rgba?\([^)]+\)$/i.test(value) ||
         /^hsla?\([^)]+\)$/i.test(value) ||
         namedColorLiterals.has(value.toLowerCase());
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function styleColorLabelKey(label: MapStyleColorLabel): string {
+    return `map.layerItem.styleColor.${label}`;
+}
+
+function styleFixedReasonKey(reason: MapStyleFixedReason): string {
+    return `map.layerItem.styleFixed.${reason}`;
 }
 
 function createLayerHeaderIndicatorBackground(indicator: LayerHeaderIndicator): string {
@@ -836,16 +834,34 @@ function createLayerHeaderIndicatorBackground(indicator: LayerHeaderIndicator): 
     opacity: 0.6;
     margin: 0 0 0.4rem 0;
 }
-.layer-color-controls {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    min-width: 0;
-    flex-wrap: wrap;
+.layer-style-colors {
+    display: grid;
+    gap: 0.25rem;
 }
-.layer-color-input {
-    width: 8rem;
-    flex: 0 0 auto;
+.layer-color-swatch {
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 9999px;
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.18);
+}
+.layer-color-trigger {
+    flex: 0 0 7rem;
+    width: 7rem;
+    justify-content: flex-start;
+}
+.layer-color-value {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    font-variant-numeric: tabular-nums;
+}
+.layer-color-popover {
+    padding: 0.5rem;
+}
+.layer-style-fixed {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
+    padding: 0.2rem 0;
+    font-size: 0.75rem;
 }
 .layer-row {
     display: flex;

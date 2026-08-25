@@ -102,6 +102,27 @@
       "color": "Farbe",
       "changeColor": "Farbe ändern",
       "layerColorHex": "Hex-Code der Ebenenfarbe",
+      "chooseStyleColor": "{property} auswählen",
+      "styleColorDataDriven": "Datengesteuert",
+      "styleColorUnsupportedFormat": "Format gesperrt",
+      "styleColor": {
+        "fill": "Füllfarbe",
+        "outline": "Umrissfarbe",
+        "line": "Linienfarbe",
+        "circle": "Punktfarbe",
+        "stroke": "Punktumriss",
+        "text": "Textfarbe",
+        "text-halo": "Texthalo",
+        "icon": "Symbolfarbe",
+        "icon-halo": "Symbolhalo",
+        "extrusion": "Extrusionsfarbe"
+      },
+      "styleFixed": {
+        "group": "Stile von Ebenengruppen sind festgelegt.",
+        "multi-pass": "Dieser mehrstufige Stil ist festgelegt. Wählen Sie eine andere Variante, um die Darstellung zu ändern.",
+        "unsupported-layer": "Für diesen Ebenentyp ist keine Farbbearbeitung verfügbar.",
+        "no-colors": "Dieser Stil definiert keine bearbeitbare Farbe."
+      },
       "opacity": "Deckkraft",
       "changeOpacity": "Deckkraft ändern",
       "legend": "Legende",
