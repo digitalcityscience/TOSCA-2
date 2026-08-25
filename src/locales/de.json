@@ -279,6 +279,17 @@
   },
   "geostories": {
     "runScenario": "Szenario ausführen",
+    "listing": {
+      "storyCount": "{count} Story",
+      "storyCountPlural": "{count} Storys",
+      "published": "Veröffentlicht",
+      "openStory": "Story öffnen"
+    },
+    "detail": {
+      "layerCount": "{count} Kartenebene",
+      "layerCountPlural": "{count} Kartenebenen",
+      "backToStories": "Zurück zu den Storys"
+    },
     "flood": {
       "title": "Hochwasserszenarien",
       "information": "Diese Karte zeigt Bereiche in einem städtischen Umfeld, vermutlich Hamburg, basierend auf geografischen Merkmalen, in denen sich Regenwasser bei starken Niederschlagsereignissen ansammeln oder fließen kann. Durch die Nutzung detaillierter topografischer Daten identifiziert die Karte tief liegende Senken und zeigt mögliche Wasserabflusswege durch die Stadt auf. Diese hervorgehobenen Zonen zeigen, wo sich Regenwasser am wahrscheinlichsten sammelt und fließt, und kennzeichnen sie als Hochrisikogebiete für Hochwasser.",

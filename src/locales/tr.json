@@ -279,6 +279,17 @@
   },
   "geostories": {
     "runScenario": "Senaryoyu Çalıştır",
+    "listing": {
+      "storyCount": "{count} hikâye",
+      "storyCountPlural": "{count} hikâye",
+      "published": "Yayınlandı",
+      "openStory": "Hikâyeyi aç"
+    },
+    "detail": {
+      "layerCount": "{count} harita katmanı",
+      "layerCountPlural": "{count} harita katmanı",
+      "backToStories": "Hikâyelere dön"
+    },
     "flood": {
       "title": "Sel Senaryoları",
       "information": "Bu harita, coğrafi özelliklere dayanarak muhtemelen Hamburg olan kentsel bir ortamda, şiddetli yağış olayları sırasında yağmur suyunun birikebileceği veya akabileceği alanları göstermektedir. Ayrıntılı topografik verilerden yararlanan harita, alçak çöküntüleri belirler ve şehir genelinde olası su akış yollarını ortaya koyar. Bu vurgulanan bölgeler, yağmur suyunun en olası biriktiği ve aktığı yerleri gösterir ve bunları sel birikimi açısından yüksek riskli olarak işaretler.",

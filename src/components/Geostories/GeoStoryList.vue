@@ -35,7 +35,7 @@
         />
 
         <div v-if="geostory.stories.length > 0" class="flex justify-end text-xs text-muted">
-            {{ geostory.stories.length }} {{ geostory.stories.length === 1 ? "story" : "stories" }}
+            {{ storyCountLabel }}
         </div>
 
         <div class="grid gap-3">
@@ -60,11 +60,22 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { computed, onMounted } from "vue";
+import { useI18n } from "vue-i18n";
 import { useGeostoryStore } from "@store/geostory";
 import GeoStoryListItem from "./GeoStoryListItem.vue";
 
 const geostory = useGeostoryStore();
+const { t } = useI18n();
+
+const storyCountLabel = computed(() => {
+    const count = geostory.stories.length;
+    const key = count === 1
+        ? "geostories.listing.storyCount"
+        : "geostories.listing.storyCountPlural";
+
+    return t(key, { count });
+});
 
 onMounted(() => {
     if (geostory.stories.length === 0) {

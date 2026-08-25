@@ -15,7 +15,7 @@
         <div v-if="route.name === 'geostory-detail'" class="mb-3">
             <UButton
                 icon="i-lucide-arrow-left"
-                label="Back to stories"
+                :label="t('geostories.detail.backToStories')"
                 size="sm"
                 color="neutral"
                 variant="outline"
@@ -30,6 +30,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { RouterView, useRoute, useRouter } from "vue-router";
 import BaseSlideoverSidebarComponent from "@components/Base/BaseSlideoverSidebarComponent.vue";
 import { useMapStore } from "@store/map";
@@ -37,6 +38,7 @@ import { useToast } from "@helpers/toast";
 import { reportDeveloperError } from "@helpers/userFacingError";
 
 const sidebarID = "geostories";
+const { t } = useI18n();
 const mapStore = useMapStore();
 const route = useRoute();
 const router = useRouter();
