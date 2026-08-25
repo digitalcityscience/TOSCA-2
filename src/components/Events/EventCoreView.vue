@@ -1,5 +1,5 @@
 <template>
-    <UCard :ui="{ body: 'p-4 sm:p-5', header: 'p-4 pb-0 sm:p-5 sm:pb-0' }">
+    <UCard :ui="{ body: 'p-4 sm:p-5', header: 'p-4 sm:p-5' }">
         <template #header>
             <div class="grid gap-3">
                 <h1 class="text-2xl font-bold leading-tight text-highlighted">{{ event.title }}</h1>
@@ -7,9 +7,7 @@
                     <UBadge color="neutral" variant="subtle" icon="i-lucide-calendar-clock">
                         {{ dateLabel }}
                     </UBadge>
-                    <UBadge :color="locationColor" variant="subtle">
-                        {{ locationLabel }}
-                    </UBadge>
+                    <EventLocationBadge :mode="event.location_mode" />
                 </div>
             </div>
         </template>
@@ -129,19 +127,14 @@
 import { computed } from "vue";
 import { type EventDetail } from "@store/events";
 import EditorJsReadonly from "@components/Base/EditorJsReadonly.vue";
-import {
-    eventLocationColor,
-    eventLocationLabel,
-    formatEventDate,
-} from "./eventPresentation";
+import EventLocationBadge from "./EventLocationBadge.vue";
+import { formatEventDate } from "./eventPresentation";
 
 const props = defineProps<{
     event: EventDetail
 }>();
 
 const dateLabel = computed(() => formatEventDate(props.event.start_datetime));
-const locationLabel = computed(() => eventLocationLabel(props.event.location_mode));
-const locationColor = computed(() => eventLocationColor(props.event.location_mode));
 const eventContent = computed(() => ({
     ...props.event.content,
     blocks: props.event.content.blocks ?? [],

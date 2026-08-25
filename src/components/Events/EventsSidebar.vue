@@ -32,7 +32,7 @@
 
 <script setup lang="ts">
 import bbox from "@turf/bbox";
-import { ref } from "vue";
+import { onMounted, ref } from "vue";
 import { RouterView, useRoute, useRouter } from "vue-router";
 import BaseSlideoverSidebarComponent from "@components/Base/BaseSlideoverSidebarComponent.vue";
 import { useEventsStore } from "@store/events";
@@ -49,12 +49,23 @@ const router = useRouter();
 const toast = useToast();
 const returningToList = ref(false);
 
+onMounted(() => {
+    events.loadEventMap().catch((error) => {
+        reportDeveloperError("Loading the Hamburg event map", error);
+        toast.add({
+            severity: "warning",
+            summary: "Event locations are temporarily unavailable",
+            detail: "The event list is still available. Please try again in a moment.",
+            life: 4000,
+        });
+    });
+});
+
 async function goBackToEvents(): Promise<void> {
     returningToList.value = true;
     try {
         await mapStore.resetMapData(false);
         await router.push({ name: "event-list" });
-        await events.loadEventMap();
         fitMapToEvents();
     } catch (error) {
         reportDeveloperError("Returning to the event list", error);

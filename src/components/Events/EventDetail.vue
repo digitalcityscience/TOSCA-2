@@ -55,6 +55,7 @@ import {
 import EventCoreView from "./EventCoreView.vue";
 import PublicHealthEventProfileView from "./PublicHealthEventProfileView.vue";
 import EventSeriesExtensionView from "./EventSeriesExtensionView.vue";
+import { parseEventPointLocation } from "./eventLocation";
 
 const props = defineProps<{
     eventId: string
@@ -104,25 +105,25 @@ async function focusEventLocation(detail: EventDetail): Promise<void> {
         return;
     }
 
-    const coordinates = parsePointLocation(detail.location);
+    const coordinates = parseEventPointLocation(detail.location);
     if (coordinates === undefined) {
         return;
     }
 
-    await events.loadEventMap(createLocationBbox(coordinates)).catch(() => {
-        toast.add({
-            severity: "warning",
-            summary: "Location unavailable",
-            detail: "The event opened, but its location could not be shown on the map.",
-            life: 4000,
-        });
-    });
-
     mapStore.map.flyTo({
         center: coordinates,
         zoom: Math.max(mapStore.map.getZoom(), 14),
+        offset: [eventSidebarMapOffset(), 0],
         essential: true,
     });
+}
+
+function eventSidebarMapOffset(): number {
+    if (typeof document === "undefined") {
+        return 0;
+    }
+    const sidebarWidth = document.getElementById("events")?.getBoundingClientRect().width ?? 0;
+    return sidebarWidth / 2;
 }
 
 function retryLoad(): void {
@@ -134,49 +135,4 @@ function handleLoadError(error: unknown): void {
     reportDeveloperError(`Opening event ${props.eventId}`, error);
 }
 
-function parsePointLocation(value: unknown): [number, number] | undefined {
-    if (isGeoJsonPoint(value)) {
-        return value.coordinates;
-    }
-    if (typeof value !== "string") {
-        return undefined;
-    }
-    const match = value.match(/POINT\s*\(\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s*\)/i);
-    if (match === null) {
-        return undefined;
-    }
-
-    const longitude = Number(match[1]);
-    const latitude = Number(match[2]);
-    if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) {
-        return undefined;
-    }
-    return [longitude, latitude];
-}
-
-function isGeoJsonPoint(value: unknown): value is { type: "Point", coordinates: [number, number] } {
-    if (typeof value !== "object" || value === null || !("type" in value) || !("coordinates" in value)) {
-        return false;
-    }
-    const candidate = value as { type: unknown, coordinates: unknown };
-    return (
-        candidate.type === "Point" &&
-        Array.isArray(candidate.coordinates) &&
-        candidate.coordinates.length >= 2 &&
-        typeof candidate.coordinates[0] === "number" &&
-        typeof candidate.coordinates[1] === "number"
-    );
-}
-
-function createLocationBbox(
-    [longitude, latitude]: [number, number]
-): [number, number, number, number] {
-    const padding = 0.02;
-    return [
-        longitude - padding,
-        latitude - padding,
-        longitude + padding,
-        latitude + padding,
-    ];
-}
 </script>

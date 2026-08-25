@@ -1,7 +1,7 @@
 <template>
     <UCard
         class="transition hover:ring-primary/30"
-        :ui="{ body: 'p-4 sm:p-4', header: 'p-4 pb-0 sm:p-4 sm:pb-0', footer: 'p-4 pt-0 sm:p-4 sm:pt-0' }"
+        :ui="{ body: 'p-4 sm:p-4', header: 'p-4 sm:p-4', footer: 'p-4 sm:p-4' }"
     >
         <template #header>
             <div class="grid gap-2">
@@ -10,9 +10,7 @@
                     <UBadge color="neutral" variant="subtle" icon="i-lucide-calendar-clock">
                         {{ dateLabel }}
                     </UBadge>
-                    <UBadge :color="locationColor" variant="subtle">
-                        {{ locationLabel }}
-                    </UBadge>
+                    <EventLocationBadge :mode="event.location_mode" />
                     <UBadge v-if="seriesLabel !== ''" color="info" variant="subtle" icon="i-lucide-repeat-2">
                         {{ seriesLabel }}
                     </UBadge>
@@ -41,8 +39,6 @@
             <UButton
                 :to="{ name: 'event-detail', params: { eventId: event.id } }"
                 label="Open event"
-                icon="i-lucide-calendar-days"
-                trailing-icon="i-lucide-arrow-right"
                 size="sm"
             />
         </template>
@@ -52,10 +48,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { type EventListItem } from "@store/events";
+import EventLocationBadge from "./EventLocationBadge.vue";
 import { previewTaxonomyChips } from "./taxonomyChips";
 import {
-    eventLocationColor,
-    eventLocationLabel,
     eventSeriesPosition,
     formatEventDate,
 } from "./eventPresentation";
@@ -65,8 +60,6 @@ const props = defineProps<{
 }>();
 
 const dateLabel = computed(() => formatEventDate(props.event.start_datetime));
-const locationLabel = computed(() => eventLocationLabel(props.event.location_mode));
-const locationColor = computed(() => eventLocationColor(props.event.location_mode));
 const seriesLabel = computed(() => {
     return eventSeriesPosition(props.event.occurrence_index, props.event.total_occurrences);
 });

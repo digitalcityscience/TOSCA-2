@@ -8,6 +8,7 @@ import {
     buildEventTaxonomyUrl,
     buildEventTypesUrl,
     buildEventWithinUrl,
+    HAMBURG_EVENT_BBOX,
     useEventsStore,
 } from "./events";
 
@@ -147,7 +148,7 @@ describe("events store", () => {
             }));
 
         const events = useEventsStore();
-        await events.loadEventMap([9, 53, 10, 54]);
+        await events.loadEventMap();
         const detail = await events.getEventDetail("event-1");
 
         expect(events.onlineEvents).toHaveLength(1);
@@ -158,7 +159,36 @@ describe("events store", () => {
         expect("context" in detail).toBe(false);
         expect(events.selectedEvent?.id).toBe("event-1");
         expect(fetchMock.mock.calls[0][0].toString()).toBe(
-            "http://localhost:8000/api/v1/events/map/?bbox=9%2C53%2C10%2C54"
+            `http://localhost:8000/api/v1/events/map/?bbox=${HAMBURG_EVENT_BBOX.join("%2C")}`
+        );
+    });
+
+    test("loads and caches one Hamburg map payload per filter set", async () => {
+        fetchMock
+            .mockResolvedValueOnce(jsonResponse({
+                spatial_events: { type: "FeatureCollection", features: [] },
+                online_events: [],
+            }))
+            .mockResolvedValueOnce(jsonResponse({
+                spatial_events: { type: "FeatureCollection", features: [] },
+                online_events: [],
+            }));
+
+        const events = useEventsStore();
+        await Promise.all([
+            events.loadEventMap(),
+            events.loadEventMap(),
+        ]);
+        await events.loadEventMap();
+
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+
+        events.setFilters({ include_past: true });
+        await events.loadEventMap();
+
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        expect(fetchMock.mock.calls[1][0].toString()).toBe(
+            `http://localhost:8000/api/v1/events/map/?include_past=true&bbox=${HAMBURG_EVENT_BBOX.join("%2C")}`
         );
     });
 

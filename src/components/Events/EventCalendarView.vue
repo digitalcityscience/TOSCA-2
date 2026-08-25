@@ -20,6 +20,20 @@
             />
         </div>
 
+        <div v-if="visibleLocationModes.length > 0" class="flex flex-wrap justify-center gap-1.5" aria-label="Location types">
+            <UBadge
+                v-for="mode in visibleLocationModes"
+                :key="mode"
+                :color="eventLocationColor(mode)"
+                variant="soft"
+                size="sm"
+                :icon="eventLocationIcon(mode)"
+                class="font-semibold"
+            >
+                {{ eventLocationLabel(mode) }}
+            </UBadge>
+        </div>
+
         <div class="overflow-x-auto pb-1">
             <div class="calendar-shell">
                 <div class="calendar-grid">
@@ -41,11 +55,13 @@
                                 v-for="event in eventsByDay(day.date)"
                                 :key="event.id"
                                 :to="{ name: 'event-detail', params: { eventId: event.id } }"
-                                color="primary"
+                                :color="eventLocationColor(event.location_mode)"
                                 variant="soft"
                                 size="xs"
                                 class="calendar-event"
-                                :aria-label="`${formatEventTime(event.start_datetime)} ${event.title}`"
+                                :icon="eventLocationIcon(event.location_mode)"
+                                :title="`${eventLocationLabel(event.location_mode)} — ${event.title}`"
+                                :aria-label="`${eventLocationLabel(event.location_mode)}, ${formatEventTime(event.start_datetime)} ${event.title}`"
                             >
                                 <span class="calendar-event-label">
                                     <strong>{{ formatEventTime(event.start_datetime) }}</strong>
@@ -62,14 +78,31 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { type EventListItem } from "@store/events";
-import { formatEventTime } from "./eventPresentation";
+import { type EventListItem, type EventLocationMode } from "@store/events";
+import {
+    eventLocationColor,
+    eventLocationIcon,
+    eventLocationLabel,
+    formatEventTime,
+} from "./eventPresentation";
 
 const props = defineProps<{
     events: EventListItem[]
 }>();
 
 const visibleMonth = ref(startOfMonth(firstRelevantDate(props.events)));
+
+const visibleLocationModes = computed(() => {
+    const preferredOrder: EventLocationMode[] = [
+        "physical",
+        "online",
+        "hybrid",
+        "by_arrangement",
+        "home_visit",
+    ];
+    const modes = new Set(props.events.map((event) => event.location_mode));
+    return preferredOrder.filter((mode) => modes.has(mode));
+});
 
 const monthLabel = computed(() => {
     return new Intl.DateTimeFormat(undefined, {
