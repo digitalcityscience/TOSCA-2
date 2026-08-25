@@ -105,15 +105,16 @@ export type CollabLayerPolicy = Record<CollabLayerId, CollabLayerPolicyEntry>;
 
 /**
  * M1 default (plan §13): Control sees every technical overlay; the Table/projector only ever
- * sees footprints — "don't render" is the M1 masking strategy for bbox/id/orientation/confidence
- * (plan §13 option 1, B4).
+ * sees footprints — "don't render" is the M1 masking strategy for bbox/orientation/confidence
+ * (plan §13 option 1, B4). `trackedId` (each tracked building's centre point) is the exception:
+ * shown on both views so the projector also displays building centroid data, not just footprints.
  */
 export const DEFAULT_COLLAB_LAYER_POLICY: CollabLayerPolicy = {
     scenarioFootprint: { control: true, table: true },
     trackedFootprint: { control: true, table: true },
     trackedBbox: { control: true, table: false },
     trackedOrientation: { control: true, table: false },
-    trackedId: { control: true, table: false },
+    trackedId: { control: true, table: true },
     trackedConfidence: { control: true, table: false },
     // Simulation results are projector-appropriate (ticket 11 acceptance) — shown on both views.
     simulationResult: { control: true, table: true },

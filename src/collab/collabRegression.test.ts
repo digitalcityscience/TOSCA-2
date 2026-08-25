@@ -285,17 +285,43 @@ describe("3/4 translation + rotation from a tracked pose", () => {
     });
 });
 
-describe("6/7 layer policy: Control debug layers present, Table overlays absent", () => {
-    test("Control sees every technical overlay; Table only ever sees footprints (plan §13 M1 default)", () => {
+describe("6/7 layer policy: Control debug layers present, Table only gets footprints + centre points", () => {
+    test("Control sees every technical overlay; Table sees footprints and building centre points, nothing else (plan §13 M1 default)", () => {
         const session = useCollabSessionStore();
         expect(session.layerPolicy).toEqual(DEFAULT_COLLAB_LAYER_POLICY);
 
-        for (const debugLayer of ["trackedBbox", "trackedOrientation", "trackedId", "trackedConfidence"] as const) {
+        for (const debugLayer of ["trackedBbox", "trackedOrientation", "trackedConfidence"] as const) {
             expect(session.isLayerVisible(debugLayer, "control")).toBe(true);
             expect(session.isLayerVisible(debugLayer, "table")).toBe(false);
         }
+        // trackedId (each tracked building's centre point) is shown on both views — the Table/
+        // projector displays building centroid data, not just footprints.
+        expect(session.isLayerVisible("trackedId", "control")).toBe(true);
+        expect(session.isLayerVisible("trackedId", "table")).toBe(true);
         expect(session.isLayerVisible("trackedFootprint", "table")).toBe(true);
         expect(session.isLayerVisible("scenarioFootprint", "table")).toBe(true);
+    });
+
+    test("startRendering('table') actually creates the trackedId map layer, not just the policy flag", async () => {
+        const session = useCollabSessionStore();
+        session.base.objects = makeBuildings();
+        const building = session.base.objects[0]!;
+        session.tracking[building.id] = { pose: { lng: 9.99, lat: 53.55, rotation: 0 }, confidence: 1, lastSeen: 0 };
+
+        const trackingRender = useCollabTrackingRenderStore();
+        trackingRender.startRendering("table");
+
+        for (let i = 0; i < 60; i++) {
+            await Promise.resolve();
+        }
+
+        expect(fakeSources.has("collabTrackedId")).toBe(true);
+        // Table must not pick up Control-only debug layers while it's at it.
+        expect(fakeSources.has("collabTrackedBbox")).toBe(false);
+        expect(fakeSources.has("collabTrackedOrientation")).toBe(false);
+        expect(fakeSources.has("collabTrackedConfidence")).toBe(false);
+
+        trackingRender.stop();
     });
 });
 

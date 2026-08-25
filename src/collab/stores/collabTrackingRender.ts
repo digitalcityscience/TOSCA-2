@@ -149,7 +149,8 @@ export function orientationArrowTip(centre: Position, appliedRotationDeg: number
  *   `collabSession.tracking`.
  * - `startRendering(windowKind)` watches session state and renders the Collab layers each window
  *   is allowed to show, per `collabSession.layerPolicy`: Control gets tracked footprint/bbox/
- *   orientation/id/confidence; Table gets only the scenario + tracked footprints.
+ *   orientation/id/confidence; Table gets the scenario + tracked footprints plus tracked id
+ *   (building centre points), per the current M1 default.
  *
  * Pose→geometry derivation (translate/rotate + 5° jitter threshold + table→AOI rotation offset)
  * is delegated to `collabCalibration.deriveTrackedFootprint` — this store only wires events,
@@ -510,6 +511,22 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             );
         }
 
+        // trackedId (each tracked building's centre point) is policy-driven per window, not
+        // Control-only like the other debug layers below — the M1 default (plan §13, updated)
+        // shows it on both Control and Table, so it uses `isLayerVisible` like `trackedFootprint`/
+        // `simulationResult` above instead of the hardcoded `windowKind === "control"` gate.
+        if (session.isLayerVisible("trackedId", windowKind)) {
+            await safelyEnsure("trackedId", () =>
+                ensureSymbolLayer(
+                    TRACKED_ID_SOURCE_ID,
+                    TRACKED_ID_LAYER_ID,
+                    tracked.ids,
+                    i18n.global.t("collab.layers.trackedId"),
+                    -1.2
+                )
+            );
+        }
+
         if (windowKind === "control") {
             if (policy.trackedBbox.control) {
                 await safelyEnsure("trackedBbox", () =>
@@ -530,17 +547,6 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                         tracked.orientations,
                         i18n.global.t("collab.layers.trackedOrientation"),
                         "#7c3aed"
-                    )
-                );
-            }
-            if (policy.trackedId.control) {
-                await safelyEnsure("trackedId", () =>
-                    ensureSymbolLayer(
-                        TRACKED_ID_SOURCE_ID,
-                        TRACKED_ID_LAYER_ID,
-                        tracked.ids,
-                        i18n.global.t("collab.layers.trackedId"),
-                        -1.2
                     )
                 );
             }
