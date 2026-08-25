@@ -11,6 +11,7 @@ import {
     calibrationMarkerSizePx,
     deriveGroundScale,
     deriveTrackedFootprint,
+    footprintAnchorCentre,
     isAoiZoomSufficient,
     placeFootprintAt,
     tablePixelCorners,
@@ -229,6 +230,60 @@ describe("placeFootprintAt", () => {
         const unrotatedRadius = distance(point(targetCentre), point(unrotatedFirstVertex), { units: "meters" });
         const rotatedRadius = distance(point(targetCentre), point(rotatedFirstVertex), { units: "meters" });
         expect(rotatedRadius).toBeCloseTo(unrotatedRadius, 1);
+    });
+});
+
+describe("footprintAnchorCentre (ticket 13, plan §\"do not silently change\" item 5)", () => {
+    // An L-shaped (concave) footprint near [9.99, 53.55] — the shape the ticket calls out
+    // specifically, since a concave polygon is where a bbox-centre anchor and a Turf-style
+    // vertex-mean centroid land in visibly different places (a convex/regular shape would not
+    // expose the difference).
+    const baseLng = 9.99;
+    const baseLat = 53.55;
+    const u = 0.0002; // ~20m/unit at this latitude — a building-scale footprint
+    const lShape = polygon([
+        [
+            [baseLng + 0 * u, baseLat + 0 * u],
+            [baseLng + 2 * u, baseLat + 0 * u],
+            [baseLng + 2 * u, baseLat + 1 * u],
+            [baseLng + 1 * u, baseLat + 1 * u],
+            [baseLng + 1 * u, baseLat + 2 * u],
+            [baseLng + 0 * u, baseLat + 2 * u],
+            [baseLng + 0 * u, baseLat + 0 * u],
+        ],
+    ]);
+
+    /**
+     * Turf's `centroid` is literally the arithmetic mean of every coordinate in the geometry
+     * (including the ring's closing duplicate) — Vanilla's anchor (`moveBuilding.js`). Computed
+     * here directly rather than pulling in `@turf/centroid` as a dependency for one test.
+     */
+    function vanillaStyleCentroid(feature: ReturnType<typeof polygon>): [number, number] {
+        const ring = feature.geometry.coordinates[0]!;
+        let xSum = 0;
+        let ySum = 0;
+        for (const coord of ring) {
+            xSum += coord[0];
+            ySum += coord[1];
+        }
+        return [xSum / ring.length, ySum / ring.length];
+    }
+
+    test("the bbox centre and Vanilla's vertex-mean centroid diverge for a concave footprint", () => {
+        const bboxCentre = footprintAnchorCentre(lShape);
+        const centroid = vanillaStyleCentroid(lShape);
+        expect(distance(point(bboxCentre), point(centroid), { units: "meters" })).toBeGreaterThan(1);
+    });
+
+    test("placeFootprintAt anchors on the bbox centre: the placed footprint's bbox centre lands exactly on the target, its vertex-mean centroid does not", () => {
+        const target: [number, number] = [10.0, 53.56];
+        const placed = placeFootprintAt(lShape, target, 0);
+
+        const placedBboxCentre = footprintAnchorCentre(placed);
+        expect(distance(point(placedBboxCentre), point(target), { units: "meters" })).toBeLessThan(0.5);
+
+        const placedCentroid = vanillaStyleCentroid(placed);
+        expect(distance(point(placedCentroid), point(target), { units: "meters" })).toBeGreaterThan(1);
     });
 });
 

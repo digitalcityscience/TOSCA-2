@@ -210,24 +210,40 @@ export function isAoiZoomSufficient(aoi: AOIExtent, config: CollabTableConfig): 
     return deriveGroundScale(aoi, config) <= config.aoiScaleTarget.groundScale
 }
 
-function bboxCentre(feature: Feature<Polygon | MultiPolygon>): Position {
+/**
+ * The one canonical footprint anchor TOSCA places every tracked building by (ticket 13, plan §"do
+ * not silently change" item 5): a polygon's bounding-box centre. Vanilla (`moveBuilding.js`)
+ * anchors on a Turf-style centroid (the arithmetic mean of every vertex) instead — for a concave
+ * footprint (L-shaped, U-shaped) the two land in visibly different places, since the centroid is
+ * pulled toward wherever the polygon has more vertices/mass while the bbox centre stays at the
+ * geometric middle of the extent. TOSCA deliberately keeps the bbox centre (matching
+ * `placeFootprintAt`'s pre-existing behaviour) rather than switching to match Vanilla. Every place
+ * in this codebase that needs a footprint's centre point — `placeFootprintAt`'s translation target
+ * and `collabTrackingRender.ts`'s simulation-result label anchor — calls this function rather than
+ * recomputing a bbox centre inline, so a future change to the anchor convention is made once, here.
+ * (The Control-View debug bbox overlay in `collabTrackingRender.ts` is a different concern — it
+ * draws the already-placed footprint's bounding rectangle, not a centre point, so it calls `bbox`
+ * directly and doesn't go through this function.)
+ */
+export function footprintAnchorCentre(feature: Feature<Polygon | MultiPolygon>): Position {
     const [minX, minY, maxX, maxY] = bbox(feature)
     return [(minX + maxX) / 2, (minY + maxY) / 2]
 }
 
 /**
  * Places a known building footprint at a detected geographic centre + rotation: translate the
- * footprint from its current (bbox) centre to `targetCentre` along the geodesic bearing/distance
- * between them, then rotate it around `targetCentre` by `rotationDeg`. Mirrors the Vanilla
- * reference behaviour (`moveBuilding.js`, plan §5e) without reimplementing any tracking-coordinate
- * pipeline — `targetCentre` and `rotationDeg` are assumed already geo-referenced by Python (B3).
+ * footprint from its current {@link footprintAnchorCentre} to `targetCentre` along the geodesic
+ * bearing/distance between them, then rotate it around `targetCentre` by `rotationDeg`. Mirrors the
+ * Vanilla reference behaviour (`moveBuilding.js`, plan §5e) without reimplementing any
+ * tracking-coordinate pipeline — `targetCentre` and `rotationDeg` are assumed already
+ * geo-referenced by Python (B3).
  */
 export function placeFootprintAt<T extends Polygon | MultiPolygon>(
     footprint: Feature<T>,
     targetCentre: Position,
     rotationDeg: number
 ): Feature<T> {
-    const originalCentre = bboxCentre(footprint)
+    const originalCentre = footprintAnchorCentre(footprint)
     const from = point(originalCentre)
     const to = point(targetCentre)
     const moveDistance = distance(from, to, { units: "meters" })
@@ -243,6 +259,13 @@ export function placeFootprintAt<T extends Polygon | MultiPolygon>(
  * left→right along the table's top edge (bearing 90°/due east); this is how far the AOI's
  * matching geographic edge deviates from that, so it can be added to a tracked pose's rotation
  * before rendering (plan §13).
+ *
+ * This is the one named place the offset is computed (ticket 13, plan §"do not silently change"
+ * item 4) — `collabTrackingRender.ts`'s AOI watcher calls this once and stores the result in
+ * `collabSession.calibration.rotationOffsetDeg`, and `deriveTrackedFootprint` is the only consumer.
+ * Its sign (the `- 90`) is pending physical verification against the real table/camera rig
+ * (ticket 16); if hardware testing finds tracked buildings rotating the wrong way, flip the sign
+ * here — nowhere else computes or re-derives this offset.
  */
 export function tableToAoiRotationOffsetDeg(aoi: AOIExtent): number {
     const [topLeft, topRight] = aoi.corners

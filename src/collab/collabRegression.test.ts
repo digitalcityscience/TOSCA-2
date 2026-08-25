@@ -291,6 +291,68 @@ describe("3/4 translation + rotation from a tracked pose", () => {
     });
 });
 
+describe("Phase 4 (ticket 13): tracked buildings computed once in Control, broadcast, structurally equal on Table", () => {
+    test("Control derives the tracked-building GeoJSON once and broadcasts it; Table renders that exact collection instead of deriving its own", async () => {
+        localStorage.clear();
+
+        setActivePinia(createPinia());
+        const controlSession = useCollabSessionStore();
+        const controlSync = useCollabSyncStore();
+        controlSession.base.objects = makeBuildings();
+        controlSession.tracking["B-0"] = { pose: { lng: 9.9905, lat: 53.5502, rotation: 20 }, confidence: 1, lastSeen: 0 };
+        controlSession.tracking["B-1"] = { pose: { lng: 9.9925, lat: 53.5498, rotation: -10 }, confidence: 1, lastSeen: 0 };
+        const controlTrackingRender = useCollabTrackingRenderStore();
+        controlTrackingRender.startRendering("control");
+
+        for (let i = 0; i < 30; i++) {
+            await Promise.resolve();
+        }
+
+        // Control derived (and published) the tracked-building collection exactly once here.
+        expect(controlSession.trackedBuildings.footprints.features).toHaveLength(2);
+        expect(controlSession.trackedBuildings.revision).toBeGreaterThan(0);
+        const controlFootprints = JSON.parse(JSON.stringify(controlSession.trackedBuildings.footprints));
+        const controlRevision = controlSession.trackedBuildings.revision;
+
+        setActivePinia(createPinia());
+        const tableSession = useCollabSessionStore();
+        const tableSync = useCollabSyncStore();
+        const tableTrackingRender = useCollabTrackingRenderStore();
+
+        const [controlChannel, tableChannel] = PairedTestChannel.createPair<CollabSyncMessage>();
+        controlSync.startAsControl(controlChannel);
+        tableSync.startAsTable(tableChannel);
+        await nextTick();
+
+        // Same revision -> structurally equal tracked-building GeoJSON, straight off the broadcast.
+        expect(tableSession.trackedBuildings.revision).toBe(controlRevision);
+        expect(tableSession.trackedBuildings.footprints).toEqual(controlFootprints);
+
+        // Isolate Table's own render pass from Control's map-mock calls before proving it renders
+        // exactly the broadcast collection, without deriving anything itself.
+        fakeSources.clear();
+        addMapDataSource.mockClear();
+        addMapLayer.mockClear();
+
+        tableTrackingRender.startRendering("table");
+        for (let i = 0; i < 60; i++) {
+            await Promise.resolve();
+        }
+
+        const tableFootprintSource = fakeSources.get("collabTrackedFootprints");
+        expect(tableFootprintSource?.setData).toHaveBeenCalledWith(controlFootprints);
+
+        // Table's render pass must not have touched the broadcast slice — it only ever reads it.
+        expect(tableSession.trackedBuildings.footprints).toEqual(controlFootprints);
+        expect(tableSession.trackedBuildings.revision).toBe(controlRevision);
+
+        controlTrackingRender.stop();
+        tableTrackingRender.stop();
+        controlSync.stop();
+        tableSync.stop();
+    });
+});
+
 describe("6/7 layer policy: Control debug layers present, Table only gets footprints + centre points", () => {
     test("Control sees every technical overlay; Table sees footprints and building centre points, nothing else (plan §13 M1 default)", () => {
         const session = useCollabSessionStore();
@@ -308,11 +370,27 @@ describe("6/7 layer policy: Control debug layers present, Table only gets footpr
         expect(session.isLayerVisible("scenarioFootprint", "table")).toBe(true);
     });
 
-    test("startRendering('table') actually creates the trackedId map layer, not just the policy flag", async () => {
+    test("startRendering('table') renders the broadcast trackedId collection into the map layer, not just the policy flag", async () => {
         const session = useCollabSessionStore();
         session.base.objects = makeBuildings();
         const building = session.base.objects[0]!;
         session.tracking[building.id] = { pose: { lng: 9.99, lat: 53.55, rotation: 0 }, confidence: 1, lastSeen: 0 };
+        // Table never derives tracked-building geometry itself (ticket 13) — it renders whatever
+        // Control already broadcast via session.trackedBuildings, so this test seeds that slice
+        // directly (there's no Control instance here) rather than session.tracking alone, or the
+        // rendered layer would silently come out empty.
+        session.trackedBuildings.ids = {
+            type: "FeatureCollection",
+            features: [
+                {
+                    type: "Feature",
+                    id: building.id,
+                    properties: { label: building.id },
+                    geometry: { type: "Point", coordinates: [9.99, 53.55] },
+                },
+            ],
+        };
+        session.trackedBuildings.revision = 1;
 
         const trackingRender = useCollabTrackingRenderStore();
         trackingRender.startRendering("table");
@@ -322,6 +400,7 @@ describe("6/7 layer policy: Control debug layers present, Table only gets footpr
         }
 
         expect(fakeSources.has("collabTrackedId")).toBe(true);
+        expect(fakeSources.get("collabTrackedId")?.setData).toHaveBeenCalledWith(session.trackedBuildings.ids);
         // Table must not pick up Control-only debug layers while it's at it.
         expect(fakeSources.has("collabTrackedBbox")).toBe(false);
         expect(fakeSources.has("collabTrackedOrientation")).toBe(false);

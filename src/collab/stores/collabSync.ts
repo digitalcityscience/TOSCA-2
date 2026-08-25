@@ -9,6 +9,7 @@ import {
     type CollabScenarioState,
     type CollabSimulationState,
     type CollabTableRenderState,
+    type CollabTrackedBuildingsState,
     type CollabTrackingObjectState,
 } from "./collabSession";
 
@@ -23,9 +24,18 @@ export interface CollabSessionSnapshot {
     tableRender: CollabTableRenderState;
     simulation: CollabSimulationState;
     calibration: CollabCalibrationState;
+    trackedBuildings: CollabTrackedBuildingsState;
 }
 
-const SNAPSHOT_SLICES = ["base", "scenario", "tracking", "tableRender", "simulation", "calibration"] as const;
+const SNAPSHOT_SLICES = [
+    "base",
+    "scenario",
+    "tracking",
+    "tableRender",
+    "simulation",
+    "calibration",
+    "trackedBuildings",
+] as const;
 type SnapshotSlice = (typeof SNAPSHOT_SLICES)[number];
 
 /** Control → Table wire messages (plan §11). `patch` carries only the slices that changed. */
@@ -76,6 +86,14 @@ function cloneCalibration(value: CollabCalibrationState): CollabCalibrationState
         rotationOffsetDeg: value.rotationOffsetDeg,
         aoi: value.aoi === null ? null : { corners: [...value.aoi.corners] as typeof value.aoi.corners },
         phase: value.phase,
+        revision: value.revision,
+    };
+}
+
+function cloneTrackedBuildings(value: CollabTrackedBuildingsState): CollabTrackedBuildingsState {
+    return {
+        footprints: { type: "FeatureCollection", features: [...value.footprints.features] },
+        ids: { type: "FeatureCollection", features: [...value.ids.features] },
         revision: value.revision,
     };
 }
@@ -141,6 +159,7 @@ export const useCollabSyncStore = defineStore("collabSync", () => {
             tableRender: cloneTableRender(session.tableRender),
             simulation: cloneSimulation(session.simulation),
             calibration: cloneCalibration(session.calibration),
+            trackedBuildings: cloneTrackedBuildings(session.trackedBuildings),
         };
     }
 
@@ -154,6 +173,7 @@ export const useCollabSyncStore = defineStore("collabSync", () => {
         Object.assign(session.tableRender, cloneTableRender(snapshot.tableRender));
         Object.assign(session.simulation, cloneSimulation(snapshot.simulation));
         Object.assign(session.calibration, cloneCalibration(snapshot.calibration));
+        Object.assign(session.trackedBuildings, cloneTrackedBuildings(snapshot.trackedBuildings));
     }
 
     function applyPatch(patch: Partial<CollabSessionSnapshot>): void {

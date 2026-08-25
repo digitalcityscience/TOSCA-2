@@ -15,7 +15,7 @@ import { i18n } from "../../core/i18n";
 import { useMapStore } from "@store/map";
 import { useCollabSessionStore, type CollabSceneObject, type CollabTrackingObjectState } from "./collabSession";
 import { toFeature, useCollabScenarioStore, type CollabBuildingObject } from "./collabScenario";
-import { calibrationMarkerSizePx, deriveTrackedFootprint, tableToAoiRotationOffsetDeg, type AOIExtent } from "./collabCalibration";
+import { calibrationMarkerSizePx, deriveTrackedFootprint, footprintAnchorCentre, tableToAoiRotationOffsetDeg, type AOIExtent } from "./collabCalibration";
 import { maskContextAroundPhysicalFootprints } from "./collabMasking";
 import {
     aoiCornerForMapMarker,
@@ -276,14 +276,26 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         return { type: "FeatureCollection", features: session.currentScenario.map(toFeature) };
     }
 
-    /** Derives every tracked object's Control-View render products from session.tracking (plan §13). */
-    function trackedRenderState(): {
+    /** Everything `updateLayers` needs to render Collab's tracked-object layers for one window. */
+    interface TrackedRenderProducts {
         footprints: FeatureCollection;
         bboxes: FeatureCollection;
         orientations: FeatureCollection;
         ids: FeatureCollection;
         confidences: FeatureCollection;
-    } {
+    }
+
+    /**
+     * Derives every tracked object's render products from session.tracking (plan §13) — Control
+     * only; `updateLayers` never calls this for `windowKind === "table"` (ticket 13). This is the
+     * one place `deriveTrackedFootprint` (translate+rotate onto the detected pose) runs; its two
+     * broadcastable outputs, `footprints` and `ids`, are published into `session.trackedBuildings`
+     * as a side effect so Table can render the exact same tracked-building collection Control just
+     * computed instead of deriving its own (see {@link tableTrackedRenderState}). `bboxes`/
+     * `orientations`/`confidences` stay Control-only debug overlays (plan §4 "on-map layers") and
+     * are never broadcast.
+     */
+    function trackedRenderState(): TrackedRenderProducts {
         const offset = session.calibration.rotationOffsetDeg;
         const footprints: Feature[] = [];
         const bboxes: Feature[] = [];
@@ -348,12 +360,49 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             });
         }
 
+        const footprintCollection: FeatureCollection = { type: "FeatureCollection", features: footprints };
+        const idCollection: FeatureCollection = { type: "FeatureCollection", features: ids };
+
+        // Publish the authoritative tracked-building collection (ticket 13), bumping revision only
+        // when it actually changed: this derivation re-runs on every render tick, including ticks
+        // triggered by unrelated state (e.g. a simulation run) where the tracked footprints are
+        // unchanged — bumping unconditionally would make collabSync treat the slice as changed on
+        // every tick (its diff compares by JSON, and `revision` is part of the synced shape) and
+        // rebroadcast/re-persist the full tracked-building collection far more often than anything
+        // on the table actually moved.
+        const structurallyChanged =
+            JSON.stringify(session.trackedBuildings.footprints) !== JSON.stringify(footprintCollection) ||
+            JSON.stringify(session.trackedBuildings.ids) !== JSON.stringify(idCollection);
+        if (structurallyChanged) {
+            session.trackedBuildings.footprints = footprintCollection;
+            session.trackedBuildings.ids = idCollection;
+            session.trackedBuildings.revision += 1;
+        }
+
         return {
-            footprints: { type: "FeatureCollection", features: footprints },
+            footprints: footprintCollection,
             bboxes: { type: "FeatureCollection", features: bboxes },
             orientations: { type: "FeatureCollection", features: orientations },
-            ids: { type: "FeatureCollection", features: ids },
+            ids: idCollection,
             confidences: { type: "FeatureCollection", features: confidences },
+        };
+    }
+
+    /**
+     * Table's counterpart to {@link trackedRenderState} (ticket 13): reads the tracked-building
+     * collection Control already derived and broadcast via `session.trackedBuildings`, instead of
+     * calling `deriveTrackedFootprint` again locally. Table has no debug overlays to render, so
+     * `bboxes`/`orientations`/`confidences` are empty — `updateLayers` never reads them for
+     * `windowKind === "table"`.
+     */
+    function tableTrackedRenderState(): TrackedRenderProducts {
+        const empty: FeatureCollection = { type: "FeatureCollection", features: [] };
+        return {
+            footprints: session.trackedBuildings.footprints,
+            ids: session.trackedBuildings.ids,
+            bboxes: empty,
+            orientations: empty,
+            confidences: empty,
         };
     }
 
@@ -369,12 +418,11 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             if (known === undefined) {
                 continue;
             }
-            const [minX, minY, maxX, maxY] = bbox(known);
             features.push({
                 type: "Feature",
                 id: result.objectId,
                 properties: { label: String(result.metric) },
-                geometry: { type: "Point", coordinates: [(minX + maxX) / 2, (minY + maxY) / 2] },
+                geometry: { type: "Point", coordinates: footprintAnchorCentre(known) },
             });
         }
         return { type: "FeatureCollection", features };
@@ -592,10 +640,12 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         }
 
         let policy: typeof session.layerPolicy;
-        let tracked: ReturnType<typeof trackedRenderState>;
+        let tracked: TrackedRenderProducts;
         try {
             policy = session.layerPolicy;
-            tracked = trackedRenderState();
+            // Tracked buildings are derived exactly once, in Control (ticket 13) — Table reads the
+            // broadcast collection instead of calling deriveTrackedFootprint itself.
+            tracked = windowKind === "control" ? trackedRenderState() : tableTrackedRenderState();
         } catch (error) {
             reportDeveloperError("collabTrackingRender.updateLayers.deriveState", error);
             return;
@@ -746,9 +796,22 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             );
         }
 
+        // Table renders `session.trackedBuildings` verbatim (ticket 13) instead of deriving it from
+        // `session.tracking` itself, so it needs `trackedBuildings` as its own watch dependency — a
+        // patch that changes only that slice (common: Control's `trackedRenderState` write lands one
+        // microtask after the `tracking` write that caused it, so they often arrive as two separate
+        // sync patches) must still trigger a re-render, or Table's rendered footprints stay one
+        // revision behind Control's. Control must NOT watch `trackedBuildings` itself:
+        // `updateLayers("control")` below writes it as a derived side effect of this very watcher, so
+        // including it here would make every render tick re-trigger itself.
+        const renderWatchSources = (): readonly unknown[] =>
+            windowKind === "table"
+                ? [session.currentScenario, session.tracking, session.calibration, session.trackedBuildings, session.simulation.results]
+                : [session.currentScenario, session.tracking, session.calibration, session.simulation.results];
+
         stopFns.push(
             watch(
-                () => [session.currentScenario, session.tracking, session.calibration, session.simulation.results] as const,
+                renderWatchSources,
                 () => {
                     void updateLayers(windowKind);
                 },

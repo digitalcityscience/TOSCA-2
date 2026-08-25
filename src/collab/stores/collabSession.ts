@@ -1,5 +1,6 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
 import { computed, reactive } from "vue";
+import type { FeatureCollection } from "@helpers/geojson";
 import type { AOIExtent } from "./collabCalibration";
 
 /**
@@ -95,6 +96,22 @@ export interface CollabCalibrationState {
 }
 
 /**
+ * The authoritative tracked-building collection (ticket 13, plan §5e/§7.4/Phase 4): every currently
+ * tracked object's known footprint, translated/rotated onto its detected pose, plus its centre
+ * point — computed exactly once, in Control's tracking adapter (`collabTrackingRender.ts`'s
+ * `trackedRenderState`), and broadcast here. Table reads `footprints`/`ids` straight off this
+ * slice to render `trackedFootprint`/`trackedId`; it never calls `deriveTrackedFootprint` itself.
+ * `revision` is bumped on every Control-side (re)derivation, like `CollabCalibrationState.revision`
+ * — a simple presence check ("has `revision` changed since I last rendered?") is cheap for either
+ * window even though `footprints`/`ids` are also deep-equatable.
+ */
+export interface CollabTrackedBuildingsState {
+    footprints: FeatureCollection;
+    ids: FeatureCollection;
+    revision: number;
+}
+
+/**
  * Logical Collab layers the per-view layer-policy matrix governs (plan §13, ticket 08): the
  * scenario/tracked footprints both views can show, `trackedId` (also shown on both — see
  * {@link DEFAULT_COLLAB_LAYER_POLICY}), plus the remaining technical tracking overlays that stay
@@ -157,6 +174,11 @@ export const useCollabSessionStore = defineStore("collabSession", () => {
     const simulation = reactive<CollabSimulationState>({ running: false, results: [], lastRunAt: null });
     const layerPolicy = reactive<CollabLayerPolicy>({ ...DEFAULT_COLLAB_LAYER_POLICY });
     const calibration = reactive<CollabCalibrationState>({ rotationOffsetDeg: 0, aoi: null, phase: "idle", revision: 0 });
+    const trackedBuildings = reactive<CollabTrackedBuildingsState>({
+        footprints: { type: "FeatureCollection", features: [] },
+        ids: { type: "FeatureCollection", features: [] },
+        revision: 0,
+    });
 
     /** Whether `layerId` should render for `windowKind`, per the current layer-policy matrix (plan §13). */
     function isLayerVisible(layerId: CollabLayerId, windowKind: "control" | "table"): boolean {
@@ -198,6 +220,7 @@ export const useCollabSessionStore = defineStore("collabSession", () => {
         simulation,
         layerPolicy,
         calibration,
+        trackedBuildings,
         currentScenario,
         isLayerVisible,
         setLayerTableMode,
