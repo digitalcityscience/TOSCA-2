@@ -129,7 +129,7 @@
                 size="sm"
                 color="primary"
                 variant="soft"
-                :disabled="!collabSession.base.loaded"
+                :disabled="!canStartTracking(collabSession.base.loaded, scenarioStore.mapCalibration)"
                 @click="trackingRenderStore.startMockTracking()"
             />
             <UButton
@@ -142,6 +142,9 @@
             />
             <p v-if="!collabSession.base.loaded" class="text-xs text-muted">
                 {{ t("collab.control.tracking.requiresFootprints") }}
+            </p>
+            <p v-else-if="scenarioStore.mapCalibration === null" class="text-xs text-muted">
+                {{ t("collab.control.tracking.noAoi") }}
             </p>
             <p v-else-if="trackingRenderStore.trackingAvailability === 'suppressed'" class="text-xs text-warning">
                 {{ t("collab.control.tracking.suppressed") }}
@@ -203,7 +206,7 @@ import BaseSlideoverSidebarComponent from "@components/Base/BaseSlideoverSidebar
 import { useToast } from "@helpers/toast";
 import { useCollabSyncStore } from "../stores/collabSync";
 import { useCollabSessionStore } from "../stores/collabSession";
-import { useCollabScenarioStore } from "../stores/collabScenario";
+import { canStartTracking, useCollabScenarioStore } from "../stores/collabScenario";
 import { useCollabTrackingRenderStore } from "../stores/collabTrackingRender";
 import { useCollabSimulationStore } from "../stores/collabSimulation";
 import { REFERENCE_MARKERS } from "../stores/collabTracking";

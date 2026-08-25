@@ -82,6 +82,17 @@ export function isAspectRatioValid(
     return Math.abs(actualRatio - expectedRatio) / expectedRatio <= toleranceRatio;
 }
 
+/**
+ * Whether "Start Tracking" may be pressed (ticket 02): `startRealTracking` bails out with no
+ * visible effect when `mapCalibration` is `null` (no AOI confirmed yet), so the control must stay
+ * disabled until an AOI has been selected and confirmed — no click path may lead to nothing
+ * happening. Footprints must also be loaded (ticket 07's existing gate) since tracking has no
+ * marker→object registry to resolve against otherwise.
+ */
+export function canStartTracking(baseLoaded: boolean, mapCalibration: MapCalibrationMessage | null): boolean {
+    return baseLoaded && mapCalibration !== null;
+}
+
 /** Fixture features whose footprint lies entirely within the chosen AOI. */
 export function footprintsWithinAoi(
     features: Array<Feature<Polygon, CollabBuildingFixtureProperties>>,

@@ -6,9 +6,10 @@ vi.mock("@helpers/toast", () => ({
     useToast: () => ({ add: vi.fn() }),
 }));
 import type { Feature, Polygon } from "@helpers/geojson";
-import { DEFAULT_COLLAB_TABLE_CONFIG, type AOIExtent, type CollabTableConfig } from "./collabCalibration";
+import { DEFAULT_COLLAB_TABLE_CONFIG, type AOIExtent, type CollabTableConfig, type MapCalibrationMessage } from "./collabCalibration";
 import { useCollabSessionStore } from "./collabSession";
 import {
+    canStartTracking,
     extentFromPolygon,
     footprintsWithinAoi,
     isAspectRatioValid,
@@ -117,6 +118,26 @@ describe("viewfinderScreenCorners", () => {
         const [topLeft, topRight] = corners;
         const width = topRight[0] - topLeft[0];
         expect(width).toBeLessThanOrEqual(400);
+    });
+});
+
+describe("canStartTracking", () => {
+    const calibration: MapCalibrationMessage = { type: "map_calibration", points: [] };
+
+    test("disabled while mapCalibration is null, even with footprints loaded", () => {
+        expect(canStartTracking(true, null)).toBe(false);
+    });
+
+    test("disabled while footprints aren't loaded, even with mapCalibration confirmed", () => {
+        expect(canStartTracking(false, calibration)).toBe(false);
+    });
+
+    test("disabled when neither footprints nor mapCalibration are ready", () => {
+        expect(canStartTracking(false, null)).toBe(false);
+    });
+
+    test("enabled once footprints are loaded and mapCalibration becomes non-null (AOI confirmed)", () => {
+        expect(canStartTracking(true, calibration)).toBe(true);
     });
 });
 
