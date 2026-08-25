@@ -28,29 +28,6 @@ interface MapStyleLegendLayer {
     metadata?: unknown;
 }
 
-/**
- * A catalog MBStyle color is safe to replace from a single color picker only
- * when the style has one render layer and one literal color declaration.
- * Expressions are deliberately rejected, even if they currently contain one
- * color literal, because they can derive their result from feature attributes.
- */
-export function hasSingleEditableMapStyleColor(
-    layers: readonly MapStyleLegendLayer[],
-    editableColorProperty: string
-): boolean {
-    if (layers.length !== 1 || editableColorProperty === "") return false;
-
-    const paint = isRecord(layers[0].paint) ? layers[0].paint : {};
-    const colorEntries = Object.entries(paint).filter(([property]) =>
-        property.endsWith("-color")
-    );
-
-    return colorEntries.length === 1 &&
-        colorEntries[0][0] === editableColorProperty &&
-        typeof colorEntries[0][1] === "string" &&
-        isColorLiteral(colorEntries[0][1]);
-}
-
 export interface MapStyleLegendContext {
     members: ReadonlyArray<{ id: string; title: string }>;
     styles: Record<string, { sprite_id: string | null }>;

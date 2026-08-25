@@ -82,6 +82,10 @@ onMounted(() => {
         mapStore.map.on("styledata", () => {
             mapStore.paintVersion++;
         });
+        mapStore.terrainEnabled = mapStore.map.getTerrain() !== null;
+        mapStore.map.on("terrain", () => {
+            mapStore.terrainEnabled = mapStore.map.getTerrain() !== null;
+        });
         /**
          * Initialize TerraDraw after the map is loaded. This is necessary to ensure that the map object is available.
          */
