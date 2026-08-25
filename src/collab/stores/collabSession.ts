@@ -78,9 +78,9 @@ export interface CollabCalibrationState {
 
 /**
  * Logical Collab layers the per-view layer-policy matrix governs (plan §13, ticket 08): the
- * scenario footprint both views can show, plus the technical tracking overlays that are
- * Control-only spill (B4) — footprint/bbox/orientation/id/confidence, mirroring the Vanilla
- * reference (§5e).
+ * scenario/tracked footprints both views can show, `trackedId` (also shown on both — see
+ * {@link DEFAULT_COLLAB_LAYER_POLICY}), plus the remaining technical tracking overlays that stay
+ * Control-only spill (B4) — bbox/orientation/confidence, mirroring the Vanilla reference (§5e).
  */
 export type CollabLayerId =
     | "scenarioFootprint"

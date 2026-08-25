@@ -511,22 +511,6 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             );
         }
 
-        // trackedId (each tracked building's centre point) is policy-driven per window, not
-        // Control-only like the other debug layers below — the M1 default (plan §13, updated)
-        // shows it on both Control and Table, so it uses `isLayerVisible` like `trackedFootprint`/
-        // `simulationResult` above instead of the hardcoded `windowKind === "control"` gate.
-        if (session.isLayerVisible("trackedId", windowKind)) {
-            await safelyEnsure("trackedId", () =>
-                ensureSymbolLayer(
-                    TRACKED_ID_SOURCE_ID,
-                    TRACKED_ID_LAYER_ID,
-                    tracked.ids,
-                    i18n.global.t("collab.layers.trackedId"),
-                    -1.2
-                )
-            );
-        }
-
         if (windowKind === "control") {
             if (policy.trackedBbox.control) {
                 await safelyEnsure("trackedBbox", () =>
@@ -550,17 +534,36 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                     )
                 );
             }
-            if (policy.trackedConfidence.control) {
-                await safelyEnsure("trackedConfidence", () =>
-                    ensureSymbolLayer(
-                        TRACKED_CONFIDENCE_SOURCE_ID,
-                        TRACKED_CONFIDENCE_LAYER_ID,
-                        tracked.confidences,
-                        i18n.global.t("collab.layers.trackedConfidence"),
-                        0.6
-                    )
-                );
-            }
+        }
+
+        // trackedId (each tracked building's centre point) is policy-driven per window, not
+        // Control-only like its debug-layer siblings above/below — the M1 default (plan §13,
+        // updated) shows it on both Control and Table, so it uses `isLayerVisible` like
+        // `trackedFootprint`/`simulationResult` above instead of the hardcoded
+        // `windowKind === "control"` gate. Kept between orientation and confidence so Control's
+        // on-map paint order (bbox, orientation, id, confidence) is unchanged from before.
+        if (session.isLayerVisible("trackedId", windowKind)) {
+            await safelyEnsure("trackedId", () =>
+                ensureSymbolLayer(
+                    TRACKED_ID_SOURCE_ID,
+                    TRACKED_ID_LAYER_ID,
+                    tracked.ids,
+                    i18n.global.t("collab.layers.trackedId"),
+                    -1.2
+                )
+            );
+        }
+
+        if (windowKind === "control" && policy.trackedConfidence.control) {
+            await safelyEnsure("trackedConfidence", () =>
+                ensureSymbolLayer(
+                    TRACKED_CONFIDENCE_SOURCE_ID,
+                    TRACKED_CONFIDENCE_LAYER_ID,
+                    tracked.confidences,
+                    i18n.global.t("collab.layers.trackedConfidence"),
+                    0.6
+                )
+            );
         }
     }
 

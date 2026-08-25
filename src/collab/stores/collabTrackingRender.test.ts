@@ -90,7 +90,7 @@ describe("collabSession layer policy", () => {
         setActivePinia(createPinia());
     });
 
-    test("defaults match the plan §13 M1 matrix: Control sees everything, Table sees only footprints", () => {
+    test("defaults match the plan §13 M1 matrix: Control sees everything, Table sees footprints + trackedId", () => {
         const session = useCollabSessionStore();
         expect(session.layerPolicy).toEqual(DEFAULT_COLLAB_LAYER_POLICY);
     });
