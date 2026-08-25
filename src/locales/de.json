@@ -345,6 +345,7 @@
         "uncalibrated": "Verbunden, nicht kalibriert — Neukalibrierung erforderlich",
         "calibrated": "Kalibriert",
         "presenting": "Der Tisch zeigt die Kalibrierungsmarker an — Kameras positionieren, dann beenden, um zur normalen Projektion zurückzukehren",
+        "calibrate": "Kalibrieren",
         "exitPresentation": "Kalibrierungsanzeige beenden"
       },
       "footprints": {

@@ -21,6 +21,7 @@ import {
     RESERVED_MARKER_REGISTRY,
     TrackingFeedNormalizer,
     aoiCornerForMapMarker,
+    buildMapCalibrationFromMarkerReadings,
     calibrationMarkerImageUrl,
     createMarkerObjectRegistry,
     reservedMarkerRole,
@@ -116,6 +117,72 @@ describe("aoiCornerForMapMarker (ticket 11)", () => {
         expect(aoiCornerForMapMarker(aoi, byId.get(201)!)).toEqual(aoi.corners[1]);
         expect(aoiCornerForMapMarker(aoi, byId.get(202)!)).toEqual(aoi.corners[3]);
         expect(aoiCornerForMapMarker(aoi, byId.get(203)!)).toEqual(aoi.corners[2]);
+    });
+});
+
+describe("buildMapCalibrationFromMarkerReadings (ticket 12)", () => {
+    const aoi: AOIExtent = {
+        corners: [
+            [9.98, 53.56], // top-left
+            [10.0, 53.56], // top-right
+            [10.0, 53.54], // bottom-right
+            [9.98, 53.54], // bottom-left
+        ],
+    };
+
+    function readings(entries: readonly [number, [number, number]][]): RawMarkerSnapshot {
+        return new Map(entries.map(([id, [pixelX, pixelY]]) => [id, { pixelX, pixelY, rotation: 0, cameraOrTag: "000" }]));
+    }
+
+    test("pairs each of the four detected markers' raw pixel position with its AOI corner via aoiCornerForMapMarker", () => {
+        const message = buildMapCalibrationFromMarkerReadings(
+            aoi,
+            readings([
+                [200, [10, 20]], // top_left
+                [201, [1590, 20]], // top_right
+                [202, [10, 780]], // bottom_left
+                [203, [1590, 780]], // bottom_right
+            ])
+        );
+
+        expect(message).toEqual<MapCalibrationMessage>({
+            type: "map_calibration",
+            points: [
+                { pixel_position: [10, 20], lat_lon_position: [53.56, 9.98] },
+                { pixel_position: [1590, 20], lat_lon_position: [53.56, 10.0] },
+                { pixel_position: [10, 780], lat_lon_position: [53.54, 9.98] },
+                { pixel_position: [1590, 780], lat_lon_position: [53.54, 10.0] },
+            ],
+        });
+    });
+
+    test("returns undefined when any of the four marker ids has no reading yet", () => {
+        expect(
+            buildMapCalibrationFromMarkerReadings(
+                aoi,
+                readings([
+                    [200, [10, 20]],
+                    [201, [1590, 20]],
+                    [202, [10, 780]],
+                    // 203 missing
+                ])
+            )
+        ).toBeUndefined();
+        expect(buildMapCalibrationFromMarkerReadings(aoi, readings([]))).toBeUndefined();
+    });
+
+    test("ignores readings for ids outside MAP_CALIBRATION_MARKERS", () => {
+        const message = buildMapCalibrationFromMarkerReadings(
+            aoi,
+            readings([
+                [200, [10, 20]],
+                [201, [1590, 20]],
+                [202, [10, 780]],
+                [203, [1590, 780]],
+                [999, [0, 0]],
+            ])
+        );
+        expect(message?.points).toHaveLength(4);
     });
 });
 

@@ -345,6 +345,7 @@
         "uncalibrated": "Bağlı, kalibre edilmedi — yeniden kalibrasyon gerekli",
         "calibrated": "Kalibre edildi",
         "presenting": "Masa kalibrasyon işaretçilerini gösteriyor — kameraları konumlandırın, ardından normal görünüme dönmek için çıkın",
+        "calibrate": "Kalibre et",
         "exitPresentation": "Kalibrasyon sunumundan çık"
       },
       "footprints": {

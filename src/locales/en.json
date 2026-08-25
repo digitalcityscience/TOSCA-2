@@ -345,6 +345,7 @@
         "uncalibrated": "Connected, uncalibrated — recalibration required",
         "calibrated": "Calibrated",
         "presenting": "Table is presenting calibration markers — position the cameras, then exit to resume the normal projected view",
+        "calibrate": "Calibrate",
         "exitPresentation": "Exit calibration presentation"
       },
       "footprints": {

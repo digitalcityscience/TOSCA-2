@@ -134,15 +134,23 @@
                 <span class="size-2 shrink-0 rounded-full" :class="calibrationStatusDotClass" />
                 {{ calibrationStatusText }}
             </p>
-            <UButton
-                v-if="collabSession.calibration.phase === 'presenting'"
-                :label="t('collab.control.calibration.exitPresentation')"
-                icon="i-lucide-eye-off"
-                size="xs"
-                variant="soft"
-                class="self-start"
-                @click="trackingRenderStore.exitCalibrationPresentation()"
-            />
+            <div v-if="collabSession.calibration.phase === 'presenting'" class="flex gap-2">
+                <UButton
+                    v-if="trackingRenderStore.canCalibrateFromMarkers()"
+                    :label="t('collab.control.calibration.calibrate')"
+                    icon="i-lucide-crosshair"
+                    size="xs"
+                    color="primary"
+                    @click="trackingRenderStore.calibrateFromDetectedMarkers()"
+                />
+                <UButton
+                    :label="t('collab.control.calibration.exitPresentation')"
+                    icon="i-lucide-eye-off"
+                    size="xs"
+                    variant="soft"
+                    @click="trackingRenderStore.exitCalibrationPresentation()"
+                />
+            </div>
         </div>
 
         <div v-if="!isRealTableRoute" class="mt-5 flex flex-col gap-2 border-t border-muted pt-4">
@@ -340,8 +348,9 @@ const pythonStatusTextClass = computed(() => {
  * "Calibration status" text (ticket 09, extended by ticket 11): distinguishes "no AOI yet" from
  * "Table is presenting calibration markers" (ticket 11 — takes priority over the plain
  * uncalibrated/calibrated distinction, since it's an active, exitable mode, not just a status
- * reading) from "connected-uncalibrated, recalibration required" (the only reachable state until
- * ticket 12's real four-marker flow can ever set `scenarioStore.calibrated`) from "calibrated".
+ * reading) from "connected-uncalibrated, recalibration required" from "calibrated" (ticket 12's
+ * real four-marker flow, `trackingRenderStore.calibrateFromDetectedMarkers`, is what ever sets
+ * `scenarioStore.calibrated`).
  */
 const calibrationStatusText = computed(() => {
     if (scenarioStore.aoi === null) {

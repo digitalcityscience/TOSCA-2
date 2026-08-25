@@ -191,7 +191,8 @@ export const useCollabScenarioStore = defineStore("collabScenario", () => {
     const mapCalibration = ref<MapCalibrationMessage | null>(null);
     /**
      * Whether the confirmed AOI has been calibrated against the physical table via the real
-     * four-marker flow (ticket 12 — not yet built). Distinct from `mapCalibration` (the synthetic,
+     * four-marker flow (ticket 12, `collabTrackingRender.calibrateFromDetectedMarkers`). Distinct
+     * from `mapCalibration` (the synthetic,
      * config-derived correspondence ticket 07 already computes and mock/dev tracking gates on):
      * this is what the Control panel's "Calibration status" section (ticket 09) reads, and it is
      * always invalidated the moment an AOI is (re)confirmed, since any previously-established

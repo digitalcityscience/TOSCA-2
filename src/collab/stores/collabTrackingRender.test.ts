@@ -10,6 +10,7 @@ vi.mock("@helpers/toast", () => ({
 import type { CollabSceneObject, CollabTrackingObjectState } from "./collabSession";
 import { DEFAULT_COLLAB_LAYER_POLICY, useCollabSessionStore } from "./collabSession";
 import { useCollabScenarioStore } from "./collabScenario";
+import type { AOIExtent } from "./collabCalibration";
 import { tableToAoiRotationOffsetDeg } from "./collabCalibration";
 import type { TrackingEvent } from "./collabTracking";
 import {
@@ -503,6 +504,125 @@ describe("collabTrackingRender store", () => {
         trackingRender.stop();
         vi.unstubAllEnvs();
         vi.unstubAllGlobals();
+    });
+
+    describe("calibrateFromDetectedMarkers / canCalibrateFromMarkers (ticket 12)", () => {
+        const aoi: AOIExtent = {
+            corners: [
+                [9.98, 53.56], // top-left
+                [10.0, 53.56], // top-right
+                [10.0, 53.54], // bottom-right
+                [9.98, 53.54], // bottom-left
+            ],
+        };
+
+        class FakeSocket {
+            onopen: (() => void) | null = null;
+            onmessage: ((event: { data: string }) => void) | null = null;
+            onclose: (() => void) | null = null;
+            onerror: ((event: unknown) => void) | null = null;
+            sent: string[] = [];
+            send(data: string): void {
+                this.sent.push(data);
+            }
+            close(): void {}
+        }
+
+        function stubRealSocket(): FakeSocket[] {
+            const sockets: FakeSocket[] = [];
+            vi.stubGlobal(
+                "WebSocket",
+                function FakeWebSocket() {
+                    const created = new FakeSocket();
+                    sockets.push(created);
+                    return created;
+                } as unknown as typeof WebSocket
+            );
+            return sockets;
+        }
+
+        function sendRawMarkerReading(socket: FakeSocket, markerId: number, pixelX: number, pixelY: number): void {
+            socket.onmessage?.({ data: JSON.stringify({ [markerId]: [pixelX, pixelY, 0, "000"] }) });
+        }
+
+        test("canCalibrateFromMarkers is false until all four ids (200-203) have a reading, true once they all do", () => {
+            vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
+            const sockets = stubRealSocket();
+
+            const trackingRender = useCollabTrackingRenderStore();
+            trackingRender.startRendering("control");
+            sockets[0]?.onopen?.();
+
+            expect(trackingRender.canCalibrateFromMarkers()).toBe(false);
+            sendRawMarkerReading(sockets[0]!, 200, 10, 20);
+            sendRawMarkerReading(sockets[0]!, 201, 1590, 20);
+            sendRawMarkerReading(sockets[0]!, 202, 10, 780);
+            expect(trackingRender.canCalibrateFromMarkers()).toBe(false);
+            sendRawMarkerReading(sockets[0]!, 203, 1590, 780);
+            expect(trackingRender.canCalibrateFromMarkers()).toBe(true);
+
+            trackingRender.stop();
+            vi.unstubAllEnvs();
+            vi.unstubAllGlobals();
+        });
+
+        test("sends map_calibration built from the real marker readings, marks the AOI calibrated, and exits presentation", () => {
+            vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
+            const sockets = stubRealSocket();
+
+            const session = useCollabSessionStore();
+            session.calibration.phase = "presenting";
+            const scenarioStore = useCollabScenarioStore();
+            scenarioStore.aoi = aoi;
+            scenarioStore.calibrated = false;
+
+            const trackingRender = useCollabTrackingRenderStore();
+            trackingRender.startRendering("control");
+            sockets[0]?.onopen?.();
+
+            sendRawMarkerReading(sockets[0]!, 200, 10, 20);
+            sendRawMarkerReading(sockets[0]!, 201, 1590, 20);
+            sendRawMarkerReading(sockets[0]!, 202, 10, 780);
+            sendRawMarkerReading(sockets[0]!, 203, 1590, 780);
+
+            trackingRender.calibrateFromDetectedMarkers();
+
+            expect(sockets[0]?.sent).toHaveLength(1);
+            expect(JSON.parse(sockets[0]!.sent[0]!)).toEqual({
+                type: "map_calibration",
+                points: [
+                    { pixel_position: [10, 20], lat_lon_position: [53.56, 9.98] },
+                    { pixel_position: [1590, 20], lat_lon_position: [53.56, 10.0] },
+                    { pixel_position: [10, 780], lat_lon_position: [53.54, 9.98] },
+                    { pixel_position: [1590, 780], lat_lon_position: [53.54, 10.0] },
+                ],
+            });
+            expect(scenarioStore.calibrated).toBe(true);
+            expect(session.calibration.phase).toBe("idle");
+
+            trackingRender.stop();
+            vi.unstubAllEnvs();
+            vi.unstubAllGlobals();
+        });
+
+        test("does nothing (besides reporting a developer error) when called with no AOI confirmed, an incomplete marker set, or no real transport connected", () => {
+            const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+            // No real transport at all (mock mode) — canCalibrateFromMarkers is false and calling
+            // the action anyway must not throw or silently claim success.
+            const session = useCollabSessionStore();
+            session.calibration.phase = "presenting";
+            const scenarioStore = useCollabScenarioStore();
+            scenarioStore.aoi = null;
+            const trackingRender = useCollabTrackingRenderStore();
+
+            trackingRender.calibrateFromDetectedMarkers();
+            expect(scenarioStore.calibrated).toBe(false);
+            expect(session.calibration.phase).toBe("presenting");
+            expect(consoleError).toHaveBeenCalled();
+
+            consoleError.mockRestore();
+        });
     });
 
     test("surfaces a visible toast when auto-reconnect gives up (ticket 08) — not console-only", () => {

@@ -19,6 +19,7 @@ import { calibrationMarkerSizePx, deriveTrackedFootprint, tableToAoiRotationOffs
 import { maskContextAroundPhysicalFootprints } from "./collabMasking";
 import {
     aoiCornerForMapMarker,
+    buildMapCalibrationFromMarkerReadings,
     calibrationMarkerImageUrl,
     createMarkerObjectRegistry,
     MAP_CALIBRATION_MARKER_IDS,
@@ -935,6 +936,52 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         session.calibration.revision += 1;
     }
 
+    /**
+     * Whether all four {@link MAP_CALIBRATION_MARKERS} ids have a reading yet (ticket 12) — gates
+     * the operator's "Calibrate" action; sending a partial correspondence set to Python would be
+     * worse than refusing to send at all.
+     */
+    function canCalibrateFromMarkers(): boolean {
+        return MAP_CALIBRATION_MARKERS.every((marker) => mapCalibrationMarkerHealth.value.has(marker.id));
+    }
+
+    /**
+     * The real four-marker calibration flow (ticket 12): builds `map_calibration` from the four
+     * detected map-calibration marker readings and the confirmed AOI, sends it to Python over the
+     * live `RealTrackingSource`, marks the AOI calibrated, and leaves calibration-presentation
+     * mode — the mechanism `scenarioStore.calibrated` and `exitCalibrationPresentation`'s doc
+     * comments both anticipated. Reports a developer error (never a silent no-effect click) if any
+     * precondition isn't met: no AOI confirmed, not all four markers detected yet, or no real
+     * transport connected — none of those are reachable from the UI once `canCalibrateFromMarkers`/
+     * `isRealTableRoute` gate the button, but the store's own contract must not silently claim
+     * success if called anyway.
+     */
+    function calibrateFromDetectedMarkers(): void {
+        const aoi = scenarioStore.aoi;
+        if (aoi === null) {
+            reportDeveloperError("collabTrackingRender.calibrateFromDetectedMarkers", new Error("no AOI confirmed"));
+            return;
+        }
+        const message = buildMapCalibrationFromMarkerReadings(aoi, mapCalibrationMarkerHealth.value);
+        if (message === undefined) {
+            reportDeveloperError(
+                "collabTrackingRender.calibrateFromDetectedMarkers",
+                new Error("not all four map-calibration markers have been detected yet")
+            );
+            return;
+        }
+        if (realSource === undefined) {
+            reportDeveloperError(
+                "collabTrackingRender.calibrateFromDetectedMarkers",
+                new Error("no real tracking transport connected")
+            );
+            return;
+        }
+        realSource.sendMapCalibration(message);
+        scenarioStore.calibrated = true;
+        exitCalibrationPresentation();
+    }
+
     /** Tears down every tracking source, the Python transport, and the render watch. Idempotent — safe on unmount and HMR. */
     function stop(): void {
         stopWatch?.();
@@ -963,6 +1010,8 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         retryPythonConnection,
         enterCalibrationPresentation,
         exitCalibrationPresentation,
+        canCalibrateFromMarkers,
+        calibrateFromDetectedMarkers,
         stop,
     };
 });

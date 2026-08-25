@@ -1,6 +1,6 @@
 import type { Feature, FeatureCollection, Point, Position } from "geojson"
 import { reportDeveloperError } from "@helpers/userFacingError"
-import type { AOIExtent, MapCalibrationMessage } from "./collabCalibration"
+import type { AOIExtent, MapCalibrationMessage, MapCalibrationPoint } from "./collabCalibration"
 
 /**
  * Transport-agnostic tracking boundary (plan §14, B1/B3). Views/stores program against
@@ -145,6 +145,31 @@ export function aoiCornerForMapMarker(aoi: AOIExtent, corner: MapCalibrationMark
         case "bottom_left":
             return bottomLeft
     }
+}
+
+/**
+ * Builds the `map_calibration` correspondences from the four real detected map-calibration marker
+ * readings (ticket 12): each marker's raw table-pixel position (from `readings`), paired with the
+ * AOI's matching geographic corner via {@link aoiCornerForMapMarker}. This is the real counterpart
+ * to `collabCalibration.buildMapCalibration`'s synthetic, config-derived pixel corners — that one
+ * assumes the table's physical geometry matches `CollabTableConfig` exactly; this one uses what
+ * the cameras actually saw. Returns `undefined` if any of the four {@link MAP_CALIBRATION_MARKERS}
+ * ids has no reading in `readings` yet — calibration cannot proceed from a partial set of corners.
+ */
+export function buildMapCalibrationFromMarkerReadings(
+    aoi: AOIExtent,
+    readings: RawMarkerSnapshot
+): MapCalibrationMessage | undefined {
+    const points: MapCalibrationPoint[] = []
+    for (const marker of MAP_CALIBRATION_MARKERS) {
+        const reading = readings.get(marker.id)
+        if (reading === undefined) {
+            return undefined
+        }
+        const [lng, lat] = aoiCornerForMapMarker(aoi, marker.corner)
+        points.push({ pixel_position: [reading.pixelX, reading.pixelY], lat_lon_position: [lat, lng] })
+    }
+    return { type: "map_calibration", points }
 }
 
 /**
