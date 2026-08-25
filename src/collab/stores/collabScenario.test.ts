@@ -9,6 +9,7 @@ import type { Feature, Polygon } from "@helpers/geojson";
 import { DEFAULT_COLLAB_TABLE_CONFIG, type AOIExtent, type CollabTableConfig, type MapCalibrationMessage } from "./collabCalibration";
 import { useCollabSessionStore } from "./collabSession";
 import {
+    canOpenTableWindow,
     canStartTracking,
     extentFromPolygon,
     footprintsWithinAoi,
@@ -18,18 +19,20 @@ import {
     useCollabScenarioStore,
     viewfinderScreenCorners,
 } from "./collabScenario";
-import type { CollabBuildingFixtureProperties } from "../fixtures/collabBuildingFixture";
+import type { CollabBuildingProperties } from "../data/collabBuildingData";
 
 function buildingFeature(
     id: string,
     ring: Array<[number, number]>,
     markerId: number
-): Feature<Polygon, CollabBuildingFixtureProperties> {
+): Feature<Polygon, CollabBuildingProperties> {
     return {
         type: "Feature",
         geometry: { type: "Polygon", coordinates: [ring] },
         properties: {
             id,
+            building_id: id,
+            city_scope_id: `B-${id}`,
             marker_id: markerId,
             building_height: 10,
             floor_area: 100,
@@ -138,6 +141,24 @@ describe("canStartTracking", () => {
 
     test("enabled once footprints are loaded and mapCalibration becomes non-null (AOI confirmed)", () => {
         expect(canStartTracking(true, calibration)).toBe(true);
+    });
+});
+
+describe("canOpenTableWindow", () => {
+    test("disabled with no AOI confirmed", () => {
+        expect(canOpenTableWindow(null)).toBe(false);
+    });
+
+    test("enabled once an AOI is confirmed", () => {
+        const aoi: AOIExtent = {
+            corners: [
+                [9.98, 53.56],
+                [10.0114, 53.56],
+                [10.0114, 53.55],
+                [9.98, 53.55],
+            ],
+        };
+        expect(canOpenTableWindow(aoi)).toBe(true);
     });
 });
 
@@ -271,11 +292,89 @@ describe("collabScenario store", () => {
                 [9.98, 53.53],
             ],
         };
-        const expectedIds = scenario.selectableBuildings.map((f) => f.properties.id);
+        const expectedIds = scenario.selectableBuildings.map((f) => f.properties.building_id);
 
         await scenario.loadFixtureFootprints();
 
         expect(session.base.loaded).toBe(true);
         expect(session.base.objects.map((o) => o.id)).toEqual(expectedIds);
+    });
+
+    test("finishAoiSelection confirms the AOI as an explicit GeoJSON feature, not just corner values (ticket 09)", () => {
+        const scenario = useCollabScenarioStore();
+        expect(scenario.aoiFeature).toBeNull();
+
+        scenario.viewfinderExtent = {
+            corners: [
+                [9.98, 53.56],
+                [10.0114, 53.56],
+                [10.0114, 53.55],
+                [9.98, 53.55],
+            ],
+        };
+        scenario.viewfinderValid = true;
+
+        expect(scenario.finishAoiSelection()).toBe(true);
+
+        expect(scenario.aoiFeature).not.toBeNull();
+        expect(scenario.aoiFeature?.type).toBe("Feature");
+        expect(scenario.aoiFeature?.geometry).toEqual({
+            type: "Polygon",
+            coordinates: [[...scenario.aoi!.corners, scenario.aoi!.corners[0]]],
+        });
+    });
+
+    test("confirming an AOI automatically loads and filters the Collab-owned footprints (ticket 10)", () => {
+        const session = useCollabSessionStore();
+        const scenario = useCollabScenarioStore();
+        scenario.viewfinderExtent = {
+            corners: [
+                [9.98, 53.56],
+                [10.0114, 53.56],
+                [10.0114, 53.55],
+                [9.98, 53.55],
+            ],
+        };
+        scenario.viewfinderValid = true;
+
+        expect(scenario.finishAoiSelection()).toBe(true);
+        expect(session.base.loaded).toBe(true);
+        expect(session.base.objects.map((object) => object.id)).toEqual(
+            scenario.selectableBuildings.map((feature) => feature.properties.building_id)
+        );
+    });
+
+    test("confirming a different AOI invalidates any previous calibration (ticket 09)", () => {
+        const scenario = useCollabScenarioStore();
+        const extentA: AOIExtent = {
+            corners: [
+                [9.98, 53.56],
+                [10.0114, 53.56],
+                [10.0114, 53.55],
+                [9.98, 53.55],
+            ],
+        };
+        // Same shape/latitude, shifted east only — the geodesic width/height distances (and so the
+        // aspect ratio `isAspectRatioValid` checks) are unchanged, so this is valid too.
+        const extentB: AOIExtent = {
+            corners: extentA.corners.map(([lng, lat]) => [lng + 0.5, lat]) as AOIExtent["corners"],
+        };
+
+        scenario.viewfinderExtent = extentA;
+        scenario.viewfinderValid = true;
+        expect(scenario.finishAoiSelection()).toBe(true);
+        expect(scenario.aoi).toEqual(extentA);
+        expect(scenario.calibrated).toBe(false);
+
+        // Simulate a calibration having been established for the current AOI (ticket 12's real
+        // four-marker flow, not yet built — set directly here exactly as `mapCalibration` is set
+        // directly elsewhere in this file, standing in for that future mechanism).
+        scenario.calibrated = true;
+
+        scenario.viewfinderExtent = extentB;
+        scenario.viewfinderValid = true;
+        expect(scenario.finishAoiSelection()).toBe(true);
+        expect(scenario.aoi).toEqual(extentB);
+        expect(scenario.calibrated).toBe(false);
     });
 });

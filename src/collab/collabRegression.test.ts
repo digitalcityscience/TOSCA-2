@@ -1,5 +1,5 @@
 import { createPinia, setActivePinia } from "pinia";
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { nextTick } from "vue";
 import bbox from "@turf/bbox";
 import bearing from "@turf/bearing";
@@ -59,7 +59,13 @@ const { addMapDataSource, addMapLayer, addCompanionLayer, fakeSources } = vi.hoi
 
 vi.mock("@store/map", () => ({
     useMapStore: () => ({
-        map: { getSource: (id: string) => fakeSources.get(id), isStyleLoaded: () => true },
+        map: {
+            getSource: (id: string) => fakeSources.get(id),
+            getLayer: () => undefined,
+            isStyleLoaded: () => true,
+            on: () => {},
+            off: () => {},
+        },
         addMapDataSource,
         addMapLayer,
         addCompanionLayer,
@@ -439,5 +445,76 @@ describe("17 concurrent MapLibre layer/source initialization", () => {
         expect(fakeSources.has("collabTrackedOrientation")).toBe(true);
 
         trackingRender.stop();
+    });
+});
+
+describe("ticket 09: confirmed AOI is a persistent, visible layer", () => {
+    test("finishAoiSelection renders a real, layer-list-visible AOI layer entry, distinct from the transient viewfinder", async () => {
+        const scenario = useCollabScenarioStore();
+        scenario.viewfinderExtent = {
+            corners: [
+                [9.98, 53.56],
+                [10.0114, 53.56],
+                [10.0114, 53.55],
+                [9.98, 53.55],
+            ],
+        };
+        scenario.viewfinderValid = true;
+
+        expect(scenario.finishAoiSelection()).toBe(true);
+
+        for (let i = 0; i < 30; i++) {
+            await Promise.resolve();
+        }
+
+        expect(fakeSources.has("collabAoi")).toBe(true);
+        const aoiLayerCall = (addMapLayer.mock.calls as unknown as [{ identifier: string; showOnLayerList?: boolean }][]).find(
+            ([params]) => params.identifier === "collabAoi-outline"
+        );
+        expect(aoiLayerCall).toBeDefined();
+        // Not explicitly hidden (unlike the transient viewfinder, which sets `showOnLayerList: false`)
+        // — defaults to visible, so it shows up as a real entry in Control's layer management.
+        expect(aoiLayerCall![0].showOnLayerList).not.toBe(false);
+    });
+});
+
+describe("ticket 09: no mock/simulation MapLibre layers on the real-table route", () => {
+    afterEach(() => {
+        vi.unstubAllEnvs();
+        vi.unstubAllGlobals();
+    });
+
+    class FakeSocket {
+        onopen: (() => void) | null = null;
+        onmessage: ((event: { data: string }) => void) | null = null;
+        onclose: (() => void) | null = null;
+        onerror: ((event: unknown) => void) | null = null;
+        send(): void {}
+        close(): void {}
+    }
+
+    test("collabSimulationResult is never created on the real-table route, but is created off it", async () => {
+        vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
+        vi.stubGlobal("WebSocket", FakeSocket as unknown as typeof WebSocket);
+
+        const realRouteTrackingRender = useCollabTrackingRenderStore();
+        realRouteTrackingRender.startRendering("control");
+        for (let i = 0; i < 30; i++) {
+            await Promise.resolve();
+        }
+        expect(fakeSources.has("collabSimulationResult")).toBe(false);
+        realRouteTrackingRender.stop();
+
+        vi.unstubAllEnvs();
+        setActivePinia(createPinia());
+        fakeSources.clear();
+
+        const mockRouteTrackingRender = useCollabTrackingRenderStore();
+        mockRouteTrackingRender.startRendering("control");
+        for (let i = 0; i < 30; i++) {
+            await Promise.resolve();
+        }
+        expect(fakeSources.has("collabSimulationResult")).toBe(true);
+        mockRouteTrackingRender.stop();
     });
 });

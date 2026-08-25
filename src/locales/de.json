@@ -322,8 +322,8 @@
     "activateTable": "Tangible Table aktivieren",
     "control": {
       "title": "Tangible-Table-Steuerung",
-      "placeholder": "Die Steuerungselemente für den Tangible Table erscheinen hier.",
       "openTable": "Tischfenster öffnen",
+      "openTableDisabledReason": "Wählen Sie ein Interessengebiet aus, um das Tischfenster zu aktivieren",
       "popupBlocked": "Das Tischfenster wurde blockiert. Erlauben Sie Pop-ups für diese Seite und versuchen Sie es erneut.",
       "aoi": {
         "title": "Interessengebiet",
@@ -336,7 +336,14 @@
         "viewfinderZoomIn": "Weiter hineinzoomen, um dieses Gebiet zu wählen",
         "zoomInFirst": "Zoomen Sie hinein, bis der Rahmen grün wird",
         "aspectRatioInvalid": "Das Seitenverhältnis des gewählten Gebiets passt nicht zum Tisch — anpassen und erneut versuchen",
-        "viewfinderFailed": "Der Auswahlrahmen konnte nicht gezeichnet werden"
+        "viewfinderFailed": "Der Auswahlrahmen konnte nicht gezeichnet werden",
+        "layerFailed": "Die bestätigte AOI-Ebene konnte nicht dargestellt werden"
+      },
+      "calibration": {
+        "title": "Kalibrierungsstatus",
+        "noAoi": "Wählen Sie ein Interessengebiet aus, um mit der Kalibrierung zu beginnen",
+        "uncalibrated": "Verbunden, nicht kalibriert — Neukalibrierung erforderlich",
+        "calibrated": "Kalibriert"
       },
       "footprints": {
         "title": "Gebäudegrundrisse",
@@ -369,9 +376,22 @@
         "connected": "Verbunden",
         "reconnecting": "Verbindet erneut…",
         "disconnected": "Getrennt",
+        "retry": "Erneut versuchen",
+        "connectionLost": "Verbindung zum Python-Tracking-Server verloren — zum erneuten Versuch klicken",
         "markers": {
           "title": "Referenzmarker",
-          "camera": "Kamera {cameraId}"
+          "camera": "Kamera {cameraId}",
+          "calibration": {
+            "title": "Kartenkalibrierungsmarker",
+            "detected": "erkannt",
+            "waiting": "wartet",
+            "corners": {
+              "top_left": "oben links",
+              "top_right": "oben rechts",
+              "bottom_left": "unten links",
+              "bottom_right": "unten rechts"
+            }
+          }
         }
       },
       "simulation": {
@@ -394,7 +414,8 @@
       "trackedOrientation": "Collab · Verfolgte Ausrichtung",
       "trackedId": "Collab · Verfolgte ID",
       "trackedConfidence": "Collab · Verfolgte Konfidenz",
-      "simulationResult": "Collab · Simulationsergebnis"
+      "simulationResult": "Collab · Simulationsergebnis",
+      "aoi": "Collab · Bestätigtes Interessengebiet"
     }
   }
 }

@@ -8,7 +8,8 @@ import type { Position } from "geojson";
 import type { Feature, FeatureCollection, MultiPolygon, Polygon } from "@helpers/geojson";
 import { reportDeveloperError } from "@helpers/userFacingError";
 import { useToast } from "@helpers/toast";
-import { resolveCollabTrackingMode, resolveCollabTrackingWsUrl } from "../helpers/collabMode";
+import { isRealTableRoute, resolveCollabTrackingMode, resolveCollabTrackingWsUrl } from "../helpers/collabMode";
+import { markerRegistryForBuildings } from "../data/collabBuildingData";
 import { i18n } from "../../core/i18n";
 import { useMapStore } from "@store/map";
 import { useCollabSessionStore, type CollabSceneObject, type CollabTrackingObjectState } from "./collabSession";
@@ -17,6 +18,7 @@ import { deriveTrackedFootprint, tableToAoiRotationOffsetDeg } from "./collabCal
 import { maskContextAroundPhysicalFootprints } from "./collabMasking";
 import {
     createMarkerObjectRegistry,
+    MAP_CALIBRATION_MARKER_IDS,
     MockTrackingSource,
     REFERENCE_MARKERS,
     RealTrackingSource,
@@ -24,6 +26,7 @@ import {
     type MarkerObjectRegistryEntry,
     type MockTrackingSnapshot,
     type PythonConnectionState,
+    type RawMarkerReading,
     type TrackingAvailability,
     type TrackingEvent,
 } from "./collabTracking";
@@ -74,10 +77,13 @@ const ORIENTATION_LINE_METERS = 5;
  * trackable building).
  */
 export function buildMarkerRegistryFromBase(objects: readonly CollabSceneObject[]): MarkerObjectRegistry {
-    const entries: MarkerObjectRegistryEntry[] = [];
+    const mapped = markerRegistryForBuildings(objects.map((object) => object.id));
+    const entries: MarkerObjectRegistryEntry[] = [...mapped].map(([markerId, objectId]) => ({ markerId, objectId }));
+    // Preserve the explicitly mock/fixture-only path used off the real-table route. Production
+    // buildings carry no marker_id; their associations came from marker-building-map.json above.
     for (const object of objects) {
         const markerId = (object as Partial<CollabBuildingObject>).properties?.marker_id;
-        if (typeof markerId === "number") {
+        if (typeof markerId === "number" && !mapped.has(markerId)) {
             entries.push({ markerId, objectId: object.id });
         }
     }
@@ -174,6 +180,14 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
      * tracking (re)starts.
      */
     const detectedReferenceMarkerIds = ref<ReadonlySet<number>>(new Set());
+    /**
+     * Latest raw reading for each of `MAP_CALIBRATION_MARKERS`' four ids (200–203) seen since
+     * tracking started (ticket 08) — sticky like `detectedReferenceMarkerIds` (presence in this map
+     * is "detected"; a ticket 12 calibration flow reads the held `[pixelX, pixelY]` off it). Ids
+     * outside `MAP_CALIBRATION_MARKER_IDS` never enter this map. Fed only by raw pre-calibration
+     * snapshots — building markers never advance it.
+     */
+    const mapCalibrationMarkerHealth = ref<ReadonlyMap<number, RawMarkerReading>>(new Map());
     const appliedRotationByObjectId = new Map<string, number>();
     /** Keyed by source id (A4): the in-flight create-source-and-layer promise, so concurrent render ticks await the same creation instead of both racing `addMapDataSource`. */
     const layerInitInFlight = new Map<string, Promise<void>>();
@@ -485,7 +499,11 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             });
         }
 
-        if (session.isLayerVisible("simulationResult", windowKind)) {
+        // Simulation is a mock/dev-only affordance (ticket 09): its Control panel section isn't
+        // instantiated on the real-table route, so its layer must never reach the map there either
+        // — gated on the same build-level "real-table route" signal the panel itself hides on,
+        // independent of `session.layerPolicy` (which defaults both windows to visible).
+        if (!isRealTableRoute() && session.isLayerVisible("simulationResult", windowKind)) {
             await safelyEnsure("simulationResult", () =>
                 ensureSymbolLayer(
                     SIMULATION_RESULT_SOURCE_ID,
@@ -579,6 +597,13 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         stopWatch?.();
         const stopFns: Array<() => void> = [];
 
+        // Connect-first (ticket 08): the Python transport is owned by Control's own lifecycle, not
+        // by the "Start Tracking" button or by AOI/footprint selection — opening Control is enough
+        // to reach "Connected". Table never owns a transport of its own.
+        if (windowKind === "control") {
+            connectPythonTransport();
+        }
+
         if (windowKind === "control") {
             stopFns.push(
                 watch(
@@ -617,8 +642,13 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         if (first === undefined) {
             return undefined;
         }
+        const markerId = [...buildMarkerRegistryFromBase(session.base.objects)]
+            .find(([, objectId]) => objectId === first.id)?.[0];
+        if (markerId === undefined) {
+            return undefined;
+        }
         const [minX, minY, maxX, maxY] = bbox(toFeature(first));
-        return { markerId: first.properties.marker_id, centre: [(minX + maxX) / 2, (minY + maxY) / 2] };
+        return { markerId, centre: [(minX + maxX) / 2, (minY + maxY) / 2] };
     }
 
     function startMockTimeline(timeline?: readonly MockTrackingSnapshot[]): void {
@@ -633,95 +663,142 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         mockSource.onAvailabilityChange((availability) => {
             trackingAvailability.value = availability;
         });
-        // No Python transport exists for the mock source — nothing for the Control panel's
-        // Python/reference-marker rows to report (marker-health-plan §1).
-        pythonConnectionState.value = "mock";
-        detectedReferenceMarkerIds.value = new Set();
         mockSource.start();
         active.value = true;
     }
 
     /**
-     * Starts the Milestone-2 real tracking loop (plan §5c/§14, ticket 09): builds the same
-     * marker→object registry `startMockTracking` uses and feeds `RealTrackingSource` events into
-     * `applyTrackingEvent`/`session.tracking` unchanged — a pure transport swap behind
-     * `TrackingSource`. Requires the operator to have already selected an AOI
-     * (`scenarioStore.mapCalibration`, ticket 07); surfaces a toast and leaves tracking inactive
-     * rather than connecting with a stale/absent AOI (ticket 01 — the operator must never see the
-     * "Start Tracking" button silently do nothing).
+     * Wires one `RealTrackingSource` instance's events into the store (plan §5c/§14, ticket 09;
+     * connect-first ticket 08) — shared by `connectPythonTransport`'s mount-time connect, so there
+     * is exactly one place that knows how to hook a `RealTrackingSource` up to session state.
      */
-    function startRealTracking(url: string): void {
-        const calibration = scenarioStore.mapCalibration;
-        if (calibration === null) {
-            reportDeveloperError(
-                "collabTrackingRender.startRealTracking",
-                new Error("no AOI-derived map_calibration — select an AOI (ticket 07) before starting real tracking")
-            );
-            toast.add({ severity: "warning", summary: i18n.global.t("collab.control.tracking.noAoi") });
-            return;
-        }
-        const registry = buildMarkerRegistryFromBase(session.base.objects);
-
-        realSource = new RealTrackingSource({ url, registry, calibration });
-        realSource.onEvent((event) => applyTrackingEvent(session.tracking, event));
-        realSource.onAvailabilityChange((availability) => {
+    function wireRealSource(source: RealTrackingSource): void {
+        source.onEvent((event) => applyTrackingEvent(session.tracking, event));
+        source.onAvailabilityChange((availability) => {
             trackingAvailability.value = availability;
         });
-        realSource.onConnectionStateChange((state) => {
+        let previousConnectionState: PythonConnectionState = "disconnected";
+        source.onConnectionStateChange((state) => {
+            // Auto-reconnect gives up after `RealTrackingSource`'s max attempts (ticket 08): that
+            // transition lands here as "reconnecting" -> "disconnected" with no explicit stop() in
+            // between — surface it as a visible toast, not just the panel row, matching ticket 01's
+            // established failure-reporting pattern.
+            if (previousConnectionState === "reconnecting" && state === "disconnected") {
+                toast.add({ severity: "error", summary: i18n.global.t("collab.control.python.connectionLost") });
+            }
+            previousConnectionState = state;
             pythonConnectionState.value = state;
         });
         // Sticky: an id, once seen among a snapshot's marker ids, stays "detected" (marker-health-plan §3).
-        realSource.onMarkerSnapshot((markerIds) => {
+        source.onMarkerSnapshot((markerIds) => {
             const newlySeen = markerIds.filter((id) => REFERENCE_MARKER_IDS.has(id) && !detectedReferenceMarkerIds.value.has(id));
             if (newlySeen.length === 0) {
                 return;
             }
             detectedReferenceMarkerIds.value = new Set([...detectedReferenceMarkerIds.value, ...newlySeen]);
         });
-        realSource.start();
-        active.value = true;
+        // Map-calibration marker health (ticket 08): only ids 200-203 ever enter this map, fed
+        // exclusively from raw pre-calibration snapshots — sticky, holds each id's latest reading.
+        source.onRawMarkerSnapshot((markers) => {
+            let changed = false;
+            const next = new Map(mapCalibrationMarkerHealth.value);
+            for (const [markerId, reading] of markers) {
+                if (!MAP_CALIBRATION_MARKER_IDS.has(markerId)) {
+                    continue;
+                }
+                next.set(markerId, reading);
+                changed = true;
+            }
+            if (changed) {
+                mapCalibrationMarkerHealth.value = next;
+            }
+        });
     }
 
     /**
-     * Starts tracking (plan §14, ticket 09; explicit mode switch ticket 03): `RealTrackingSource`
-     * when `VITE_COLLAB_TRACKING_MODE` resolves to `"real"` (the default) and
-     * `VITE_COLLAB_TRACKING_WS_URL` is configured, `MockTrackingSource` otherwise — the swap the
-     * operator/UI never has to know about (ticket 09 "zero changes to views/stores"). Mode
-     * `"mock"` forces `MockTrackingSource` even when a WS URL happens to be set (no more
-     * accidentally-real dev sessions just because `.env.collab` carries a URL); an unset/empty URL
-     * still falls back to mock as a safety net even in `"real"` mode. An explicit `timeline`
-     * always forces the mock, since it only makes sense as a scripted demo/dev timeline.
+     * Connects to Python's `:8053` transport as soon as Collab Control mounts (ticket 08,
+     * connect-first) — independent of AOI/footprints/calibration, "Connected" never implies
+     * "calibrated". A no-op when tracking mode resolves to `"mock"` (ticket 03) or no WS URL is
+     * configured, and idempotent if a connection is already up (safe to call again from
+     * `startRealTracking`).
+     */
+    function connectPythonTransport(): void {
+        if (resolveCollabTrackingMode() !== "real") {
+            return;
+        }
+        const url = resolveCollabTrackingWsUrl();
+        if (url === undefined || realSource !== undefined) {
+            return;
+        }
+        const registry = buildMarkerRegistryFromBase(session.base.objects);
+        realSource = new RealTrackingSource({ url, registry });
+        wireRealSource(realSource);
+        realSource.start();
+    }
+
+    /** Stops and clears the persistent Python transport (ticket 08). Only called on full store teardown — never by the "Stop Tracking" button, which must not disconnect an otherwise-healthy transport. */
+    function disconnectPythonTransport(): void {
+        realSource?.stop();
+        realSource = undefined;
+        pythonConnectionState.value = "mock";
+        detectedReferenceMarkerIds.value = new Set();
+        mapCalibrationMarkerHealth.value = new Map();
+    }
+
+    /** Manually retries the Python connection after auto-reconnect has given up (ticket 08) — a no-op if no transport exists yet (e.g. mock mode) or one is already connecting/connected. */
+    function retryPythonConnection(): void {
+        if (realSource === undefined) {
+            connectPythonTransport();
+            return;
+        }
+        realSource.start();
+    }
+
+    /**
+     * Starts tracking (plan §14, ticket 09; explicit mode switch ticket 03; connect-first ticket
+     * 08): `RealTrackingSource` when `VITE_COLLAB_TRACKING_MODE` resolves to `"real"` (the
+     * default) and `VITE_COLLAB_TRACKING_WS_URL` is configured, `MockTrackingSource` otherwise —
+     * the swap the operator/UI never has to know about. Mode `"mock"` forces `MockTrackingSource`
+     * even when a WS URL happens to be set; an unset/empty URL still falls back to mock as a
+     * safety net even in `"real"` mode. An explicit `timeline` always forces the mock, since it
+     * only makes sense as a scripted demo/dev timeline. In real mode this reuses the transport
+     * `connectPythonTransport` already brought up on mount (or connects now if that hasn't run
+     * yet) rather than opening a second socket — no AOI/calibration is required (ticket 08: the
+     * old early-return-with-no-visible-effect path is gone).
      */
     function startMockTracking(timeline?: readonly MockTrackingSnapshot[]): void {
-        stopMockTracking();
-        const url =
-            timeline === undefined && resolveCollabTrackingMode() === "real" ? resolveCollabTrackingWsUrl() : undefined;
-        if (url === undefined) {
-            startMockTimeline(timeline);
+        mockSource?.stop();
+        mockSource = undefined;
+        const useReal =
+            timeline === undefined && resolveCollabTrackingMode() === "real" && resolveCollabTrackingWsUrl() !== undefined;
+        if (useReal) {
+            connectPythonTransport();
+            active.value = true;
         } else {
-            startRealTracking(url);
+            startMockTimeline(timeline);
         }
     }
 
-    /** Stops whichever tracking source (mock or real) is currently active. Idempotent. */
+    /**
+     * Stops the active tracking display. Idempotent. Only tears down `MockTrackingSource` — the
+     * real Python transport (ticket 08) is mount-owned and stays connected regardless of this
+     * button, since "Connected" and "tracking actively displayed" are separate states.
+     */
     function stopMockTracking(): void {
         mockSource?.stop();
         mockSource = undefined;
-        realSource?.stop();
-        realSource = undefined;
         active.value = false;
         // An intentional stop is not a tracking-availability problem — clear any stale
         // suppressed/disconnected banner left over from before the operator stopped tracking.
         trackingAvailability.value = "live";
-        pythonConnectionState.value = "mock";
-        detectedReferenceMarkerIds.value = new Set();
     }
 
-    /** Tears down the active tracking source and the render watch. Idempotent — safe on unmount and HMR. */
+    /** Tears down every tracking source, the Python transport, and the render watch. Idempotent — safe on unmount and HMR. */
     function stop(): void {
         stopWatch?.();
         stopWatch = undefined;
         stopMockTracking();
+        disconnectPythonTransport();
         appliedRotationByObjectId.clear();
     }
 
@@ -732,9 +809,11 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         trackingAvailability,
         pythonConnectionState,
         detectedReferenceMarkerIds,
+        mapCalibrationMarkerHealth,
         startRendering,
         startMockTracking,
         stopMockTracking,
+        retryPythonConnection,
         stop,
     };
 });

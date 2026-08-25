@@ -12,15 +12,63 @@
             </div>
         </template>
 
-        <p class="text-sm text-muted">{{ t("collab.control.placeholder") }}</p>
-        <UButton
-            :label="t('collab.control.openTable')"
-            icon="i-lucide-monitor-play"
-            color="primary"
-            class="mt-3"
-            @click="openTableWindow"
-        />
+        <!-- 1. Connection -->
+        <div v-if="isRealTableRoute" class="flex flex-col gap-2 pb-4">
+            <h3 class="text-sm font-medium">{{ t("collab.control.python.title") }}</h3>
+            <p class="flex items-center gap-1.5 text-xs" :class="pythonStatusTextClass">
+                <span class="size-2 shrink-0 rounded-full" :class="pythonStatusDotClass" />
+                {{ t(`collab.control.python.${trackingRenderStore.pythonConnectionState}`) }}
+            </p>
+            <p v-if="configuredWsUrl !== undefined" class="text-xs text-muted break-all">{{ configuredWsUrl }}</p>
+            <UButton
+                v-if="trackingRenderStore.pythonConnectionState === 'disconnected'"
+                :label="t('collab.control.python.retry')"
+                icon="i-lucide-refresh-cw"
+                size="xs"
+                variant="soft"
+                class="self-start"
+                @click="trackingRenderStore.retryPythonConnection()"
+            />
 
+            <h4 class="mt-2 text-xs font-medium text-muted">{{ t("collab.control.python.markers.title") }}</h4>
+            <ul class="flex flex-col gap-1 text-xs">
+                <li v-for="marker in referenceMarkers" :key="`${marker.cameraId}-${marker.id}`" class="flex items-center gap-1.5">
+                    <UIcon
+                        :name="isMarkerDetected(marker.id) ? 'i-lucide-check' : 'i-lucide-x'"
+                        :class="isMarkerDetected(marker.id) ? 'text-success' : 'text-muted'"
+                        class="size-3.5 shrink-0"
+                    />
+                    <span>{{ t("collab.control.python.markers.camera", { cameraId: marker.cameraId }) }} — {{ marker.id }}</span>
+                    <span class="text-muted">({{ marker.position }})</span>
+                </li>
+            </ul>
+
+            <h4 class="mt-2 text-xs font-medium text-muted">{{ t("collab.control.python.markers.calibration.title") }}</h4>
+            <ul class="flex flex-col gap-1 text-xs">
+                <li v-for="marker in mapCalibrationMarkers" :key="marker.id" class="flex items-center gap-1.5">
+                    <UIcon
+                        :name="isMapCalibrationMarkerDetected(marker.id) ? 'i-lucide-check' : 'i-lucide-x'"
+                        :class="isMapCalibrationMarkerDetected(marker.id) ? 'text-success' : 'text-muted'"
+                        class="size-3.5 shrink-0"
+                    />
+                    <span>{{ marker.id }} — {{ t(`collab.control.python.markers.calibration.corners.${marker.corner}`) }}</span>
+                    <span class="text-muted">
+                        {{
+                            t(
+                                isMapCalibrationMarkerDetected(marker.id)
+                                    ? "collab.control.python.markers.calibration.detected"
+                                    : "collab.control.python.markers.calibration.waiting"
+                            )
+                        }}
+                        <template v-if="mapCalibrationMarkerReading(marker.id) !== undefined">
+                            ({{ mapCalibrationMarkerReading(marker.id)?.pixelX.toFixed(0) }}, {{ mapCalibrationMarkerReading(marker.id)?.pixelY.toFixed(0) }})
+                        </template>
+                    </span>
+                </li>
+            </ul>
+        </div>
+
+        <!-- 2. Select AOI -->
         <div class="mt-5 flex flex-col gap-2 border-t border-muted pt-4">
             <h3 class="text-sm font-medium">{{ t("collab.control.aoi.title") }}</h3>
             <p class="text-xs text-muted">{{ t("collab.control.aoi.description") }}</p>
@@ -65,36 +113,48 @@
             </p>
         </div>
 
+        <!-- 3. Open Table -->
         <div class="mt-5 flex flex-col gap-2 border-t border-muted pt-4">
-            <h3 class="text-sm font-medium">{{ t("collab.control.footprints.title") }}</h3>
             <UButton
-                :label="t('collab.control.footprints.load')"
-                icon="i-lucide-building-2"
-                size="sm"
-                variant="soft"
-                :disabled="scenarioStore.aoi === null"
-                @click="scenarioStore.loadFixtureFootprints"
+                :label="t('collab.control.openTable')"
+                icon="i-lucide-monitor-play"
+                color="primary"
+                :disabled="!canOpenTableWindow(scenarioStore.aoi)"
+                @click="openTableWindow"
             />
-            <p v-if="scenarioStore.aoi === null" class="text-xs text-muted">
-                {{ t("collab.control.footprints.loadRequiresAoi") }}
+            <p v-if="!canOpenTableWindow(scenarioStore.aoi)" class="text-xs text-muted">
+                {{ t("collab.control.openTableDisabledReason") }}
             </p>
+        </div>
+
+        <!-- 4. Calibration status -->
+        <div v-if="isRealTableRoute" class="mt-5 flex flex-col gap-2 border-t border-muted pt-4">
+            <h3 class="text-sm font-medium">{{ t("collab.control.calibration.title") }}</h3>
+            <p class="flex items-center gap-1.5 text-xs" :class="calibrationStatusTextClass">
+                <span class="size-2 shrink-0 rounded-full" :class="calibrationStatusDotClass" />
+                {{ calibrationStatusText }}
+            </p>
+        </div>
+
+        <div v-if="!isRealTableRoute" class="mt-5 flex flex-col gap-2 border-t border-muted pt-4">
+            <h3 class="text-sm font-medium">{{ t("collab.control.footprints.title") }}</h3>
             <ul v-if="collabSession.base.loaded" class="mt-2 flex max-h-64 flex-col gap-1 overflow-y-auto text-sm">
                 <li
                     v-for="building in scenarioStore.selectableBuildings"
-                    :key="building.properties.id"
+                    :key="building.properties.building_id"
                     class="flex items-center justify-between gap-2"
                 >
-                    <span :class="{ 'line-through text-muted': isRemoved(building.properties.id) }">
-                        {{ building.properties.id }}
+                    <span :class="{ 'line-through text-muted': isRemoved(building.properties.building_id) }">
+                        {{ building.properties.building_id }}
                     </span>
                     <UButton
-                        v-if="!isRemoved(building.properties.id)"
+                        v-if="!isRemoved(building.properties.building_id)"
                         :label="t('collab.control.footprints.remove')"
                         icon="i-lucide-trash-2"
                         size="xs"
                         color="error"
                         variant="ghost"
-                        @click="scenarioStore.removeBuilding(building.properties.id)"
+                        @click="scenarioStore.removeBuilding(building.properties.building_id)"
                     />
                     <UButton
                         v-else
@@ -102,13 +162,13 @@
                         icon="i-lucide-undo-2"
                         size="xs"
                         variant="ghost"
-                        @click="scenarioStore.restoreBuilding(building.properties.id)"
+                        @click="scenarioStore.restoreBuilding(building.properties.building_id)"
                     />
                 </li>
             </ul>
         </div>
 
-        <div class="mt-5 flex flex-col gap-2 border-t border-muted pt-4">
+        <div v-if="!isRealTableRoute" class="mt-5 flex flex-col gap-2 border-t border-muted pt-4">
             <h3 class="text-sm font-medium">{{ t("collab.control.masking.title") }}</h3>
             <p class="text-xs text-muted">{{ t("collab.control.masking.description") }}</p>
             <USelect
@@ -120,7 +180,7 @@
             />
         </div>
 
-        <div class="mt-5 flex flex-col gap-2 border-t border-muted pt-4">
+        <div v-if="!isRealTableRoute" class="mt-5 flex flex-col gap-2 border-t border-muted pt-4">
             <h3 class="text-sm font-medium">{{ t("collab.control.tracking.title") }}</h3>
             <UButton
                 v-if="!trackingRenderStore.active"
@@ -157,28 +217,7 @@
             </p>
         </div>
 
-        <div v-if="trackingRenderStore.pythonConnectionState !== 'mock'" class="mt-5 flex flex-col gap-2 border-t border-muted pt-4">
-            <h3 class="text-sm font-medium">{{ t("collab.control.python.title") }}</h3>
-            <p class="flex items-center gap-1.5 text-xs" :class="pythonStatusTextClass">
-                <span class="size-2 shrink-0 rounded-full" :class="pythonStatusDotClass" />
-                {{ t(`collab.control.python.${trackingRenderStore.pythonConnectionState}`) }}
-            </p>
-
-            <h4 class="mt-2 text-xs font-medium text-muted">{{ t("collab.control.python.markers.title") }}</h4>
-            <ul class="flex flex-col gap-1 text-xs">
-                <li v-for="marker in referenceMarkers" :key="`${marker.cameraId}-${marker.id}`" class="flex items-center gap-1.5">
-                    <UIcon
-                        :name="isMarkerDetected(marker.id) ? 'i-lucide-check' : 'i-lucide-x'"
-                        :class="isMarkerDetected(marker.id) ? 'text-success' : 'text-muted'"
-                        class="size-3.5 shrink-0"
-                    />
-                    <span>{{ t("collab.control.python.markers.camera", { cameraId: marker.cameraId }) }} — {{ marker.id }}</span>
-                    <span class="text-muted">({{ marker.position }})</span>
-                </li>
-            </ul>
-        </div>
-
-        <div class="mt-5 flex flex-col gap-2 border-t border-muted pt-4">
+        <div v-if="!isRealTableRoute" class="mt-5 flex flex-col gap-2 border-t border-muted pt-4">
             <h3 class="text-sm font-medium">{{ t("collab.control.simulation.title") }}</h3>
             <p class="text-xs text-muted">{{ t("collab.control.simulation.description") }}</p>
             <UButton
@@ -206,10 +245,11 @@ import BaseSlideoverSidebarComponent from "@components/Base/BaseSlideoverSidebar
 import { useToast } from "@helpers/toast";
 import { useCollabSyncStore } from "../stores/collabSync";
 import { useCollabSessionStore } from "../stores/collabSession";
-import { canStartTracking, useCollabScenarioStore } from "../stores/collabScenario";
+import { canOpenTableWindow, canStartTracking, useCollabScenarioStore } from "../stores/collabScenario";
 import { useCollabTrackingRenderStore } from "../stores/collabTrackingRender";
 import { useCollabSimulationStore } from "../stores/collabSimulation";
-import { REFERENCE_MARKERS } from "../stores/collabTracking";
+import { MAP_CALIBRATION_MARKERS, REFERENCE_MARKERS } from "../stores/collabTracking";
+import { isRealTableRoute as resolveIsRealTableRoute, resolveCollabTrackingWsUrl } from "../helpers/collabMode";
 
 const sidebarID = "collabControl";
 const { t } = useI18n();
@@ -237,9 +277,29 @@ const maskingModeItems = [
  * code change.
  */
 const referenceMarkers = REFERENCE_MARKERS;
+/** The four map-calibration marker ids (ticket 08) — Control's live-detection rows for them. */
+const mapCalibrationMarkers = MAP_CALIBRATION_MARKERS;
+/** `undefined` in mock builds (no `:8053` transport at all) — the URL row/section hides via the same `isRealTableRoute` check. */
+const configuredWsUrl = resolveCollabTrackingWsUrl();
+/**
+ * Whether this build is wired to a real Python transport (ticket 09) — the single, static gate
+ * for every section that only makes sense on the real-table route (Connection, Calibration
+ * status) versus every mock/dev-only scaffolding section (footprints fixture, masking, manual
+ * tracking, simulation), which show only when this is false. Env-driven and never changes at
+ * runtime, so a plain constant rather than a reactive `computed`.
+ */
+const isRealTableRoute = resolveIsRealTableRoute();
 
 function isMarkerDetected(markerId: number): boolean {
     return trackingRenderStore.detectedReferenceMarkerIds.has(markerId);
+}
+
+function isMapCalibrationMarkerDetected(markerId: number): boolean {
+    return trackingRenderStore.mapCalibrationMarkerHealth.has(markerId);
+}
+
+function mapCalibrationMarkerReading(markerId: number) {
+    return trackingRenderStore.mapCalibrationMarkerHealth.get(markerId);
 }
 
 /** Compact status-dot color for the Python connection row (marker-health-plan §1/§5). */
@@ -265,6 +325,32 @@ const pythonStatusTextClass = computed(() => {
         default:
             return "text-error";
     }
+});
+
+/**
+ * "Calibration status" text (ticket 09): distinguishes "no AOI yet" from "connected-uncalibrated,
+ * recalibration required" (the only reachable state until ticket 12's real four-marker flow can
+ * ever set `scenarioStore.calibrated`) from "calibrated".
+ */
+const calibrationStatusText = computed(() => {
+    if (scenarioStore.aoi === null) {
+        return t("collab.control.calibration.noAoi");
+    }
+    return t(scenarioStore.calibrated ? "collab.control.calibration.calibrated" : "collab.control.calibration.uncalibrated");
+});
+
+const calibrationStatusDotClass = computed(() => {
+    if (scenarioStore.aoi === null) {
+        return "bg-muted";
+    }
+    return scenarioStore.calibrated ? "bg-success" : "bg-warning";
+});
+
+const calibrationStatusTextClass = computed(() => {
+    if (scenarioStore.aoi === null) {
+        return "text-muted";
+    }
+    return scenarioStore.calibrated ? "text-success" : "text-warning";
 });
 
 const tableMaskingMode = computed<"show" | "hide" | "mask">({

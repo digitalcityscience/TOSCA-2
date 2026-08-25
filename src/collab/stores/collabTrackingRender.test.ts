@@ -271,22 +271,34 @@ describe("collabTrackingRender store", () => {
         vi.unstubAllEnvs();
     });
 
-    test("startMockTracking() reports a developer error, surfaces a visible toast, and stays inactive when a table host is configured without an AOI calibration (ticket 01/09)", () => {
+    test("startMockTracking() connects and becomes active in real mode even with no AOI calibration selected at all — the old early-return-with-no-visible-effect path is gone (ticket 08)", () => {
         vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
-        const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+        class FakeSocket {
+            onopen: (() => void) | null = null;
+            onmessage: ((event: { data: string }) => void) | null = null;
+            onclose: (() => void) | null = null;
+            onerror: ((event: unknown) => void) | null = null;
+            sent: string[] = [];
+            send(data: string): void {
+                this.sent.push(data);
+            }
+            close(): void {}
+        }
+        vi.stubGlobal("WebSocket", FakeSocket as unknown as typeof WebSocket);
+
+        const scenarioStore = useCollabScenarioStore();
+        expect(scenarioStore.mapCalibration).toBeNull(); // deliberately no AOI selected
 
         const trackingRender = useCollabTrackingRenderStore();
         trackingRender.startMockTracking();
 
-        expect(trackingRender.active).toBe(false);
-        expect(consoleError).toHaveBeenCalled();
-        expect(toastAdd).toHaveBeenCalledWith({
-            severity: "warning",
-            summary: "Select an area of interest before starting tracking",
-        });
+        expect(trackingRender.active).toBe(true);
+        expect(trackingRender.pythonConnectionState).toBe("connecting");
 
-        consoleError.mockRestore();
+        trackingRender.stop();
         vi.unstubAllEnvs();
+        vi.unstubAllGlobals();
     });
 
     test("startMockTracking() swaps to RealTrackingSource (ticket 09) when a table host + AOI calibration are configured — the operator/UI call unchanged", () => {
@@ -318,6 +330,7 @@ describe("collabTrackingRender store", () => {
         trackingRender.stopMockTracking();
         expect(trackingRender.active).toBe(false);
 
+        trackingRender.stop();
         vi.unstubAllEnvs();
         vi.unstubAllGlobals();
     });
@@ -396,10 +409,182 @@ describe("collabTrackingRender store", () => {
         socket()?.onclose?.();
         expect(trackingRender.pythonConnectionState).toBe("reconnecting");
 
+        // Stopping the tracking-display toggle (ticket 08) must not disconnect an otherwise-live
+        // transport — connection state and sticky detection both persist across it.
         trackingRender.stopMockTracking();
+        expect(trackingRender.active).toBe(false);
+        expect(trackingRender.pythonConnectionState).toBe("reconnecting");
+        expect(trackingRender.detectedReferenceMarkerIds.has(72)).toBe(true);
+
+        // Only full store teardown (mount/unmount) actually disconnects the transport — this also
+        // cancels the reconnect the onclose above scheduled.
+        trackingRender.stop();
         expect(trackingRender.pythonConnectionState).toBe("mock");
         expect(trackingRender.detectedReferenceMarkerIds.size).toBe(0);
 
+        vi.unstubAllEnvs();
+        vi.unstubAllGlobals();
+    });
+
+    test("startRendering('control') alone connects the Python transport automatically — no Start Tracking click needed (ticket 08)", () => {
+        vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
+
+        class FakeSocket {
+            onopen: (() => void) | null = null;
+            onmessage: ((event: { data: string }) => void) | null = null;
+            onclose: (() => void) | null = null;
+            onerror: ((event: unknown) => void) | null = null;
+            send(): void {}
+            close(): void {}
+        }
+        const sockets: FakeSocket[] = [];
+        vi.stubGlobal(
+            "WebSocket",
+            function FakeWebSocket() {
+                const created = new FakeSocket();
+                sockets.push(created);
+                return created;
+            } as unknown as typeof WebSocket
+        );
+
+        const trackingRender = useCollabTrackingRenderStore();
+        // No footprints, no AOI, no "Start Tracking" click — mounting Control alone must reach Connected.
+        trackingRender.startRendering("control");
+
+        expect(trackingRender.pythonConnectionState).toBe("connecting");
+        expect(sockets).toHaveLength(1);
+        sockets[0]?.onopen?.();
+        expect(trackingRender.pythonConnectionState).toBe("connected");
+        // Connected never implies calibrated/active — the operator never clicked Start Tracking.
+        expect(trackingRender.active).toBe(false);
+
+        trackingRender.stop();
+        vi.unstubAllEnvs();
+        vi.unstubAllGlobals();
+    });
+
+    test("mapCalibrationMarkerHealth only tracks ids 200-203 from raw pre-calibration snapshots, sticky, holding the measured pixel position (ticket 08)", () => {
+        vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
+
+        class FakeSocket {
+            onopen: (() => void) | null = null;
+            onmessage: ((event: { data: string }) => void) | null = null;
+            onclose: (() => void) | null = null;
+            onerror: ((event: unknown) => void) | null = null;
+            send(): void {}
+            close(): void {}
+        }
+        const sockets: FakeSocket[] = [];
+        vi.stubGlobal(
+            "WebSocket",
+            function FakeWebSocket() {
+                const created = new FakeSocket();
+                sockets.push(created);
+                return created;
+            } as unknown as typeof WebSocket
+        );
+
+        const trackingRender = useCollabTrackingRenderStore();
+        trackingRender.startRendering("control");
+        sockets[0]?.onopen?.();
+
+        sockets[0]?.onmessage?.({
+            data: JSON.stringify({ 200: [10, 20, 0, "000"], 999: [1, 2, 0, "000"] }),
+        });
+
+        expect(trackingRender.mapCalibrationMarkerHealth.get(200)).toEqual({ pixelX: 10, pixelY: 20, rotation: 0, cameraOrTag: "000" });
+        expect(trackingRender.mapCalibrationMarkerHealth.has(999)).toBe(false); // outside 200-203, never enters
+        expect(trackingRender.mapCalibrationMarkerHealth.size).toBe(1);
+
+        // Sticky: 200 dropping out of a later snapshot must not clear its held reading.
+        sockets[0]?.onmessage?.({ data: JSON.stringify({}) });
+        expect(trackingRender.mapCalibrationMarkerHealth.get(200)).toEqual({ pixelX: 10, pixelY: 20, rotation: 0, cameraOrTag: "000" });
+
+        trackingRender.stop();
+        vi.unstubAllEnvs();
+        vi.unstubAllGlobals();
+    });
+
+    test("surfaces a visible toast when auto-reconnect gives up (ticket 08) — not console-only", () => {
+        vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
+        vi.useFakeTimers();
+
+        class FakeSocket {
+            onopen: (() => void) | null = null;
+            onmessage: ((event: { data: string }) => void) | null = null;
+            onclose: (() => void) | null = null;
+            onerror: ((event: unknown) => void) | null = null;
+            send(): void {}
+            close(): void {}
+        }
+        const sockets: FakeSocket[] = [];
+        vi.stubGlobal(
+            "WebSocket",
+            function FakeWebSocket() {
+                const created = new FakeSocket();
+                sockets.push(created);
+                return created;
+            } as unknown as typeof WebSocket
+        );
+
+        const trackingRender = useCollabTrackingRenderStore();
+        trackingRender.startRendering("control");
+
+        // Exhaust every reconnect attempt (default reconnectMaxAttempts) so RealTrackingSource gives up.
+        for (let i = 0; i < 6; i++) {
+            sockets[sockets.length - 1]?.onerror?.(new Event("error"));
+            vi.advanceTimersByTime(60_000);
+        }
+
+        expect(trackingRender.pythonConnectionState).toBe("disconnected");
+        expect(toastAdd).toHaveBeenCalledWith({
+            severity: "error",
+            summary: "Lost connection to the Python tracking server — click Retry to try again",
+        });
+
+        trackingRender.stop();
+        vi.useRealTimers();
+        vi.unstubAllEnvs();
+        vi.unstubAllGlobals();
+    });
+
+    test("retryPythonConnection() manually reconnects after give-up", () => {
+        vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
+        vi.useFakeTimers();
+
+        class FakeSocket {
+            onopen: (() => void) | null = null;
+            onmessage: ((event: { data: string }) => void) | null = null;
+            onclose: (() => void) | null = null;
+            onerror: ((event: unknown) => void) | null = null;
+            send(): void {}
+            close(): void {}
+        }
+        const sockets: FakeSocket[] = [];
+        vi.stubGlobal(
+            "WebSocket",
+            function FakeWebSocket() {
+                const created = new FakeSocket();
+                sockets.push(created);
+                return created;
+            } as unknown as typeof WebSocket
+        );
+
+        const trackingRender = useCollabTrackingRenderStore();
+        trackingRender.startRendering("control");
+        for (let i = 0; i < 6; i++) {
+            sockets[sockets.length - 1]?.onerror?.(new Event("error"));
+            vi.advanceTimersByTime(60_000);
+        }
+        expect(trackingRender.pythonConnectionState).toBe("disconnected");
+
+        trackingRender.retryPythonConnection();
+        expect(trackingRender.pythonConnectionState).toBe("connecting");
+        sockets[sockets.length - 1]?.onopen?.();
+        expect(trackingRender.pythonConnectionState).toBe("connected");
+
+        trackingRender.stop();
+        vi.useRealTimers();
         vi.unstubAllEnvs();
         vi.unstubAllGlobals();
     });

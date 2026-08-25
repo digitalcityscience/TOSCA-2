@@ -3,6 +3,7 @@ import type { MapCalibrationMessage } from "./collabCalibration";
 import type {
     MarkerObjectRegistry,
     PythonConnectionState,
+    RawMarkerSnapshot,
     TrackingAvailability,
     TrackingEvent,
     TrackingMarkerFeatureCollection,
@@ -11,11 +12,16 @@ import type {
 import {
     DEFAULT_MOCK_TIMELINE,
     IGNORED_MARKER_ID,
+    MAP_CALIBRATION_MARKER_IDS,
+    MAP_CALIBRATION_MARKERS,
     MockTrackingSource,
+    REFERENCE_MARKERS,
     RealTrackingSource,
     RESERVED_BUILDING_MARKER_IDS,
+    RESERVED_MARKER_REGISTRY,
     TrackingFeedNormalizer,
     createMarkerObjectRegistry,
+    reservedMarkerRole,
 } from "./collabTracking";
 
 const registry: MarkerObjectRegistry = createMarkerObjectRegistry([{ markerId: 182, objectId: "B-28" }]);
@@ -48,6 +54,40 @@ describe("createMarkerObjectRegistry", () => {
         const custom = createMarkerObjectRegistry([{ markerId: 7, objectId: "custom" }]);
         expect(custom.get(7)).toBe("custom");
         expect(custom.get(182)).toBeUndefined();
+    });
+});
+
+describe("reserved marker id registry (ticket 08)", () => {
+    test("MAP_CALIBRATION_MARKERS are exactly 200-203, each labelled with its corner", () => {
+        expect(MAP_CALIBRATION_MARKERS).toEqual([
+            { id: 200, corner: "top_left" },
+            { id: 201, corner: "top_right" },
+            { id: 202, corner: "bottom_left" },
+            { id: 203, corner: "bottom_right" },
+        ]);
+        expect([...MAP_CALIBRATION_MARKER_IDS].sort()).toEqual([200, 201, 202, 203]);
+    });
+
+    test("reservedMarkerRole resolves every role via the one registry, and undefined for a non-reserved id", () => {
+        expect(reservedMarkerRole(REFERENCE_MARKERS[0]!.id)).toBe("camera-reference");
+        expect(reservedMarkerRole(200)).toBe("map-calibration");
+        expect(reservedMarkerRole(IGNORED_MARKER_ID)).toBe("ignored");
+        expect(reservedMarkerRole(100)).toBe("building-reserved");
+        expect(reservedMarkerRole(9999)).toBeUndefined();
+    });
+
+    test("RESERVED_MARKER_REGISTRY contains every id from every role-specific constant, with no duplicates across roles", () => {
+        const ids = RESERVED_MARKER_REGISTRY.map((entry) => entry.id);
+        expect(new Set(ids).size).toBe(ids.length);
+        for (const marker of REFERENCE_MARKERS) {
+            expect(reservedMarkerRole(marker.id)).toBe("camera-reference");
+        }
+        for (const marker of MAP_CALIBRATION_MARKERS) {
+            expect(reservedMarkerRole(marker.id)).toBe("map-calibration");
+        }
+        for (const id of RESERVED_BUILDING_MARKER_IDS) {
+            expect(reservedMarkerRole(id)).toBe("building-reserved");
+        }
     });
 });
 
@@ -238,7 +278,20 @@ const calibration: MapCalibrationMessage = {
 };
 
 describe("RealTrackingSource", () => {
-    test("sends exactly one map_calibration on connect", () => {
+    test("connects and stays connected with no calibration payload available at all — never required to reach Connected (ticket 08)", () => {
+        const socket = new FakeSocket();
+        const states: PythonConnectionState[] = [];
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, createSocket: () => socket });
+        source.onConnectionStateChange((s) => states.push(s));
+
+        source.start();
+        socket.emitOpen();
+
+        expect(states).toEqual<PythonConnectionState[]>(["connecting", "connected"]);
+        source.stop();
+    });
+
+    test("does not send map_calibration automatically on open, even when a calibration payload was provided (ticket 08)", () => {
         const socket = new FakeSocket();
         const source = new RealTrackingSource({
             url: "ws://table-host:8053",
@@ -250,7 +303,50 @@ describe("RealTrackingSource", () => {
         source.start();
         socket.emitOpen();
 
+        expect(socket.sent).toEqual([]);
+        source.stop();
+    });
+
+    test("sendMapCalibration() sends the constructor-provided calibration only when explicitly called, and only once the socket is open", () => {
+        const socket = new FakeSocket();
+        const source = new RealTrackingSource({
+            url: "ws://table-host:8053",
+            registry,
+            calibration,
+            createSocket: () => socket,
+        });
+
+        source.start();
+        // Not open yet — sending now must not throw or queue a message onto a socket that isn't open.
+        const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        source.sendMapCalibration();
+        expect(socket.sent).toEqual([]);
+        expect(consoleError).toHaveBeenCalled();
+        consoleError.mockRestore();
+
+        socket.emitOpen();
+        source.sendMapCalibration();
         expect(socket.sent).toEqual([JSON.stringify(calibration)]);
+
+        source.stop();
+    });
+
+    test("sendMapCalibration(message) sends the given message, overriding whatever the constructor provided", () => {
+        const socket = new FakeSocket();
+        const source = new RealTrackingSource({
+            url: "ws://table-host:8053",
+            registry,
+            calibration,
+            createSocket: () => socket,
+        });
+        const override: MapCalibrationMessage = { type: "map_calibration", points: [] };
+
+        source.start();
+        socket.emitOpen();
+        source.sendMapCalibration(override);
+
+        expect(socket.sent).toEqual([JSON.stringify(override)]);
+        source.stop();
     });
 
     test("normalizes an incoming GeoJSON FeatureCollection into TrackingEvents via the shared normalizer", () => {
@@ -276,17 +372,44 @@ describe("RealTrackingSource", () => {
         ]);
     });
 
-    test("ignores the pre-calibration raw table-pixel dict — never treats it as the tracking contract (plan §5b/§5d)", () => {
+    test("parses and surfaces the pre-calibration raw table-pixel dict via onRawMarkerSnapshot — never treats it as the tracking contract (plan §5b/§5d, ticket 08)", () => {
         const socket = new FakeSocket();
         const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, calibration, createSocket: () => socket });
         const events: TrackingEvent[] = [];
+        const rawSnapshots: RawMarkerSnapshot[] = [];
+        const idSnapshots: Array<readonly number[]> = [];
         source.onEvent((e) => events.push(e));
+        source.onRawMarkerSnapshot((markers) => rawSnapshots.push(markers));
+        source.onMarkerSnapshot((ids) => idSnapshots.push(ids));
 
         source.start();
         socket.emitOpen();
-        socket.emitMessage({ 182: [120, 80, 45, "000"] });
+        socket.emitMessage({ 182: [120, 80, 45, "000"], 200: [10, 20, 0, "000"] });
 
+        // Never resolves to TrackingEvents — the raw dict is not the GeoJSON tracking contract.
         expect(events).toEqual([]);
+        expect(rawSnapshots).toHaveLength(1);
+        expect(rawSnapshots[0]!.get(182)).toEqual({ pixelX: 120, pixelY: 80, rotation: 45, cameraOrTag: "000" });
+        expect(rawSnapshots[0]!.get(200)).toEqual({ pixelX: 10, pixelY: 20, rotation: 0, cameraOrTag: "000" });
+        expect(idSnapshots).toEqual([[182, 200]]);
+
+        source.stop();
+    });
+
+    test("treats an empty raw dict ({}) as a valid raw snapshot (no markers currently detected)", () => {
+        const socket = new FakeSocket();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, calibration, createSocket: () => socket });
+        const rawSnapshots: RawMarkerSnapshot[] = [];
+        source.onRawMarkerSnapshot((markers) => rawSnapshots.push(markers));
+
+        source.start();
+        socket.emitOpen();
+        socket.emitMessage({});
+
+        expect(rawSnapshots).toHaveLength(1);
+        expect(rawSnapshots[0]!.size).toBe(0);
+
+        source.stop();
     });
 
     test("ignores malformed (non-JSON) messages instead of throwing", () => {
@@ -490,7 +613,7 @@ describe("RealTrackingSource — Python connection state & auto-reconnect (marke
         vi.useRealTimers();
     });
 
-    test("reconnect: automatically opens a new socket and re-sends map_calibration, without the operator pressing Start Tracking again", () => {
+    test("reconnect: automatically opens a new socket without the operator pressing Start Tracking again — but never re-sends map_calibration on its own (ticket 08)", () => {
         vi.useFakeTimers();
         const { createSocket, sockets } = socketFactory();
         const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, calibration, createSocket });
@@ -503,7 +626,7 @@ describe("RealTrackingSource — Python connection state & auto-reconnect (marke
         expect(sockets).toHaveLength(2);
 
         sockets[1]?.emitOpen();
-        expect(sockets[1]?.sent).toEqual([JSON.stringify(calibration)]);
+        expect(sockets[1]?.sent).toEqual([]);
 
         source.stop();
         vi.useRealTimers();
@@ -576,6 +699,71 @@ describe("RealTrackingSource — Python connection state & auto-reconnect (marke
         vi.advanceTimersByTime(60_000);
         expect(sockets).toHaveLength(1); // no reconnect ever fired
 
+        vi.useRealTimers();
+    });
+
+    test("gives up after reconnectMaxAttempts consecutive failures: reports plain disconnected and schedules no further reconnect (ticket 08)", () => {
+        vi.useFakeTimers();
+        const { createSocket, sockets } = socketFactory();
+        const source = new RealTrackingSource({
+            url: "ws://table-host:8053",
+            registry,
+            calibration,
+            createSocket,
+            reconnectMaxAttempts: 2,
+            reconnectBaseDelayMs: 1000,
+        });
+        const states: PythonConnectionState[] = [];
+        source.onConnectionStateChange((s) => states.push(s));
+
+        source.start();
+        sockets[0]?.onerror?.(new Event("error")); // failure 1/3 -> schedules reconnect attempt 1
+        vi.advanceTimersByTime(1000);
+        expect(sockets).toHaveLength(2);
+
+        sockets[1]?.onerror?.(new Event("error")); // failure 2/3 -> schedules reconnect attempt 2
+        vi.advanceTimersByTime(2000);
+        expect(sockets).toHaveLength(3);
+
+        sockets[2]?.onerror?.(new Event("error")); // failure 3/3 -> gives up, no further reconnect scheduled
+        expect(states[states.length - 1]).toBe("disconnected");
+
+        vi.advanceTimersByTime(60_000);
+        expect(sockets).toHaveLength(3); // no reconnect attempt 3 ever fired
+
+        vi.useRealTimers();
+    });
+
+    test("a manual retry (start()) after give-up resets the attempt count and connects again", () => {
+        vi.useFakeTimers();
+        const { createSocket, sockets } = socketFactory();
+        const source = new RealTrackingSource({
+            url: "ws://table-host:8053",
+            registry,
+            calibration,
+            createSocket,
+            reconnectMaxAttempts: 1,
+            reconnectBaseDelayMs: 1000,
+        });
+        const states: PythonConnectionState[] = [];
+        source.onConnectionStateChange((s) => states.push(s));
+
+        source.start();
+        sockets[0]?.onerror?.(new Event("error")); // failure 1/2 -> schedules reconnect attempt 1
+        vi.advanceTimersByTime(1000);
+        expect(sockets).toHaveLength(2);
+
+        sockets[1]?.onerror?.(new Event("error")); // failure 2/2 -> gives up
+        expect(states[states.length - 1]).toBe("disconnected");
+
+        source.start(); // operator-triggered retry
+        expect(states[states.length - 1]).toBe("connecting");
+        expect(sockets).toHaveLength(3);
+
+        sockets[2]?.emitOpen();
+        expect(states[states.length - 1]).toBe("connected");
+
+        source.stop();
         vi.useRealTimers();
     });
 

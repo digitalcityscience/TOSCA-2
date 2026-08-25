@@ -322,8 +322,8 @@
     "activateTable": "Dokunsal Masayı Etkinleştir",
     "control": {
       "title": "Dokunsal Masa Kontrolü",
-      "placeholder": "Dokunsal masa kontrolleri burada görünecek.",
       "openTable": "Masa penceresini aç",
+      "openTableDisabledReason": "Masa penceresini etkinleştirmek için bir ilgi alanı seçin",
       "popupBlocked": "Masa penceresi engellendi. Bu site için açılır pencerelere izin verip tekrar deneyin.",
       "aoi": {
         "title": "İlgi alanı",
@@ -336,7 +336,14 @@
         "viewfinderZoomIn": "Bu alanı seçmek için daha fazla yakınlaştırın",
         "zoomInFirst": "Önce çerçeve yeşile dönene kadar yakınlaştırın",
         "aspectRatioInvalid": "Seçilen alanın en-boy oranı masayla uyuşmuyor — düzeltip tekrar deneyin",
-        "viewfinderFailed": "Seçim çerçevesi çizilemedi"
+        "viewfinderFailed": "Seçim çerçevesi çizilemedi",
+        "layerFailed": "Onaylanmış İlgi alanı katmanı çizilemedi"
+      },
+      "calibration": {
+        "title": "Kalibrasyon durumu",
+        "noAoi": "Kalibrasyona başlamak için bir ilgi alanı seçin",
+        "uncalibrated": "Bağlı, kalibre edilmedi — yeniden kalibrasyon gerekli",
+        "calibrated": "Kalibre edildi"
       },
       "footprints": {
         "title": "Bina yerleşim alanları",
@@ -369,9 +376,22 @@
         "connected": "Bağlı",
         "reconnecting": "Yeniden bağlanıyor…",
         "disconnected": "Bağlantı yok",
+        "retry": "Yeniden dene",
+        "connectionLost": "Python takip sunucusuyla bağlantı kesildi — yeniden denemek için tıklayın",
         "markers": {
           "title": "Referans işaretçiler",
-          "camera": "Kamera {cameraId}"
+          "camera": "Kamera {cameraId}",
+          "calibration": {
+            "title": "Harita kalibrasyon işaretçileri",
+            "detected": "algılandı",
+            "waiting": "bekleniyor",
+            "corners": {
+              "top_left": "sol üst",
+              "top_right": "sağ üst",
+              "bottom_left": "sol alt",
+              "bottom_right": "sağ alt"
+            }
+          }
         }
       },
       "simulation": {
@@ -394,7 +414,8 @@
       "trackedOrientation": "Collab · Takip edilen yönelim",
       "trackedId": "Collab · Takip edilen kimlik",
       "trackedConfidence": "Collab · Takip edilen güven",
-      "simulationResult": "Collab · Simülasyon sonucu"
+      "simulationResult": "Collab · Simülasyon sonucu",
+      "aoi": "Collab · Onaylanmış ilgi alanı"
     }
   }
 }

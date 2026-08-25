@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { isCollabModeEnabled, resolveCollabTrackingMode } from "./collabMode";
+import { isCollabModeEnabled, isRealTableRoute, resolveCollabTrackingMode } from "./collabMode";
 
 describe("isCollabModeEnabled", () => {
     afterEach(() => {
@@ -50,5 +50,29 @@ describe("resolveCollabTrackingMode", () => {
     test("is case-insensitive and trims whitespace", () => {
         vi.stubEnv("VITE_COLLAB_TRACKING_MODE", "  MOCK  ");
         expect(resolveCollabTrackingMode()).toBe("mock");
+    });
+});
+
+describe("isRealTableRoute", () => {
+    afterEach(() => {
+        vi.unstubAllEnvs();
+    });
+
+    test("is false with no WS URL configured, even in real mode (dev with no table)", () => {
+        vi.stubEnv("VITE_COLLAB_TRACKING_MODE", "real");
+        vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", undefined);
+        expect(isRealTableRoute()).toBe(false);
+    });
+
+    test("is false when tracking mode is forced to mock, even with a WS URL configured", () => {
+        vi.stubEnv("VITE_COLLAB_TRACKING_MODE", "mock");
+        vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
+        expect(isRealTableRoute()).toBe(false);
+    });
+
+    test("is true when real mode resolves and a WS URL is configured", () => {
+        vi.stubEnv("VITE_COLLAB_TRACKING_MODE", "real");
+        vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
+        expect(isRealTableRoute()).toBe(true);
     });
 });

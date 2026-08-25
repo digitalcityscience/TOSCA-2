@@ -322,8 +322,8 @@
     "activateTable": "Activate Tangible Table",
     "control": {
       "title": "Tangible Table Control",
-      "placeholder": "Tangible table controls will appear here.",
       "openTable": "Open Table window",
+      "openTableDisabledReason": "Select an AOI to enable the Table window",
       "popupBlocked": "The Table window was blocked. Allow pop-ups for this site and try again.",
       "aoi": {
         "title": "Area of interest",
@@ -336,7 +336,14 @@
         "viewfinderZoomIn": "Zoom in further to select this area",
         "zoomInFirst": "Zoom in until the frame turns green first",
         "aspectRatioInvalid": "Selected AOI's aspect ratio doesn't match the table — adjust and retry",
-        "viewfinderFailed": "Couldn't draw the AOI selection frame"
+        "viewfinderFailed": "Couldn't draw the AOI selection frame",
+        "layerFailed": "Couldn't render the confirmed AOI layer"
+      },
+      "calibration": {
+        "title": "Calibration status",
+        "noAoi": "Select an AOI to begin calibration",
+        "uncalibrated": "Connected, uncalibrated — recalibration required",
+        "calibrated": "Calibrated"
       },
       "footprints": {
         "title": "Building footprints",
@@ -369,9 +376,22 @@
         "connected": "Connected",
         "reconnecting": "Reconnecting…",
         "disconnected": "Disconnected",
+        "retry": "Retry",
+        "connectionLost": "Lost connection to the Python tracking server — click Retry to try again",
         "markers": {
           "title": "Reference markers",
-          "camera": "Camera {cameraId}"
+          "camera": "Camera {cameraId}",
+          "calibration": {
+            "title": "Map calibration markers",
+            "detected": "detected",
+            "waiting": "waiting",
+            "corners": {
+              "top_left": "top-left",
+              "top_right": "top-right",
+              "bottom_left": "bottom-left",
+              "bottom_right": "bottom-right"
+            }
+          }
         }
       },
       "simulation": {
@@ -394,7 +414,8 @@
       "trackedOrientation": "Collab · Tracked orientation",
       "trackedId": "Collab · Tracked id",
       "trackedConfidence": "Collab · Tracked confidence",
-      "simulationResult": "Collab · Simulation result"
+      "simulationResult": "Collab · Simulation result",
+      "aoi": "Collab · Confirmed AOI"
     }
   }
 }

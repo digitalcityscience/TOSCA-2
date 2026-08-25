@@ -31,3 +31,15 @@ export function resolveCollabTrackingMode(): CollabTrackingMode {
     const raw = String(import.meta.env.VITE_COLLAB_TRACKING_MODE ?? "").trim().toLowerCase()
     return raw === "mock" ? "mock" : "real"
 }
+
+/**
+ * Whether this build is actually wired to a real Python transport (ticket 09: "the real-table
+ * route") — the explicit tracking-mode switch resolves to `"real"` AND a WS URL is configured.
+ * Mirrors the exact condition `collabTrackingRender`'s transport wiring already uses, as a single
+ * static source of truth both windows can read: Control's own `pythonConnectionState` only starts
+ * reflecting "real" once its transport has actually been wired up on mount, and the Table window
+ * never owns a transport at all (ticket 11), so neither can serve as this check on its own.
+ */
+export function isRealTableRoute(): boolean {
+    return resolveCollabTrackingMode() === "real" && resolveCollabTrackingWsUrl() !== undefined
+}

@@ -1,9 +1,8 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
 import { computed, ref } from "vue";
 import bbox from "@turf/bbox";
-import booleanWithin from "@turf/boolean-within";
 import distance from "@turf/distance";
-import { point, polygon } from "@turf/helpers";
+import { point } from "@turf/helpers";
 import type { Position } from "geojson";
 import type { Feature, FeatureCollection, Polygon } from "@helpers/geojson";
 import { reportDeveloperError } from "@helpers/userFacingError";
@@ -19,22 +18,30 @@ import {
     type CollabTableConfig,
     type MapCalibrationMessage,
 } from "./collabCalibration";
-import { COLLAB_BUILDING_FIXTURE, type CollabBuildingFixtureProperties } from "../fixtures/collabBuildingFixture";
+import {
+    collabBuildingDataset,
+    collabFootprintsWithinAoi,
+    type CollabBuildingFeature,
+    type CollabBuildingProperties,
+} from "../data/collabBuildingData";
 
 /** A `CollabSceneObject` that carries its GeoJSON geometry/properties (this ticket's base-city shape). */
 export interface CollabBuildingObject extends CollabSceneObject {
-    geometry: Polygon;
-    properties: CollabBuildingFixtureProperties;
+    geometry: CollabBuildingFeature["geometry"];
+    properties: CollabBuildingProperties;
 }
 
 const FOOTPRINT_SOURCE_ID = "collabFootprints";
 const FOOTPRINT_FILL_LAYER_ID = "collabFootprints-fill";
 const FOOTPRINT_OUTLINE_LAYER_ID = "collabFootprints-outline";
 
+const AOI_CONFIRMED_SOURCE_ID = "collabAoi";
+const AOI_CONFIRMED_OUTLINE_LAYER_ID = "collabAoi-outline";
+
 /** Converts a fixture/base-city feature into the flat `CollabSceneObject` shape the session slice stores. */
-export function toSceneObject(feature: Feature<Polygon, CollabBuildingFixtureProperties>): CollabBuildingObject {
+export function toSceneObject(feature: CollabBuildingFeature): CollabBuildingObject {
     return {
-        id: feature.properties.id,
+        id: feature.properties.building_id ?? feature.properties.id ?? "",
         geometry: feature.geometry,
         properties: feature.properties,
     };
@@ -93,14 +100,21 @@ export function canStartTracking(baseLoaded: boolean, mapCalibration: MapCalibra
     return baseLoaded && mapCalibration !== null;
 }
 
+/**
+ * Whether "Open Table window" may be opened (ticket 09): the Table window fits and locks to the
+ * Control-selected AOI (ticket 11), so one must be confirmed first — no click path may open a
+ * Table window with nothing to show it.
+ */
+export function canOpenTableWindow(aoi: AOIExtent | null): boolean {
+    return aoi !== null;
+}
+
 /** Fixture features whose footprint lies entirely within the chosen AOI. */
 export function footprintsWithinAoi(
-    features: Array<Feature<Polygon, CollabBuildingFixtureProperties>>,
+    features: readonly CollabBuildingFeature[],
     aoi: AOIExtent
-): Array<Feature<Polygon, CollabBuildingFixtureProperties>> {
-    const ring: Position[] = [...aoi.corners, aoi.corners[0]];
-    const aoiPolygon = polygon([ring]);
-    return features.filter((feature) => booleanWithin(feature, aoiPolygon));
+): CollabBuildingFeature[] {
+    return collabFootprintsWithinAoi(features, aoi);
 }
 
 const AOI_VIEWFINDER_SOURCE_ID = "collabAoiViewfinder";
@@ -175,14 +189,23 @@ export const useCollabScenarioStore = defineStore("collabScenario", () => {
     const tableConfig = ref<CollabTableConfig>(DEFAULT_COLLAB_TABLE_CONFIG);
     const aoi = ref<AOIExtent | null>(null);
     const mapCalibration = ref<MapCalibrationMessage | null>(null);
+    /**
+     * Whether the confirmed AOI has been calibrated against the physical table via the real
+     * four-marker flow (ticket 12 — not yet built). Distinct from `mapCalibration` (the synthetic,
+     * config-derived correspondence ticket 07 already computes and mock/dev tracking gates on):
+     * this is what the Control panel's "Calibration status" section (ticket 09) reads, and it is
+     * always invalidated the moment an AOI is (re)confirmed, since any previously-established
+     * calibration no longer matches the newly confirmed extent and the table must be recalibrated.
+     */
+    const calibrated = ref(false);
     const aoiSelectionInProgress = ref(false);
     /** The viewfinder's current geographic extent — recomputed on every map move/zoom while selecting. */
     const viewfinderExtent = ref<AOIExtent | null>(null);
     /** Whether `viewfinderExtent` currently meets `tableConfig.aoiScaleTarget` (drives the red/green outline). */
     const viewfinderValid = ref(false);
 
-    const selectableBuildings = computed<Array<Feature<Polygon, CollabBuildingFixtureProperties>>>(() => {
-        const features = COLLAB_BUILDING_FIXTURE.features;
+    const selectableBuildings = computed<CollabBuildingFeature[]>(() => {
+        const features = collabBuildingDataset().footprints.features;
         return aoi.value === null ? features : footprintsWithinAoi(features, aoi.value);
     });
 
@@ -235,20 +258,85 @@ export const useCollabScenarioStore = defineStore("collabScenario", () => {
     }
 
     /**
+     * The confirmed AOI as an explicit GeoJSON feature (ticket 09) — the persistent, renderable
+     * representation of `aoi`, rather than only the raw corner values `AOIExtent` carries. `null`
+     * whenever no AOI is confirmed.
+     */
+    const aoiFeature = computed<Feature<Polygon> | null>(() => {
+        if (aoi.value === null) {
+            return null;
+        }
+        const ring: Position[] = [...aoi.value.corners, aoi.value.corners[0]];
+        return { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [ring] } };
+    });
+
+    function currentAoiFeatureCollection(): FeatureCollection {
+        return aoiFeature.value === null ? { type: "FeatureCollection", features: [] } : { type: "FeatureCollection", features: [aoiFeature.value] };
+    }
+
+    /**
+     * Renders (or, once confirmed once, updates) the confirmed-AOI layer via the map store's
+     * public API — a persistent entry distinct from the transient viewfinder outline, left visible
+     * in Control's layer management (default `showOnLayerList`) so the operator can see it as a
+     * real layer, not just sidebar text (ticket 09).
+     */
+    async function renderAoiLayer(): Promise<void> {
+        const data = currentAoiFeatureCollection();
+        if (mapStore.map?.getSource(AOI_CONFIRMED_SOURCE_ID) !== undefined) {
+            mapStore.map.getSource(AOI_CONFIRMED_SOURCE_ID)?.setData(data);
+            return;
+        }
+        try {
+            await mapStore.addMapDataSource({
+                sourceType: "geojson",
+                identifier: AOI_CONFIRMED_SOURCE_ID,
+                isFilterLayer: false,
+                geoJSONSrc: data,
+            });
+            await mapStore.addMapLayer({
+                sourceType: "geojson",
+                identifier: AOI_CONFIRMED_OUTLINE_LAYER_ID,
+                layerType: "line",
+                sourceIdentifier: AOI_CONFIRMED_SOURCE_ID,
+                geoJSONSrc: data,
+                isFilterLayer: false,
+                displayName: i18n.global.t("collab.layers.aoi"),
+                layerStyle: { paint: { "line-color": "#16a34a", "line-width": 2 } },
+            });
+        } catch (error) {
+            reportDeveloperError("collabScenario.renderAoiLayer", error);
+            toast.add({ severity: "error", summary: i18n.global.t("collab.control.aoi.layerFailed") });
+        }
+    }
+
+    /**
      * Loads the PoC building fixture — scoped to the selected AOI (`selectableBuildings`) — into
      * the base-city slice, then renders it (OD-3). Requires an AOI: buildings are only ever
      * "selectable footprints for the AOI" (ticket 07), never the whole fixture. Re-running this
      * after re-selecting a different AOI refreshes `base` to that AOI's buildings.
      */
-    async function loadFixtureFootprints(): Promise<void> {
+    async function loadKnownFootprints(): Promise<void> {
         if (aoi.value === null) {
             toast.add({ severity: "warning", summary: i18n.global.t("collab.control.footprints.loadRequiresAoi") });
             return;
         }
-        session.base.objects = selectableBuildings.value.map(toSceneObject);
-        session.base.loaded = true;
-        await renderFootprintLayer();
+        try {
+            session.base.objects = selectableBuildings.value.map(toSceneObject);
+            session.base.loaded = true;
+            await renderFootprintLayer();
+        } catch (error) {
+            session.base.objects = [];
+            session.base.loaded = false;
+            reportDeveloperError("collabScenario.loadKnownFootprints", error);
+            toast.add({
+                severity: "error",
+                summary: error instanceof Error ? error.message : i18n.global.t("collab.control.footprints.loadFailed"),
+            });
+        }
     }
+
+    /** @deprecated Kept for off-route fixture tests/tools; the real operator flow loads on AOI confirmation. */
+    const loadFixtureFootprints = loadKnownFootprints;
 
     /** Builds the single-feature viewfinder `FeatureCollection` from the current `viewfinderExtent`/`viewfinderValid`. */
     function currentViewfinderFeatureCollection(): FeatureCollection {
@@ -411,6 +499,15 @@ export const useCollabScenarioStore = defineStore("collabScenario", () => {
         }
         aoi.value = extent;
         mapCalibration.value = buildMapCalibration(extent, tableConfig.value);
+        // Confirming any AOI — first time or replacing an existing one — invalidates whatever
+        // calibration status was showing: a fresh/changed AOI has not been calibrated against the
+        // physical table yet (ticket 09; the real four-marker flow itself is ticket 12).
+        calibrated.value = false;
+        renderAoiLayer().catch((error) => reportDeveloperError("collabScenario.finishAoiSelection", error));
+        // Ticket 10: confirming an AOI is the load action. The operator never has to press a
+        // separate fixture/data button; validation and AOI filtering happen before the registry
+        // can be used by tracking.
+        void loadKnownFootprints();
         mapStore.map?.off("move", handleViewfinderMapMove);
         removeViewfinderLayer().catch((error) => reportDeveloperError("collabScenario.finishAoiSelection", error));
         viewfinderExtent.value = null;
@@ -440,6 +537,8 @@ export const useCollabScenarioStore = defineStore("collabScenario", () => {
         tableConfig,
         aoi,
         mapCalibration,
+        calibrated,
+        aoiFeature,
         aoiSelectionInProgress,
         viewfinderExtent,
         viewfinderValid,
@@ -447,6 +546,7 @@ export const useCollabScenarioStore = defineStore("collabScenario", () => {
         startAoiSelection,
         cancelAoiSelection,
         finishAoiSelection,
+        loadKnownFootprints,
         loadFixtureFootprints,
         removeBuilding,
         restoreBuilding,
