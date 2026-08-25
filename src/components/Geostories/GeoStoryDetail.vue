@@ -62,8 +62,7 @@
                             variant="subtle"
                             icon="i-lucide-layers"
                         >
-                            {{ renderableLayerCount }}
-                            {{ renderableLayerCount === 1 ? "map layer" : "map layers" }}
+                            {{ layerCountLabel }}
                         </UBadge>
                     </div>
                     <p v-if="story.summary !== ''" class="text-sm leading-relaxed text-toned">
@@ -106,6 +105,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import {
     type GeoStoryDetail,
     resolveBackendMediaUrl,
@@ -126,6 +126,7 @@ const props = defineProps<{
 }>();
 
 const geostory = useGeostoryStore();
+const { locale, t } = useI18n();
 const geoserver = useGeoserverStore();
 const mapStore = useMapStore();
 const toast = useToast();
@@ -147,6 +148,14 @@ const renderableLayerCount = computed(() => {
         return item.layer.is_public && item.layer.publishing_state === "PUBLISHED";
     }).length ?? 0;
 });
+const layerCountLabel = computed(() => {
+    const count = renderableLayerCount.value;
+    const key = count === 1
+        ? "geostories.detail.layerCount"
+        : "geostories.detail.layerCountPlural";
+
+    return t(key, { count });
+});
 const createdAtLabel = computed(() => {
     if (story.value === undefined) {
         return "";
@@ -154,7 +163,7 @@ const createdAtLabel = computed(() => {
     const date = new Date(story.value.created_at);
     return Number.isNaN(date.getTime())
         ? story.value.created_at
-        : new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(date);
+        : new Intl.DateTimeFormat(locale.value, { dateStyle: "medium" }).format(date);
 });
 
 watch(

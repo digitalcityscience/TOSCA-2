@@ -4,7 +4,7 @@
         :ui="{
             header: 'p-0 sm:p-0',
             body: 'p-4 sm:p-4',
-            footer: 'p-4 pt-0 sm:p-4 sm:pt-0',
+            footer: 'p-4 sm:p-4',
         }"
     >
         <template #header>
@@ -28,8 +28,14 @@
         <div class="grid gap-3">
             <div class="grid gap-2">
                 <h2 class="text-lg font-semibold leading-tight text-highlighted">{{ story.title }}</h2>
-                <UBadge color="neutral" variant="subtle" icon="i-lucide-calendar">
-                    {{ createdAtLabel }}
+                <UBadge
+                    color="neutral"
+                    variant="subtle"
+                    icon="i-lucide-calendar"
+                    class="w-fit"
+                >
+                    <span class="font-semibold">{{ t("geostories.listing.published") }}</span>
+                    <span>{{ publishedDateLabel }}</span>
                 </UBadge>
             </div>
             <p class="text-sm leading-relaxed text-toned">{{ story.summary }}</p>
@@ -38,9 +44,7 @@
         <template #footer>
             <UButton
                 :to="{ name: 'geostory-detail', params: { storyId: story.id } }"
-                icon="i-lucide-book-open"
-                trailing-icon="i-lucide-arrow-right"
-                label="Open story"
+                :label="t('geostories.listing.openStory')"
                 size="sm"
             />
         </template>
@@ -49,6 +53,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import {
     type GeoStoryListItem,
     resolveBackendMediaUrl,
@@ -58,13 +63,15 @@ const props = defineProps<{
     story: GeoStoryListItem
 }>();
 
+const { locale, t } = useI18n();
+
 const heroImageUrl = computed(() => resolveBackendMediaUrl(props.story.hero_image_url));
 const heroImageLoading = ref(heroImageUrl.value !== undefined);
-const createdAtLabel = computed(() => {
+const publishedDateLabel = computed(() => {
     const date = new Date(props.story.created_at);
     return Number.isNaN(date.getTime())
         ? props.story.created_at
-        : new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(date);
+        : new Intl.DateTimeFormat(locale.value, { dateStyle: "medium" }).format(date);
 });
 
 watch(heroImageUrl, (url) => {
