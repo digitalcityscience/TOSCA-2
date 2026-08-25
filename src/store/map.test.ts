@@ -245,6 +245,104 @@ describe("map store layer reordering", () => {
     });
 });
 
+describe("standalone layer style switching", () => {
+    beforeEach(() => {
+        setActivePinia(createPinia());
+    });
+
+    test("replaces the parent and adds symbol render passes from an alternative style", async () => {
+        const renderedLayers: Array<Record<string, any>> = [
+            {
+                id: "districts",
+                type: "fill",
+                source: "districts",
+                "source-layer": "districts",
+                paint: { "fill-color": "#111111" },
+            },
+            { id: "draw-overlay", type: "line", source: "draw" },
+        ];
+        const addLayer = vi.fn((specification: Record<string, any>, beforeId?: string) => {
+            const beforeIndex = beforeId === undefined
+                ? renderedLayers.length
+                : renderedLayers.findIndex((layer) => layer.id === beforeId);
+            renderedLayers.splice(beforeIndex < 0 ? renderedLayers.length : beforeIndex, 0, specification);
+        });
+        const mapStore = useMapStore();
+        mapStore.map = {
+            getStyle: () => ({ layers: renderedLayers }),
+            getLayer: (id: string) => renderedLayers.find((layer) => layer.id === id),
+            getLayoutProperty: vi.fn(() => "visible"),
+            removeLayer: (id: string) => {
+                const index = renderedLayers.findIndex((layer) => layer.id === id);
+                if (index >= 0) renderedLayers.splice(index, 1);
+            },
+            addLayer,
+        };
+        mapStore.layersOnMap = [createLayer("districts", {
+            sourceType: "geoserver",
+            source: "districts",
+            "source-layer": "districts",
+            activeStyleId: "default",
+            availableStyles: [
+                {
+                    id: "default",
+                    name: "default",
+                    layers: [{ id: "default-fill", type: "fill" }],
+                },
+                {
+                    id: "labels",
+                    name: "labels",
+                    layers: [
+                        {
+                            id: "stadtteil-polygons",
+                            type: "fill",
+                            paint: { "fill-color": "#4C78A8" },
+                        },
+                        {
+                            id: "stadtteil-outlines",
+                            type: "line",
+                            paint: { "line-color": "#FF0000", "line-width": 1 },
+                        },
+                        {
+                            id: "stadtteil-labels",
+                            type: "symbol",
+                            layout: { "text-field": "{Stadtteil}", "text-size": 13 },
+                            paint: { "text-color": "#17324D" },
+                        },
+                    ],
+                },
+            ],
+        })];
+
+        await mapStore.setStandaloneLayerStyle("districts", "labels");
+
+        expect(renderedLayers.map((layer) => layer.id)).toEqual([
+            "districts",
+            "districts:style:1",
+            "districts:style:2",
+            "draw-overlay",
+        ]);
+        expect(renderedLayers[1]).toMatchObject({
+            type: "line",
+            source: "districts",
+            "source-layer": "districts",
+            paint: { "line-color": "#FF0000", "line-width": 1 },
+        });
+        expect(renderedLayers[2]).toMatchObject({
+            type: "symbol",
+            source: "districts",
+            "source-layer": "districts",
+            layout: { "text-field": "{Stadtteil}", "text-size": 13 },
+        });
+        expect(mapStore.layersOnMap[0].activeStyleId).toBe("labels");
+        expect(mapStore.layersOnMap[0].companionLayerIds).toEqual([
+            "districts:style:1",
+            "districts:style:2",
+        ]);
+        expect(addLayer).toHaveBeenCalledTimes(3);
+    });
+});
+
 function groupManifest(): CatalogLayerGroupManifest {
     return {
         id: "group-uuid",
@@ -492,6 +590,53 @@ describe("catalog layer group lifecycle", () => {
 });
 
 describe("standalone MBStyle conversion", () => {
+    test("preserves MapLibre fill outline paint properties", () => {
+        const options = mbStyleLayerOptions({
+            id: "district-fill",
+            type: "fill",
+            paint: {
+                "fill-color": "#4C78A8",
+                "fill-opacity": 0.12,
+                "fill-outline-color": "#FF0000",
+            },
+        });
+
+        expect(options.paint).toMatchObject({
+            "fill-color": "#4C78A8",
+            "fill-opacity": 0.12,
+            "fill-outline-color": "#FF0000",
+        });
+    });
+
+    test("uses the bundled glyph font for text symbol layers", () => {
+        const options = mbStyleLayerOptions({
+            id: "stadtteil-labels",
+            type: "symbol",
+            layout: {
+                "text-field": "{Stadtteil}",
+                "text-size": 13,
+            },
+        });
+
+        expect(options.layout).toMatchObject({
+            "text-field": "{Stadtteil}",
+            "text-font": ["Open Sans Regular"],
+        });
+    });
+
+    test("preserves an explicitly configured symbol font", () => {
+        const options = mbStyleLayerOptions({
+            id: "custom-labels",
+            type: "symbol",
+            layout: {
+                "text-field": "{name}",
+                "text-font": ["Custom Font"],
+            },
+        });
+
+        expect(options.layout?.["text-font"]).toEqual(["Custom Font"]);
+    });
+
     test("preserves the primary style layer filter", () => {
         const filter = ["==", ["get", "v1_SD_Text"], "sehr hoch"];
 

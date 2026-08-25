@@ -144,7 +144,10 @@ async function add2Map(): Promise<void> {
         try {
             await mapStore.addMapDataSource(sourceParams)
             if (!isNullOrEmpty(dataType) && !isNullOrEmpty(layerDetail.value)) {
-                const selectedStyleLayers = (props.layerStyling?.layers ?? []).map((layer) => ({
+                const selectedStyle = props.layerStyling?.styles.find(
+                    (style) => style.id === props.layerStyling?.defaultStyleId
+                ) ?? props.layerStyling?.styles[0]
+                const selectedStyleLayers = (selectedStyle?.layers ?? []).map((layer) => ({
                     ...layer,
                     metadata: {
                         ...(layer.metadata ?? {}),
@@ -152,9 +155,9 @@ async function add2Map(): Promise<void> {
                         "tosca:style-id": "standalone-style",
                     },
                 }))
-                if (props.layerStyling?.spriteUrl !== undefined) {
+                if (selectedStyle?.spriteUrl !== undefined) {
                     spriteRuntimeId = await mapStore.acquireMapSprite(
-                        props.layerStyling.spriteUrl,
+                        selectedStyle.spriteUrl,
                         `sprite-${runtimeId.replace(/[^a-zA-Z0-9_-]+/g, "-")}`
                     )
                 }
@@ -180,15 +183,17 @@ async function add2Map(): Promise<void> {
                         members: [{ id: "standalone", title: cleanLayerName.value }],
                         styles: {
                             "standalone-style": {
-                                sprite_id: props.layerStyling?.spriteUrl === undefined
+                                sprite_id: selectedStyle?.spriteUrl === undefined
                                     ? null
                                     : "standalone-sprite",
                             },
                         },
-                        sprites: props.layerStyling?.spriteUrl === undefined
+                        sprites: selectedStyle?.spriteUrl === undefined
                             ? {}
-                            : { "standalone-sprite": { url: props.layerStyling.spriteUrl } },
+                            : { "standalone-sprite": { url: selectedStyle.spriteUrl } },
                     }
+                    logicalLayer.availableStyles = props.layerStyling?.styles
+                    logicalLayer.activeStyleId = selectedStyle?.id
                     if (spriteRuntimeId !== undefined) {
                         logicalLayer.spriteRuntimeIds = [spriteRuntimeId]
                         spriteRegisteredOnLayer = true

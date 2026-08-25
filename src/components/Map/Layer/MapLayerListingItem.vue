@@ -59,6 +59,19 @@
             <div v-show="layerPanelOpen" class="layer-panel-body">
                 <section class="layer-section">
                     <h4 class="layer-section-title">{{ t('map.layerItem.style') }}</h4>
+                    <label v-if="styleSelectItems.length > 1" class="layer-row">
+                        <span class="layer-row-label">{{ t('map.layerItem.styleVariant') }}</span>
+                        <USelect
+                            v-model="selectedStyleId"
+                            class="grow min-w-0"
+                            :items="styleSelectItems"
+                            value-key="value"
+                            :loading="styleSwitching"
+                            :disabled="styleSwitching"
+                            :aria-label="t('map.layerItem.changeStyle')"
+                            @update:model-value="changeLayerStyle"
+                        />
+                    </label>
                     <label v-if="hasEditableLayerColor" class="layer-row pointer-events-none">
                         <span class="layer-row-label">{{ t('map.layerItem.color') }}</span>
                         <div class="layer-color-controls pointer-events-auto">
@@ -142,7 +155,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { type LayerObjectWithAttributes, type MapLibreLayerTypes, useMapStore } from "@store/map"
 import { useToast } from "@helpers/toast";
@@ -193,9 +206,27 @@ const colorPickerValue = computed({
 })
 const opacity = ref<number>(1)
 const checked = ref<boolean>(true)
+const selectedStyleId = ref<string>(props.layer.activeStyleId ?? "")
+const styleSwitching = ref(false)
 const initialLayerHeaderIndicator = ref<LayerHeaderIndicator>()
 const isGroupLayer = computed(() => props.layer.logicalKind === "group")
+const styleSelectItems = computed(() => (props.layer.availableStyles ?? []).map((style) => ({
+    label: style.isDefault
+        ? `${style.title ?? style.name} (${t("map.layerItem.defaultStyle")})`
+        : style.title ?? style.name,
+    value: style.id,
+})))
 let pendingColorChangeTimeout: ReturnType<typeof setTimeout> | undefined;
+
+// addMapLayer renders this item before its asynchronously loaded catalog
+// styles are attached. Keep the selector synchronized with that later update.
+watch(
+    () => props.layer.activeStyleId,
+    (styleId) => {
+        selectedStyleId.value = styleId ?? ""
+    },
+    { immediate: true }
+)
 
 type LayerHeaderIndicatorKind = "single" | "multi" | "raster" | "heatmap" | "unknown";
 
@@ -355,6 +386,15 @@ const _layerLegendStyle = computed<unknown[] | undefined>(() => {
 void _layerLegendStyle.value;
 
 onMounted(() => {
+    syncPrimaryStyleControls()
+    initialLayerHeaderIndicator.value = resolveLayerHeaderIndicator(props.layer.type);
+    if (mapStore.map.getLayoutProperty(props.layer.id, "visibility") === "none") {
+        checked.value = false
+    }
+    void loadLegend()
+})
+
+function syncPrimaryStyleControls(): void {
     const colorProperty = getEditableColorPaintProperty(props.layer.type);
     const opacityProperty = getOpacityPaintProperty(props.layer.type);
 
@@ -362,15 +402,35 @@ onMounted(() => {
         color.value = normalizeColorPickerValue(getLayerPaintProperty(colorProperty) as string);
         colorHexInput.value = `#${color.value}`;
     }
-    initialLayerHeaderIndicator.value = resolveLayerHeaderIndicator(props.layer.type);
     if (opacityProperty !== "" && !isNullOrEmpty(getLayerPaintProperty(opacityProperty))) {
         opacity.value = getLayerPaintProperty(opacityProperty) as number;
+    } else {
+        opacity.value = 1
     }
-    if (mapStore.map.getLayoutProperty(props.layer.id, "visibility") === "none") {
-        checked.value = false
+}
+
+async function changeLayerStyle(value: unknown): Promise<void> {
+    if (typeof value !== "string" || value === props.layer.activeStyleId) return
+    const previousStyleId = props.layer.activeStyleId ?? ""
+    styleSwitching.value = true
+    try {
+        await mapStore.setStandaloneLayerStyle(props.layer.id, value)
+        selectedStyleId.value = value
+        syncPrimaryStyleControls()
+        initialLayerHeaderIndicator.value = resolveLayerHeaderIndicator(props.layer.type)
+    } catch (error) {
+        selectedStyleId.value = previousStyleId
+        toast.add({
+            severity: "error",
+            summary: t("toast.error"),
+            detail: t("map.layerItem.styleSwitchError"),
+            life: 3000,
+        })
+        console.error(`Could not switch style for ${props.layer.id}`, error)
+    } finally {
+        styleSwitching.value = false
     }
-    void loadLegend()
-})
+}
 /**
  * Resolves a legend image URL via WMS GetCapabilities (or the GetLegendGraphic
  * fallback) for any layer bound to a GeoServer workspace. We render whatever
@@ -490,12 +550,7 @@ function applyColorHexInput(value: string | number | undefined): void {
     queueLayerColorChange(normalizedColor);
 }
 function changeLayerOpac(layerOpacity: any): void {
-    if (isGroupLayer.value) {
-        mapStore.setLogicalLayerOpacity(props.layer, Number(layerOpacity))
-        return
-    }
-    const opac = getOpacityPaintProperty(props.layer.type);
-    mapStore.map.setPaintProperty(props.layer.id, opac, layerOpacity)
+    mapStore.setLogicalLayerOpacity(props.layer, Number(layerOpacity))
 }
 function changeLayerVisibility(layerVisibility: boolean): void {
     const value = layerVisibility ? "visible" : "none";
@@ -618,6 +673,9 @@ function getOpacityPaintProperty(layerType: MapLibreLayerTypes): string {
     }
     if (layerType === "raster") {
         return "raster-opacity";
+    }
+    if (layerType === "symbol") {
+        return "text-opacity";
     }
 
     return "";
