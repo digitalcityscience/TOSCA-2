@@ -151,105 +151,31 @@
                     @click="trackingRenderStore.exitCalibrationPresentation()"
                 />
             </div>
+            <div v-else-if="scenarioStore.aoi !== null" class="flex flex-col gap-2">
+                <UButton
+                    :label="t('collab.control.calibration.recalibrate')"
+                    icon="i-lucide-refresh-ccw"
+                    size="xs"
+                    variant="soft"
+                    class="self-start"
+                    @click="trackingRenderStore.recalibrate()"
+                />
+                <p class="text-xs text-muted">{{ t("collab.control.calibration.resendAssumption") }}</p>
+            </div>
         </div>
 
-        <div v-if="!isRealTableRoute" class="mt-5 flex flex-col gap-2 border-t border-muted pt-4">
-            <h3 class="text-sm font-medium">{{ t("collab.control.footprints.title") }}</h3>
-            <ul v-if="collabSession.base.loaded" class="mt-2 flex max-h-64 flex-col gap-1 overflow-y-auto text-sm">
-                <li
-                    v-for="building in scenarioStore.selectableBuildings"
-                    :key="building.properties.building_id"
-                    class="flex items-center justify-between gap-2"
-                >
-                    <span :class="{ 'line-through text-muted': isRemoved(building.properties.building_id) }">
-                        {{ building.properties.building_id }}
-                    </span>
-                    <UButton
-                        v-if="!isRemoved(building.properties.building_id)"
-                        :label="t('collab.control.footprints.remove')"
-                        icon="i-lucide-trash-2"
-                        size="xs"
-                        color="error"
-                        variant="ghost"
-                        @click="scenarioStore.removeBuilding(building.properties.building_id)"
-                    />
-                    <UButton
-                        v-else
-                        :label="t('collab.control.footprints.restore')"
-                        icon="i-lucide-undo-2"
-                        size="xs"
-                        variant="ghost"
-                        @click="scenarioStore.restoreBuilding(building.properties.building_id)"
-                    />
-                </li>
-            </ul>
-        </div>
-
-        <div v-if="!isRealTableRoute" class="mt-5 flex flex-col gap-2 border-t border-muted pt-4">
-            <h3 class="text-sm font-medium">{{ t("collab.control.masking.title") }}</h3>
-            <p class="text-xs text-muted">{{ t("collab.control.masking.description") }}</p>
-            <USelect
-                v-model="tableMaskingMode"
-                :items="maskingModeItems"
-                value-key="value"
-                :aria-label="t('collab.control.masking.title')"
-                class="w-full"
-            />
-        </div>
-
-        <div v-if="!isRealTableRoute" class="mt-5 flex flex-col gap-2 border-t border-muted pt-4">
-            <h3 class="text-sm font-medium">{{ t("collab.control.tracking.title") }}</h3>
-            <UButton
-                v-if="!trackingRenderStore.active"
-                :label="t('collab.control.tracking.start')"
-                icon="i-lucide-play"
-                size="sm"
-                color="primary"
-                variant="soft"
-                :disabled="!canStartTracking(collabSession.base.loaded, scenarioStore.mapCalibration)"
-                @click="trackingRenderStore.startMockTracking()"
-            />
-            <UButton
-                v-else
-                :label="t('collab.control.tracking.stop')"
-                icon="i-lucide-square"
-                size="sm"
-                variant="ghost"
-                @click="trackingRenderStore.stopMockTracking()"
-            />
-            <p v-if="!collabSession.base.loaded" class="text-xs text-muted">
-                {{ t("collab.control.tracking.requiresFootprints") }}
-            </p>
-            <p v-else-if="scenarioStore.mapCalibration === null" class="text-xs text-muted">
-                {{ t("collab.control.tracking.noAoi") }}
-            </p>
-            <p v-else-if="trackingRenderStore.trackingAvailability === 'suppressed'" class="text-xs text-warning">
-                {{ t("collab.control.tracking.suppressed") }}
-            </p>
-            <p v-else-if="trackingRenderStore.trackingAvailability === 'disconnected'" class="text-xs text-warning">
-                {{ t("collab.control.tracking.disconnected") }}
-            </p>
-            <p v-else-if="trackingRenderStore.active" class="text-xs text-success">
-                {{ t("collab.control.tracking.active") }}
-            </p>
-        </div>
-
-        <div v-if="!isRealTableRoute" class="mt-5 flex flex-col gap-2 border-t border-muted pt-4">
-            <h3 class="text-sm font-medium">{{ t("collab.control.simulation.title") }}</h3>
-            <p class="text-xs text-muted">{{ t("collab.control.simulation.description") }}</p>
-            <UButton
-                :label="collabSession.simulation.running ? t('collab.control.simulation.running') : t('collab.control.simulation.run')"
-                icon="i-lucide-play-circle"
-                size="sm"
-                color="primary"
-                variant="soft"
-                :loading="collabSession.simulation.running"
-                :disabled="!collabSession.base.loaded || collabSession.simulation.running"
-                @click="simulationStore.runSimulation()"
-            />
-            <p v-if="collabSession.simulation.lastRunAt !== null" class="text-xs text-success">
-                {{ t("collab.control.simulation.resultCount", { count: collabSession.simulation.results.length }) }}
-            </p>
+        <div class="mt-5 flex flex-col gap-2 border-t border-muted pt-4">
+            <div class="flex items-center justify-between gap-2">
+                <div class="flex flex-col gap-0.5">
+                    <h3 class="text-sm font-medium">{{ t("collab.control.debug.title") }}</h3>
+                    <p class="text-xs text-muted">{{ t("collab.control.debug.description") }}</p>
+                </div>
+                <USwitch
+                    :model-value="trackingRenderStore.debugOverlaysEnabled"
+                    :aria-label="t('collab.control.debug.title')"
+                    @update:model-value="trackingRenderStore.setDebugOverlaysEnabled($event)"
+                />
+            </div>
         </div>
     </BaseSlideoverSidebarComponent>
 </template>
@@ -262,9 +188,8 @@ import BaseSlideoverSidebarComponent from "@components/Base/BaseSlideoverSidebar
 import { useToast } from "@helpers/toast";
 import { useCollabSyncStore } from "../stores/collabSync";
 import { useCollabSessionStore } from "../stores/collabSession";
-import { canOpenTableWindow, canStartTracking, useCollabScenarioStore } from "../stores/collabScenario";
+import { canOpenTableWindow, useCollabScenarioStore } from "../stores/collabScenario";
 import { useCollabTrackingRenderStore } from "../stores/collabTrackingRender";
-import { useCollabSimulationStore } from "../stores/collabSimulation";
 import { MAP_CALIBRATION_MARKERS, REFERENCE_MARKERS } from "../stores/collabTracking";
 import { isRealTableRoute as resolveIsRealTableRoute, resolveCollabTrackingWsUrl } from "../helpers/collabMode";
 
@@ -277,33 +202,18 @@ const syncStore = useCollabSyncStore();
 const collabSession = useCollabSessionStore();
 const scenarioStore = useCollabScenarioStore();
 const trackingRenderStore = useCollabTrackingRenderStore();
-const simulationStore = useCollabSimulationStore();
 
 const TABLE_WINDOW_NAME = "toscaCollabTable";
 
-/** Table-masking options (ticket 10, OD-2): "hide" is the M1 default; "mask" is the M3 subtract option. */
-const maskingModeItems = [
-    { label: t("collab.control.masking.show"), value: "show" },
-    { label: t("collab.control.masking.hide"), value: "hide" },
-    { label: t("collab.control.masking.mask"), value: "mask" },
-];
-
-/**
- * Bridges the sidebar's show/hide/mask selector to `collabSession.layerPolicy.scenarioFootprint`
- * (ticket 10): lets an operator A/B the OD-2 masking options live on the real projector without a
- * code change.
- */
 const referenceMarkers = REFERENCE_MARKERS;
 /** The four map-calibration marker ids (ticket 08) — Control's live-detection rows for them. */
 const mapCalibrationMarkers = MAP_CALIBRATION_MARKERS;
 /** `undefined` in mock builds (no `:8053` transport at all) — the URL row/section hides via the same `isRealTableRoute` check. */
 const configuredWsUrl = resolveCollabTrackingWsUrl();
 /**
- * Whether this build is wired to a real Python transport (ticket 09) — the single, static gate
- * for every section that only makes sense on the real-table route (Connection, Calibration
- * status) versus every mock/dev-only scaffolding section (footprints fixture, masking, manual
- * tracking, simulation), which show only when this is false. Env-driven and never changes at
- * runtime, so a plain constant rather than a reactive `computed`.
+ * Whether this build is wired to a real Python transport (ticket 09) — the gate for the two
+ * sections that only make sense on the real-table route (Connection, Calibration status).
+ * Env-driven and never changes at runtime, so a plain constant rather than a reactive `computed`.
  */
 const isRealTableRoute = resolveIsRealTableRoute();
 
@@ -382,19 +292,6 @@ const calibrationStatusTextClass = computed(() => {
     return scenarioStore.calibrated ? "text-success" : "text-warning";
 });
 
-const tableMaskingMode = computed<"show" | "hide" | "mask">({
-    get: () => {
-        const mode = collabSession.layerPolicy.scenarioFootprint.table;
-        if (mode === "mask") {
-            return "mask";
-        }
-        return mode ? "show" : "hide";
-    },
-    set: (mode) => {
-        collabSession.setLayerTableMode("scenarioFootprint", mode === "mask" ? "mask" : mode === "show");
-    },
-});
-
 /**
  * Opens (or refocuses) the projector-facing `/collab/table` window (plan §11, ticket 06).
  * A `windowFeatures` string is required here — without one, browsers open a same-window tab
@@ -420,10 +317,6 @@ function openTableWindow(): void {
 
 function finishAoi(): void {
     scenarioStore.finishAoiSelection();
-}
-
-function isRemoved(id: string): boolean {
-    return collabSession.scenario.removedBuildings.includes(id);
 }
 
 onMounted(() => {

@@ -1,5 +1,5 @@
 import { createPinia, setActivePinia } from "pinia";
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import { nextTick } from "vue";
 import bbox from "@turf/bbox";
 import bearing from "@turf/bearing";
@@ -72,7 +72,7 @@ vi.mock("@store/map", () => ({
     }),
 }));
 
-import { useCollabSessionStore, DEFAULT_COLLAB_LAYER_POLICY, type CollabSceneObject } from "./stores/collabSession";
+import { useCollabSessionStore, type CollabSceneObject } from "./stores/collabSession";
 import { useCollabScenarioStore, extentFromPolygon, isAspectRatioValid, toFeature } from "./stores/collabScenario";
 import { useCollabSyncStore, type CollabSyncMessage } from "./stores/collabSync";
 import {
@@ -353,42 +353,50 @@ describe("Phase 4 (ticket 13): tracked buildings computed once in Control, broad
     });
 });
 
-describe("6/7 layer policy: Control debug layers present, Table only gets footprints + centre points", () => {
-    test("Control sees every technical overlay; Table sees footprints and building centre points, nothing else (plan §13 M1 default)", () => {
+describe("6/7 layer management (ticket 15): Table only ever gets \"Tracked buildings (Python)\", Control debug overlays are opt-in", () => {
+    test("Control's debug overlays are off until the debug switch is enabled, and are never created on Table", async () => {
         const session = useCollabSessionStore();
-        expect(session.layerPolicy).toEqual(DEFAULT_COLLAB_LAYER_POLICY);
+        session.base.objects = makeBuildings();
+        session.tracking["B-0"] = { pose: { lng: 9.99, lat: 53.55, rotation: 0 }, confidence: 1, lastSeen: 0 };
 
-        for (const debugLayer of ["trackedBbox", "trackedOrientation", "trackedConfidence"] as const) {
-            expect(session.isLayerVisible(debugLayer, "control")).toBe(true);
-            expect(session.isLayerVisible(debugLayer, "table")).toBe(false);
+        const trackingRender = useCollabTrackingRenderStore();
+        expect(trackingRender.debugOverlaysEnabled).toBe(false);
+        trackingRender.startRendering("control");
+
+        for (let i = 0; i < 30; i++) {
+            await Promise.resolve();
         }
-        // trackedId (each tracked building's centre point) is shown on both views — the Table/
-        // projector displays building centroid data, not just footprints.
-        expect(session.isLayerVisible("trackedId", "control")).toBe(true);
-        expect(session.isLayerVisible("trackedId", "table")).toBe(true);
-        expect(session.isLayerVisible("trackedFootprint", "table")).toBe(true);
-        expect(session.isLayerVisible("scenarioFootprint", "table")).toBe(true);
+
+        expect(fakeSources.has("collabTrackedFootprints")).toBe(true);
+        expect(fakeSources.has("collabTrackedBbox")).toBe(false);
+        expect(fakeSources.has("collabTrackedOrientation")).toBe(false);
+        expect(fakeSources.has("collabTrackedId")).toBe(false);
+        expect(fakeSources.has("collabTrackedConfidence")).toBe(false);
+
+        trackingRender.setDebugOverlaysEnabled(true);
+        for (let i = 0; i < 60; i++) {
+            await Promise.resolve();
+        }
+
+        expect(fakeSources.has("collabTrackedBbox")).toBe(true);
+        expect(fakeSources.has("collabTrackedOrientation")).toBe(true);
+        expect(fakeSources.has("collabTrackedId")).toBe(true);
+        expect(fakeSources.has("collabTrackedConfidence")).toBe(true);
+
+        trackingRender.stop();
     });
 
-    test("startRendering('table') renders the broadcast trackedId collection into the map layer, not just the policy flag", async () => {
+    test("startRendering('table') renders the broadcast tracked-footprint collection, never Control's debug overlays", async () => {
         const session = useCollabSessionStore();
         session.base.objects = makeBuildings();
         const building = session.base.objects[0]!;
-        session.tracking[building.id] = { pose: { lng: 9.99, lat: 53.55, rotation: 0 }, confidence: 1, lastSeen: 0 };
         // Table never derives tracked-building geometry itself (ticket 13) — it renders whatever
         // Control already broadcast via session.trackedBuildings, so this test seeds that slice
         // directly (there's no Control instance here) rather than session.tracking alone, or the
         // rendered layer would silently come out empty.
-        session.trackedBuildings.ids = {
+        session.trackedBuildings.footprints = {
             type: "FeatureCollection",
-            features: [
-                {
-                    type: "Feature",
-                    id: building.id,
-                    properties: { label: building.id },
-                    geometry: { type: "Point", coordinates: [9.99, 53.55] },
-                },
-            ],
+            features: [{ type: "Feature", id: building.id, properties: {}, geometry: { type: "Point", coordinates: [9.99, 53.55] } }],
         };
         session.trackedBuildings.revision = 1;
 
@@ -399,11 +407,12 @@ describe("6/7 layer policy: Control debug layers present, Table only gets footpr
             await Promise.resolve();
         }
 
-        expect(fakeSources.has("collabTrackedId")).toBe(true);
-        expect(fakeSources.get("collabTrackedId")?.setData).toHaveBeenCalledWith(session.trackedBuildings.ids);
-        // Table must not pick up Control-only debug layers while it's at it.
+        expect(fakeSources.has("collabTrackedFootprints")).toBe(true);
+        expect(fakeSources.get("collabTrackedFootprints")?.setData).toHaveBeenCalledWith(session.trackedBuildings.footprints);
+        // Table must never pick up Control-only debug layers, even with the switch conceptually on.
         expect(fakeSources.has("collabTrackedBbox")).toBe(false);
         expect(fakeSources.has("collabTrackedOrientation")).toBe(false);
+        expect(fakeSources.has("collabTrackedId")).toBe(false);
         expect(fakeSources.has("collabTrackedConfidence")).toBe(false);
 
         trackingRender.stop();
@@ -541,6 +550,9 @@ describe("17 concurrent MapLibre layer/source initialization", () => {
         });
 
         const trackingRender = useCollabTrackingRenderStore();
+        // Debug overlays (bbox/orientation among them) are only created while the switch is on
+        // (ticket 15) — enabled here so this test can still exercise their concurrent-init path.
+        trackingRender.setDebugOverlaysEnabled(true);
         // Two overlapping starts -> two concurrent `updateLayers("control")` passes racing to
         // create the same sources before either has finished (Vue's `immediate: true` invokes the
         // watcher synchronously, so both fire before any awaits resolve).
@@ -599,43 +611,3 @@ describe("ticket 09: confirmed AOI is a persistent, visible layer", () => {
     });
 });
 
-describe("ticket 09: no mock/simulation MapLibre layers on the real-table route", () => {
-    afterEach(() => {
-        vi.unstubAllEnvs();
-        vi.unstubAllGlobals();
-    });
-
-    class FakeSocket {
-        onopen: (() => void) | null = null;
-        onmessage: ((event: { data: string }) => void) | null = null;
-        onclose: (() => void) | null = null;
-        onerror: ((event: unknown) => void) | null = null;
-        send(): void {}
-        close(): void {}
-    }
-
-    test("collabSimulationResult is never created on the real-table route, but is created off it", async () => {
-        vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
-        vi.stubGlobal("WebSocket", FakeSocket as unknown as typeof WebSocket);
-
-        const realRouteTrackingRender = useCollabTrackingRenderStore();
-        realRouteTrackingRender.startRendering("control");
-        for (let i = 0; i < 30; i++) {
-            await Promise.resolve();
-        }
-        expect(fakeSources.has("collabSimulationResult")).toBe(false);
-        realRouteTrackingRender.stop();
-
-        vi.unstubAllEnvs();
-        setActivePinia(createPinia());
-        fakeSources.clear();
-
-        const mockRouteTrackingRender = useCollabTrackingRenderStore();
-        mockRouteTrackingRender.startRendering("control");
-        for (let i = 0; i < 30; i++) {
-            await Promise.resolve();
-        }
-        expect(fakeSources.has("collabSimulationResult")).toBe(true);
-        mockRouteTrackingRender.stop();
-    });
-});

@@ -1,29 +1,21 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
-import { computed, reactive } from "vue";
+import { reactive } from "vue";
 import type { FeatureCollection } from "@helpers/geojson";
 import type { AOIExtent } from "./collabCalibration";
 
 /**
- * One object in the Base City / Scenario dataset. Only `id` is meaningful to the store itself
- * (delta composition matches on it); geometry/attributes are opaque here — the loader (base) and
- * Control View (scenario) own their concrete shape.
+ * One object in the Base City dataset. Only `id` is meaningful to the store itself; geometry/
+ * attributes are opaque here — the loader owns its concrete shape.
  */
 export interface CollabSceneObject {
     id: string;
     [key: string]: unknown;
 }
 
-/** Immutable Hamburg source dataset (ALKIS/buildings). Written only by the base-city loader. */
+/** Immutable Hamburg source dataset (ALKIS/buildings), scoped to the confirmed AOI. Written only by the base-city loader. */
 export interface CollabBaseCityState {
     loaded: boolean;
     objects: CollabSceneObject[];
-}
-
-/** Control-View-authored delta against the base city; never mutates the base dataset. */
-export interface CollabScenarioState {
-    removedBuildings: string[];
-    addedObjects: CollabSceneObject[];
-    modifiedObjects: Record<string, Partial<CollabSceneObject>>;
 }
 
 /**
@@ -45,24 +37,6 @@ export interface CollabViewState {
 /** Derived: which layers/masks the projector (Table view) currently shows. */
 export interface CollabTableRenderState {
     visibleLayerIds: string[];
-}
-
-/**
- * One simulation result attached to a scenario object (ticket 11, plan §20 M4). `metric` is a
- * generic numeric result placeholder — TOSCA's real simulation client (not yet shipped, see
- * `collabSimulation.ts`) determines the actual result schema; this shape only needs to be enough
- * to prove the "run → populate → render via layer policy" wiring end to end with a mock client.
- */
-export interface CollabSimulationResultObject {
-    objectId: string;
-    metric: number;
-}
-
-/** Simulation State slice (ticket 04 placeholder, filled in by ticket 11's `collabSimulation.ts`). */
-export interface CollabSimulationState {
-    running: boolean;
-    results: CollabSimulationResultObject[];
-    lastRunAt: number | null;
 }
 
 /**
@@ -112,67 +86,16 @@ export interface CollabTrackedBuildingsState {
 }
 
 /**
- * Logical Collab layers the per-view layer-policy matrix governs (plan §13, ticket 08): the
- * scenario/tracked footprints both views can show, `trackedId` (also shown on both — see
- * {@link DEFAULT_COLLAB_LAYER_POLICY}), plus the remaining technical tracking overlays that stay
- * Control-only spill (B4) — bbox/orientation/confidence, mirroring the Vanilla reference (§5e).
- */
-export type CollabLayerId =
-    | "scenarioFootprint"
-    | "trackedFootprint"
-    | "trackedBbox"
-    | "trackedOrientation"
-    | "trackedId"
-    | "trackedConfidence"
-    | "simulationResult";
-
-/**
- * Whether a logical layer renders in the Control View / Table View (plan §13). `table: "mask"`
- * is reserved for the M3 subtract-mask option (plan §13 option 2); M1 only implements "don't
- * render" (`false`) for the technical overlays.
- */
-export interface CollabLayerPolicyEntry {
-    control: boolean;
-    table: boolean | "mask";
-}
-
-export type CollabLayerPolicy = Record<CollabLayerId, CollabLayerPolicyEntry>;
-
-/**
- * M1 default (plan §13): Control sees every technical overlay; the Table/projector only ever
- * sees footprints — "don't render" is the M1 masking strategy for bbox/orientation/confidence
- * (plan §13 option 1, B4). `trackedId` (each tracked building's centre point) is the exception:
- * shown on both views so the projector also displays building centroid data, not just footprints.
- */
-export const DEFAULT_COLLAB_LAYER_POLICY: CollabLayerPolicy = {
-    scenarioFootprint: { control: true, table: true },
-    trackedFootprint: { control: true, table: true },
-    trackedBbox: { control: true, table: false },
-    trackedOrientation: { control: true, table: false },
-    trackedId: { control: true, table: true },
-    trackedConfidence: { control: true, table: false },
-    // Simulation results are projector-appropriate (ticket 11 acceptance) — shown on both views.
-    simulationResult: { control: true, table: true },
-};
-
-/**
- * Shared Collab session state: base city, scenario delta, live tracking, per-view state,
- * derived table render state, a simulation placeholder, and the per-view layer-policy matrix.
+ * Shared Collab session state: base city (scoped to the confirmed AOI), live tracking, per-view
+ * state, derived table render state, calibration, and the broadcast tracked-buildings collection.
  * Composes existing TOSCA stores (map/geoserver/backend) from within actions added by later
- * tickets — this ticket only establishes the six state slices (plan §10).
+ * tickets (plan §10).
  */
 export const useCollabSessionStore = defineStore("collabSession", () => {
     const base = reactive<CollabBaseCityState>({ loaded: false, objects: [] });
-    const scenario = reactive<CollabScenarioState>({
-        removedBuildings: [],
-        addedObjects: [],
-        modifiedObjects: {},
-    });
     const tracking = reactive<Record<string, CollabTrackingObjectState>>({});
     const view = reactive<CollabViewState>({ selection: null });
     const tableRender = reactive<CollabTableRenderState>({ visibleLayerIds: [] });
-    const simulation = reactive<CollabSimulationState>({ running: false, results: [], lastRunAt: null });
-    const layerPolicy = reactive<CollabLayerPolicy>({ ...DEFAULT_COLLAB_LAYER_POLICY });
     const calibration = reactive<CollabCalibrationState>({ rotationOffsetDeg: 0, aoi: null, phase: "idle", revision: 0 });
     const trackedBuildings = reactive<CollabTrackedBuildingsState>({
         footprints: { type: "FeatureCollection", features: [] },
@@ -180,50 +103,13 @@ export const useCollabSessionStore = defineStore("collabSession", () => {
         revision: 0,
     });
 
-    /** Whether `layerId` should render for `windowKind`, per the current layer-policy matrix (plan §13). */
-    function isLayerVisible(layerId: CollabLayerId, windowKind: "control" | "table"): boolean {
-        const entry = layerPolicy[layerId];
-        return windowKind === "control" ? entry.control : entry.table !== false;
-    }
-
-    /**
-     * Sets `layerId`'s Table-view policy at runtime (ticket 10, OD-2): lets an operator switch
-     * between the M1 "hide-layer" masking option and the M3 "mask" (subtract-physical-footprints)
-     * option live, on the real projector, without a code change — the additive mechanism the OD-2
-     * sufficiency evaluation needs, since only that evaluation can decide which option to keep.
-     */
-    function setLayerTableMode(layerId: CollabLayerId, mode: boolean | "mask"): void {
-        layerPolicy[layerId].table = mode;
-    }
-
-    /**
-     * `Base City ⊖ removed ⊕ added ⊕ modified` — the scenario both windows render from. Reads
-     * `base`/`scenario` only; never writes back to `base`, so the source dataset stays immutable.
-     */
-    const currentScenario = computed<CollabSceneObject[]>(() => {
-        const removed = new Set(scenario.removedBuildings);
-        const kept = base.objects
-            .filter((object) => !removed.has(object.id))
-            .map((object) => {
-                const modification = scenario.modifiedObjects[object.id];
-                return modification ? { ...object, ...modification } : object;
-            });
-        return [...kept, ...scenario.addedObjects];
-    });
-
     return {
         base,
-        scenario,
         tracking,
         view,
         tableRender,
-        simulation,
-        layerPolicy,
         calibration,
         trackedBuildings,
-        currentScenario,
-        isLayerVisible,
-        setLayerTableMode,
     };
 });
 

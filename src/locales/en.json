@@ -346,32 +346,18 @@
         "calibrated": "Calibrated",
         "presenting": "Table is presenting calibration markers — position the cameras, then exit to resume the normal projected view",
         "calibrate": "Calibrate",
-        "exitPresentation": "Exit calibration presentation"
+        "exitPresentation": "Exit calibration presentation",
+        "recalibrate": "Recalibrate",
+        "resendAssumption": "Reconnecting resends the last calibration automatically, assuming the cameras and projector haven't moved. If they have, press Recalibrate.",
+        "resendFailed": "Calibration didn't resume after reconnecting — recalibrate using the four markers"
       },
       "footprints": {
-        "title": "Building footprints",
-        "load": "Load selectable footprints",
         "loadRequiresAoi": "Select an AOI first",
-        "loadFailed": "Could not load Collab building footprints",
-        "remove": "Remove",
-        "restore": "Restore"
+        "loadFailed": "Could not load Collab building footprints"
       },
-      "masking": {
-        "title": "Table masking",
-        "description": "Choose how projected context near tracked physical objects renders on the Table (OD-2).",
-        "show": "Show (no masking)",
-        "hide": "Hide layer",
-        "mask": "Mask around objects"
-      },
-      "tracking": {
-        "title": "Live tracking (mock)",
-        "start": "Start mock tracking",
-        "stop": "Stop",
-        "active": "Tracking active",
-        "requiresFootprints": "Load footprints first",
-        "suppressed": "Calibration in progress — showing last known positions",
-        "disconnected": "Tracking connection lost — showing last known positions",
-        "noAoi": "Select an area of interest before starting tracking"
+      "debug": {
+        "title": "Debug overlays",
+        "description": "Show tracked bounding boxes, orientation, marker IDs and confidence for hardware debugging."
       },
       "python": {
         "title": "Python tracking server",
@@ -396,13 +382,6 @@
             }
           }
         }
-      },
-      "simulation": {
-        "title": "Simulation (mock)",
-        "description": "TOSCA does not yet expose a simulation client — this runs a mock stand-in so the results view can be tested ahead of time.",
-        "run": "Run simulation",
-        "running": "Running…",
-        "resultCount": "{count} result(s)"
       }
     },
     "table": {
@@ -410,15 +389,12 @@
     },
     "layers": {
       "aoiViewfinder": "Collab · AOI selection frame",
-      "selectableFootprints": "Collab · Selectable buildings",
-      "tableScenario": "Collab · Table scenario",
-      "trackedFootprint": "Collab · Tracked footprint",
+      "trackedFootprint": "Collab · Tracked buildings (Python)",
       "trackedBbox": "Collab · Tracked bbox",
       "trackedOrientation": "Collab · Tracked orientation",
       "trackedId": "Collab · Tracked id",
       "trackedConfidence": "Collab · Tracked confidence",
-      "simulationResult": "Collab · Simulation result",
-      "aoi": "Collab · Confirmed AOI"
+      "aoi": "Collab · Selected AOI"
     }
   }
 }

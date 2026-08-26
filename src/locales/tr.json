@@ -346,32 +346,18 @@
         "calibrated": "Kalibre edildi",
         "presenting": "Masa kalibrasyon işaretçilerini gösteriyor — kameraları konumlandırın, ardından normal görünüme dönmek için çıkın",
         "calibrate": "Kalibre et",
-        "exitPresentation": "Kalibrasyon sunumundan çık"
+        "exitPresentation": "Kalibrasyon sunumundan çık",
+        "recalibrate": "Yeniden kalibre et",
+        "resendAssumption": "Yeniden bağlanma, kameraların ve projektörün hareket etmediği varsayılarak son kalibrasyonu otomatik olarak yeniden gönderir. Hareket ettiyse \"Yeniden kalibre et\"e basın.",
+        "resendFailed": "Yeniden bağlandıktan sonra kalibrasyon devam etmedi — dört işaretleyiciyi kullanarak yeniden kalibre edin"
       },
       "footprints": {
-        "title": "Bina yerleşim alanları",
-        "load": "Seçilebilir yerleşim alanlarını yükle",
         "loadRequiresAoi": "Önce bir ilgi alanı seçin",
-        "loadFailed": "Collab bina yerleşim alanları yüklenemedi",
-        "remove": "Kaldır",
-        "restore": "Geri yükle"
+        "loadFailed": "Collab bina yerleşim alanları yüklenemedi"
       },
-      "masking": {
-        "title": "Masa maskeleme",
-        "description": "İzlenen fiziksel nesnelerin yakınındaki projekte edilen bağlamın Masa'da nasıl gösterileceğini seçin (OD-2).",
-        "show": "Göster (maskeleme yok)",
-        "hide": "Katmanı gizle",
-        "mask": "Nesnelerin çevresini maskele"
-      },
-      "tracking": {
-        "title": "Canlı takip (simülasyon)",
-        "start": "Simülasyon takibini başlat",
-        "stop": "Durdur",
-        "active": "Takip etkin",
-        "requiresFootprints": "Önce yerleşim alanlarını yükleyin",
-        "suppressed": "Kalibrasyon sürüyor — son bilinen konumlar gösteriliyor",
-        "disconnected": "Takip bağlantısı kesildi — son bilinen konumlar gösteriliyor",
-        "noAoi": "Takibi başlatmadan önce bir ilgi alanı seçin"
+      "debug": {
+        "title": "Hata ayıklama katmanları",
+        "description": "Donanım hata ayıklaması için takip edilen sınır kutularını, yönelimi, işaretçi kimliklerini ve güveni gösterir."
       },
       "python": {
         "title": "Python takip sunucusu",
@@ -396,13 +382,6 @@
             }
           }
         }
-      },
-      "simulation": {
-        "title": "Simülasyon (mock)",
-        "description": "TOSCA henüz bir simülasyon istemcisi sunmuyor — bu, sonuç görünümünün önceden test edilebilmesi için bir mock yer tutucu çalıştırır.",
-        "run": "Simülasyonu çalıştır",
-        "running": "Çalışıyor…",
-        "resultCount": "{count} sonuç"
       }
     },
     "table": {
@@ -410,15 +389,12 @@
     },
     "layers": {
       "aoiViewfinder": "Collab · İlgi alanı seçim çerçevesi",
-      "selectableFootprints": "Collab · Seçilebilir binalar",
-      "tableScenario": "Collab · Masa senaryosu",
-      "trackedFootprint": "Collab · Takip edilen yerleşim alanı",
+      "trackedFootprint": "Collab · Takip edilen binalar (Python)",
       "trackedBbox": "Collab · Takip edilen sınır kutusu",
       "trackedOrientation": "Collab · Takip edilen yönelim",
       "trackedId": "Collab · Takip edilen kimlik",
       "trackedConfidence": "Collab · Takip edilen güven",
-      "simulationResult": "Collab · Simülasyon sonucu",
-      "aoi": "Collab · Onaylanmış ilgi alanı"
+      "aoi": "Collab · Seçilen ilgi alanı"
     }
   }
 }

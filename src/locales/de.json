@@ -346,32 +346,18 @@
         "calibrated": "Kalibriert",
         "presenting": "Der Tisch zeigt die Kalibrierungsmarker an — Kameras positionieren, dann beenden, um zur normalen Projektion zurückzukehren",
         "calibrate": "Kalibrieren",
-        "exitPresentation": "Kalibrierungsanzeige beenden"
+        "exitPresentation": "Kalibrierungsanzeige beenden",
+        "recalibrate": "Neu kalibrieren",
+        "resendAssumption": "Beim erneuten Verbinden wird die letzte Kalibrierung automatisch erneut gesendet — unter der Annahme, dass Kameras und Projektor sich nicht bewegt haben. Falls doch, „Neu kalibrieren“ drücken.",
+        "resendFailed": "Kalibrierung wurde nach der Wiederverbindung nicht fortgesetzt — mit den vier Markern neu kalibrieren"
       },
       "footprints": {
-        "title": "Gebäudegrundrisse",
-        "load": "Auswählbare Grundrisse laden",
         "loadRequiresAoi": "Wählen Sie zuerst ein Interessengebiet aus",
-        "loadFailed": "Die Collab-Gebäudegrundrisse konnten nicht geladen werden",
-        "remove": "Entfernen",
-        "restore": "Wiederherstellen"
+        "loadFailed": "Die Collab-Gebäudegrundrisse konnten nicht geladen werden"
       },
-      "masking": {
-        "title": "Tisch-Maskierung",
-        "description": "Legt fest, wie projizierter Kontext in der Nähe verfolgter physischer Objekte auf dem Tisch dargestellt wird (OD-2).",
-        "show": "Anzeigen (keine Maskierung)",
-        "hide": "Ebene ausblenden",
-        "mask": "Um Objekte maskieren"
-      },
-      "tracking": {
-        "title": "Live-Tracking (simuliert)",
-        "start": "Simuliertes Tracking starten",
-        "stop": "Stopp",
-        "active": "Tracking aktiv",
-        "requiresFootprints": "Zuerst Grundrisse laden",
-        "suppressed": "Kalibrierung läuft — letzte bekannte Positionen werden angezeigt",
-        "disconnected": "Tracking-Verbindung unterbrochen — letzte bekannte Positionen werden angezeigt",
-        "noAoi": "Wählen Sie einen Interessenbereich aus, bevor Sie das Tracking starten"
+      "debug": {
+        "title": "Debug-Overlays",
+        "description": "Zeigt verfolgte Bounding-Boxen, Ausrichtung, Marker-IDs und Konfidenz zur Hardware-Fehlersuche an."
       },
       "python": {
         "title": "Python-Tracking-Server",
@@ -396,13 +382,6 @@
             }
           }
         }
-      },
-      "simulation": {
-        "title": "Simulation (simuliert)",
-        "description": "TOSCA stellt noch keinen Simulationsclient bereit — dies führt einen simulierten Platzhalter aus, damit die Ergebnisansicht vorab getestet werden kann.",
-        "run": "Simulation ausführen",
-        "running": "Läuft…",
-        "resultCount": "{count} Ergebnis(se)"
       }
     },
     "table": {
@@ -410,15 +389,12 @@
     },
     "layers": {
       "aoiViewfinder": "Collab · Auswahlrahmen (Interessengebiet)",
-      "selectableFootprints": "Collab · Auswählbare Gebäude",
-      "tableScenario": "Collab · Tisch-Szenario",
-      "trackedFootprint": "Collab · Verfolgter Grundriss",
+      "trackedFootprint": "Collab · Verfolgte Gebäude (Python)",
       "trackedBbox": "Collab · Verfolgte Bounding-Box",
       "trackedOrientation": "Collab · Verfolgte Ausrichtung",
       "trackedId": "Collab · Verfolgte ID",
       "trackedConfidence": "Collab · Verfolgte Konfidenz",
-      "simulationResult": "Collab · Simulationsergebnis",
-      "aoi": "Collab · Bestätigtes Interessengebiet"
+      "aoi": "Collab · Ausgewähltes Interessengebiet"
     }
   }
 }

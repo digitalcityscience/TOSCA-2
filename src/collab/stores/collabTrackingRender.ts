@@ -6,17 +6,16 @@ import transformRotate from "@turf/transform-rotate";
 import transformTranslate from "@turf/transform-translate";
 import type { Position } from "geojson";
 import maplibre, { type Map as MapLibreMap, type Marker as MapLibreMarker } from "maplibre-gl";
-import type { Feature, FeatureCollection, MultiPolygon, Polygon } from "@helpers/geojson";
+import type { Feature, FeatureCollection, Polygon } from "@helpers/geojson";
 import { reportDeveloperError } from "@helpers/userFacingError";
 import { useToast } from "@helpers/toast";
-import { isRealTableRoute, resolveCollabTrackingMode, resolveCollabTrackingWsUrl } from "../helpers/collabMode";
+import { resolveCollabTrackingMode, resolveCollabTrackingWsUrl } from "../helpers/collabMode";
 import { markerRegistryForBuildings } from "../data/collabBuildingData";
 import { i18n } from "../../core/i18n";
 import { useMapStore } from "@store/map";
 import { useCollabSessionStore, type CollabSceneObject, type CollabTrackingObjectState } from "./collabSession";
 import { toFeature, useCollabScenarioStore, type CollabBuildingObject } from "./collabScenario";
-import { calibrationMarkerSizePx, deriveTrackedFootprint, footprintAnchorCentre, tableToAoiRotationOffsetDeg, type AOIExtent } from "./collabCalibration";
-import { maskContextAroundPhysicalFootprints } from "./collabMasking";
+import { calibrationMarkerSizePx, deriveTrackedFootprint, tableToAoiRotationOffsetDeg, type AOIExtent, type MapCalibrationMessage } from "./collabCalibration";
 import {
     aoiCornerForMapMarker,
     buildMapCalibrationFromMarkerReadings,
@@ -24,12 +23,10 @@ import {
     createMarkerObjectRegistry,
     MAP_CALIBRATION_MARKER_IDS,
     MAP_CALIBRATION_MARKERS,
-    MockTrackingSource,
     REFERENCE_MARKERS,
     RealTrackingSource,
     type MarkerObjectRegistry,
     type MarkerObjectRegistryEntry,
-    type MockTrackingSnapshot,
     type PythonConnectionState,
     type RawMarkerReading,
     type TrackingAvailability,
@@ -47,10 +44,6 @@ const REFERENCE_MARKER_IDS: ReadonlySet<number> = new Set(REFERENCE_MARKERS.map(
  */
 export type CollabPythonConnectionState = PythonConnectionState | "mock"
 
-const TABLE_SCENARIO_SOURCE_ID = "collabTableScenario";
-const TABLE_SCENARIO_FILL_LAYER_ID = "collabTableScenario-fill";
-const TABLE_SCENARIO_OUTLINE_LAYER_ID = "collabTableScenario-outline";
-
 const TRACKED_FOOTPRINT_SOURCE_ID = "collabTrackedFootprints";
 const TRACKED_FOOTPRINT_FILL_LAYER_ID = "collabTrackedFootprints-fill";
 const TRACKED_FOOTPRINT_OUTLINE_LAYER_ID = "collabTrackedFootprints-outline";
@@ -67,28 +60,30 @@ const TRACKED_ID_LAYER_ID = "collabTrackedId-symbol";
 const TRACKED_CONFIDENCE_SOURCE_ID = "collabTrackedConfidence";
 const TRACKED_CONFIDENCE_LAYER_ID = "collabTrackedConfidence-symbol";
 
-const SIMULATION_RESULT_SOURCE_ID = "collabSimulationResult";
-const SIMULATION_RESULT_LAYER_ID = "collabSimulationResult-symbol";
-
 /**
  * Every Collab-managed layer id that can exist on the Table window (ticket 11, fix-tickets) — the
  * ones {@link syncCalibrationPresentation} hides while presenting, alongside the basemap. Control-
- * only layer ids (bbox/orientation/confidence) are deliberately excluded: they are never created on
- * Table in the first place (see `updateLayers`'s `windowKind === "control"` gates below).
+ * only debug-overlay layer ids (bbox/orientation/id/confidence) are deliberately excluded: they
+ * are never created on Table in the first place (see `updateLayers`'s `windowKind === "control"`
+ * gate below), and only exist on Control at all while the debug switch is on.
  */
 const TABLE_MANAGED_LAYER_IDS: readonly string[] = [
-    TABLE_SCENARIO_FILL_LAYER_ID,
-    TABLE_SCENARIO_OUTLINE_LAYER_ID,
     TRACKED_FOOTPRINT_FILL_LAYER_ID,
     TRACKED_FOOTPRINT_OUTLINE_LAYER_ID,
-    TRACKED_ID_LAYER_ID,
-    SIMULATION_RESULT_LAYER_ID,
 ];
 
-/** Demo mock timeline's east offset (metres) for the "moved" snapshot — arbitrary but visible at map scale. */
-const DEMO_MOVE_METERS = 5;
-/** Demo mock timeline's orientation-indicator line length (metres). */
+/** Control debug overlay's orientation-indicator line length (metres). */
 const ORIENTATION_LINE_METERS = 5;
+
+/**
+ * How long a resent `map_calibration` payload gets to prove itself via a resumed GeoJSON
+ * `FeatureCollection` before {@link useCollabTrackingRenderStore}'s reconnect handling gives up and
+ * falls back to four-marker detection mode (ticket 14) — long enough to cover Python re-detecting
+ * the reference markers and rebuilding its feed after a transport blip or process restart, short
+ * enough that the operator isn't left assuming `calibrated_tracking` far past the point Python has
+ * clearly not resumed.
+ */
+const RECONNECT_RESUME_TIMEOUT_MS = 8000;
 
 /**
  * Builds a {@link MarkerObjectRegistry} from the loaded base-city objects' `marker_id` (OD-4,
@@ -124,24 +119,6 @@ export function applyTrackingEvent(
         return;
     }
     tracking[event.objectId] = { pose: event.pose, confidence: event.confidence, lastSeen: event.timestamp };
-}
-
-/**
- * A short demo mock timeline anchored at `anchor` (a known building's centre) — appear, move,
- * rotate 45°, disappear (plan §14 M1 acceptance: appeared/updated(moved)/rotated/disappeared) —
- * so "inject mock building" always lands on real loaded content instead of a hardcoded
- * coordinate.
- */
-export function buildDemoMockTimeline(markerId: number, anchor: Position): MockTrackingSnapshot[] {
-    const [lng, lat] = anchor;
-    const moved = transformTranslate(point(anchor), DEMO_MOVE_METERS, 90, { units: "meters" });
-    const [movedLng, movedLat] = moved.geometry.coordinates;
-    return [
-        { atMs: 0, features: [{ markerId, lng, lat, rotation: 0 }] },
-        { atMs: 1000, features: [{ markerId, lng: movedLng, lat: movedLat, rotation: 0 }] },
-        { atMs: 2000, features: [{ markerId, lng: movedLng, lat: movedLat, rotation: 45 }] },
-        { atMs: 3000, features: [] },
-    ];
 }
 
 /**
@@ -213,17 +190,13 @@ function buildCalibrationMarkerElement(markerId: number): HTMLImageElement {
 }
 
 /**
- * Wires the mock tracking adapter (ticket 05) into the session (ticket 04) and renders both
- * views from the layer-policy matrix (plan §13, ticket 08 — the M1 tracer bullet). Owned here
- * rather than in `collabScenario`/`collabTracking` because it composes both plus the map store
- * and is genuinely new cross-cutting logic (plan §10 seam rule).
+ * Wires the Python tracking adapter into the session (ticket 04/08) and renders both views
+ * (ticket 15). Owned here rather than in `collabScenario`/`collabTracking` because it composes
+ * both plus the map store and is genuinely new cross-cutting logic (plan §10 seam rule).
  *
- * - `startMockTracking` starts a {@link MockTrackingSource} and writes its events into
- *   `collabSession.tracking`.
- * - `startRendering(windowKind)` watches session state and renders the Collab layers each window
- *   is allowed to show, per `collabSession.layerPolicy`: Control gets tracked footprint/bbox/
- *   orientation/id/confidence; Table gets the scenario + tracked footprints plus tracked id
- *   (building centre points), per the current M1 default.
+ * - `startRendering(windowKind)` watches session state and renders "Tracked buildings (Python)" —
+ *   the one Collab layer both Control and Table always show — plus, on Control only and only
+ *   while {@link debugOverlaysEnabled}, the bbox/orientation/id/confidence debug overlays.
  *
  * Pose→geometry derivation (translate/rotate + 5° jitter threshold + table→AOI rotation offset)
  * is delegated to `collabCalibration.deriveTrackedFootprint` — this store only wires events,
@@ -235,8 +208,14 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     const mapStore = useMapStore();
     const toast = useToast();
 
-    const active = ref(false);
     const trackingAvailability = ref<TrackingAvailability>("live");
+    /**
+     * Whether Control's debug overlays (tracked bbox/orientation/id/confidence) are being rendered
+     * (ticket 15) — off by default, off the normal layer panel entirely, and Control-only: Table
+     * never has a debug switch. Toggling it off removes whatever debug layers are currently on the
+     * map rather than merely hiding them, since `ensure*Layer` only ever adds/updates a layer.
+     */
+    const debugOverlaysEnabled = ref(false);
     /** Transport state to Python's `:8053` socket (marker-health-plan §1) — independent of `trackingAvailability`. `"mock"` while `MockTrackingSource` is active. */
     const pythonConnectionState = ref<CollabPythonConnectionState>("mock");
     /**
@@ -259,21 +238,23 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     /** Keyed by source id (A4): the in-flight create-source-and-layer promise, so concurrent render ticks await the same creation instead of both racing `addMapDataSource`. */
     const layerInitInFlight = new Map<string, Promise<void>>();
 
-    let mockSource: MockTrackingSource | undefined;
     let realSource: RealTrackingSource | undefined;
     let stopWatch: (() => void) | undefined;
+    /**
+     * Set only while waiting to see whether a reconnect resend's GeoJSON resumes (ticket 14) — a
+     * live event clears it (resend succeeded); firing clears it too and falls back to detection
+     * mode. Never more than one pending at a time: a fresh resend always clears any prior timer
+     * first.
+     */
+    let resumeConfirmationTimer: ReturnType<typeof setTimeout> | undefined;
     /** Live `maplibregl.Marker` instances for the four calibration markers, keyed by marker id (ticket 11). */
     const calibrationMarkers = new Map<number, MapLibreMarker>();
     /** Layer ids {@link syncCalibrationPresentation} hid — restored verbatim once presentation mode ends. */
     let hiddenLayerIds: string[] = [];
 
     function knownFootprint(objectId: string): Feature<Polygon> | undefined {
-        const object = session.currentScenario.find((candidate) => candidate.id === objectId);
+        const object = session.base.objects.find((candidate) => candidate.id === objectId);
         return object === undefined ? undefined : (toFeature(object) as Feature<Polygon>);
-    }
-
-    function scenarioFeatureCollection(): FeatureCollection {
-        return { type: "FeatureCollection", features: session.currentScenario.map(toFeature) };
     }
 
     /** Everything `updateLayers` needs to render Collab's tracked-object layers for one window. */
@@ -365,7 +346,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
 
         // Publish the authoritative tracked-building collection (ticket 13), bumping revision only
         // when it actually changed: this derivation re-runs on every render tick, including ticks
-        // triggered by unrelated state (e.g. a simulation run) where the tracked footprints are
+        // triggered by unrelated state (e.g. the debug switch) where the tracked footprints are
         // unchanged — bumping unconditionally would make collabSync treat the slice as changed on
         // every tick (its diff compares by JSON, and `revision` is part of the synced shape) and
         // rebroadcast/re-persist the full tracked-building collection far more often than anything
@@ -404,28 +385,6 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             orientations: empty,
             confidences: empty,
         };
-    }
-
-    /**
-     * Derives the Simulation State slice's render product (ticket 11, plan §20 M4): one label
-     * point per result, anchored at its scenario object's known footprint centre. Results with no
-     * matching scenario object (e.g. a stale run after the object was removed) are skipped.
-     */
-    function simulationResultFeatureCollection(): FeatureCollection {
-        const features: Feature[] = [];
-        for (const result of session.simulation.results) {
-            const known = knownFootprint(result.objectId);
-            if (known === undefined) {
-                continue;
-            }
-            features.push({
-                type: "Feature",
-                id: result.objectId,
-                properties: { label: String(result.metric) },
-                geometry: { type: "Point", coordinates: footprintAnchorCentre(known) },
-            });
-        }
-        return { type: "FeatureCollection", features };
     }
 
     /**
@@ -626,7 +585,44 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         }
     }
 
-    /** Renders every Collab layer `windowKind` is allowed to show, per `collabSession.layerPolicy` (plan §13). */
+    /**
+     * Removes whatever Control debug-overlay layers/sources currently exist on the map (ticket 15)
+     * — called when the debug switch turns off, since `ensure*Layer` only ever adds/updates a
+     * layer and never removes one. Idempotent: a layer/source that was never created is skipped.
+     */
+    async function removeDebugOverlayLayers(): Promise<void> {
+        const map = mapStore.map as MapLibreMap | undefined;
+        if (map === undefined) {
+            return;
+        }
+        for (const layerId of [TRACKED_BBOX_LAYER_ID, TRACKED_ORIENTATION_LAYER_ID, TRACKED_ID_LAYER_ID, TRACKED_CONFIDENCE_LAYER_ID]) {
+            if (map.getLayer(layerId) !== undefined) {
+                await mapStore.deleteMapLayer(layerId);
+            }
+        }
+        for (const sourceId of [TRACKED_BBOX_SOURCE_ID, TRACKED_ORIENTATION_SOURCE_ID, TRACKED_ID_SOURCE_ID, TRACKED_CONFIDENCE_SOURCE_ID]) {
+            if (map.getSource(sourceId) !== undefined) {
+                mapStore.deleteMapDataSource(sourceId);
+            }
+        }
+    }
+
+    /**
+     * Toggles Control's debug overlays (ticket 15) — Control-only, off by default, and absent
+     * from the normal layer panel. Turning it off actively tears down whatever debug layers are
+     * already on the map rather than leaving them stranded and merely un-refreshed.
+     */
+    function setDebugOverlaysEnabled(enabled: boolean): void {
+        if (debugOverlaysEnabled.value === enabled) {
+            return;
+        }
+        debugOverlaysEnabled.value = enabled;
+        if (!enabled) {
+            removeDebugOverlayLayers().catch((error) => reportDeveloperError("collabTrackingRender.setDebugOverlaysEnabled", error));
+        }
+    }
+
+    /** Renders every Collab layer `windowKind` is allowed to show (ticket 15: "Tracked buildings (Python)" always, debug overlays only on Control while {@link debugOverlaysEnabled}). */
     async function updateLayers(windowKind: "control" | "table"): Promise<void> {
         await waitForStyleLoaded();
 
@@ -634,15 +630,13 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             syncCalibrationPresentation();
             if (session.calibration.phase === "presenting") {
                 // Calibration presentation is exclusive on Table (ticket 11): none of the normal
-                // scenario/tracked/simulation layers below may reach the map while it's active.
+                // tracked layers below may reach the map while it's active.
                 return;
             }
         }
 
-        let policy: typeof session.layerPolicy;
         let tracked: TrackedRenderProducts;
         try {
-            policy = session.layerPolicy;
             // Tracked buildings are derived exactly once, in Control (ticket 13) — Table reads the
             // broadcast collection instead of calling deriveTrackedFootprint itself.
             tracked = windowKind === "control" ? trackedRenderState() : tableTrackedRenderState();
@@ -651,89 +645,38 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             return;
         }
 
-        if (windowKind === "table" && policy.scenarioFootprint.table !== false) {
-            await safelyEnsure("tableScenario", async () => {
-                const scenarioData =
-                    policy.scenarioFootprint.table === "mask"
-                        ? maskContextAroundPhysicalFootprints(
-                            scenarioFeatureCollection() as FeatureCollection<Polygon | MultiPolygon>,
-                            tracked.footprints as FeatureCollection<Polygon | MultiPolygon>
-                        )
-                        : scenarioFeatureCollection();
-                await ensureFillLayer(
-                    TABLE_SCENARIO_SOURCE_ID,
-                    TABLE_SCENARIO_FILL_LAYER_ID,
-                    TABLE_SCENARIO_OUTLINE_LAYER_ID,
-                    scenarioData,
-                    i18n.global.t("collab.layers.tableScenario"),
-                    "#16a34a",
-                    "#15803d"
-                );
-            });
-        }
+        // "Tracked buildings (Python)" (ticket 15) — the one Collab entry both windows always show.
+        await safelyEnsure("trackedFootprint", () =>
+            ensureFillLayer(
+                TRACKED_FOOTPRINT_SOURCE_ID,
+                TRACKED_FOOTPRINT_FILL_LAYER_ID,
+                TRACKED_FOOTPRINT_OUTLINE_LAYER_ID,
+                tracked.footprints,
+                i18n.global.t("collab.layers.trackedFootprint"),
+                "#f97316",
+                "#c2410c"
+            )
+        );
 
-        // Simulation is a mock/dev-only affordance (ticket 09): its Control panel section isn't
-        // instantiated on the real-table route, so its layer must never reach the map there either
-        // — gated on the same build-level "real-table route" signal the panel itself hides on,
-        // independent of `session.layerPolicy` (which defaults both windows to visible).
-        if (!isRealTableRoute() && session.isLayerVisible("simulationResult", windowKind)) {
-            await safelyEnsure("simulationResult", () =>
-                ensureSymbolLayer(
-                    SIMULATION_RESULT_SOURCE_ID,
-                    SIMULATION_RESULT_LAYER_ID,
-                    simulationResultFeatureCollection(),
-                    i18n.global.t("collab.layers.simulationResult"),
-                    1.8
+        if (windowKind === "control" && debugOverlaysEnabled.value) {
+            await safelyEnsure("trackedBbox", () =>
+                ensureLineLayer(
+                    TRACKED_BBOX_SOURCE_ID,
+                    TRACKED_BBOX_LAYER_ID,
+                    tracked.bboxes,
+                    i18n.global.t("collab.layers.trackedBbox"),
+                    "#dc2626"
                 )
             );
-        }
-
-        if (session.isLayerVisible("trackedFootprint", windowKind)) {
-            await safelyEnsure("trackedFootprint", () =>
-                ensureFillLayer(
-                    TRACKED_FOOTPRINT_SOURCE_ID,
-                    TRACKED_FOOTPRINT_FILL_LAYER_ID,
-                    TRACKED_FOOTPRINT_OUTLINE_LAYER_ID,
-                    tracked.footprints,
-                    i18n.global.t("collab.layers.trackedFootprint"),
-                    "#f97316",
-                    "#c2410c"
+            await safelyEnsure("trackedOrientation", () =>
+                ensureLineLayer(
+                    TRACKED_ORIENTATION_SOURCE_ID,
+                    TRACKED_ORIENTATION_LAYER_ID,
+                    tracked.orientations,
+                    i18n.global.t("collab.layers.trackedOrientation"),
+                    "#7c3aed"
                 )
             );
-        }
-
-        if (windowKind === "control") {
-            if (policy.trackedBbox.control) {
-                await safelyEnsure("trackedBbox", () =>
-                    ensureLineLayer(
-                        TRACKED_BBOX_SOURCE_ID,
-                        TRACKED_BBOX_LAYER_ID,
-                        tracked.bboxes,
-                        i18n.global.t("collab.layers.trackedBbox"),
-                        "#dc2626"
-                    )
-                );
-            }
-            if (policy.trackedOrientation.control) {
-                await safelyEnsure("trackedOrientation", () =>
-                    ensureLineLayer(
-                        TRACKED_ORIENTATION_SOURCE_ID,
-                        TRACKED_ORIENTATION_LAYER_ID,
-                        tracked.orientations,
-                        i18n.global.t("collab.layers.trackedOrientation"),
-                        "#7c3aed"
-                    )
-                );
-            }
-        }
-
-        // trackedId (each tracked building's centre point) is policy-driven per window, not
-        // Control-only like its debug-layer siblings above/below — the M1 default (plan §13,
-        // updated) shows it on both Control and Table, so it uses `isLayerVisible` like
-        // `trackedFootprint`/`simulationResult` above instead of the hardcoded
-        // `windowKind === "control"` gate. Kept between orientation and confidence so Control's
-        // on-map paint order (bbox, orientation, id, confidence) is unchanged from before.
-        if (session.isLayerVisible("trackedId", windowKind)) {
             await safelyEnsure("trackedId", () =>
                 ensureSymbolLayer(
                     TRACKED_ID_SOURCE_ID,
@@ -743,9 +686,6 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                     -1.2
                 )
             );
-        }
-
-        if (windowKind === "control" && policy.trackedConfidence.control) {
             await safelyEnsure("trackedConfidence", () =>
                 ensureSymbolLayer(
                     TRACKED_CONFIDENCE_SOURCE_ID,
@@ -806,8 +746,8 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         // including it here would make every render tick re-trigger itself.
         const renderWatchSources = (): readonly unknown[] =>
             windowKind === "table"
-                ? [session.currentScenario, session.tracking, session.calibration, session.trackedBuildings, session.simulation.results]
-                : [session.currentScenario, session.tracking, session.calibration, session.simulation.results];
+                ? [session.base, session.tracking, session.calibration, session.trackedBuildings]
+                : [session.base, session.tracking, session.calibration, debugOverlaysEnabled.value];
 
         stopFns.push(
             watch(
@@ -826,43 +766,19 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         };
     }
 
-    function firstKnownAnchor(): { markerId: number; centre: Position } | undefined {
-        const first = session.currentScenario[0] as CollabBuildingObject | undefined;
-        if (first === undefined) {
-            return undefined;
-        }
-        const markerId = [...buildMarkerRegistryFromBase(session.base.objects)]
-            .find(([, objectId]) => objectId === first.id)?.[0];
-        if (markerId === undefined) {
-            return undefined;
-        }
-        const [minX, minY, maxX, maxY] = bbox(toFeature(first));
-        return { markerId, centre: [(minX + maxX) / 2, (minY + maxY) / 2] };
-    }
-
-    function startMockTimeline(timeline?: readonly MockTrackingSnapshot[]): void {
-        const registry = buildMarkerRegistryFromBase(session.base.objects);
-        const anchor = firstKnownAnchor();
-        const resolvedTimeline = timeline ?? (anchor === undefined ? undefined : buildDemoMockTimeline(anchor.markerId, anchor.centre));
-
-        mockSource = resolvedTimeline === undefined
-            ? new MockTrackingSource({ registry })
-            : new MockTrackingSource({ registry, timeline: resolvedTimeline });
-        mockSource.onEvent((event) => applyTrackingEvent(session.tracking, event));
-        mockSource.onAvailabilityChange((availability) => {
-            trackingAvailability.value = availability;
-        });
-        mockSource.start();
-        active.value = true;
-    }
-
     /**
      * Wires one `RealTrackingSource` instance's events into the store (plan §5c/§14, ticket 09;
      * connect-first ticket 08) — shared by `connectPythonTransport`'s mount-time connect, so there
      * is exactly one place that knows how to hook a `RealTrackingSource` up to session state.
      */
     function wireRealSource(source: RealTrackingSource): void {
-        source.onEvent((event) => applyTrackingEvent(session.tracking, event));
+        source.onEvent((event) => {
+            applyTrackingEvent(session.tracking, event);
+            // A live event is the only thing that counts as "GeoJSON resumed" (ticket 14) — never
+            // the resend's own `socket.send()` returning. Any event received while a resend is
+            // pending its confirmation window proves Python is back on the post-calibration feed.
+            clearResumeConfirmationTimer();
+        });
         source.onAvailabilityChange((availability) => {
             trackingAvailability.value = availability;
         });
@@ -877,6 +793,13 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             }
             previousConnectionState = state;
             pythonConnectionState.value = state;
+            if (state === "connected") {
+                // Covers both a transient reconnect to the same running server and a reconnect
+                // after a known Python-process restart (ticket 14) — the client observes the same
+                // "connected" transition either way, and a resend is only attempted at all when a
+                // measured calibration is actually cached (see `handleTransportReconnected`).
+                handleTransportReconnected();
+            }
         });
         // Sticky: an id, once seen among a snapshot's marker ids, stays "detected" (marker-health-plan §3).
         source.onMarkerSnapshot((markerIds) => {
@@ -944,45 +867,6 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     }
 
     /**
-     * Starts tracking (plan §14, ticket 09; explicit mode switch ticket 03; connect-first ticket
-     * 08): `RealTrackingSource` when `VITE_COLLAB_TRACKING_MODE` resolves to `"real"` (the
-     * default) and `VITE_COLLAB_TRACKING_WS_URL` is configured, `MockTrackingSource` otherwise —
-     * the swap the operator/UI never has to know about. Mode `"mock"` forces `MockTrackingSource`
-     * even when a WS URL happens to be set; an unset/empty URL still falls back to mock as a
-     * safety net even in `"real"` mode. An explicit `timeline` always forces the mock, since it
-     * only makes sense as a scripted demo/dev timeline. In real mode this reuses the transport
-     * `connectPythonTransport` already brought up on mount (or connects now if that hasn't run
-     * yet) rather than opening a second socket — no AOI/calibration is required (ticket 08: the
-     * old early-return-with-no-visible-effect path is gone).
-     */
-    function startMockTracking(timeline?: readonly MockTrackingSnapshot[]): void {
-        mockSource?.stop();
-        mockSource = undefined;
-        const useReal =
-            timeline === undefined && resolveCollabTrackingMode() === "real" && resolveCollabTrackingWsUrl() !== undefined;
-        if (useReal) {
-            connectPythonTransport();
-            active.value = true;
-        } else {
-            startMockTimeline(timeline);
-        }
-    }
-
-    /**
-     * Stops the active tracking display. Idempotent. Only tears down `MockTrackingSource` — the
-     * real Python transport (ticket 08) is mount-owned and stays connected regardless of this
-     * button, since "Connected" and "tracking actively displayed" are separate states.
-     */
-    function stopMockTracking(): void {
-        mockSource?.stop();
-        mockSource = undefined;
-        active.value = false;
-        // An intentional stop is not a tracking-availability problem — clear any stale
-        // suppressed/disconnected banner left over from before the operator stopped tracking.
-        trackingAvailability.value = "live";
-    }
-
-    /**
      * Enters calibration-presentation mode (ticket 11, fix-tickets): Control calls this — never
      * Table — typically right after opening the Table window, since Table always fits+locks to the
      * AOI before rendering anything else regardless. A no-op-safe write: idempotent to call again
@@ -997,6 +881,61 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     function exitCalibrationPresentation(): void {
         session.calibration.phase = "idle";
         session.calibration.revision += 1;
+    }
+
+    /** Cancels any pending reconnect-resend confirmation window (ticket 14). Idempotent. */
+    function clearResumeConfirmationTimer(): void {
+        if (resumeConfirmationTimer === undefined) {
+            return;
+        }
+        clearTimeout(resumeConfirmationTimer);
+        resumeConfirmationTimer = undefined;
+    }
+
+    /**
+     * Reconnect and recalibration policy (ticket 14): fires on every `RealTrackingSource`
+     * `"connected"` transition, which a transient reconnect to the same running server and a
+     * reconnect after a known Python-process restart both produce identically from the client's
+     * point of view. A no-op unless there is a measured calibration cached for the currently
+     * confirmed AOI (nothing to resend — covers the very first connect too) and the operator isn't
+     * already mid-way through a fresh four-marker calibration (`"presenting"` — an auto-resend must
+     * never race a calibration already in progress).
+     *
+     * Resends the cached payload, then starts a {@link RECONNECT_RESUME_TIMEOUT_MS} window judged
+     * exactly like the original calibration was: by GeoJSON resuming (an `onEvent` firing clears
+     * the timer — see `wireRealSource`), never by `sendMapCalibration`'s `socket.send()` returning.
+     * If the window elapses with no event, the resend is treated as having failed — the stitched
+     * pixel coordinate system this payload assumed no longer matches what Python is measuring — so
+     * the session drops back to four-marker detection mode and the operator is told why.
+     */
+    function handleTransportReconnected(): void {
+        const cached: MapCalibrationMessage | null = scenarioStore.lastMeasuredCalibration;
+        if (cached === null || session.calibration.phase === "presenting" || realSource === undefined) {
+            return;
+        }
+        realSource.sendMapCalibration(cached);
+        clearResumeConfirmationTimer();
+        resumeConfirmationTimer = setTimeout(() => {
+            resumeConfirmationTimer = undefined;
+            scenarioStore.calibrated = false;
+            toast.add({ severity: "warning", summary: i18n.global.t("collab.control.calibration.resendFailed") });
+            enterCalibrationPresentation();
+        }, RECONNECT_RESUME_TIMEOUT_MS);
+    }
+
+    /**
+     * Manually returns the session to four-marker detection mode (ticket 14) — available whenever
+     * the physical setup changes (cameras/projector moved, so a resend's unmoved-hardware
+     * assumption no longer holds) or the operator otherwise wants a fresh calibration, independent
+     * of whatever triggered it. Clears the cached measured payload and calibrated status first, and
+     * cancels any pending resend-confirmation window, so no stale auto-resend can fire mid-flow
+     * once a fresh calibration is underway.
+     */
+    function recalibrate(): void {
+        clearResumeConfirmationTimer();
+        scenarioStore.calibrated = false;
+        scenarioStore.lastMeasuredCalibration = null;
+        enterCalibrationPresentation();
     }
 
     /**
@@ -1042,6 +981,9 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         }
         realSource.sendMapCalibration(message);
         scenarioStore.calibrated = true;
+        // Cached for ticket 14's reconnect policy: the payload built from real measured pixel
+        // positions, resendable as-is on a later reconnect as long as this AOI stays confirmed.
+        scenarioStore.lastMeasuredCalibration = message;
         exitCalibrationPresentation();
     }
 
@@ -1049,8 +991,8 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     function stop(): void {
         stopWatch?.();
         stopWatch = undefined;
-        stopMockTracking();
         disconnectPythonTransport();
+        clearResumeConfirmationTimer();
         appliedRotationByObjectId.clear();
         for (const marker of calibrationMarkers.values()) {
             marker.remove();
@@ -1062,19 +1004,19 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     onScopeDispose(stop);
 
     return {
-        active,
         trackingAvailability,
         pythonConnectionState,
         detectedReferenceMarkerIds,
         mapCalibrationMarkerHealth,
+        debugOverlaysEnabled,
+        setDebugOverlaysEnabled,
         startRendering,
-        startMockTracking,
-        stopMockTracking,
         retryPythonConnection,
         enterCalibrationPresentation,
         exitCalibrationPresentation,
         canCalibrateFromMarkers,
         calibrateFromDetectedMarkers,
+        recalibrate,
         stop,
     };
 });

@@ -6,8 +6,6 @@ import {
     useCollabSessionStore,
     type CollabBaseCityState,
     type CollabCalibrationState,
-    type CollabScenarioState,
-    type CollabSimulationState,
     type CollabTableRenderState,
     type CollabTrackedBuildingsState,
     type CollabTrackingObjectState,
@@ -19,20 +17,16 @@ import {
  */
 export interface CollabSessionSnapshot {
     base: CollabBaseCityState;
-    scenario: CollabScenarioState;
     tracking: Record<string, CollabTrackingObjectState>;
     tableRender: CollabTableRenderState;
-    simulation: CollabSimulationState;
     calibration: CollabCalibrationState;
     trackedBuildings: CollabTrackedBuildingsState;
 }
 
 const SNAPSHOT_SLICES = [
     "base",
-    "scenario",
     "tracking",
     "tableRender",
-    "simulation",
     "calibration",
     "trackedBuildings",
 ] as const;
@@ -61,24 +55,12 @@ function cloneBase(value: CollabBaseCityState): CollabBaseCityState {
     return { loaded: value.loaded, objects: [...value.objects] };
 }
 
-function cloneScenario(value: CollabScenarioState): CollabScenarioState {
-    return {
-        removedBuildings: [...value.removedBuildings],
-        addedObjects: [...value.addedObjects],
-        modifiedObjects: { ...value.modifiedObjects },
-    };
-}
-
 function cloneTracking(value: Record<string, CollabTrackingObjectState>): Record<string, CollabTrackingObjectState> {
     return { ...value };
 }
 
 function cloneTableRender(value: CollabTableRenderState): CollabTableRenderState {
     return { visibleLayerIds: [...value.visibleLayerIds] };
-}
-
-function cloneSimulation(value: CollabSimulationState): CollabSimulationState {
-    return { running: value.running, results: [...value.results], lastRunAt: value.lastRunAt };
 }
 
 function cloneCalibration(value: CollabCalibrationState): CollabCalibrationState {
@@ -154,10 +136,8 @@ export const useCollabSyncStore = defineStore("collabSync", () => {
     function currentSnapshot(): CollabSessionSnapshot {
         return {
             base: cloneBase(session.base),
-            scenario: cloneScenario(session.scenario),
             tracking: cloneTracking(session.tracking),
             tableRender: cloneTableRender(session.tableRender),
-            simulation: cloneSimulation(session.simulation),
             calibration: cloneCalibration(session.calibration),
             trackedBuildings: cloneTrackedBuildings(session.trackedBuildings),
         };
@@ -165,13 +145,11 @@ export const useCollabSyncStore = defineStore("collabSync", () => {
 
     function applySnapshot(snapshot: CollabSessionSnapshot): void {
         Object.assign(session.base, cloneBase(snapshot.base));
-        Object.assign(session.scenario, cloneScenario(snapshot.scenario));
         for (const key of Object.keys(session.tracking)) {
             delete session.tracking[key];
         }
         Object.assign(session.tracking, cloneTracking(snapshot.tracking));
         Object.assign(session.tableRender, cloneTableRender(snapshot.tableRender));
-        Object.assign(session.simulation, cloneSimulation(snapshot.simulation));
         Object.assign(session.calibration, cloneCalibration(snapshot.calibration));
         Object.assign(session.trackedBuildings, cloneTrackedBuildings(snapshot.trackedBuildings));
     }

@@ -7,51 +7,11 @@ describe("collabSession store", () => {
         setActivePinia(createPinia());
     });
 
-    test("currentScenario mirrors the base city when there is no delta", () => {
+    test("base city objects load without a scenario-editing delta layer (ticket 15)", () => {
         const store = useCollabSessionStore();
         store.base.objects = [{ id: "b1" }, { id: "b2" }];
 
-        expect(store.currentScenario).toEqual([{ id: "b1" }, { id: "b2" }]);
-    });
-
-    test("currentScenario excludes removed buildings without mutating base", () => {
-        const store = useCollabSessionStore();
-        store.base.objects = [{ id: "b1" }, { id: "b2" }];
-        store.scenario.removedBuildings.push("b1");
-
-        expect(store.currentScenario).toEqual([{ id: "b2" }]);
         expect(store.base.objects).toEqual([{ id: "b1" }, { id: "b2" }]);
-    });
-
-    test("currentScenario appends added objects without mutating base", () => {
-        const store = useCollabSessionStore();
-        store.base.objects = [{ id: "b1" }];
-        store.scenario.addedObjects.push({ id: "new1", kind: "custom" });
-
-        expect(store.currentScenario).toEqual([{ id: "b1" }, { id: "new1", kind: "custom" }]);
-        expect(store.base.objects).toEqual([{ id: "b1" }]);
-    });
-
-    test("currentScenario overlays modified fields onto the matching base object without mutating base", () => {
-        const store = useCollabSessionStore();
-        store.base.objects = [{ id: "b1", height: 10 }];
-        store.scenario.modifiedObjects.b1 = { height: 25 };
-
-        expect(store.currentScenario).toEqual([{ id: "b1", height: 25 }]);
-        expect(store.base.objects).toEqual([{ id: "b1", height: 10 }]);
-    });
-
-    test("currentScenario composes remove + add + modify together", () => {
-        const store = useCollabSessionStore();
-        store.base.objects = [
-            { id: "b1", height: 10 },
-            { id: "b2", height: 5 },
-        ];
-        store.scenario.removedBuildings.push("b2");
-        store.scenario.modifiedObjects.b1 = { height: 12 };
-        store.scenario.addedObjects.push({ id: "new1" });
-
-        expect(store.currentScenario).toEqual([{ id: "b1", height: 12 }, { id: "new1" }]);
     });
 
     test("tracking slice pose shape matches the TrackingEvent contract (lng/lat/rotation)", () => {
@@ -65,15 +25,15 @@ describe("collabSession store", () => {
         expect(store.tracking["marker-1"].pose).toEqual({ lng: 10.0, lat: 53.55, rotation: 45 });
     });
 
-    test("all six slices are present with their documented ownership", () => {
+    test("every slice is present with its documented ownership (ticket 15)", () => {
         const store = useCollabSessionStore();
 
         expect(store.base).toBeDefined();
-        expect(store.scenario).toBeDefined();
         expect(store.tracking).toBeDefined();
         expect(store.view).toBeDefined();
         expect(store.tableRender).toBeDefined();
-        expect(store.simulation).toBeDefined();
+        expect(store.calibration).toBeDefined();
+        expect(store.trackedBuildings).toBeDefined();
     });
 
     test("calibration defaults to idle/no-AOI/revision 0 (ticket 11)", () => {

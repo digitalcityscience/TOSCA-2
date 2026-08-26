@@ -230,58 +230,23 @@ describe("collabScenario store", () => {
         setActivePinia(createPinia());
     });
 
-    test("removeBuilding records a scenario delta without mutating base", () => {
-        const session = useCollabSessionStore();
-        const scenario = useCollabScenarioStore();
-        session.base.objects = [{ id: "b1" }, { id: "b2" }];
-
-        scenario.removeBuilding("b1");
-
-        expect(session.scenario.removedBuildings).toEqual(["b1"]);
-        expect(session.base.objects).toEqual([{ id: "b1" }, { id: "b2" }]);
-        expect(session.currentScenario).toEqual([{ id: "b2" }]);
-    });
-
-    test("removeBuilding is idempotent", () => {
-        const session = useCollabSessionStore();
-        const scenario = useCollabScenarioStore();
-        session.base.objects = [{ id: "b1" }];
-
-        scenario.removeBuilding("b1");
-        scenario.removeBuilding("b1");
-
-        expect(session.scenario.removedBuildings).toEqual(["b1"]);
-    });
-
-    test("restoreBuilding reverses removeBuilding", () => {
-        const session = useCollabSessionStore();
-        const scenario = useCollabScenarioStore();
-        session.base.objects = [{ id: "b1" }];
-
-        scenario.removeBuilding("b1");
-        scenario.restoreBuilding("b1");
-
-        expect(session.scenario.removedBuildings).toEqual([]);
-        expect(session.currentScenario).toEqual([{ id: "b1" }]);
-    });
-
-    test("selectableBuildings falls back to the full fixture before an AOI is chosen", () => {
+    test("selectableBuildings falls back to the full dataset before an AOI is chosen", () => {
         const scenario = useCollabScenarioStore();
         expect(scenario.aoi).toBeNull();
         expect(scenario.selectableBuildings.length).toBeGreaterThan(0);
     });
 
-    test("loadFixtureFootprints refuses to load base without an AOI selected", async () => {
+    test("loadKnownFootprints refuses to load base without an AOI selected", async () => {
         const session = useCollabSessionStore();
         const scenario = useCollabScenarioStore();
 
-        await scenario.loadFixtureFootprints();
+        await scenario.loadKnownFootprints();
 
         expect(session.base.loaded).toBe(false);
         expect(session.base.objects).toEqual([]);
     });
 
-    test("loadFixtureFootprints scopes base.objects to the selected AOI's buildings", async () => {
+    test("loadKnownFootprints scopes base.objects to the selected AOI's buildings", async () => {
         const session = useCollabSessionStore();
         const scenario = useCollabScenarioStore();
         scenario.aoi = {
@@ -294,7 +259,7 @@ describe("collabScenario store", () => {
         };
         const expectedIds = scenario.selectableBuildings.map((f) => f.properties.building_id);
 
-        await scenario.loadFixtureFootprints();
+        await scenario.loadKnownFootprints();
 
         expect(session.base.loaded).toBe(true);
         expect(session.base.objects.map((o) => o.id)).toEqual(expectedIds);
@@ -344,7 +309,7 @@ describe("collabScenario store", () => {
         );
     });
 
-    test("confirming a different AOI invalidates any previous calibration (ticket 09)", () => {
+    test("confirming a different AOI invalidates any previous calibration, including a cached measured payload (ticket 09/14)", () => {
         const scenario = useCollabScenarioStore();
         const extentA: AOIExtent = {
             corners: [
@@ -365,16 +330,24 @@ describe("collabScenario store", () => {
         expect(scenario.finishAoiSelection()).toBe(true);
         expect(scenario.aoi).toEqual(extentA);
         expect(scenario.calibrated).toBe(false);
+        expect(scenario.lastMeasuredCalibration).toBeNull();
 
-        // Simulate a calibration having been established for the current AOI (ticket 12's real
-        // four-marker flow, not yet built — set directly here exactly as `mapCalibration` is set
-        // directly elsewhere in this file, standing in for that future mechanism).
+        // Simulate a calibration having been established for the current AOI via the real
+        // four-marker flow (ticket 12, `collabTrackingRender.calibrateFromDetectedMarkers`) — set
+        // directly here exactly as `mapCalibration` is set directly elsewhere in this file,
+        // standing in for that store composing this one.
         scenario.calibrated = true;
+        const measured: MapCalibrationMessage = {
+            type: "map_calibration",
+            points: [{ pixel_position: [0, 0], lat_lon_position: [53.5, 10] }],
+        };
+        scenario.lastMeasuredCalibration = measured;
 
         scenario.viewfinderExtent = extentB;
         scenario.viewfinderValid = true;
         expect(scenario.finishAoiSelection()).toBe(true);
         expect(scenario.aoi).toEqual(extentB);
         expect(scenario.calibrated).toBe(false);
+        expect(scenario.lastMeasuredCalibration).toBeNull();
     });
 });

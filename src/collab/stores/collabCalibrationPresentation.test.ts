@@ -145,14 +145,14 @@ describe("calibration presentation mode on Table (ticket 11)", () => {
         trackingRender.startRendering("table");
         await flush();
 
-        // Sanity: the scenario layer and basemap are visible before presentation mode.
-        expect(fakeLayerVisibility.get("collabTableScenario-fill")).toBe("visible");
+        // Sanity: the tracked-footprint layer and basemap are visible before presentation mode.
+        expect(fakeLayerVisibility.get("collabTrackedFootprints-fill")).toBe("visible");
         expect(fakeLayerVisibility.get("osm-basemap")).toBeUndefined(); // unset == visible
 
         trackingRender.enterCalibrationPresentation();
         await flush();
 
-        expect(fakeLayerVisibility.get("collabTableScenario-fill")).toBe("none");
+        expect(fakeLayerVisibility.get("collabTrackedFootprints-fill")).toBe("none");
         expect(fakeLayerVisibility.get("osm-basemap")).toBe("none");
 
         trackingRender.stop();
@@ -170,13 +170,13 @@ describe("calibration presentation mode on Table (ticket 11)", () => {
 
         trackingRender.enterCalibrationPresentation();
         await flush();
-        expect(fakeLayerVisibility.get("collabTableScenario-fill")).toBe("none");
+        expect(fakeLayerVisibility.get("collabTrackedFootprints-fill")).toBe("none");
 
         trackingRender.exitCalibrationPresentation();
         await flush();
 
         expect(session.calibration.phase).toBe("idle");
-        expect(fakeLayerVisibility.get("collabTableScenario-fill")).toBe("visible");
+        expect(fakeLayerVisibility.get("collabTrackedFootprints-fill")).toBe("visible");
         expect(fakeLayerVisibility.get("osm-basemap")).toBe("visible");
         expect(createdMarkers.get("200")?.removed).toBe(true);
         expect(createdMarkers.get("203")?.removed).toBe(true);

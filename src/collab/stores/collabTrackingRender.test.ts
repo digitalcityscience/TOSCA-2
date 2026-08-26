@@ -1,5 +1,5 @@
 import { createPinia, setActivePinia } from "pinia";
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 const toastAdd = vi.hoisted(() => vi.fn());
 
@@ -8,17 +8,12 @@ vi.mock("@helpers/toast", () => ({
 }));
 
 import type { CollabSceneObject, CollabTrackingObjectState } from "./collabSession";
-import { DEFAULT_COLLAB_LAYER_POLICY, useCollabSessionStore } from "./collabSession";
+import { useCollabSessionStore } from "./collabSession";
 import { useCollabScenarioStore } from "./collabScenario";
 import type { AOIExtent } from "./collabCalibration";
 import { tableToAoiRotationOffsetDeg } from "./collabCalibration";
 import type { TrackingEvent } from "./collabTracking";
-import {
-    applyTrackingEvent,
-    buildDemoMockTimeline,
-    buildMarkerRegistryFromBase,
-    useCollabTrackingRenderStore,
-} from "./collabTrackingRender";
+import { applyTrackingEvent, buildMarkerRegistryFromBase, useCollabTrackingRenderStore } from "./collabTrackingRender";
 
 describe("buildMarkerRegistryFromBase", () => {
     test("maps marker_id -> object id for scene objects that carry one", () => {
@@ -67,90 +62,10 @@ describe("applyTrackingEvent", () => {
     });
 });
 
-describe("buildDemoMockTimeline", () => {
-    test("appears at the anchor, moves, rotates 45°, then disappears", () => {
-        const timeline = buildDemoMockTimeline(7, [10, 53.5]);
-
-        expect(timeline).toHaveLength(4);
-        expect(timeline[0].features).toEqual([{ markerId: 7, lng: 10, lat: 53.5, rotation: 0 }]);
-        expect(timeline[3].features).toEqual([]);
-
-        const moved = timeline[1].features[0];
-        expect(moved.lng).not.toBe(10);
-        expect(moved.rotation).toBe(0);
-
-        const rotated = timeline[2].features[0];
-        expect(rotated.rotation).toBe(45);
-        expect(rotated.lng).toBe(moved.lng);
-        expect(rotated.lat).toBe(moved.lat);
-    });
-});
-
-describe("collabSession layer policy", () => {
-    beforeEach(() => {
-        setActivePinia(createPinia());
-    });
-
-    test("defaults match the plan §13 M1 matrix: Control sees everything, Table sees footprints + trackedId", () => {
-        const session = useCollabSessionStore();
-        expect(session.layerPolicy).toEqual(DEFAULT_COLLAB_LAYER_POLICY);
-    });
-
-    test("isLayerVisible reads control/table independently", () => {
-        const session = useCollabSessionStore();
-        expect(session.isLayerVisible("trackedBbox", "control")).toBe(true);
-        expect(session.isLayerVisible("trackedBbox", "table")).toBe(false);
-        expect(session.isLayerVisible("trackedFootprint", "table")).toBe(true);
-    });
-});
-
 describe("collabTrackingRender store", () => {
     beforeEach(() => {
         setActivePinia(createPinia());
         toastAdd.mockClear();
-    });
-
-    test("startMockTracking replays a timeline into session.tracking; stopMockTracking halts it", () => {
-        vi.useFakeTimers();
-        vi.setSystemTime(0);
-
-        const session = useCollabSessionStore();
-        session.base.objects = [
-            {
-                id: "G01",
-                geometry: {
-                    type: "Polygon",
-                    coordinates: [
-                        [
-                            [9.999, 53.549],
-                            [10.001, 53.549],
-                            [10.001, 53.551],
-                            [9.999, 53.551],
-                            [9.999, 53.549],
-                        ],
-                    ],
-                },
-                properties: { marker_id: 1 },
-            },
-        ];
-
-        const trackingRender = useCollabTrackingRenderStore();
-        trackingRender.startMockTracking([{ atMs: 0, features: [{ markerId: 1, lng: 10, lat: 53.55, rotation: 0 }] }]);
-
-        expect(trackingRender.active).toBe(true);
-
-        vi.advanceTimersByTime(200);
-
-        expect(session.tracking.G01).toEqual({ pose: { lng: 10, lat: 53.55, rotation: 0 }, confidence: 1, lastSeen: 200 });
-
-        trackingRender.stopMockTracking();
-        expect(trackingRender.active).toBe(false);
-
-        delete session.tracking.G01;
-        vi.advanceTimersByTime(400);
-        expect(session.tracking.G01).toBeUndefined();
-
-        vi.useRealTimers();
     });
 
     test("startRendering('control') mirrors the local AOI's rotation offset into collabSession.calibration", () => {
@@ -184,30 +99,7 @@ describe("collabTrackingRender store", () => {
         expect(session.calibration.rotationOffsetDeg).toBe(12);
     });
 
-    test("startMockTracking() forces MockTrackingSource when VITE_COLLAB_TRACKING_MODE is \"mock\", even with a WS URL and AOI calibration configured (ticket 03)", () => {
-        vi.stubEnv("VITE_COLLAB_TRACKING_MODE", "mock");
-        vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
-        vi.useFakeTimers();
-        vi.setSystemTime(0);
-
-        const scenarioStore = useCollabScenarioStore();
-        scenarioStore.mapCalibration = {
-            type: "map_calibration",
-            points: [{ pixel_position: [0, 0], lat_lon_position: [53.5, 10] }],
-        };
-
-        const trackingRender = useCollabTrackingRenderStore();
-        trackingRender.startMockTracking();
-
-        expect(trackingRender.active).toBe(true);
-        expect(trackingRender.pythonConnectionState).toBe("mock");
-
-        trackingRender.stopMockTracking();
-        vi.useRealTimers();
-        vi.unstubAllEnvs();
-    });
-
-    test("startMockTracking() uses RealTrackingSource when VITE_COLLAB_TRACKING_MODE is \"real\" and a WS URL + AOI calibration are configured (ticket 03)", () => {
+    test("startRendering('control') connects RealTrackingSource when VITE_COLLAB_TRACKING_MODE is \"real\" and a WS URL is configured (ticket 03)", () => {
         vi.stubEnv("VITE_COLLAB_TRACKING_MODE", "real");
         vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
 
@@ -224,130 +116,26 @@ describe("collabTrackingRender store", () => {
         }
         vi.stubGlobal("WebSocket", FakeSocket as unknown as typeof WebSocket);
 
-        const scenarioStore = useCollabScenarioStore();
-        scenarioStore.mapCalibration = {
-            type: "map_calibration",
-            points: [{ pixel_position: [0, 0], lat_lon_position: [53.5, 10] }],
-        };
-
         const trackingRender = useCollabTrackingRenderStore();
-        trackingRender.startMockTracking();
+        trackingRender.startRendering("control");
 
-        expect(trackingRender.active).toBe(true);
         expect(trackingRender.pythonConnectionState).toBe("connecting");
 
-        trackingRender.stopMockTracking();
+        trackingRender.stop();
         vi.unstubAllEnvs();
         vi.unstubAllGlobals();
     });
 
-    test("startMockTracking() falls back to MockTrackingSource in \"real\" mode when no WS URL is configured (safety net, ticket 03)", () => {
+    test("startRendering('control') stays in \"mock\" pythonConnectionState in \"real\" mode when no WS URL is configured (safety net, ticket 03)", () => {
         vi.stubEnv("VITE_COLLAB_TRACKING_MODE", "real");
-        vi.useFakeTimers();
-        vi.setSystemTime(0);
 
         const trackingRender = useCollabTrackingRenderStore();
-        trackingRender.startMockTracking();
+        trackingRender.startRendering("control");
 
-        expect(trackingRender.active).toBe(true);
         expect(trackingRender.pythonConnectionState).toBe("mock");
-
-        trackingRender.stopMockTracking();
-        vi.useRealTimers();
-        vi.unstubAllEnvs();
-    });
-
-    test("startMockTracking(timeline) always uses the mock, even with a table host configured — an explicit timeline is a dev/demo override", () => {
-        vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
-        vi.useFakeTimers();
-        vi.setSystemTime(0);
-
-        const trackingRender = useCollabTrackingRenderStore();
-        trackingRender.startMockTracking([{ atMs: 0, features: [{ markerId: 1, lng: 10, lat: 53.55, rotation: 0 }] }]);
-
-        expect(trackingRender.active).toBe(true);
-        trackingRender.stopMockTracking();
-
-        vi.useRealTimers();
-        vi.unstubAllEnvs();
-    });
-
-    test("startMockTracking() connects and becomes active in real mode even with no AOI calibration selected at all — the old early-return-with-no-visible-effect path is gone (ticket 08)", () => {
-        vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
-
-        class FakeSocket {
-            onopen: (() => void) | null = null;
-            onmessage: ((event: { data: string }) => void) | null = null;
-            onclose: (() => void) | null = null;
-            onerror: ((event: unknown) => void) | null = null;
-            sent: string[] = [];
-            send(data: string): void {
-                this.sent.push(data);
-            }
-            close(): void {}
-        }
-        vi.stubGlobal("WebSocket", FakeSocket as unknown as typeof WebSocket);
-
-        const scenarioStore = useCollabScenarioStore();
-        expect(scenarioStore.mapCalibration).toBeNull(); // deliberately no AOI selected
-
-        const trackingRender = useCollabTrackingRenderStore();
-        trackingRender.startMockTracking();
-
-        expect(trackingRender.active).toBe(true);
-        expect(trackingRender.pythonConnectionState).toBe("connecting");
 
         trackingRender.stop();
         vi.unstubAllEnvs();
-        vi.unstubAllGlobals();
-    });
-
-    test("startMockTracking() swaps to RealTrackingSource (ticket 09) when a table host + AOI calibration are configured — the operator/UI call unchanged", () => {
-        vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
-
-        class FakeSocket {
-            onopen: (() => void) | null = null;
-            onmessage: ((event: { data: string }) => void) | null = null;
-            onclose: (() => void) | null = null;
-            onerror: ((event: unknown) => void) | null = null;
-            sent: string[] = [];
-            send(data: string): void {
-                this.sent.push(data);
-            }
-            close(): void {}
-        }
-        vi.stubGlobal("WebSocket", FakeSocket as unknown as typeof WebSocket);
-
-        const scenarioStore = useCollabScenarioStore();
-        scenarioStore.mapCalibration = {
-            type: "map_calibration",
-            points: [{ pixel_position: [0, 0], lat_lon_position: [53.5, 10] }],
-        };
-
-        const trackingRender = useCollabTrackingRenderStore();
-        trackingRender.startMockTracking();
-
-        expect(trackingRender.active).toBe(true);
-        trackingRender.stopMockTracking();
-        expect(trackingRender.active).toBe(false);
-
-        trackingRender.stop();
-        vi.unstubAllEnvs();
-        vi.unstubAllGlobals();
-    });
-
-    test("mock tracking reports pythonConnectionState 'mock' and no detected reference markers (marker-health-plan §1)", () => {
-        vi.useFakeTimers();
-        vi.setSystemTime(0);
-
-        const trackingRender = useCollabTrackingRenderStore();
-        trackingRender.startMockTracking([{ atMs: 0, features: [] }]);
-
-        expect(trackingRender.pythonConnectionState).toBe("mock");
-        expect(trackingRender.detectedReferenceMarkerIds.size).toBe(0);
-
-        trackingRender.stopMockTracking();
-        vi.useRealTimers();
     });
 
     test("real tracking wires RealTrackingSource's connection state and reference-marker detection into the store, sticky (marker-health-plan §1/§3)", () => {
@@ -382,7 +170,7 @@ describe("collabTrackingRender store", () => {
         };
 
         const trackingRender = useCollabTrackingRenderStore();
-        trackingRender.startMockTracking();
+        trackingRender.startRendering("control");
 
         expect(trackingRender.pythonConnectionState).toBe("connecting");
 
@@ -409,13 +197,6 @@ describe("collabTrackingRender store", () => {
 
         socket()?.onclose?.();
         expect(trackingRender.pythonConnectionState).toBe("reconnecting");
-
-        // Stopping the tracking-display toggle (ticket 08) must not disconnect an otherwise-live
-        // transport — connection state and sticky detection both persist across it.
-        trackingRender.stopMockTracking();
-        expect(trackingRender.active).toBe(false);
-        expect(trackingRender.pythonConnectionState).toBe("reconnecting");
-        expect(trackingRender.detectedReferenceMarkerIds.has(72)).toBe(true);
 
         // Only full store teardown (mount/unmount) actually disconnects the transport — this also
         // cancels the reconnect the onclose above scheduled.
@@ -456,8 +237,6 @@ describe("collabTrackingRender store", () => {
         expect(sockets).toHaveLength(1);
         sockets[0]?.onopen?.();
         expect(trackingRender.pythonConnectionState).toBe("connected");
-        // Connected never implies calibrated/active — the operator never clicked Start Tracking.
-        expect(trackingRender.active).toBe(false);
 
         trackingRender.stop();
         vi.unstubAllEnvs();
@@ -622,6 +401,176 @@ describe("collabTrackingRender store", () => {
             expect(consoleError).toHaveBeenCalled();
 
             consoleError.mockRestore();
+        });
+    });
+
+    describe("reconnect and recalibration policy (ticket 14)", () => {
+        const aoi: AOIExtent = {
+            corners: [
+                [9.98, 53.56], // top-left
+                [10.0, 53.56], // top-right
+                [10.0, 53.54], // bottom-right
+                [9.98, 53.54], // bottom-left
+            ],
+        };
+
+        class FakeSocket {
+            onopen: (() => void) | null = null;
+            onmessage: ((event: { data: string }) => void) | null = null;
+            onclose: (() => void) | null = null;
+            onerror: ((event: unknown) => void) | null = null;
+            sent: string[] = [];
+            send(data: string): void {
+                this.sent.push(data);
+            }
+            close(): void {}
+        }
+
+        function stubRealSocket(): FakeSocket[] {
+            const sockets: FakeSocket[] = [];
+            vi.stubGlobal(
+                "WebSocket",
+                function FakeWebSocket() {
+                    const created = new FakeSocket();
+                    sockets.push(created);
+                    return created;
+                } as unknown as typeof WebSocket
+            );
+            return sockets;
+        }
+
+        function sendRawMarkerReading(socket: FakeSocket, markerId: number, pixelX: number, pixelY: number): void {
+            socket.onmessage?.({ data: JSON.stringify({ [markerId]: [pixelX, pixelY, 0, "000"] }) });
+        }
+
+        /** A post-calibration GeoJSON snapshot carrying one registered building marker (id 1 -> "G01"). */
+        function sendGeojson(socket: FakeSocket): void {
+            socket.onmessage?.({
+                data: JSON.stringify({
+                    type: "FeatureCollection",
+                    features: [{ type: "Feature", geometry: { type: "Point", coordinates: [10, 53.5] }, properties: { marker_id: 1, rotation: 0 } }],
+                }),
+            });
+        }
+
+        /** Drives a real four-marker calibration to completion so `lastMeasuredCalibration` gets cached, exactly as it happens for real (ticket 12). */
+        function calibrateOnce(socket: FakeSocket): void {
+            sendRawMarkerReading(socket, 200, 10, 20);
+            sendRawMarkerReading(socket, 201, 1590, 20);
+            sendRawMarkerReading(socket, 202, 10, 780);
+            sendRawMarkerReading(socket, 203, 1590, 780);
+            useCollabTrackingRenderStore().calibrateFromDetectedMarkers();
+        }
+
+        /** Connects, calibrates, then drops the connection so a reconnect can be exercised — returns the sockets array (index 0 = pre-drop, 1+ = reconnect attempts). */
+        function connectAndCalibrate(): FakeSocket[] {
+            vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
+            const sockets = stubRealSocket();
+
+            const session = useCollabSessionStore();
+            session.base.objects = [{ id: "G01", properties: { marker_id: 1 } }];
+            const scenarioStore = useCollabScenarioStore();
+            scenarioStore.aoi = aoi;
+            session.calibration.phase = "presenting";
+
+            const trackingRender = useCollabTrackingRenderStore();
+            trackingRender.startRendering("control");
+            sockets[0]?.onopen?.();
+            calibrateOnce(sockets[0]!);
+            expect(scenarioStore.calibrated).toBe(true);
+            expect(scenarioStore.lastMeasuredCalibration).not.toBeNull();
+
+            sockets[0]?.onclose?.();
+            expect(trackingRender.pythonConnectionState).toBe("reconnecting");
+            return sockets;
+        }
+
+        beforeEach(() => {
+            vi.useFakeTimers();
+        });
+
+        afterEach(() => {
+            useCollabTrackingRenderStore().stop();
+            vi.useRealTimers();
+            vi.unstubAllEnvs();
+            vi.unstubAllGlobals();
+        });
+
+        test("resends the last valid measured calibration automatically once the transport reconnects", () => {
+            const sockets = connectAndCalibrate();
+            const cached = useCollabScenarioStore().lastMeasuredCalibration;
+
+            vi.advanceTimersByTime(1000); // default reconnect backoff
+            expect(sockets).toHaveLength(2);
+            sockets[1]?.onopen?.();
+
+            expect(sockets[1]?.sent).toHaveLength(1);
+            expect(JSON.parse(sockets[1]!.sent[0]!)).toEqual(cached);
+        });
+
+        test("falls back to four-marker detection mode when GeoJSON does not resume within the window", () => {
+            const session = useCollabSessionStore();
+            const scenarioStore = useCollabScenarioStore();
+            const sockets = connectAndCalibrate();
+
+            vi.advanceTimersByTime(1000);
+            sockets[1]?.onopen?.();
+            expect(sockets[1]?.sent).toHaveLength(1); // resend went out
+
+            // No GeoJSON ever arrives on the new connection — the resume window elapses.
+            vi.advanceTimersByTime(8000);
+
+            expect(session.calibration.phase).toBe("presenting");
+            expect(scenarioStore.calibrated).toBe(false);
+            expect(toastAdd).toHaveBeenCalledWith({
+                severity: "warning",
+                summary: "Calibration didn't resume after reconnecting — recalibrate using the four markers",
+            });
+        });
+
+        test("GeoJSON resuming within the window cancels the fallback and keeps calibrated_tracking", () => {
+            const session = useCollabSessionStore();
+            const scenarioStore = useCollabScenarioStore();
+            const sockets = connectAndCalibrate();
+
+            vi.advanceTimersByTime(1000);
+            sockets[1]?.onopen?.();
+            toastAdd.mockClear();
+
+            sendGeojson(sockets[1]!);
+            // Would have triggered the fallback had the resend not been confirmed.
+            vi.advanceTimersByTime(8000);
+
+            expect(session.calibration.phase).toBe("idle");
+            expect(scenarioStore.calibrated).toBe(true);
+            expect(toastAdd).not.toHaveBeenCalled();
+        });
+
+        test("does not auto-resend while the operator is already mid-way through a fresh calibration", () => {
+            const session = useCollabSessionStore();
+            const sockets = connectAndCalibrate();
+            // Operator re-entered detection mode themselves before the reconnect completed.
+            session.calibration.phase = "presenting";
+
+            vi.advanceTimersByTime(1000);
+            sockets[1]?.onopen?.();
+
+            expect(sockets[1]?.sent).toHaveLength(0);
+        });
+
+        test("recalibrate() clears the cached payload and calibrated status and returns to detection mode", () => {
+            const session = useCollabSessionStore();
+            const scenarioStore = useCollabScenarioStore();
+            scenarioStore.aoi = aoi;
+            scenarioStore.calibrated = true;
+            scenarioStore.lastMeasuredCalibration = { type: "map_calibration", points: [] };
+            session.calibration.phase = "idle";
+
+            useCollabTrackingRenderStore().recalibrate();
+
+            expect(scenarioStore.calibrated).toBe(false);
+            expect(scenarioStore.lastMeasuredCalibration).toBeNull();
+            expect(session.calibration.phase).toBe("presenting");
         });
     });
 

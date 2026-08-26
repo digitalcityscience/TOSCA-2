@@ -67,10 +67,10 @@ describe("collabSync store", () => {
 
         expect(tableSession.base.objects).toEqual([{ id: "b1" }]);
 
-        controlSession.scenario.removedBuildings.push("b1");
+        controlSession.tableRender.visibleLayerIds.push("collabTrackedFootprints-fill");
         await nextTick();
 
-        expect(tableSession.scenario.removedBuildings).toEqual(["b1"]);
+        expect(tableSession.tableRender.visibleLayerIds).toEqual(["collabTrackedFootprints-fill"]);
         expect(tableSession.base.objects).toEqual([{ id: "b1" }]);
 
         controlSync.stop();
@@ -91,10 +91,10 @@ describe("collabSync store", () => {
         tableSync.startAsTable(tableChannel);
         await nextTick();
 
-        tableSession.scenario.addedObjects.push({ id: "table-only" });
+        tableSession.tableRender.visibleLayerIds.push("table-only");
         await nextTick();
 
-        expect(controlSession.scenario.addedObjects).toEqual([]);
+        expect(controlSession.tableRender.visibleLayerIds).toEqual([]);
 
         controlSync.stop();
         tableSync.stop();

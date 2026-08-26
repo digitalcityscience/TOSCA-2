@@ -31,10 +31,6 @@ export interface CollabBuildingObject extends CollabSceneObject {
     properties: CollabBuildingProperties;
 }
 
-const FOOTPRINT_SOURCE_ID = "collabFootprints";
-const FOOTPRINT_FILL_LAYER_ID = "collabFootprints-fill";
-const FOOTPRINT_OUTLINE_LAYER_ID = "collabFootprints-outline";
-
 const AOI_CONFIRMED_SOURCE_ID = "collabAoi";
 const AOI_CONFIRMED_OUTLINE_LAYER_ID = "collabAoi-outline";
 
@@ -199,6 +195,17 @@ export const useCollabScenarioStore = defineStore("collabScenario", () => {
      * calibration no longer matches the newly confirmed extent and the table must be recalibrated.
      */
     const calibrated = ref(false);
+    /**
+     * The last valid *measured* `map_calibration` payload sent to Python via the real four-marker
+     * flow (ticket 12, `collabTrackingRender.calibrateFromDetectedMarkers`) — cached so a transient
+     * reconnect or a Python-process restart (ticket 14) can resend it without the operator having
+     * to re-detect all four markers, as long as the confirmed AOI hasn't changed since. Distinct
+     * from `mapCalibration` (the synthetic, config-derived correspondence): this one only ever
+     * holds a payload built from real measured pixel positions. `null` whenever no measured
+     * calibration has succeeded for the current AOI — invalidated, exactly like `calibrated`, the
+     * moment a (re)confirmed AOI makes any previously-cached payload stale.
+     */
+    const lastMeasuredCalibration = ref<MapCalibrationMessage | null>(null);
     const aoiSelectionInProgress = ref(false);
     /** The viewfinder's current geographic extent — recomputed on every map move/zoom while selecting. */
     const viewfinderExtent = ref<AOIExtent | null>(null);
@@ -209,54 +216,6 @@ export const useCollabScenarioStore = defineStore("collabScenario", () => {
         const features = collabBuildingDataset().footprints.features;
         return aoi.value === null ? features : footprintsWithinAoi(features, aoi.value);
     });
-
-    function currentScenarioFeatureCollection(): FeatureCollection {
-        return {
-            type: "FeatureCollection",
-            features: session.currentScenario.map(toFeature),
-        };
-    }
-
-    function updateFootprintLayerData(): void {
-        const source = mapStore.map?.getSource(FOOTPRINT_SOURCE_ID);
-        source?.setData(currentScenarioFeatureCollection());
-    }
-
-    /** Renders (or, if already present, updates) the selectable-footprint layer via the map store's public API. */
-    async function renderFootprintLayer(): Promise<void> {
-        if (mapStore.map?.getSource(FOOTPRINT_SOURCE_ID) !== undefined) {
-            updateFootprintLayerData();
-            return;
-        }
-        const data = currentScenarioFeatureCollection();
-        try {
-            await mapStore.addMapDataSource({
-                sourceType: "geojson",
-                identifier: FOOTPRINT_SOURCE_ID,
-                isFilterLayer: false,
-                geoJSONSrc: data,
-            });
-            await mapStore.addMapLayer({
-                sourceType: "geojson",
-                identifier: FOOTPRINT_FILL_LAYER_ID,
-                layerType: "fill",
-                sourceIdentifier: FOOTPRINT_SOURCE_ID,
-                geoJSONSrc: data,
-                isFilterLayer: false,
-                displayName: i18n.global.t("collab.layers.selectableFootprints"),
-                layerStyle: { paint: { "fill-color": "#2563eb", "fill-opacity": 0.35 } },
-            });
-            mapStore.addCompanionLayer(FOOTPRINT_FILL_LAYER_ID, {
-                id: FOOTPRINT_OUTLINE_LAYER_ID,
-                type: "line",
-                source: FOOTPRINT_SOURCE_ID,
-                paint: { "line-color": "#1d4ed8", "line-width": 1.5 },
-            });
-        } catch (error) {
-            reportDeveloperError("collabScenario.renderFootprintLayer", error);
-            toast.add({ severity: "error", summary: i18n.global.t("collab.control.footprints.loadFailed") });
-        }
-    }
 
     /**
      * The confirmed AOI as an explicit GeoJSON feature (ticket 09) — the persistent, renderable
@@ -311,10 +270,12 @@ export const useCollabScenarioStore = defineStore("collabScenario", () => {
     }
 
     /**
-     * Loads the PoC building fixture — scoped to the selected AOI (`selectableBuildings`) — into
-     * the base-city slice, then renders it (OD-3). Requires an AOI: buildings are only ever
-     * "selectable footprints for the AOI" (ticket 07), never the whole fixture. Re-running this
-     * after re-selecting a different AOI refreshes `base` to that AOI's buildings.
+     * Loads the Collab-owned building dataset — scoped to the selected AOI (`selectableBuildings`,
+     * ticket 10) — into the base-city slice (OD-3). Requires an AOI: buildings are only ever
+     * "selectable footprints for the AOI" (ticket 07). Re-running this after re-selecting a
+     * different AOI refreshes `base` to that AOI's buildings. The base dataset itself is never
+     * rendered as its own map layer — it exists only as the known-footprint reference `collabTrackingRender`
+     * translates/rotates onto detected poses for the "Tracked buildings (Python)" layer.
      */
     async function loadKnownFootprints(): Promise<void> {
         if (aoi.value === null) {
@@ -324,7 +285,6 @@ export const useCollabScenarioStore = defineStore("collabScenario", () => {
         try {
             session.base.objects = selectableBuildings.value.map(toSceneObject);
             session.base.loaded = true;
-            await renderFootprintLayer();
         } catch (error) {
             session.base.objects = [];
             session.base.loaded = false;
@@ -335,9 +295,6 @@ export const useCollabScenarioStore = defineStore("collabScenario", () => {
             });
         }
     }
-
-    /** @deprecated Kept for off-route fixture tests/tools; the real operator flow loads on AOI confirmation. */
-    const loadFixtureFootprints = loadKnownFootprints;
 
     /** Builds the single-feature viewfinder `FeatureCollection` from the current `viewfinderExtent`/`viewfinderValid`. */
     function currentViewfinderFeatureCollection(): FeatureCollection {
@@ -502,8 +459,11 @@ export const useCollabScenarioStore = defineStore("collabScenario", () => {
         mapCalibration.value = buildMapCalibration(extent, tableConfig.value);
         // Confirming any AOI — first time or replacing an existing one — invalidates whatever
         // calibration status was showing: a fresh/changed AOI has not been calibrated against the
-        // physical table yet (ticket 09; the real four-marker flow itself is ticket 12).
+        // physical table yet (ticket 09; the real four-marker flow itself is ticket 12). The cached
+        // measured payload goes with it (ticket 14) — there is no path where a stale calibration,
+        // built for a different AOI, may be resent against this one.
         calibrated.value = false;
+        lastMeasuredCalibration.value = null;
         renderAoiLayer().catch((error) => reportDeveloperError("collabScenario.finishAoiSelection", error));
         // Ticket 10: confirming an AOI is the load action. The operator never has to press a
         // separate fixture/data button; validation and AOI filtering happen before the registry
@@ -517,28 +477,12 @@ export const useCollabScenarioStore = defineStore("collabScenario", () => {
         return true;
     }
 
-    /** Marks a building removed as a Scenario delta (never mutates `base`) and re-renders the footprint layer. */
-    function removeBuilding(id: string): void {
-        if (!session.scenario.removedBuildings.includes(id)) {
-            session.scenario.removedBuildings.push(id);
-        }
-        updateFootprintLayerData();
-    }
-
-    /** Reverses `removeBuilding` — restores a building to the current scenario. */
-    function restoreBuilding(id: string): void {
-        const index = session.scenario.removedBuildings.indexOf(id);
-        if (index !== -1) {
-            session.scenario.removedBuildings.splice(index, 1);
-        }
-        updateFootprintLayerData();
-    }
-
     return {
         tableConfig,
         aoi,
         mapCalibration,
         calibrated,
+        lastMeasuredCalibration,
         aoiFeature,
         aoiSelectionInProgress,
         viewfinderExtent,
@@ -548,9 +492,6 @@ export const useCollabScenarioStore = defineStore("collabScenario", () => {
         cancelAoiSelection,
         finishAoiSelection,
         loadKnownFootprints,
-        loadFixtureFootprints,
-        removeBuilding,
-        restoreBuilding,
     };
 });
 
