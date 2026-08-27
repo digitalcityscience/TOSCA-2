@@ -742,6 +742,18 @@ export class RealTrackingSource implements TrackingSource {
         this.socket.send(JSON.stringify(message))
     }
 
+    /** Returns Python to its raw-pixel feed so a fresh four-marker calibration can be measured. */
+    resetMapCalibration(): void {
+        if (!this.socketOpen || this.socket === undefined) {
+            reportDeveloperError(
+                "collabTracking.RealTrackingSource.resetMapCalibration",
+                new Error("cannot reset map calibration: socket is not open")
+            )
+            return
+        }
+        this.socket.send(JSON.stringify({ type: "clear_calibration" }))
+    }
+
     private connect(): void {
         this.emitConnectionState(this.reconnectAttempt === 0 ? "connecting" : "reconnecting")
         const socket = this.createSocket(this.url)

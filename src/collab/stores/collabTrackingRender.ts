@@ -1088,6 +1088,8 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         clearResumeConfirmationTimer();
         scenarioStore.calibrated = false;
         scenarioStore.lastMeasuredCalibration = null;
+        mapCalibrationMarkerHealth.value = new Map();
+        realSource?.resetMapCalibration();
         enterCalibrationPresentation();
     }
 
