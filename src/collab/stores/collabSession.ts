@@ -67,6 +67,15 @@ export interface CollabCalibrationState {
     aoi: AOIExtent | null;
     phase: CollabCalibrationPhase;
     revision: number;
+    /**
+     * Which {@link MAP_CALIBRATION_MARKERS} (200-203) ids Python has reported at least once since
+     * the transport last (re)connected (fix-tickets, marker-health-plan §3 pattern) — sticky, only
+     * grows, mirrors `collabTrackingRender.ts`'s Control-only `mapCalibrationMarkerHealth`. Broadcast
+     * here (unlike that richer Map, which also holds pixel positions Table never needs) purely so
+     * Table can color its own presented marker images green once read, matching Vanilla's
+     * `marker-received` feedback (`COUP-table-web-interface/js/calibration.js`).
+     */
+    mapCalibrationMarkerIdsSeen: readonly number[];
 }
 
 /**
@@ -96,7 +105,13 @@ export const useCollabSessionStore = defineStore("collabSession", () => {
     const tracking = reactive<Record<string, CollabTrackingObjectState>>({});
     const view = reactive<CollabViewState>({ selection: null });
     const tableRender = reactive<CollabTableRenderState>({ visibleLayerIds: [] });
-    const calibration = reactive<CollabCalibrationState>({ rotationOffsetDeg: 0, aoi: null, phase: "idle", revision: 0 });
+    const calibration = reactive<CollabCalibrationState>({
+        rotationOffsetDeg: 0,
+        aoi: null,
+        phase: "idle",
+        revision: 0,
+        mapCalibrationMarkerIdsSeen: [],
+    });
     const trackedBuildings = reactive<CollabTrackedBuildingsState>({
         footprints: { type: "FeatureCollection", features: [] },
         ids: { type: "FeatureCollection", features: [] },

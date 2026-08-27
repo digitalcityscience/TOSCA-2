@@ -29,6 +29,19 @@ vi.mock("maplibre-gl", () => {
             return this;
         }
 
+        getElement(): HTMLElement {
+            return this.record.element;
+        }
+
+        getLngLat(): { lng: number; lat: number } {
+            const [lng, lat] = this.record.lngLat ?? [0, 0];
+            return { lng, lat };
+        }
+
+        on(): this {
+            return this;
+        }
+
         addTo(): this {
             return this;
         }
@@ -71,6 +84,9 @@ vi.mock("@store/map", () => ({
             },
             getStyle: () => ({ layers: styleLayers }),
             isStyleLoaded: () => true,
+            getCenter: () => ({ lng: 9.99, lat: 53.5511 }),
+            getZoom: () => 17.66,
+            project: ([lng]: [number, number]) => ({ x: lng * 2000, y: 0 }),
             on: () => {},
             off: () => {},
         },
@@ -80,6 +96,7 @@ vi.mock("@store/map", () => ({
     }),
 }));
 
+import { calibrationMarkerSizePx } from "./collabCalibration";
 import { useCollabSessionStore } from "./collabSession";
 import { useCollabTrackingRenderStore } from "./collabTrackingRender";
 
@@ -113,8 +130,6 @@ describe("calibration presentation mode on Table (ticket 11)", () => {
     });
 
     test("entering presentation mode renders exactly the 4 calibration markers at the AOI corners, using the Vanilla 200/201/202/203 corner mapping", async () => {
-        vi.stubEnv("VITE_COLLAB_CALIBRATION_MARKER_SIZE_PX", "100");
-
         const session = useCollabSessionStore();
         session.calibration.aoi = hamburgAoi;
         const trackingRender = useCollabTrackingRenderStore();
@@ -130,7 +145,69 @@ describe("calibration presentation mode on Table (ticket 11)", () => {
         expect(createdMarkers.get("201")?.lngLat).toEqual([10.0, 53.56]); // top-right
         expect(createdMarkers.get("202")?.lngLat).toEqual([9.98, 53.54]); // bottom-left
         expect(createdMarkers.get("203")?.lngLat).toEqual([10.0, 53.54]); // bottom-right
-        expect(createdMarkers.get("200")?.element.style.width).toBe("100px");
+        trackingRender.stop();
+    });
+
+    test("each marker renders at the Vanilla size with a red pending border, and stays mirrored", async () => {
+        const session = useCollabSessionStore();
+        session.calibration.aoi = hamburgAoi;
+        const trackingRender = useCollabTrackingRenderStore();
+        trackingRender.startRendering("table");
+        await flush();
+
+        trackingRender.enterCalibrationPresentation();
+        await flush();
+
+        const expectedSizePx = calibrationMarkerSizePx({ getCenter: () => ({ lat: 53.5511 }), getZoom: () => 17.66 });
+
+        for (const id of ["200", "201", "202", "203"]) {
+            const wrapper = createdMarkers.get(id)?.element;
+            expect(wrapper, `marker ${id}`).toBeDefined();
+            expect(wrapper?.style.width).toBe("0px");
+            expect(wrapper?.style.height).toBe("0px");
+
+            const img = wrapper?.querySelector("img");
+            expect(img, `marker ${id} image`).not.toBeNull();
+            expect(img?.getAttribute("src")).toBe(`/collab/calibration-markers/4x4_1000-${id}.svg`);
+            expect(img?.style.border).toBe("5px solid rgb(220, 38, 38)");
+            expect(Number.parseFloat(img?.style.width ?? "")).toBeCloseTo(expectedSizePx, 5);
+            expect(Number.parseFloat(img?.style.height ?? "")).toBeCloseTo(expectedSizePx, 5);
+            expect(img?.style.maxWidth).toBe("none");
+            expect(img?.style.maxHeight).toBe("none");
+            // The mirror MUST sit on the child image: maplibregl.Marker owns the wrapper's
+            // `transform` and would overwrite a scaleX(-1) placed there (the real-browser bug a
+            // faked Marker cannot reproduce).
+            expect(img?.style.transform).toBe("scaleX(-1)");
+            expect(wrapper?.style.transform ?? "").not.toContain("scale");
+        }
+
+        trackingRender.stop();
+    });
+
+    test("marker size is independent of AOI dimensions, exactly like Vanilla", async () => {
+        const session = useCollabSessionStore();
+        session.calibration.aoi = hamburgAoi;
+        const trackingRender = useCollabTrackingRenderStore();
+        trackingRender.startRendering("table");
+        await flush();
+
+        trackingRender.enterCalibrationPresentation();
+        await flush();
+        const widthBefore = Number.parseFloat(createdMarkers.get("200")?.element.querySelector("img")?.style.width ?? "");
+
+        // Half as wide an AOI -> half the projected top edge -> half the marker.
+        session.calibration.aoi = {
+            corners: [
+                [9.99, 53.56],
+                [10.0, 53.56],
+                [10.0, 53.54],
+                [9.99, 53.54],
+            ] as typeof hamburgAoi.corners,
+        };
+        await flush();
+
+        const widthAfter = Number.parseFloat(createdMarkers.get("200")?.element.querySelector("img")?.style.width ?? "");
+        expect(widthAfter).toBeCloseTo(widthBefore, 5);
 
         trackingRender.stop();
     });

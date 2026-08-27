@@ -1,8 +1,9 @@
 import distance from "@turf/distance";
 import { point, polygon } from "@turf/helpers";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { describe, expect, test } from "vitest";
 import type { AOIExtent, CollabTableConfig } from "./collabCalibration";
 import {
+    CALIBRATION_MARKER_SIZE_M,
     DEFAULT_COLLAB_TABLE_CONFIG,
     ROTATION_JITTER_THRESHOLD_DEG,
     angularDistanceDeg,
@@ -27,26 +28,17 @@ const hamburgAOI: AOIExtent = {
     ],
 };
 
-describe("calibrationMarkerSizePx (ticket 11)", () => {
-    afterEach(() => {
-        vi.unstubAllEnvs();
+describe("calibrationMarkerSizePx (exact Vanilla formula)", () => {
+    test("copies Vanilla's 27 metre marker and meters-per-pixel calculation verbatim", () => {
+        const map = { getCenter: () => ({ lat: 53.5511 }), getZoom: () => 17.66 };
+        const metersPerPixel = (156543.03392 * Math.cos((53.5511 * Math.PI) / 180)) / Math.pow(2, 17.66);
+        expect(CALIBRATION_MARKER_SIZE_M).toBe(27);
+        expect(calibrationMarkerSizePx(map)).toBeCloseTo(27 / metersPerPixel, 10);
     });
 
-    test("falls back to a documented placeholder when unset", () => {
-        vi.stubEnv("VITE_COLLAB_CALIBRATION_MARKER_SIZE_PX", undefined);
-        expect(calibrationMarkerSizePx()).toBe(80);
-    });
-
-    test("reads the configured value from VITE_COLLAB_CALIBRATION_MARKER_SIZE_PX", () => {
-        vi.stubEnv("VITE_COLLAB_CALIBRATION_MARKER_SIZE_PX", "150");
-        expect(calibrationMarkerSizePx()).toBe(150);
-    });
-
-    test("falls back for an unparsable/non-positive value rather than propagating garbage", () => {
-        vi.stubEnv("VITE_COLLAB_CALIBRATION_MARKER_SIZE_PX", "not-a-number");
-        expect(calibrationMarkerSizePx()).toBe(80);
-        vi.stubEnv("VITE_COLLAB_CALIBRATION_MARKER_SIZE_PX", "-10");
-        expect(calibrationMarkerSizePx()).toBe(80);
+    test("grows with zoom exactly like Vanilla", () => {
+        const atZoom = (zoom: number) => calibrationMarkerSizePx({ getCenter: () => ({ lat: 53.5511 }), getZoom: () => zoom });
+        expect(atZoom(18.66)).toBeCloseTo(atZoom(17.66) * 2, 10);
     });
 });
 

@@ -69,6 +69,7 @@ function cloneCalibration(value: CollabCalibrationState): CollabCalibrationState
         aoi: value.aoi === null ? null : { corners: [...value.aoi.corners] as typeof value.aoi.corners },
         phase: value.phase,
         revision: value.revision,
+        mapCalibrationMarkerIdsSeen: [...value.mapCalibrationMarkerIdsSeen],
     };
 }
 

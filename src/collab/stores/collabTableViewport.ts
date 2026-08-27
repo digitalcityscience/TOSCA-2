@@ -5,9 +5,8 @@ import type { useCollabSessionStore } from "./collabSession";
 
 /**
  * Table-window viewport control (ticket 11, fix-tickets): fits the Table map exactly to the
- * Control-selected AOI, and only then locks pan/zoom/rotate/keyboard interaction — in that order,
- * so the projected image is both correct (matches Control's AOI, not a generic startup viewport)
- * and frozen (no accidental interaction on the projector-facing window). Extracted out of
+ * Control-selected AOI, and only then locks pan/zoom/rotate/keyboard interaction, so the
+ * projector shows the operator-selected area and stays frozen. Extracted out of
  * `CollabTableView.vue`'s `<script setup>` so it is unit-testable against a fake map store, the
  * way every other Collab store in this module is (this codebase has no component-mount test
  * infrastructure — see collabRegression.test.ts's `vi.mock("@store/map")` pattern).

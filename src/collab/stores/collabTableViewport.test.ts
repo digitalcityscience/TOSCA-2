@@ -12,6 +12,7 @@ function fakeInteractionHandler() {
 function fakeMap() {
     return {
         fitBounds: vi.fn(),
+        jumpTo: vi.fn(),
         dragPan: fakeInteractionHandler(),
         dragRotate: fakeInteractionHandler(),
         scrollZoom: fakeInteractionHandler(),
@@ -57,7 +58,7 @@ describe("startTableViewportSync (ticket 11)", () => {
         stop();
     });
 
-    test("fits to the AOI bounds, then locks every interaction handler, once both map and AOI are present", () => {
+    test("fits to the selected AOI, then locks every interaction handler", () => {
         const session = useCollabSessionStore();
         const map = fakeMap();
         const mapStore = { map: map as ReturnType<typeof fakeMap> | undefined };
@@ -65,6 +66,7 @@ describe("startTableViewportSync (ticket 11)", () => {
 
         const stop = startTableViewportSync(session, mapStore as never);
 
+        expect(map.jumpTo).not.toHaveBeenCalled();
         expect(map.fitBounds).toHaveBeenCalledTimes(1);
         expect(map.fitBounds).toHaveBeenCalledWith(
             [

@@ -178,15 +178,113 @@ export function restoreHiddenLayers(map: MapLibreMap, ids: readonly string[]): v
     }
 }
 
-/** Builds one calibration marker's `<img>` element, sized per {@link calibrationMarkerSizePx} (ticket 11). */
-function buildCalibrationMarkerElement(markerId: number): HTMLImageElement {
-    const el = document.createElement("img");
-    el.src = calibrationMarkerImageUrl(markerId);
-    el.alt = String(markerId);
-    const sizePx = calibrationMarkerSizePx();
-    el.style.width = `${sizePx}px`;
-    el.style.height = `${sizePx}px`;
-    return el;
+/**
+ * The `<img>` carrying the actual ArUco bitmap inside a calibration marker's wrapper element —
+ * everything except position (size, quiet zone, mirroring, received color) is set on this, never on
+ * the wrapper. See {@link buildCalibrationMarkerElement} for why the wrapper exists.
+ */
+function calibrationMarkerImage(wrapper: HTMLElement): HTMLImageElement | null {
+    return wrapper.querySelector("img");
+}
+
+/**
+ * Sizes one calibration marker's image from the current centre latitude and zoom, matching Vanilla's
+ * `.marker-icon` metre-to-pixel sizing. The marker itself has no border; calibration presentation
+ * supplies one continuous white background behind all four SVGs.
+ * Also called by the same `move`/`zoom` events Vanilla uses in `markers.js:updateMarkerSizes`.
+ */
+function applyCalibrationMarkerSize(wrapper: HTMLElement, map: MapLibreMap): void {
+    const img = calibrationMarkerImage(wrapper);
+    if (img === null) {
+        return;
+    }
+    const sizePx = calibrationMarkerSizePx(map);
+    img.style.width = `${sizePx}px`;
+    img.style.height = `${sizePx}px`;
+    img.style.boxSizing = "border-box";
+}
+
+/** Red by default; only a Python reading accepted by the frontend turns this marker green. */
+function applyCalibrationMarkerReceivedState(wrapper: HTMLElement, received: boolean): void {
+    const img = calibrationMarkerImage(wrapper);
+    if (img === null) {
+        return;
+    }
+    img.style.border = received ? "5px solid #2ecc40" : "5px solid #dc2626";
+}
+
+/**
+ * Builds one calibration marker's element: an `<img>` of the ArUco SVG inside a plain `div`
+ * wrapper, which is what gets handed to `maplibregl.Marker`.
+ *
+ * The wrapper is load-bearing, not decoration. `maplibregl.Marker` *owns* `element.style.transform`
+ * — it writes its own `translate(...)` there on every position update — so an `<img>` passed
+ * directly as the marker element has any `scaleX(-1)` silently overwritten, and the projected
+ * marker comes out unmirrored (and therefore decodes to the wrong id, or not at all). Vanilla
+ * dodges this the same way: `markers.js:createMarkers` hands MapLibre a wrapper `div` and puts the
+ * mirroring `.marker-icon` transform on the child `<img>`. MapLibre positions the wrapper; the
+ * image keeps its own transform.
+ *
+ * Note this is invisible to a unit test that fakes `maplibregl.Marker` — a fake never overwrites
+ * the transform, so the mirror survives in jsdom and dies in the browser. `collabCalibrationPresentation.test.ts`
+ * asserts the transform sits on the child image for exactly that reason.
+ */
+function buildCalibrationMarkerElement(markerId: number): HTMLElement {
+    const wrapper = document.createElement("div");
+    wrapper.setAttribute("alt", String(markerId));
+    wrapper.dataset.calibrationMarkerId = String(markerId);
+    wrapper.style.width = "0px";
+    wrapper.style.height = "0px";
+
+    const img = document.createElement("img");
+    img.src = calibrationMarkerImageUrl(markerId);
+    img.alt = String(markerId);
+    img.className = "marker-icon";
+    img.style.cursor = "grab";
+    img.style.display = "block";
+    // TOSCA's Tailwind preflight applies `img { max-width: 100% }`. Vanilla deliberately uses
+    // a 0px wrapper, so that global rule otherwise collapses the SVG and leaves only its border.
+    img.style.maxWidth = "none";
+    img.style.maxHeight = "none";
+    // The projector/camera path mirrors the image. Vanilla compensates with the same transform.
+    img.style.transform = "scaleX(-1)";
+    wrapper.appendChild(img);
+
+    return wrapper;
+}
+
+/**
+ * Reports one presented marker's actual rendered geometry to the console, once per marker as it is
+ * created. This is operational output for the projector rig, not debug leftovers: whether the
+ * cameras can decode a projected ArUco marker depends on numbers nobody can eyeball off the table
+ * — the CSS-pixel footprint, and above all the quiet zone expressed in marker *cells* (the SVGs are
+ * 6x6, and OpenCV needs roughly a full cell of white around the black ring to close the contour).
+ * When markers come back undetected on site, this line is the first thing to read.
+ */
+function logCalibrationMarkerGeometry(markerId: number, wrapper: HTMLElement, map: MapLibreMap, aoi: AOIExtent): void {
+    const img = calibrationMarkerImage(wrapper);
+    if (img === null) {
+        return;
+    }
+    // Reporting must never be able to break the presentation render itself.
+    try {
+        const topLeft = map.project(aoi.corners[0] as [number, number]);
+        const topRight = map.project(aoi.corners[1] as [number, number]);
+        const totalPx = Number.parseFloat(img.style.width);
+        const canvas = map.getCanvas?.();
+        console.info(`[collab] calibration marker ${markerId} rendered`, {
+            totalPx,
+            codeAreaPx: totalPx,
+            quietZonePx: 0,
+            aoiTopEdgePx: Math.hypot(topRight.x - topLeft.x, topRight.y - topLeft.y),
+            zoom: map.getZoom?.(),
+            canvasCssPx: canvas === undefined ? undefined : [canvas.clientWidth, canvas.clientHeight],
+            devicePixelRatio: window.devicePixelRatio,
+            mirrored: img.style.transform,
+        });
+    } catch (error) {
+        reportDeveloperError("collabTrackingRender.logCalibrationMarkerGeometry", error);
+    }
 }
 
 /**
@@ -249,6 +347,33 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     let resumeConfirmationTimer: ReturnType<typeof setTimeout> | undefined;
     /** Live `maplibregl.Marker` instances for the four calibration markers, keyed by marker id (ticket 11). */
     const calibrationMarkers = new Map<number, MapLibreMarker>();
+    let calibrationResizeMap: MapLibreMap | undefined;
+
+    function resizeCalibrationMarkers(): void {
+        const map = calibrationResizeMap;
+        if (map === undefined) {
+            return;
+        }
+        for (const marker of calibrationMarkers.values()) {
+            applyCalibrationMarkerSize(marker.getElement(), map);
+        }
+    }
+
+    function attachCalibrationResizeListeners(map: MapLibreMap): void {
+        if (calibrationResizeMap === map) {
+            return;
+        }
+        detachCalibrationResizeListeners();
+        calibrationResizeMap = map;
+        map.on("zoom", resizeCalibrationMarkers);
+        map.on("move", resizeCalibrationMarkers);
+    }
+
+    function detachCalibrationResizeListeners(): void {
+        calibrationResizeMap?.off("zoom", resizeCalibrationMarkers);
+        calibrationResizeMap?.off("move", resizeCalibrationMarkers);
+        calibrationResizeMap = undefined;
+    }
     /** Layer ids {@link syncCalibrationPresentation} hid — restored verbatim once presentation mode ends. */
     let hiddenLayerIds: string[] = [];
 
@@ -557,6 +682,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         const presenting = session.calibration.phase === "presenting" && map !== undefined && aoi !== null;
 
         if (!presenting) {
+            detachCalibrationResizeListeners();
             if (map !== undefined && hiddenLayerIds.length > 0) {
                 restoreHiddenLayers(map, hiddenLayerIds);
             }
@@ -571,16 +697,29 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         if (hiddenLayerIds.length === 0) {
             hiddenLayerIds = hideNonCalibrationLayers(map);
         }
+        attachCalibrationResizeListeners(map);
         for (const config of MAP_CALIBRATION_MARKERS) {
             const corner = aoiCornerForMapMarker(aoi, config.corner);
+            const received = session.calibration.mapCalibrationMarkerIdsSeen.includes(config.id);
             const existing = calibrationMarkers.get(config.id);
             if (existing === undefined) {
-                const marker = new maplibre.Marker({ element: buildCalibrationMarkerElement(config.id) })
+                const element = buildCalibrationMarkerElement(config.id);
+                applyCalibrationMarkerSize(element, map);
+                applyCalibrationMarkerReceivedState(element, received);
+                const marker = new maplibre.Marker({ element, draggable: true, anchor: "center" })
                     .setLngLat(corner as [number, number])
                     .addTo(map);
+                marker.on("dragend", () => {
+                    const pos = marker.getLngLat();
+                    console.log("Marker moved:", { id: config.id, lng: pos.lng, lat: pos.lat });
+                });
                 calibrationMarkers.set(config.id, marker);
+                logCalibrationMarkerGeometry(config.id, element, map, aoi);
             } else {
                 existing.setLngLat(corner as [number, number]);
+                // Re-size as well as re-position: the AOI may have changed under an existing marker.
+                applyCalibrationMarkerSize(existing.getElement(), map);
+                applyCalibrationMarkerReceivedState(existing.getElement(), received);
             }
         }
     }
@@ -818,11 +957,22 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                 if (!MAP_CALIBRATION_MARKER_IDS.has(markerId)) {
                     continue;
                 }
+                if (!next.has(markerId)) {
+                    console.info("[collab] Python calibration marker detected; frontend accepted it", {
+                        markerId,
+                        reading,
+                    });
+                }
                 next.set(markerId, reading);
                 changed = true;
             }
             if (changed) {
                 mapCalibrationMarkerHealth.value = next;
+                // Broadcast just the id set (not the pixel readings) so Table can color its own
+                // presented marker images green once read (fix-tickets), matching Vanilla's
+                // `marker-received` feedback — Table is a separate document/window and never sees
+                // `mapCalibrationMarkerHealth` itself (Control-local).
+                session.calibration.mapCalibrationMarkerIdsSeen = [...next.keys()];
             }
         });
     }
@@ -855,6 +1005,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         pythonConnectionState.value = "mock";
         detectedReferenceMarkerIds.value = new Set();
         mapCalibrationMarkerHealth.value = new Map();
+        session.calibration.mapCalibrationMarkerIdsSeen = [];
     }
 
     /** Manually retries the Python connection after auto-reconnect has given up (ticket 08) — a no-op if no transport exists yet (e.g. mock mode) or one is already connecting/connected. */
@@ -873,6 +1024,8 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
      * while already presenting (e.g. refocusing an already-open Table window).
      */
     function enterCalibrationPresentation(): void {
+        mapCalibrationMarkerHealth.value = new Map();
+        session.calibration.mapCalibrationMarkerIdsSeen = [];
         session.calibration.phase = "presenting";
         session.calibration.revision += 1;
     }
@@ -985,10 +1138,17 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         // positions, resendable as-is on a later reconnect as long as this AOI stays confirmed.
         scenarioStore.lastMeasuredCalibration = message;
         exitCalibrationPresentation();
+        toast.add({
+            severity: "success",
+            summary: "Calibration successful",
+            detail: "All four calibration markers were detected and the calibration was sent to the Python server.",
+            life: 5000,
+        });
     }
 
     /** Tears down every tracking source, the Python transport, and the render watch. Idempotent — safe on unmount and HMR. */
     function stop(): void {
+        detachCalibrationResizeListeners();
         stopWatch?.();
         stopWatch = undefined;
         disconnectPythonTransport();

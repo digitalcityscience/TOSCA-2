@@ -80,18 +80,18 @@ function targetGroundScale(): number {
     return Number.isFinite(raw) && raw > 0 ? raw : 500
 }
 
-/**
- * Reads the calibration-marker rendered size, in screen pixels, from
- * `VITE_COLLAB_CALIBRATION_MARKER_SIZE_PX` (ticket 11, fix-tickets): the Table window's viewport is
- * locked at a fixed zoom once fit to the AOI (never panned/zoomed afterward), so a fixed screen-pixel
- * size — not a geo-sized footprint — is enough. Camera ArUco recognition depends on this value; the
- * final number only comes from physical testing on the real table/camera rig (mirrors
- * `measuredProjectionInsetCm`'s B6 pattern). Unset/unparsable falls back to `80`, a working
- * not-yet-measured placeholder, never hardcoded into the rendering routine itself.
- */
-export function calibrationMarkerSizePx(): number {
-    const raw = Number(import.meta.env.VITE_COLLAB_CALIBRATION_MARKER_SIZE_PX ?? "")
-    return Number.isFinite(raw) && raw > 0 ? raw : 80
+/** Vanilla `state.js::markerSizeM`, copied verbatim. */
+export const CALIBRATION_MARKER_SIZE_M = 27
+
+/** Vanilla `markers.js::updateMarkerSizes` metre-to-screen-pixel formula, copied verbatim. */
+export function calibrationMarkerSizePx(map: {
+    getCenter(): { lat: number }
+    getZoom(): number
+}): number {
+    const lat = map.getCenter().lat
+    const zoom = map.getZoom()
+    const metersPerPixel = (156543.03392 * Math.cos((lat * Math.PI) / 180)) / Math.pow(2, zoom)
+    return CALIBRATION_MARKER_SIZE_M / metersPerPixel
 }
 
 /**
