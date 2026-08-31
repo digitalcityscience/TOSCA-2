@@ -288,9 +288,9 @@ const unmappedMarkerCount = computed(
 );
 
 /**
- * `outside-aoi` and `unmapped` are both "this marker is arriving but moves nothing"; they are
- * distinguished by color rather than icon because the fix differs — reselect the AOI vs. add a
- * mapping. `reserved` never reaches this list (see `refreshBuildingMarkerHealth`).
+ * `not-loaded` and `unmapped` are both "this marker is arriving but moves nothing"; they are
+ * distinguished by color rather than icon because the fix differs — confirm an AOI so the base city
+ * loads vs. add a mapping. `reserved` never reaches this list (see `refreshBuildingMarkerHealth`).
  */
 function buildingMarkerIcon(status: BuildingMarkerStatus): string {
     return status === "tracked" ? "i-lucide-check" : "i-lucide-alert-circle";
@@ -300,7 +300,7 @@ function buildingMarkerClass(status: BuildingMarkerStatus): string {
     switch (status) {
         case "tracked":
             return "text-success";
-        case "outside-aoi":
+        case "not-loaded":
             return "text-warning";
         default:
             return "text-error";

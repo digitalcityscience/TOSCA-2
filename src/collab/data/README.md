@@ -4,6 +4,19 @@
 `COUP-table-web-interface/buildings_all.geojson` (78 building footprints). It is copied here so
 the Collab runtime owns its input and never reads data from the Vanilla application.
 
+## A building is a shape, not a place
+
+The coordinates in `buildings_all.geojson` put every footprint in Hamburg's Grasbrook
+(`10.007-10.020 / 53.525-53.535`). **Those coordinates are storage, not meaning.** A physical block
+on the table carries no geography: it renders wherever Python reports its marker, under whatever
+AOI the operator selected, anywhere on Earth.
+
+`collabCalibration.placeFootprintAt` therefore converts each footprint to metric east/north offsets
+from its own bbox centre and rebuilds it at the target coordinate, so the building keeps its real
+dimensions instead of its stored *degree* dimensions (`footprintMetricSize` measures them). The
+base city is loaded unfiltered for the same reason — scoping it to footprints inside the AOI made
+the stored coordinates load-bearing, and an AOI anywhere but Grasbrook left nothing to track.
+
 ## `marker-building-map.json`
 
 The physical `marker_id` to `building_id` association — the one thing nothing else in the system
@@ -37,10 +50,10 @@ So every entry here is written out explicitly rather than computed from the id.
 ### Adding a building
 
 1. Put the block on the table and read Control's **Building markers** panel: every marker id
-   arriving from Python appears there, labelled `tracked`, `outside AOI`, or `not mapped`.
+   arriving from Python appears there, labelled `tracked`, `not loaded`, or `not mapped`.
 2. Add a `{ "marker_id": N, "building_id": "G.." }` line here for each `not mapped` id.
-3. Confirm the building's footprint lies inside the selected AOI — `collabFootprintsWithinAoi`
-   drops anything outside it, and the panel will report such a marker as `outside AOI`.
+3. If the panel says `not loaded`, confirm an AOI — that is what loads the base city. Where the
+   AOI is does not matter; the building follows the marker regardless.
 
 `validateCollabBuildingDataset` rejects duplicate marker ids, unknown building ids, and any id
 reserved for map calibration (`200`-`203`).

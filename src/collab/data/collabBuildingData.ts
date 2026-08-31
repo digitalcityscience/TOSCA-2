@@ -109,7 +109,11 @@ export function collabBuildingDataset(): CollabBuildingDataset {
     return validatedDataset;
 }
 
-/** Keeps only complete footprints inside the confirmed AOI; out-of-scope buildings are valid data. */
+/**
+ * Keeps only complete footprints inside `aoi`. No longer used to scope the base city — a building
+ * is a shape, not a place (see `collabScenario.selectableBuildings`) — but kept for genuinely
+ * place-based questions about the dataset's stored coordinates.
+ */
 export function collabFootprintsWithinAoi(features: readonly CollabBuildingFeature[], aoi: AOIExtent): CollabBuildingFeature[] {
     const ring: Position[] = [...aoi.corners, aoi.corners[0]];
     const aoiPolygon = polygon([ring]);
@@ -131,16 +135,16 @@ export function markerRegistryForBuildings(buildingIds: readonly string[]): Mark
  *
  * - `reserved` — a camera-reference/map-calibration/ignored id (see `RESERVED_MARKER_REGISTRY`).
  *   Python streams these in the same feed; they are never buildings.
- * - `tracked` — mapped here *and* active in the confirmed AOI: its building follows the marker.
- * - `outside-aoi` — mapped here, but its building's footprint is not inside the confirmed AOI, so
- *   `collabFootprintsWithinAoi` dropped it and nothing will move.
+ * - `tracked` — mapped here and its building is loaded: the footprint follows the marker.
+ * - `not-loaded` — mapped here, but the base city has not been loaded into the session yet (no AOI
+ *   confirmed), so there is no footprint to move.
  * - `unmapped` — Python is reporting this marker and `marker-building-map.json` says nothing about
  *   it. The block on the table has no building behind it.
  *
  * The last two are the states worth surfacing: both look identical from the map (nothing moves),
  * and `TrackingFeedNormalizer` discards both silently by design.
  */
-export type BuildingMarkerStatus = "reserved" | "tracked" | "outside-aoi" | "unmapped";
+export type BuildingMarkerStatus = "reserved" | "tracked" | "not-loaded" | "unmapped";
 
 export interface BuildingMarkerClassification {
     status: BuildingMarkerStatus;
@@ -166,5 +170,5 @@ export function classifyBuildingMarker(
         return { status: "tracked", buildingId: trackedBuildingId };
     }
     const mapping = mappings.find((candidate) => candidate.marker_id === markerId);
-    return mapping === undefined ? { status: "unmapped" } : { status: "outside-aoi", buildingId: mapping.building_id };
+    return mapping === undefined ? { status: "unmapped" } : { status: "not-loaded", buildingId: mapping.building_id };
 }

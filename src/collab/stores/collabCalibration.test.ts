@@ -16,6 +16,7 @@ import {
     deriveTrackedFootprint,
     footprintAnchorCentre,
     isAoiZoomSufficient,
+    footprintMetricSize,
     placeFootprintAt,
     tablePixelCorners,
     tableToAoiRotationOffsetDeg,
@@ -234,6 +235,32 @@ describe("placeFootprintAt", () => {
         );
 
         expect(placedEdgeMeters).toBeCloseTo(originalEdgeMeters, 1);
+    });
+
+    test("keeps the building's real dimensions when placed on the far side of the planet", () => {
+        // The live-rig requirement (2026-08-31): a footprint is a shape, not a place. Auckland is
+        // both a different hemisphere and a very different latitude, where a degree of longitude is
+        // ~38% wider than in Hamburg — a degree-space translation would stretch the building by
+        // exactly that factor; a metric one must not.
+        const hamburgSize = footprintMetricSize(footprint);
+        const auckland = footprintMetricSize(placeFootprintAt(footprint, [174.76, -36.85], 0));
+
+        expect(auckland.widthM).toBeCloseTo(hamburgSize.widthM, 3);
+        expect(auckland.heightM).toBeCloseTo(hamburgSize.heightM, 3);
+    });
+
+    test("lands the footprint centre on the target centre anywhere on Earth", () => {
+        for (const target of [[174.76, -36.85], [-58.38, -34.6], [139.69, 35.69], [0, 0]] as [number, number][]) {
+            const placed = placeFootprintAt(footprint, target, 0);
+            const ring = placed.geometry.coordinates[0];
+            const lons = ring.map((c) => c[0]);
+            const lats = ring.map((c) => c[1]);
+            const centre: [number, number] = [
+                (Math.min(...lons) + Math.max(...lons)) / 2,
+                (Math.min(...lats) + Math.max(...lats)) / 2,
+            ];
+            expect(distance(point(centre), point(target), { units: "meters" })).toBeLessThan(0.5);
+        }
     });
 
     test("rotates the footprint around the target centre", () => {

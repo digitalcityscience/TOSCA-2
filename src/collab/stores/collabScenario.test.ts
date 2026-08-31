@@ -246,23 +246,25 @@ describe("collabScenario store", () => {
         expect(session.base.objects).toEqual([]);
     });
 
-    test("loadKnownFootprints scopes base.objects to the selected AOI's buildings", async () => {
+    test("loadKnownFootprints loads every building, whatever AOI was confirmed", async () => {
         const session = useCollabSessionStore();
         const scenario = useCollabScenarioStore();
+        // An AOI on the far side of the planet from the dataset's stored Hamburg coordinates: a
+        // building is a shape, not a place, so none of them may be filtered out by where it sits.
         scenario.aoi = {
             corners: [
-                [9.98, 53.56],
-                [10.02, 53.56],
-                [10.02, 53.53],
-                [9.98, 53.53],
+                [174.76, -36.84],
+                [174.8, -36.84],
+                [174.8, -36.87],
+                [174.76, -36.87],
             ],
         };
-        const expectedIds = scenario.selectableBuildings.map((f) => f.properties.building_id);
 
         await scenario.loadKnownFootprints();
 
         expect(session.base.loaded).toBe(true);
-        expect(session.base.objects.map((o) => o.id)).toEqual(expectedIds);
+        expect(session.base.objects).toHaveLength(78);
+        expect(session.base.objects.map((o) => o.id)).toContain("G18");
     });
 
     test("finishAoiSelection confirms the AOI as an explicit GeoJSON feature, not just corner values (ticket 09)", () => {

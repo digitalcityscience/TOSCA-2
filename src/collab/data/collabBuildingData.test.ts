@@ -92,16 +92,16 @@ describe("classifyBuildingMarker", () => {
         { marker_id: 12, building_id: "G12" },
         { marker_id: 18, building_id: "G18" },
     ];
-    // Only G12 is inside the confirmed AOI, so only its mapping reached the active registry.
+    // Only G12's footprint has been loaded into the session, so only its mapping is active.
     const activeRegistry = createMarkerObjectRegistry([{ markerId: 12, objectId: "G12" }]);
 
     test("a mapped marker whose building is active in the AOI is tracked", () => {
         expect(classifyBuildingMarker(12, mappings, activeRegistry)).toEqual({ status: "tracked", buildingId: "G12" });
     });
 
-    test("a mapped marker whose building fell outside the AOI is reported as such, not as unmapped", () => {
-        // The distinction the operator needs: the mapping is fine, the AOI is what dropped it.
-        expect(classifyBuildingMarker(18, mappings, activeRegistry)).toEqual({ status: "outside-aoi", buildingId: "G18" });
+    test("a mapped marker whose building is not loaded yet is reported as such, not as unmapped", () => {
+        // The distinction the operator needs: the mapping is fine, the base city just isn't loaded.
+        expect(classifyBuildingMarker(18, mappings, activeRegistry)).toEqual({ status: "not-loaded", buildingId: "G18" });
     });
 
     test("a marker no mapping mentions is unmapped and names no building", () => {

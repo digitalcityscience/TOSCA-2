@@ -391,7 +391,7 @@
             "none": "No building markers received yet.",
             "status": {
               "tracked": "tracked",
-              "outside-aoi": "outside AOI",
+              "not-loaded": "not loaded",
               "unmapped": "not mapped"
             },
             "unmappedHint": "{count} marker(s) arriving with no building. Add them to marker-building-map.json."

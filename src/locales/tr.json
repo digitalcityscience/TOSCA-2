@@ -391,7 +391,7 @@
             "none": "Henüz bina markerı gelmedi.",
             "status": {
               "tracked": "takip ediliyor",
-              "outside-aoi": "AOI dışında",
+              "not-loaded": "yüklenmedi",
               "unmapped": "eşlenmemiş"
             },
             "unmappedHint": "{count} marker geliyor ama karşılığında bina yok. marker-building-map.json dosyasına ekleyin."

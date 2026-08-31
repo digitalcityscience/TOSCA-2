@@ -4,7 +4,6 @@ import bearing from "@turf/bearing"
 import distance from "@turf/distance"
 import { point, polygon } from "@turf/helpers"
 import transformRotate from "@turf/transform-rotate"
-import transformTranslate from "@turf/transform-translate"
 
 /**
  * Physical / scale / AOI configuration model for the tangible table (plan §6, B6, M0.5).
@@ -348,26 +347,88 @@ export function footprintAnchorCentre(feature: Feature<Polygon | MultiPolygon>):
     return [(minX + maxX) / 2, (minY + maxY) / 2]
 }
 
+/** Metres per degree of latitude — the flat-earth constant Vanilla's `geo.js:destinationPoint` uses, at building scale. */
+export const METERS_PER_DEGREE_LATITUDE = 111320
+
+/** Metres per degree of longitude at `latitudeDeg` — shrinks toward the poles, which is the whole reason footprints are carried in metres. */
+export function metersPerDegreeLongitude(latitudeDeg: number): number {
+    return METERS_PER_DEGREE_LATITUDE * Math.cos((latitudeDeg * Math.PI) / 180)
+}
+
+/** A footprint's real-world extent, independent of where on Earth it is currently drawn. */
+export interface FootprintMetricSize {
+    widthM: number
+    heightM: number
+}
+
 /**
- * Places a known building footprint at a detected geographic centre + rotation: translate the
- * footprint from its current {@link footprintAnchorCentre} to `targetCentre` along the geodesic
- * bearing/distance between them, then rotate it around `targetCentre` by `rotationDeg`. Mirrors the
- * Vanilla reference behaviour (`moveBuilding.js`, plan §5e) without reimplementing any
- * tracking-coordinate pipeline — `targetCentre` and `rotationDeg` are assumed already
+ * A footprint's true size in metres, measured across its bounding box at its own latitude. The
+ * building's identity is this shape, not the coordinates it happens to be stored at — see
+ * {@link placeFootprintAt}.
+ */
+export function footprintMetricSize(footprint: Feature<Polygon | MultiPolygon>): FootprintMetricSize {
+    const [minX, minY, maxX, maxY] = bbox(footprint)
+    const midLat = (minY + maxY) / 2
+    return {
+        widthM: (maxX - minX) * metersPerDegreeLongitude(midLat),
+        heightM: (maxY - minY) * METERS_PER_DEGREE_LATITUDE,
+    }
+}
+
+/** Recursively rewrites every `Position` in a GeoJSON coordinate nest, preserving its shape. */
+function mapCoordinates(coordinates: unknown, transform: (position: Position) => Position): unknown {
+    const nest = coordinates as unknown[]
+    return typeof nest[0] === "number" ? transform(coordinates as Position) : nest.map((child) => mapCoordinates(child, transform))
+}
+
+/**
+ * Re-expresses `footprint` around `targetCentre`, carrying its shape in **metres** rather than
+ * degrees: every vertex becomes an east/north offset from the footprint's own
+ * {@link footprintAnchorCentre} — using that centre's latitude for the longitude scale — and is
+ * then converted back to degrees using `targetCentre`'s latitude.
+ *
+ * This is what makes a building location-independent (2026-08-31, live rig): the Collab dataset's
+ * footprints are stored at fixed Hamburg coordinates, but a physical block carries no geography —
+ * it is a shape that must render at whatever pose Python reports, under whatever AOI the operator
+ * chose, anywhere on Earth. A plain degree-space translation preserves the footprint's *degree*
+ * dimensions, so moving it across latitudes silently stretches or squashes it east-west by
+ * `cos(lat_from)/cos(lat_to)`; carrying the offsets in metres preserves the building's actual
+ * dimensions instead.
+ */
+function reanchorFootprint<T extends Polygon | MultiPolygon>(footprint: Feature<T>, targetCentre: Position): Feature<T> {
+    const [originLng, originLat] = footprintAnchorCentre(footprint)
+    const [targetLng, targetLat] = targetCentre
+    const originLngScale = metersPerDegreeLongitude(originLat)
+    const targetLngScale = metersPerDegreeLongitude(targetLat)
+
+    const coordinates = mapCoordinates(footprint.geometry.coordinates, ([lng, lat]) => {
+        const eastM = (lng - originLng) * originLngScale
+        const northM = (lat - originLat) * METERS_PER_DEGREE_LATITUDE
+        return [targetLng + eastM / targetLngScale, targetLat + northM / METERS_PER_DEGREE_LATITUDE]
+    })
+
+    return {
+        ...footprint,
+        geometry: { ...footprint.geometry, coordinates } as T,
+    }
+}
+
+/**
+ * Places a known building footprint at a detected geographic centre + rotation: re-anchor the
+ * footprint's metric shape onto `targetCentre` (see {@link reanchorFootprint}), then rotate it
+ * around `targetCentre` by `rotationDeg`. `targetCentre` and `rotationDeg` are assumed already
  * geo-referenced by Python (B3).
+ *
+ * Rotation still goes through `transformRotate` with `targetCentre` as pivot, unchanged — its
+ * datum and sign are calibrated against the physical rig (see {@link tableToAoiRotationOffsetDeg})
+ * and are deliberately not touched by the metric-translation change.
  */
 export function placeFootprintAt<T extends Polygon | MultiPolygon>(
     footprint: Feature<T>,
     targetCentre: Position,
     rotationDeg: number
 ): Feature<T> {
-    const originalCentre = footprintAnchorCentre(footprint)
-    const from = point(originalCentre)
-    const to = point(targetCentre)
-    const moveDistance = distance(from, to, { units: "meters" })
-    const moveBearing = bearing(from, to)
-    const translated = transformTranslate(footprint, moveDistance, moveBearing, { units: "meters" })
-    return transformRotate(translated, rotationDeg, { pivot: targetCentre })
+    return transformRotate(reanchorFootprint(footprint, targetCentre), rotationDeg, { pivot: targetCentre })
 }
 
 /**

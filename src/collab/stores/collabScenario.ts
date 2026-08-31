@@ -219,10 +219,18 @@ export const useCollabScenarioStore = defineStore("collabScenario", () => {
     /** Whether `viewfinderExtent` currently meets `tableConfig.aoiScaleTarget` (drives the red/green outline). */
     const viewfinderValid = ref(false);
 
-    const selectableBuildings = computed<CollabBuildingFeature[]>(() => {
-        const features = collabBuildingDataset().footprints.features;
-        return aoi.value === null ? features : footprintsWithinAoi(features, aoi.value);
-    });
+    /**
+     * Every footprint in the Collab dataset, unfiltered by the AOI (2026-08-31, live rig).
+     *
+     * A building here is a *shape*, not a place: the physical block on the table carries no
+     * geography, and `placeFootprintAt` re-anchors its metric footprint onto whatever pose Python
+     * reports under whatever AOI the operator chose. Scoping this list to footprints that happen to
+     * lie inside the AOI made the dataset's stored Hamburg coordinates load-bearing — select an AOI
+     * anywhere else and every building was filtered out, so no marker had a footprint to move and
+     * the Table rendered nothing. See {@link footprintsWithinAoi} for the geographic containment
+     * test, which is still exported for genuinely place-based questions.
+     */
+    const selectableBuildings = computed<CollabBuildingFeature[]>(() => collabBuildingDataset().footprints.features);
 
     /**
      * The confirmed AOI as an explicit GeoJSON feature (ticket 09) — the persistent, renderable
@@ -277,12 +285,12 @@ export const useCollabScenarioStore = defineStore("collabScenario", () => {
     }
 
     /**
-     * Loads the Collab-owned building dataset — scoped to the selected AOI (`selectableBuildings`,
-     * ticket 10) — into the base-city slice (OD-3). Requires an AOI: buildings are only ever
-     * "selectable footprints for the AOI" (ticket 07). Re-running this after re-selecting a
-     * different AOI refreshes `base` to that AOI's buildings. The base dataset itself is never
-     * rendered as its own map layer — it exists only as the known-footprint reference `collabTrackingRender`
-     * translates/rotates onto detected poses for the "Tracked buildings (Python)" layer.
+     * Loads the Collab-owned building dataset (`selectableBuildings`, ticket 10) into the base-city
+     * slice (OD-3). Still gated on a confirmed AOI — not because the buildings belong to it (they
+     * no longer do, see `selectableBuildings`), but because this runs as part of confirming one and
+     * nothing downstream can render before then. The base dataset is never a map layer of its own:
+     * it exists only as the known-footprint reference `collabTrackingRender` re-anchors onto
+     * detected poses for the "Tracked buildings (Python)" layer.
      */
     async function loadKnownFootprints(): Promise<void> {
         if (aoi.value === null) {
