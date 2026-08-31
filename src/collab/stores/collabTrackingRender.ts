@@ -26,7 +26,7 @@ import {
     type MapCalibrationMessage,
 } from "./collabCalibration";
 import {
-    aoiCornerForMapMarker,
+    aoiCalibrationMarkerPosition,
     buildMapCalibrationFromMarkerReadings,
     calibrationMarkerImageUrl,
     createMarkerObjectRegistry,
@@ -274,7 +274,14 @@ function buildCalibrationMarkerElement(markerId: number): HTMLElement {
  * 6x6, and OpenCV needs roughly a full cell of white around the black ring to close the contour).
  * When markers come back undetected on site, this line is the first thing to read.
  */
-function logCalibrationMarkerGeometry(markerId: number, wrapper: HTMLElement, map: MapLibreMap, aoi: AOIExtent): void {
+function logCalibrationMarkerGeometry(
+    markerId: number,
+    wrapper: HTMLElement,
+    map: MapLibreMap,
+    aoi: AOIExtent,
+    position: [number, number],
+    usedOverride: boolean
+): void {
     const img = calibrationMarkerImage(wrapper);
     if (img === null) {
         return;
@@ -283,6 +290,7 @@ function logCalibrationMarkerGeometry(markerId: number, wrapper: HTMLElement, ma
     try {
         const topLeft = map.project(aoi.corners[0] as [number, number]);
         const topRight = map.project(aoi.corners[1] as [number, number]);
+        const markerProjectedPx = map.project(position);
         const totalPx = Number.parseFloat(img.style.width);
         const canvas = map.getCanvas?.();
         const geometry = {
@@ -294,6 +302,12 @@ function logCalibrationMarkerGeometry(markerId: number, wrapper: HTMLElement, ma
             canvasCssPx: canvas === undefined ? undefined : [canvas.clientWidth, canvas.clientHeight],
             devicePixelRatio: window.devicePixelRatio,
             mirrored: img.style.transform,
+            // AOI-update diagnosis (2026-08-31): which lng/lat this marker actually used (its own
+            // drag override vs. the AOI's corner) and where that projects on the current canvas —
+            // lets a second AOI Update be compared against the first for the exact same marker.
+            usedOverride,
+            position,
+            positionProjectedPx: [markerProjectedPx.x, markerProjectedPx.y],
         };
         console.info(`[collab] calibration marker ${markerId} rendered`, geometry);
         collabDebugLog("table", "markerGeometry", { markerId, ...geometry }); // TEMPORARY — remove after AOI/marker diagnosis
@@ -741,7 +755,11 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             hiddenLayerIds = hideNonCalibrationLayers(map);
         }
         for (const config of MAP_CALIBRATION_MARKERS) {
-            const corner = aoiCornerForMapMarker(aoi, config.corner) as [number, number];
+            // The inset position (Vanilla's `MARKER_INSET_RATIO`), not the bare AOI corner: an AOI
+            // corner is a physical table corner, and a centre-anchored marker there hangs half off
+            // the table edge before any projector misalignment is counted.
+            const corner = aoiCalibrationMarkerPosition(aoi, config.corner, scenarioStore.tableConfig) as [number, number];
+            const usedOverride = markerPositionOverrides.has(config.id);
             const position = markerPositionOverrides.get(config.id) ?? corner;
             const received = session.calibration.mapCalibrationMarkerIdsSeen.includes(config.id);
             const existing = calibrationMarkers.get(config.id);
@@ -761,10 +779,14 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                     publishTableMarkerStatus();
                 });
                 calibrationMarkers.set(config.id, marker);
-                logCalibrationMarkerGeometry(config.id, element, map, aoi);
+                logCalibrationMarkerGeometry(config.id, element, map, aoi, position, usedOverride);
             } else {
                 existing.setLngLat(position);
                 applyCalibrationMarkerReceivedState(existing.getElement(), received);
+                // AOI-update diagnosis (2026-08-31): this branch used to log nothing, so a *second*
+                // AOI Update against an already-presenting marker (the exact scenario under
+                // diagnosis) left no geometry trail to compare against the first AOI's.
+                logCalibrationMarkerGeometry(config.id, existing.getElement(), map, aoi, position, usedOverride);
             }
         }
     }
@@ -1247,7 +1269,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             reportDeveloperError("collabTrackingRender.calibrateFromDetectedMarkers", new Error("no AOI confirmed"));
             return;
         }
-        const message = buildMapCalibrationFromMarkerReadings(aoi, mapCalibrationMarkerHealth.value);
+        const message = buildMapCalibrationFromMarkerReadings(aoi, mapCalibrationMarkerHealth.value, scenarioStore.tableConfig);
         if (message === undefined) {
             reportDeveloperError(
                 "collabTrackingRender.calibrateFromDetectedMarkers",

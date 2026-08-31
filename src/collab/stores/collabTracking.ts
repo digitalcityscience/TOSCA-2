@@ -1,6 +1,7 @@
 import type { Feature, FeatureCollection, Point, Position } from "geojson"
 import { reportDeveloperError } from "@helpers/userFacingError"
-import type { AOIExtent, MapCalibrationMessage, MapCalibrationPoint } from "./collabCalibration"
+import { DEFAULT_COLLAB_TABLE_CONFIG, calibrationMarkerUvs, quadPointAt } from "./collabCalibration"
+import type { AOIExtent, CollabTableConfig, MapCalibrationMessage, MapCalibrationPoint } from "./collabCalibration"
 
 /**
  * Transport-agnostic tracking boundary (plan §14, B1/B3). Views/stores program against
@@ -148,6 +149,32 @@ export function aoiCornerForMapMarker(aoi: AOIExtent, corner: MapCalibrationMark
 }
 
 /**
+ * Where a given map-calibration marker is actually placed within `aoi` — its corner role's
+ * position pulled inward by {@link calibrationMarkerInsetRatio} (Vanilla's `MARKER_INSET_RATIO`),
+ * so a centre-anchored marker lands wholly on the physical table instead of straddling its edge.
+ *
+ * This, not {@link aoiCornerForMapMarker}, is what both the Table's marker rendering and the
+ * `map_calibration` correspondence must use — they describe the same four physical points, and the
+ * homography is only correct while they agree. `aoiCornerForMapMarker` remains the raw corner
+ * lookup the AOI's own geometry is expressed in.
+ */
+export function aoiCalibrationMarkerPosition(
+    aoi: AOIExtent,
+    corner: MapCalibrationMarkerCorner,
+    config: CollabTableConfig = DEFAULT_COLLAB_TABLE_CONFIG
+): Position {
+    const [topLeft, topRight, bottomRight, bottomLeft] = calibrationMarkerUvs(config)
+    const uv = corner === "top_left"
+        ? topLeft
+        : corner === "top_right"
+            ? topRight
+            : corner === "bottom_right"
+                ? bottomRight
+                : bottomLeft
+    return quadPointAt(aoi.corners, uv[0], uv[1])
+}
+
+/**
  * Builds the `map_calibration` correspondences from the four real detected map-calibration marker
  * readings (ticket 12): each marker's raw table-pixel position (from `readings`), paired with the
  * AOI's matching geographic corner via {@link aoiCornerForMapMarker}. This is the real counterpart
@@ -158,7 +185,8 @@ export function aoiCornerForMapMarker(aoi: AOIExtent, corner: MapCalibrationMark
  */
 export function buildMapCalibrationFromMarkerReadings(
     aoi: AOIExtent,
-    readings: RawMarkerSnapshot
+    readings: RawMarkerSnapshot,
+    config: CollabTableConfig = DEFAULT_COLLAB_TABLE_CONFIG
 ): MapCalibrationMessage | undefined {
     const points: MapCalibrationPoint[] = []
     for (const marker of MAP_CALIBRATION_MARKERS) {
@@ -166,7 +194,9 @@ export function buildMapCalibrationFromMarkerReadings(
         if (reading === undefined) {
             return undefined
         }
-        const [lng, lat] = aoiCornerForMapMarker(aoi, marker.corner)
+        // The inset position, not the raw corner: this must be the geographic point the Table
+        // actually projected that marker at, or the correspondence is off by the inset itself.
+        const [lng, lat] = aoiCalibrationMarkerPosition(aoi, marker.corner, config)
         points.push({ pixel_position: [reading.pixelX, reading.pixelY], lat_lon_position: [lat, lng] })
     }
     return { type: "map_calibration", points, version: 2 }

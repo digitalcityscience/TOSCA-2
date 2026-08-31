@@ -474,10 +474,12 @@ describe("collabTrackingRender store", () => {
             expect(JSON.parse(sockets[0]!.sent[0]!)).toEqual({
                 type: "map_calibration",
                 points: [
-                    { pixel_position: [10, 20], lat_lon_position: [53.56, 9.98] },
-                    { pixel_position: [1590, 20], lat_lon_position: [53.56, 10.0] },
-                    { pixel_position: [10, 780], lat_lon_position: [53.54, 9.98] },
-                    { pixel_position: [1590, 780], lat_lon_position: [53.54, 10.0] },
+                    // The inset positions the markers were actually projected at, not the AOI's
+                    // raw corners (Vanilla's `MARKER_INSET_RATIO`).
+                    { pixel_position: [10, 20], lat_lon_position: [53.558, 9.981] },
+                    { pixel_position: [1590, 20], lat_lon_position: [53.558, 9.999] },
+                    { pixel_position: [10, 780], lat_lon_position: [53.542, 9.981] },
+                    { pixel_position: [1590, 780], lat_lon_position: [53.542, 9.999] },
                 ],
                 version: 2,
             });

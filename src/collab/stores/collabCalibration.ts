@@ -102,6 +102,85 @@ export function calibrationMarkerSizePx(): number {
 }
 
 /**
+ * How far each calibration marker sits *inward* from its AOI corner, as a fraction of the AOI's
+ * width — Vanilla's `state.js::MARKER_INSET_RATIO`, the rule this port had dropped.
+ *
+ * Without it a marker is centred exactly on an AOI corner, and since `buildMapCalibration` pairs
+ * AOI corner *i* with table-pixel corner *i*, an AOI corner *is* a physical table corner: a
+ * centre-anchored marker there has half its width hanging over the table edge before the projector
+ * is even slightly out of alignment, which is what put the calibration markers off the physical
+ * table (live rig, 2026-08-31). Vanilla never hit this because it inset every marker by 5% of the
+ * overlay's width (`800 m × 0.05 = 40 m` on its 800×400 m overlay — 8 cm on this 160×80 cm table).
+ *
+ * Read from `VITE_COLLAB_CALIBRATION_MARKER_INSET_RATIO` (B6: a physically-tuned number is never
+ * hardcoded in the routine itself); unset/unparsable falls back to Vanilla's proven `0.05`.
+ */
+export function calibrationMarkerInsetRatio(): number {
+    // Read as a trimmed string first, not straight through `Number(... ?? "")` like the getters
+    // above: `0` is a *meaningful* value here (deliberately no inset), and `Number("")` is also 0,
+    // so an unset variable would otherwise be indistinguishable from an explicit zero and silently
+    // disable the inset entirely.
+    const raw = String(import.meta.env.VITE_COLLAB_CALIBRATION_MARKER_INSET_RATIO ?? "").trim()
+    if (raw === "") {
+        return 0.05
+    }
+    const parsed = Number(raw)
+    return Number.isFinite(parsed) && parsed >= 0 && parsed < 0.5 ? parsed : 0.05
+}
+
+/**
+ * {@link calibrationMarkerInsetRatio} expressed as a fraction of each axis of the AOI/table
+ * rectangle, so the inset is the same *physical distance* on all four edges rather than the same
+ * fraction (Vanilla insets by `MARKER_INSET_M` metres on both axes, not by 5% of each side): the
+ * ratio is defined against the width, so the vertical fraction is scaled by the table's aspect —
+ * `0.05` horizontally becomes `0.10` vertically on a 160×80 cm table, exactly as Vanilla's 40 m
+ * inset was 5% of its 800 m width and 10% of its 400 m height.
+ *
+ * Taken from the table's aspect ratio rather than measured off the AOI, because the AOI is
+ * aspect-locked to the table by construction (`collabScenario.viewfinderScreenCorners`) and degrees
+ * of longitude and latitude are not the same physical length, so an AOI-measured ratio would be
+ * latitude-dependent.
+ */
+export function calibrationMarkerInsetFractions(config: CollabTableConfig): { u: number, v: number } {
+    const u = calibrationMarkerInsetRatio()
+    const aspectRatio = config.physicalTable.widthCm / config.physicalTable.heightCm
+    return { u, v: Math.min(u * aspectRatio, 0.5) }
+}
+
+/**
+ * Bilinear interpolation inside a four-corner quad ordered top-left, top-right, bottom-right,
+ * bottom-left — the ordering both {@link AOIExtent.corners} and {@link tablePixelCorners} use.
+ * `(0, 0)` is the top-left corner, `(1, 1)` the bottom-right. Bilinear rather than a simple
+ * axis-aligned offset so an AOI that is not perfectly axis-aligned still insets along its own
+ * edges instead of along north/east.
+ */
+export function quadPointAt(corners: readonly Position[], u: number, v: number): Position {
+    const [topLeft, topRight, bottomRight, bottomLeft] = corners
+    const lerp = (from: number, to: number, t: number): number => from + (to - from) * t
+    const top = [lerp(topLeft[0], topRight[0], u), lerp(topLeft[1], topRight[1], u)]
+    const bottom = [lerp(bottomLeft[0], bottomRight[0], u), lerp(bottomLeft[1], bottomRight[1], u)]
+    return [lerp(top[0], bottom[0], v), lerp(top[1], bottom[1], v)]
+}
+
+/**
+ * The four `(u, v)` positions of the calibration markers within the AOI/table rectangle, in
+ * {@link AOIExtent.corners} order (top-left, top-right, bottom-right, bottom-left) — one shared
+ * definition so the geographic position a marker is *rendered* at and the table-pixel position it
+ * is *paired with* in the `map_calibration` handshake can never drift apart. They are the same
+ * four points expressed in two coordinate systems; a mismatch would silently skew Python's
+ * homography rather than fail.
+ */
+export function calibrationMarkerUvs(config: CollabTableConfig): [[number, number], [number, number], [number, number], [number, number]] {
+    const { u, v } = calibrationMarkerInsetFractions(config)
+    return [
+        [u, v],
+        [1 - u, v],
+        [1 - u, 1 - v],
+        [u, 1 - v],
+    ]
+}
+
+/**
  * Default config: physical table dimensions (plan §5a: 160×80 cm rig) and table-pixel density
  * (plan §5a/§5b: 10 px/cm, ~1600×800, fixed by Python's stitching pipeline) are real hardware/
  * protocol facts, not scale decisions. `projectionInset` and `aoiScaleTarget` read their measured
@@ -203,17 +282,25 @@ export function tablePixelCorners(config: CollabTableConfig): [Position, Positio
 }
 
 /**
- * Builds the `map_calibration` correspondences for a chosen AOI: each table-pixel corner
- * (from config) paired with the matching geographic corner of the AOI the operator selected.
- * This is TOSCA's whole role in the calibration handshake (B3) — Python does the table→AOI
- * homography once it receives this message; this routine does not.
+ * Builds the `map_calibration` correspondences for a chosen AOI: each of the four calibration
+ * marker positions in table-pixel space (from config) paired with the same position expressed
+ * geographically within the AOI the operator selected. This is TOSCA's whole role in the
+ * calibration handshake (B3) — Python does the table→AOI homography once it receives this message;
+ * this routine does not.
+ *
+ * Both sides go through the one {@link calibrationMarkerUvs} definition, so the marker inset
+ * (see {@link calibrationMarkerInsetRatio}) applies identically in both coordinate systems and the
+ * correspondence stays exact. Insetting only the rendered marker would leave this message claiming
+ * the marker sits on the table's corner while it is projected 8 cm inside it — a homography skewed
+ * by that much, with nothing failing to signal it.
  */
 export function buildMapCalibration(aoi: AOIExtent, config: CollabTableConfig): MapCalibrationMessage {
     const pixelCorners = tablePixelCorners(config)
-    const points: MapCalibrationPoint[] = aoi.corners.map((corner, index) => ({
-        pixel_position: pixelCorners[index] as [number, number],
-        lat_lon_position: [corner[1], corner[0]],
-    }))
+    const points: MapCalibrationPoint[] = calibrationMarkerUvs(config).map(([u, v]) => {
+        const [pixelX, pixelY] = quadPointAt(pixelCorners, u, v)
+        const [lng, lat] = quadPointAt(aoi.corners, u, v)
+        return { pixel_position: [pixelX, pixelY] as [number, number], lat_lon_position: [lat, lng] as [number, number] }
+    })
     return { type: "map_calibration", points, version: 2 }
 }
 

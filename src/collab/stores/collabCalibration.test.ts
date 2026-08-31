@@ -1,6 +1,6 @@
 import distance from "@turf/distance";
 import { point, polygon } from "@turf/helpers";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import type { AOIExtent, CollabTableConfig } from "./collabCalibration";
 import {
     DEFAULT_COLLAB_TABLE_CONFIG,
@@ -9,6 +9,8 @@ import {
     aoiBoundingBox,
     aoiChecksum,
     buildMapCalibration,
+    calibrationMarkerInsetFractions,
+    calibrationMarkerInsetRatio,
     calibrationMarkerSizePx,
     deriveGroundScale,
     deriveTrackedFootprint,
@@ -79,7 +81,7 @@ describe("tablePixelCorners", () => {
 });
 
 describe("buildMapCalibration", () => {
-    test("pairs table-pixel corners with the AOI's geographic corners, >= 4 points", () => {
+    test("pairs the four inset marker positions in table-pixel space with the same positions in the AOI, >= 4 points", () => {
         const message = buildMapCalibration(hamburgAOI, DEFAULT_COLLAB_TABLE_CONFIG);
 
         expect(message.type).toBe("map_calibration");
@@ -90,16 +92,32 @@ describe("buildMapCalibration", () => {
             expect(p.lat_lon_position).toHaveLength(2);
         }
 
-        // pixel_position matches table-pixel space; lat_lon_position is [lat, lon]
-        // (protocol field name), flipped from the AOI's GeoJSON [lon, lat] corners.
+        // Both sides are the marker positions, not the raw corners: 5% of the 1600 px table width
+        // in from each vertical edge, and the same *distance* (80 px = 8 cm, i.e. 10% of the 800 px
+        // height) in from each horizontal one — Vanilla's `MARKER_INSET_RATIO`. `lat_lon_position`
+        // is [lat, lon] (protocol field name), flipped from the AOI's GeoJSON [lon, lat] corners.
         expect(message.points[0]).toEqual({
-            pixel_position: [0, 0],
-            lat_lon_position: [53.56, 9.98],
+            pixel_position: [80, 80],
+            lat_lon_position: [53.558, 9.981],
         });
         expect(message.points[2]).toEqual({
-            pixel_position: [1600, 800],
-            lat_lon_position: [53.54, 10.0],
+            pixel_position: [1520, 720],
+            lat_lon_position: [53.542, 9.999],
         });
+    });
+
+    test("an explicit zero inset ratio puts the correspondences back on the raw corners (an unset env var must not read as zero)", () => {
+        vi.stubEnv("VITE_COLLAB_CALIBRATION_MARKER_INSET_RATIO", "0");
+        const message = buildMapCalibration(hamburgAOI, DEFAULT_COLLAB_TABLE_CONFIG);
+
+        expect(message.points[0]).toEqual({ pixel_position: [0, 0], lat_lon_position: [53.56, 9.98] });
+        expect(message.points[2]).toEqual({ pixel_position: [1600, 800], lat_lon_position: [53.54, 10.0] });
+        vi.unstubAllEnvs();
+    });
+
+    test("defaults to Vanilla's 0.05 when the env var is unset, and scales the vertical fraction by the table's aspect so the inset is one distance on all four edges", () => {
+        expect(calibrationMarkerInsetRatio()).toBe(0.05);
+        expect(calibrationMarkerInsetFractions(DEFAULT_COLLAB_TABLE_CONFIG)).toEqual({ u: 0.05, v: 0.1 });
     });
 });
 

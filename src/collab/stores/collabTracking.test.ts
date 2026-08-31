@@ -20,6 +20,7 @@ import {
     RESERVED_BUILDING_MARKER_IDS,
     RESERVED_MARKER_REGISTRY,
     TrackingFeedNormalizer,
+    aoiCalibrationMarkerPosition,
     aoiCornerForMapMarker,
     buildMapCalibrationFromMarkerReadings,
     calibrationMarkerImageUrl,
@@ -134,7 +135,7 @@ describe("buildMapCalibrationFromMarkerReadings (ticket 12)", () => {
         return new Map(entries.map(([id, [pixelX, pixelY]]) => [id, { pixelX, pixelY, rotation: 0, cameraOrTag: "000" }]));
     }
 
-    test("pairs each of the four detected markers' raw pixel position with its AOI corner via aoiCornerForMapMarker", () => {
+    test("pairs each of the four detected markers' raw pixel position with the position that marker was actually projected at — the inset one, not the bare AOI corner (they must be the same point, or Python's homography is skewed by the inset itself)", () => {
         const message = buildMapCalibrationFromMarkerReadings(
             aoi,
             readings([
@@ -145,16 +146,28 @@ describe("buildMapCalibrationFromMarkerReadings (ticket 12)", () => {
             ])
         );
 
+        // 5% of the AOI's 0.02° width in from each vertical edge, and the same distance — 10% of
+        // its 0.02° height, on a 2:1 table — in from each horizontal one.
         expect(message).toEqual<MapCalibrationMessage>({
             type: "map_calibration",
             points: [
-                { pixel_position: [10, 20], lat_lon_position: [53.56, 9.98] },
-                { pixel_position: [1590, 20], lat_lon_position: [53.56, 10.0] },
-                { pixel_position: [10, 780], lat_lon_position: [53.54, 9.98] },
-                { pixel_position: [1590, 780], lat_lon_position: [53.54, 10.0] },
+                { pixel_position: [10, 20], lat_lon_position: [53.558, 9.981] },
+                { pixel_position: [1590, 20], lat_lon_position: [53.558, 9.999] },
+                { pixel_position: [10, 780], lat_lon_position: [53.542, 9.981] },
+                { pixel_position: [1590, 780], lat_lon_position: [53.542, 9.999] },
             ],
             version: 2,
         });
+    });
+
+    test("every marker position sits strictly inside the AOI, on both axes, for all four corners", () => {
+        for (const marker of MAP_CALIBRATION_MARKERS) {
+            const [lng, lat] = aoiCalibrationMarkerPosition(aoi, marker.corner);
+            expect(lng).toBeGreaterThan(9.98);
+            expect(lng).toBeLessThan(10.0);
+            expect(lat).toBeGreaterThan(53.54);
+            expect(lat).toBeLessThan(53.56);
+        }
     });
 
     test("returns undefined when any of the four marker ids has no reading yet", () => {
