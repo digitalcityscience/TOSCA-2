@@ -395,6 +395,7 @@
     "layers": {
       "aoiViewfinder": "Collab · İlgi alanı seçim çerçevesi",
       "trackedFootprint": "Collab · Takip edilen binalar (Python)",
+      "trackedCentre": "Collab · Takip edilen bina orta noktaları",
       "trackedBbox": "Collab · Takip edilen sınır kutusu",
       "trackedOrientation": "Collab · Takip edilen yönelim",
       "trackedId": "Collab · Takip edilen kimlik",

@@ -4,7 +4,7 @@ import { nextTick } from "vue";
 import bbox from "@turf/bbox";
 import bearing from "@turf/bearing";
 import { point } from "@turf/helpers";
-import type { Polygon, Position } from "geojson";
+import type { FeatureCollection, Polygon, Position } from "geojson";
 import type { CollabChannel } from "./helpers/collabChannel";
 import type { CollabBuildingFixtureProperties } from "./fixtures/collabBuildingFixture";
 
@@ -353,7 +353,7 @@ describe("Phase 4 (ticket 13): tracked buildings computed once in Control, broad
     });
 });
 
-describe("6/7 layer management (ticket 15): Table only ever gets \"Tracked buildings (Python)\", Control debug overlays are opt-in", () => {
+describe("6/7 layer management (ticket 15): Table gets the tracked footprints + their centres, Control debug overlays are opt-in", () => {
     test("Control's debug overlays are off until the debug switch is enabled, and are never created on Table", async () => {
         const session = useCollabSessionStore();
         session.base.objects = makeBuildings();
@@ -414,6 +414,55 @@ describe("6/7 layer management (ticket 15): Table only ever gets \"Tracked build
         expect(fakeSources.has("collabTrackedOrientation")).toBe(false);
         expect(fakeSources.has("collabTrackedId")).toBe(false);
         expect(fakeSources.has("collabTrackedConfidence")).toBe(false);
+
+        trackingRender.stop();
+    });
+
+    test("Table renders a centre dot per tracked building, straight off the broadcast `ids` collection", async () => {
+        const session = useCollabSessionStore();
+        session.base.objects = makeBuildings();
+        const ids: FeatureCollection = {
+            type: "FeatureCollection",
+            features: [
+                { type: "Feature", id: "B-0", properties: { label: "B-0" }, geometry: { type: "Point", coordinates: [9.99, 53.55] } },
+                { type: "Feature", id: "B-1", properties: { label: "B-1" }, geometry: { type: "Point", coordinates: [9.991, 53.551] } },
+            ],
+        };
+        session.trackedBuildings.ids = ids;
+        session.trackedBuildings.revision = 1;
+
+        const trackingRender = useCollabTrackingRenderStore();
+        trackingRender.startRendering("table");
+
+        for (let i = 0; i < 60; i++) {
+            await Promise.resolve();
+        }
+
+        // Same Point features Control derived and broadcast — Table adds no derivation of its own.
+        expect(fakeSources.has("collabTrackedCentres")).toBe(true);
+        expect(fakeSources.get("collabTrackedCentres")?.setData).toHaveBeenCalledWith(ids);
+        const centreLayerCall = (addMapLayer.mock.calls as unknown as [{ identifier: string; layerType: string }][]).find(
+            ([call]) => call.identifier === "collabTrackedCentres-circle"
+        );
+        expect(centreLayerCall?.[0].layerType).toBe("circle");
+
+        trackingRender.stop();
+    });
+
+    test("Control does not create the Table-only centre-dot layer", async () => {
+        const session = useCollabSessionStore();
+        session.base.objects = makeBuildings();
+        session.tracking["B-0"] = { pose: { lng: 9.99, lat: 53.55, rotation: 0 }, confidence: 1, lastSeen: 0 };
+
+        const trackingRender = useCollabTrackingRenderStore();
+        trackingRender.startRendering("control");
+
+        for (let i = 0; i < 60; i++) {
+            await Promise.resolve();
+        }
+
+        expect(fakeSources.has("collabTrackedFootprints")).toBe(true);
+        expect(fakeSources.has("collabTrackedCentres")).toBe(false);
 
         trackingRender.stop();
     });

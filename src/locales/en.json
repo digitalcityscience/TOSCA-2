@@ -395,6 +395,7 @@
     "layers": {
       "aoiViewfinder": "Collab · AOI selection frame",
       "trackedFootprint": "Collab · Tracked buildings (Python)",
+      "trackedCentre": "Collab · Tracked building centres",
       "trackedBbox": "Collab · Tracked bbox",
       "trackedOrientation": "Collab · Tracked orientation",
       "trackedId": "Collab · Tracked id",

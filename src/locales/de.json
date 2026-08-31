@@ -395,6 +395,7 @@
     "layers": {
       "aoiViewfinder": "Collab · Auswahlrahmen (Interessengebiet)",
       "trackedFootprint": "Collab · Verfolgte Gebäude (Python)",
+      "trackedCentre": "Collab · Verfolgte Gebäudemittelpunkte",
       "trackedBbox": "Collab · Verfolgte Bounding-Box",
       "trackedOrientation": "Collab · Verfolgte Ausrichtung",
       "trackedId": "Collab · Verfolgte ID",

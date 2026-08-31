@@ -72,6 +72,12 @@ const TRACKED_ID_LAYER_ID = "collabTrackedId-symbol";
 const TRACKED_CONFIDENCE_SOURCE_ID = "collabTrackedConfidence";
 const TRACKED_CONFIDENCE_LAYER_ID = "collabTrackedConfidence-symbol";
 
+const TRACKED_CENTRE_SOURCE_ID = "collabTrackedCentres";
+const TRACKED_CENTRE_LAYER_ID = "collabTrackedCentres-circle";
+
+/** Radius, in screen pixels, of a tracked building's projected centre dot on the Table. */
+const TRACKED_CENTRE_RADIUS_PX = 5;
+
 /**
  * Every Collab-managed layer id that can exist on the Table window (ticket 11, fix-tickets) — the
  * ones {@link syncCalibrationPresentation} hides while presenting, alongside the basemap. Control-
@@ -82,6 +88,7 @@ const TRACKED_CONFIDENCE_LAYER_ID = "collabTrackedConfidence-symbol";
 const TABLE_MANAGED_LAYER_IDS: readonly string[] = [
     TRACKED_FOOTPRINT_FILL_LAYER_ID,
     TRACKED_FOOTPRINT_OUTLINE_LAYER_ID,
+    TRACKED_CENTRE_LAYER_ID,
 ];
 
 /** Control debug overlay's orientation-indicator line length (metres). */
@@ -568,7 +575,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     async function createGeojsonSourceAndLayer(
         sourceId: string,
         layerId: string,
-        layerType: "fill" | "line" | "symbol",
+        layerType: "fill" | "line" | "symbol" | "circle",
         data: FeatureCollection,
         displayName: string,
         layerStyle: { paint?: Record<string, unknown>; layout?: Record<string, unknown> }
@@ -589,14 +596,14 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     /**
      * Ensures `sourceId`+`layerId` exist with `layerType`/`layerStyle`, or just pushes `data`
      * via `setData` if they already do (CLAUDE.md: live updates via `setData`, map touched only
-     * through the map store). Shared by the line/symbol variants below — they differ only in the
-     * layer type and style they pass in. `ensureFillLayer` below has its own lock scope since it
+     * through the map store). Shared by the line/symbol/circle variants below — they differ only in
+     * the layer type and style they pass in. `ensureFillLayer` below has its own lock scope since it
      * also owns a companion outline layer that must not be added twice either (A4).
      */
     async function ensureGeojsonLayer(
         sourceId: string,
         layerId: string,
-        layerType: "fill" | "line" | "symbol",
+        layerType: "fill" | "line" | "symbol" | "circle",
         data: FeatureCollection,
         displayName: string,
         layerStyle: { paint?: Record<string, unknown>; layout?: Record<string, unknown> }
@@ -645,6 +652,29 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     ): Promise<void> {
         await ensureGeojsonLayer(sourceId, layerId, "line", data, displayName, {
             paint: { "line-color": color, "line-width": 2 },
+        });
+    }
+
+    /**
+     * The Table's tracked-building centre dots. Rendered as a `circle` layer rather than reusing
+     * `ensureFillLayer` because the input features are Points: a fill layer would draw nothing for
+     * them, and a fixed pixel radius keeps the dot legible at every AOI zoom instead of shrinking
+     * with ground scale the way a metre-radius buffer would.
+     */
+    async function ensureCircleLayer(
+        sourceId: string,
+        layerId: string,
+        data: FeatureCollection,
+        displayName: string,
+        color: string
+    ): Promise<void> {
+        await ensureGeojsonLayer(sourceId, layerId, "circle", data, displayName, {
+            paint: {
+                "circle-radius": TRACKED_CENTRE_RADIUS_PX,
+                "circle-color": color,
+                "circle-stroke-color": "#ffffff",
+                "circle-stroke-width": 1.5,
+            },
         });
     }
 
@@ -852,6 +882,23 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                 "#c2410c"
             )
         );
+
+        // The Table's own read of where each tracked building actually sits: one dot at every
+        // tracked building's detected centre, from the same `ids` Point collection Control derived
+        // and broadcast (`session.trackedBuildings.ids`) — no second derivation, no extra transport.
+        // Table-only: Control already shows those centres through its debug overlays, and this layer
+        // exists so the projected table surface reads the placements without them.
+        if (windowKind === "table") {
+            await safelyEnsure("trackedCentre", () =>
+                ensureCircleLayer(
+                    TRACKED_CENTRE_SOURCE_ID,
+                    TRACKED_CENTRE_LAYER_ID,
+                    tracked.ids,
+                    i18n.global.t("collab.layers.trackedCentre"),
+                    "#f97316"
+                )
+            );
+        }
 
         if (windowKind === "control" && debugOverlaysEnabled.value) {
             await safelyEnsure("trackedBbox", () =>
