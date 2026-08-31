@@ -26,7 +26,37 @@ const clickedLayers = ref()
 type PopupAnchor = "center" | "top" | "bottom" | "left" | "right" | "top-left" | "top-right" | "bottom-left" | "bottom-right";
 let attributePopup: maplibre.Popup | undefined
 let featureInfoRequest: AbortController | undefined
+
+/**
+ * Re-arming `matchMedia` listener for `window.devicePixelRatio` changes (there's no native
+ * "devicePixelRatio changed" event — this is the standard workaround: a media query on the
+ * *current* ratio fires `change` once that ratio stops matching, then must be re-registered for
+ * whatever the new ratio is). Calls `map.resize()` on every change.
+ *
+ * Needed because MapLibre only auto-resizes off a `ResizeObserver` on its container element,
+ * which reacts to CSS box-size changes — not to a devicePixelRatio change alone. Moving a browser
+ * window to a screen with a different DPI/OS scaling (the Collab Table window moving from the
+ * operator's monitor to the projector, live-rig diagnosis 2026-08-31) leaves the container's CSS
+ * size unchanged, so MapLibre never notices and keeps its canvas backing store at the old
+ * resolution. The map's internal projection then desyncs from that stale backing store, so
+ * anything positioned via `project()`/`setLngLat()` (e.g. Collab's calibration marker DOM
+ * elements) lands at the wrong place relative to the still-old-resolution basemap underneath it
+ * — reported as markers "jumping outside the table" after dragging the window to the projector.
+ */
+function watchDevicePixelRatio(): void {
+    const mediaQuery = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+    mediaQuery.addEventListener(
+        "change",
+        () => {
+            mapStore.map?.resize();
+            watchDevicePixelRatio();
+        },
+        { once: true }
+    );
+}
+
 onMounted(() => {
+    watchDevicePixelRatio();
     const configuredLng = Number(import.meta.env.VITE_MAP_START_LNG)
     const configuredLat = Number(import.meta.env.VITE_MAP_START_LAT)
     const lng = Number.isNaN(configuredLng) ? 9.993163 : configuredLng

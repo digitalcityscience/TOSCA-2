@@ -3,7 +3,6 @@ import { point, polygon } from "@turf/helpers";
 import { describe, expect, test } from "vitest";
 import type { AOIExtent, CollabTableConfig } from "./collabCalibration";
 import {
-    CALIBRATION_MARKER_SIZE_M,
     DEFAULT_COLLAB_TABLE_CONFIG,
     ROTATION_JITTER_THRESHOLD_DEG,
     angularDistanceDeg,
@@ -47,17 +46,9 @@ describe("aoiChecksum (grilling doc Q3)", () => {
     });
 });
 
-describe("calibrationMarkerSizePx (exact Vanilla formula)", () => {
-    test("copies Vanilla's 27 metre marker and meters-per-pixel calculation verbatim", () => {
-        const map = { getCenter: () => ({ lat: 53.5511 }), getZoom: () => 17.66 };
-        const metersPerPixel = (156543.03392 * Math.cos((53.5511 * Math.PI) / 180)) / Math.pow(2, 17.66);
-        expect(CALIBRATION_MARKER_SIZE_M).toBe(27);
-        expect(calibrationMarkerSizePx(map)).toBeCloseTo(27 / metersPerPixel, 10);
-    });
-
-    test("grows with zoom exactly like Vanilla", () => {
-        const atZoom = (zoom: number) => calibrationMarkerSizePx({ getCenter: () => ({ lat: 53.5511 }), getZoom: () => zoom });
-        expect(atZoom(18.66)).toBeCloseTo(atZoom(17.66) * 2, 10);
+describe("calibrationMarkerSizePx (AOI-independent, live-rig diagnosis 2026-08-31)", () => {
+    test("returns a fixed size regardless of AOI/zoom (VITE_COLLAB_CALIBRATION_MARKER_SIZE_PX unset -> 90px default)", () => {
+        expect(calibrationMarkerSizePx()).toBe(90);
     });
 });
 

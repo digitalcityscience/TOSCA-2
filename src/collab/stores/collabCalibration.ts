@@ -80,18 +80,25 @@ function targetGroundScale(): number {
     return Number.isFinite(raw) && raw > 0 ? raw : 500
 }
 
-/** Vanilla `state.js::markerSizeM`, copied verbatim. */
-export const CALIBRATION_MARKER_SIZE_M = 27
-
-/** Vanilla `markers.js::updateMarkerSizes` metre-to-screen-pixel formula, copied verbatim. */
-export function calibrationMarkerSizePx(map: {
-    getCenter(): { lat: number }
-    getZoom(): number
-}): number {
-    const lat = map.getCenter().lat
-    const zoom = map.getZoom()
-    const metersPerPixel = (156543.03392 * Math.cos((lat * Math.PI) / 180)) / Math.pow(2, zoom)
-    return CALIBRATION_MARKER_SIZE_M / metersPerPixel
+/**
+ * Fixed, AOI-independent calibration marker size in table CSS pixels — deliberately *not*
+ * derived from the AOI's ground scale (that was Vanilla's `markers.js::updateMarkerSizes`
+ * approach, a fixed real-world metre size scaled by the current zoom, which is what this
+ * replaces). Whether the camera can decode a projected ArUco marker is a property of the
+ * camera/table hardware, not of what real-world area the operator happens to be surveying —
+ * tying marker size to AOI ground scale meant a large (zoomed-out) AOI silently shrank markers
+ * below the camera's reliable-decode size in its weaker-coverage regions (live-rig diagnosis,
+ * 2026-08-31: 45px marker unreadable in two of four table corners, 71-90px reliable in all four).
+ * Safe because MapLibre's `anchor: "center"` positions a marker's element at its `setLngLat`
+ * point regardless of the element's rendered size (CSS `translate(-50%, -50%)`) — resizing the
+ * image never moves the calibration point the homography is actually built from.
+ * Read from `VITE_COLLAB_CALIBRATION_MARKER_SIZE_PX` (B6: never hardcode a physically-tuned
+ * number in the routine itself); unset/unparsable falls back to `90`, the largest size verified
+ * reliable in that same live-rig session.
+ */
+export function calibrationMarkerSizePx(): number {
+    const raw = Number(import.meta.env.VITE_COLLAB_CALIBRATION_MARKER_SIZE_PX ?? "")
+    return Number.isFinite(raw) && raw > 0 ? raw : 90
 }
 
 /**

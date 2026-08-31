@@ -13,11 +13,13 @@ import { useCollabSessionStore, type CollabSceneObject } from "./collabSession";
 import {
     buildMapCalibration,
     DEFAULT_COLLAB_TABLE_CONFIG,
+    deriveGroundScale,
     isAoiZoomSufficient,
     type AOIExtent,
     type CollabTableConfig,
     type MapCalibrationMessage,
 } from "./collabCalibration";
+import { collabDebugLog } from "../helpers/collabDebugLog"; // TEMPORARY diagnostic import — remove with the debug log calls below
 import {
     collabBuildingDataset,
     collabFootprintsWithinAoi,
@@ -357,7 +359,17 @@ export const useCollabScenarioStore = defineStore("collabScenario", () => {
         }) as AOIExtent["corners"];
         const extent: AOIExtent = { corners };
         viewfinderExtent.value = extent;
+        const wasValid = viewfinderValid.value;
         viewfinderValid.value = isAoiZoomSufficient(extent, tableConfig.value);
+        if (viewfinderValid.value !== wasValid) {
+            // TEMPORARY — remove after AOI/marker diagnosis: only logs on red/green transitions,
+            // not every map move, to stay non-spammy.
+            collabDebugLog("control", "aoiZoomTransition", {
+                valid: viewfinderValid.value,
+                groundScale: deriveGroundScale(extent, tableConfig.value),
+                targetGroundScale: tableConfig.value.aoiScaleTarget.groundScale,
+            });
+        }
     }
 
     function handleViewfinderMapMove(): void {
@@ -464,6 +476,12 @@ export const useCollabScenarioStore = defineStore("collabScenario", () => {
         }
         aoi.value = extent;
         mapCalibration.value = buildMapCalibration(extent, tableConfig.value);
+        // TEMPORARY — remove after AOI/marker diagnosis
+        collabDebugLog("control", "aoiConfirmed", {
+            corners: extent.corners,
+            groundScale: deriveGroundScale(extent, tableConfig.value),
+            targetGroundScale: tableConfig.value.aoiScaleTarget.groundScale,
+        });
         // Confirming any AOI — first time or replacing an existing one — invalidates whatever
         // calibration status was showing: a fresh/changed AOI has not been calibrated against the
         // physical table yet (ticket 09; the real four-marker flow itself is ticket 12). The cached

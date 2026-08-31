@@ -73,7 +73,7 @@ describe("startTableViewportSync (ticket 11)", () => {
                 [9.98, 53.54],
                 [10.0, 53.56],
             ],
-            { padding: 0, animate: false }
+            { padding: 45, animate: false }
         );
         expect(map.dragPan.disable).toHaveBeenCalledTimes(1);
         expect(map.dragRotate.disable).toHaveBeenCalledTimes(1);
@@ -85,7 +85,7 @@ describe("startTableViewportSync (ticket 11)", () => {
         stop();
     });
 
-    test("locks only once — a later AOI change does not fit/lock again", async () => {
+    test("a later AOI change re-fits and re-locks (live-rig diagnosis, 2026-08-31: a frozen viewport left calibration markers positioned outside what was visible)", async () => {
         const session = useCollabSessionStore();
         const map = fakeMap();
         const mapStore = { map: map as ReturnType<typeof fakeMap> | undefined };
@@ -101,6 +101,34 @@ describe("startTableViewportSync (ticket 11)", () => {
                 [9.6, 53.5],
                 [9.5, 53.5],
             ],
+        };
+        await nextTick();
+
+        expect(map.fitBounds).toHaveBeenCalledTimes(2);
+        expect(map.fitBounds).toHaveBeenLastCalledWith(
+            [
+                [9.5, 53.5],
+                [9.6, 53.6],
+            ],
+            { padding: 45, animate: false }
+        );
+        expect(map.dragPan.disable).toHaveBeenCalledTimes(2);
+        stop();
+    });
+
+    test("a same-value AOI reassigned to a new object does not re-fit (live-rig diagnosis, 2026-08-31: collabSync rebuilds `aoi` as a fresh object on every calibration-slice broadcast, e.g. a marker turning green — re-fitting on object identity alone jolted the viewport with no real AOI change)", async () => {
+        const session = useCollabSessionStore();
+        const map = fakeMap();
+        const mapStore = { map: map as ReturnType<typeof fakeMap> | undefined };
+        session.calibration.aoi = hamburgAoi;
+
+        const stop = startTableViewportSync(session, mapStore as never);
+        expect(map.fitBounds).toHaveBeenCalledTimes(1);
+
+        // A structurally-identical AOI, but a *different object* — mirrors what
+        // `cloneCalibration`/`Object.assign` produces on an unrelated field change.
+        session.calibration.aoi = {
+            corners: hamburgAoi.corners.map((corner) => [...corner]) as typeof hamburgAoi.corners,
         };
         await nextTick();
 

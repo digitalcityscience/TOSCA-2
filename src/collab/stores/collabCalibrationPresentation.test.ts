@@ -158,7 +158,7 @@ describe("calibration presentation mode on Table (ticket 11)", () => {
         trackingRender.enterCalibrationPresentation();
         await flush();
 
-        const expectedSizePx = calibrationMarkerSizePx({ getCenter: () => ({ lat: 53.5511 }), getZoom: () => 17.66 });
+        const expectedSizePx = calibrationMarkerSizePx();
 
         for (const id of ["200", "201", "202", "203"]) {
             const wrapper = createdMarkers.get(id)?.element;

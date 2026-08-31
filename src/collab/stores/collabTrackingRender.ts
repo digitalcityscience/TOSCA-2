@@ -10,6 +10,7 @@ import type { Feature, FeatureCollection, Polygon } from "@helpers/geojson";
 import { reportDeveloperError } from "@helpers/userFacingError";
 import { useToast } from "@helpers/toast";
 import { resolveCollabTrackingMode, resolveCollabTrackingWsUrl } from "../helpers/collabMode";
+import { collabDebugLog } from "../helpers/collabDebugLog"; // TEMPORARY diagnostic import — remove with the debug log calls below
 import { markerRegistryForBuildings } from "../data/collabBuildingData";
 import { i18n } from "../../core/i18n";
 import { useMapStore } from "@store/map";
@@ -200,17 +201,17 @@ function calibrationMarkerImage(wrapper: HTMLElement): HTMLImageElement | null {
 }
 
 /**
- * Sizes one calibration marker's image from the current centre latitude and zoom, matching Vanilla's
- * `.marker-icon` metre-to-pixel sizing. The marker itself has no border; calibration presentation
- * supplies one continuous white background behind all four SVGs.
- * Also called by the same `move`/`zoom` events Vanilla uses in `markers.js:updateMarkerSizes`.
+ * Sizes one calibration marker's image to the fixed, AOI-independent {@link calibrationMarkerSizePx}
+ * (live-rig diagnosis, 2026-08-31 — see that function's doc for why size no longer tracks AOI
+ * ground scale). The marker itself has no border; calibration presentation supplies one
+ * continuous white background behind all four SVGs.
  */
-function applyCalibrationMarkerSize(wrapper: HTMLElement, map: MapLibreMap): void {
+function applyCalibrationMarkerSize(wrapper: HTMLElement): void {
     const img = calibrationMarkerImage(wrapper);
     if (img === null) {
         return;
     }
-    const sizePx = calibrationMarkerSizePx(map);
+    const sizePx = calibrationMarkerSizePx();
     img.style.width = `${sizePx}px`;
     img.style.height = `${sizePx}px`;
     img.style.boxSizing = "border-box";
@@ -284,7 +285,7 @@ function logCalibrationMarkerGeometry(markerId: number, wrapper: HTMLElement, ma
         const topRight = map.project(aoi.corners[1] as [number, number]);
         const totalPx = Number.parseFloat(img.style.width);
         const canvas = map.getCanvas?.();
-        console.info(`[collab] calibration marker ${markerId} rendered`, {
+        const geometry = {
             totalPx,
             codeAreaPx: totalPx,
             quietZonePx: 0,
@@ -293,7 +294,9 @@ function logCalibrationMarkerGeometry(markerId: number, wrapper: HTMLElement, ma
             canvasCssPx: canvas === undefined ? undefined : [canvas.clientWidth, canvas.clientHeight],
             devicePixelRatio: window.devicePixelRatio,
             mirrored: img.style.transform,
-        });
+        };
+        console.info(`[collab] calibration marker ${markerId} rendered`, geometry);
+        collabDebugLog("table", "markerGeometry", { markerId, ...geometry }); // TEMPORARY — remove after AOI/marker diagnosis
     } catch (error) {
         reportDeveloperError("collabTrackingRender.logCalibrationMarkerGeometry", error);
     }
@@ -387,33 +390,6 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     const markerPositionOverrides = new Map<number, [number, number]>();
     /** Last `session.calibration.resetPositionsToken` value {@link syncCalibrationPresentation} has reacted to (grilling doc Q2). */
     let lastSeenResetPositionsToken: number | undefined;
-    let calibrationResizeMap: MapLibreMap | undefined;
-
-    function resizeCalibrationMarkers(): void {
-        const map = calibrationResizeMap;
-        if (map === undefined) {
-            return;
-        }
-        for (const marker of calibrationMarkers.values()) {
-            applyCalibrationMarkerSize(marker.getElement(), map);
-        }
-    }
-
-    function attachCalibrationResizeListeners(map: MapLibreMap): void {
-        if (calibrationResizeMap === map) {
-            return;
-        }
-        detachCalibrationResizeListeners();
-        calibrationResizeMap = map;
-        map.on("zoom", resizeCalibrationMarkers);
-        map.on("move", resizeCalibrationMarkers);
-    }
-
-    function detachCalibrationResizeListeners(): void {
-        calibrationResizeMap?.off("zoom", resizeCalibrationMarkers);
-        calibrationResizeMap?.off("move", resizeCalibrationMarkers);
-        calibrationResizeMap = undefined;
-    }
     /** Layer ids {@link syncCalibrationPresentation} hid — restored verbatim once presentation mode ends. */
     let hiddenLayerIds: string[] = [];
 
@@ -729,9 +705,16 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         const map = mapStore.map as MapLibreMap | undefined;
         const aoi: AOIExtent | null = session.calibration.aoi;
         const presenting = session.calibration.phase === "presenting" && map !== undefined && aoi !== null;
+        // TEMPORARY — remove after AOI-update diagnosis
+        collabDebugLog("table", "syncCalibrationPresentation", {
+            presenting,
+            phase: session.calibration.phase,
+            hasMap: map !== undefined,
+            aoi,
+            revision: session.calibration.revision,
+        });
 
         if (!presenting) {
-            detachCalibrationResizeListeners();
             if (map !== undefined && hiddenLayerIds.length > 0) {
                 restoreHiddenLayers(map, hiddenLayerIds);
             }
@@ -757,7 +740,6 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         if (hiddenLayerIds.length === 0) {
             hiddenLayerIds = hideNonCalibrationLayers(map);
         }
-        attachCalibrationResizeListeners(map);
         for (const config of MAP_CALIBRATION_MARKERS) {
             const corner = aoiCornerForMapMarker(aoi, config.corner) as [number, number];
             const position = markerPositionOverrides.get(config.id) ?? corner;
@@ -765,7 +747,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             const existing = calibrationMarkers.get(config.id);
             if (existing === undefined) {
                 const element = buildCalibrationMarkerElement(config.id);
-                applyCalibrationMarkerSize(element, map);
+                applyCalibrationMarkerSize(element);
                 applyCalibrationMarkerReceivedState(element, received);
                 const marker = new maplibre.Marker({ element, draggable: true, anchor: "center" })
                     .setLngLat(position)
@@ -782,8 +764,6 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                 logCalibrationMarkerGeometry(config.id, element, map, aoi);
             } else {
                 existing.setLngLat(position);
-                // Re-size as well as re-position: the AOI may have changed under an existing marker.
-                applyCalibrationMarkerSize(existing.getElement(), map);
                 applyCalibrationMarkerReceivedState(existing.getElement(), received);
             }
         }
@@ -934,6 +914,17 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                         // ticket 11: bump on every write to this slice, not only when the derived
                         // values happen to change structurally (see CollabCalibrationState's doc).
                         session.calibration.revision += 1;
+                        // Every confirmed AOI (first one or a replacement) drops Python's stale
+                        // homography/health and re-enters four-marker presentation on its own —
+                        // never dependent on the operator separately re-opening the Table window
+                        // or pressing Recalibrate (live-rig diagnosis, 2026-08-31: without this, a
+                        // second AOI confirmed against an already-open Table window left Python
+                        // stuck replaying the *first* AOI's calibration, so no marker ever went
+                        // green until Recalibrate was pressed by hand).
+                        collabDebugLog("control", "aoiWatcherFired", { aoiIsNull: aoi === null }); // TEMPORARY
+                        if (aoi !== null) {
+                            recalibrate();
+                        }
                     },
                     { immediate: true }
                 )
@@ -1037,8 +1028,20 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                     ? { reading, firstSeenAt: pending.firstSeenAt, lastUpdatedAt: now, consecutiveCount: pending.consecutiveCount + 1 }
                     : { reading, firstSeenAt: now, lastUpdatedAt: now, consecutiveCount: 1 };
                 pendingMarkerReadings.set(markerId, tracked);
+                const stable = isMarkerReadingStable(tracked);
+                // TEMPORARY — remove after AOI/marker diagnosis: every raw 200-203 reading, whether
+                // or not it clears the stability gate, so we can see if Python is sending an id that
+                // the frontend is silently rejecting (vs. Python never sending it at all).
+                collabDebugLog("control", "rawMarkerReading", {
+                    markerId,
+                    reading,
+                    isFreshAndConsistent,
+                    consecutiveCount: tracked.consecutiveCount,
+                    stable,
+                    alreadyAccepted: next.has(markerId),
+                });
 
-                if (!isMarkerReadingStable(tracked)) {
+                if (!stable) {
                     continue;
                 }
                 if (!next.has(markerId)) {
@@ -1114,6 +1117,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         session.calibration.mapCalibrationMarkerIdsSeen = [];
         session.calibration.phase = "presenting";
         session.calibration.revision += 1;
+        collabDebugLog("control", "enterCalibrationPresentation", { phase: session.calibration.phase, aoi: session.calibration.aoi }); // TEMPORARY
     }
 
     /** Leaves calibration-presentation mode — a clean seam for the real four-marker calibration flow to call once calibration succeeds. */
@@ -1187,6 +1191,21 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         scenarioStore.lastMeasuredCalibration = null;
         scenarioStore.lastMeasuredCalibrationAoiHash = null;
         mapCalibrationMarkerHealth.value = new Map();
+        // Drop every tracked object's last-known pose (live-rig diagnosis, 2026-08-31): these were
+        // georeferenced against whatever AOI/homography was active when they last arrived, and
+        // `applyTrackingEvent` only ever deletes an entry on an explicit "disappeared" event — never
+        // on recalibration. Left uncleared, a stale pose renders at its old geographic position
+        // against the *new* AOI's viewport (reported as the whole Table view looking shifted) until
+        // that same object happens to report in again under the new calibration.
+        for (const objectId of Object.keys(session.tracking)) {
+            delete session.tracking[objectId];
+        }
+        // Drop Table-local calibration-marker drag overrides the same way "Reset positions" does
+        // (grilling doc Q2): a marker dragged during an earlier AOI's session is a stale absolute
+        // lat/lon, not a relative offset — left in place, `syncCalibrationPresentation()` keeps
+        // pinning that marker there instead of the *new* AOI's corner, which can land it far outside
+        // the new AOI's viewport entirely (reported as markers missing / Table looking blank).
+        session.calibration.resetPositionsToken += 1;
         realSource?.resetMapCalibration();
         enterCalibrationPresentation();
     }
@@ -1260,7 +1279,6 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
 
     /** Tears down every tracking source, the Python transport, and the render watch. Idempotent — safe on unmount and HMR. */
     function stop(): void {
-        detachCalibrationResizeListeners();
         stopWatch?.();
         stopWatch = undefined;
         disconnectPythonTransport();

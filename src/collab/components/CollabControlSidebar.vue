@@ -113,6 +113,18 @@
             </p>
         </div>
 
+        <UModal v-model:open="replaceAoiConfirmVisible" :title="t('collab.control.aoi.replaceConfirmTitle')" :ui="{ content: 'max-w-[25rem]' }">
+            <template #body>
+                <span class="text-muted block">{{ t("collab.control.aoi.replaceConfirmBody") }}</span>
+            </template>
+            <template #footer>
+                <div class="flex justify-end gap-2 w-full">
+                    <UButton size="sm" type="button" color="neutral" variant="soft" @click="replaceAoiConfirmVisible = false">{{ t("common.cancel") }}</UButton>
+                    <UButton size="sm" type="button" color="primary" @click="confirmReplaceAoi">{{ t("collab.control.aoi.replaceConfirmAction") }}</UButton>
+                </div>
+            </template>
+        </UModal>
+
         <!-- 3. Open Table -->
         <div class="mt-5 flex flex-col gap-2 border-t border-muted pt-4">
             <UButton
@@ -196,7 +208,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import BaseSlideoverSidebarComponent from "@components/Base/BaseSlideoverSidebarComponent.vue";
@@ -324,13 +336,31 @@ function openTableWindow(): void {
         return;
     }
     tableWindow.focus();
-    // ticket 11: Table always fits+locks to the AOI first regardless, so Control can enter
-    // presentation mode as soon as the window is opened rather than waiting on a signal back from
-    // Table (which never writes to shared session state — see collabTrackingRender.ts).
-    trackingRenderStore.enterCalibrationPresentation();
+    // ticket 11 / live-rig diagnosis 2026-08-31: presentation mode is entered by the AOI watcher
+    // in collabTrackingRender.ts as soon as an AOI is confirmed, not by opening this window — Table
+    // recovers the current `session.calibration` snapshot (phase included) on connect, so it's
+    // already showing the right thing by the time this window opens (normal order: pick AOI, then
+    // open Table). No separate call needed here.
 }
 
+/**
+ * Confirming an AOI while one is already live replaces the physical table's calibration (grilling
+ * doc, 2026-08-31 recalibration-communication session) — the operator may only be previewing a
+ * candidate extent, so this is the one point where committing is irreversible enough to warn about.
+ * A first-ever AOI (nothing on the table yet to lose) skips the prompt and commits directly.
+ */
+const replaceAoiConfirmVisible = ref(false);
+
 function finishAoi(): void {
+    if (scenarioStore.aoi !== null) {
+        replaceAoiConfirmVisible.value = true;
+        return;
+    }
+    scenarioStore.finishAoiSelection();
+}
+
+function confirmReplaceAoi(): void {
+    replaceAoiConfirmVisible.value = false;
     scenarioStore.finishAoiSelection();
 }
 
