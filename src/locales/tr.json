@@ -385,6 +385,16 @@
               "bottom_left": "sol alt",
               "bottom_right": "sağ alt"
             }
+          },
+          "buildings": {
+            "title": "Bina markerları",
+            "none": "Henüz bina markerı gelmedi.",
+            "status": {
+              "tracked": "takip ediliyor",
+              "outside-aoi": "AOI dışında",
+              "unmapped": "eşlenmemiş"
+            },
+            "unmappedHint": "{count} marker geliyor ama karşılığında bina yok. marker-building-map.json dosyasına ekleyin."
           }
         }
       }

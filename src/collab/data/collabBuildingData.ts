@@ -4,7 +4,12 @@ import type { Feature, FeatureCollection, MultiPolygon, Polygon, Position } from
 import rawBuildingsText from "./buildings_all.geojson?raw";
 import rawMarkerBuildingMap from "./marker-building-map.json";
 import type { AOIExtent } from "../stores/collabCalibration";
-import { MAP_CALIBRATION_MARKER_IDS, createMarkerObjectRegistry, type MarkerObjectRegistry } from "../stores/collabTracking";
+import {
+    MAP_CALIBRATION_MARKER_IDS,
+    createMarkerObjectRegistry,
+    reservedMarkerRole,
+    type MarkerObjectRegistry,
+} from "../stores/collabTracking";
 
 export interface CollabBuildingProperties {
     building_id: string;
@@ -119,4 +124,47 @@ export function markerRegistryForBuildings(buildingIds: readonly string[]): Mark
             .filter((mapping) => activeIds.has(mapping.building_id))
             .map((mapping) => ({ markerId: mapping.marker_id, objectId: mapping.building_id }))
     );
+}
+
+/**
+ * What one `marker_id` arriving from Python means for the building layer:
+ *
+ * - `reserved` — a camera-reference/map-calibration/ignored id (see `RESERVED_MARKER_REGISTRY`).
+ *   Python streams these in the same feed; they are never buildings.
+ * - `tracked` — mapped here *and* active in the confirmed AOI: its building follows the marker.
+ * - `outside-aoi` — mapped here, but its building's footprint is not inside the confirmed AOI, so
+ *   `collabFootprintsWithinAoi` dropped it and nothing will move.
+ * - `unmapped` — Python is reporting this marker and `marker-building-map.json` says nothing about
+ *   it. The block on the table has no building behind it.
+ *
+ * The last two are the states worth surfacing: both look identical from the map (nothing moves),
+ * and `TrackingFeedNormalizer` discards both silently by design.
+ */
+export type BuildingMarkerStatus = "reserved" | "tracked" | "outside-aoi" | "unmapped";
+
+export interface BuildingMarkerClassification {
+    status: BuildingMarkerStatus;
+    /** The building the marker is mapped to, for `tracked`/`outside-aoi`; absent otherwise. */
+    buildingId?: string;
+}
+
+/**
+ * Classifies one incoming `marker_id` against the declared mappings and the AOI-filtered registry
+ * the tracking feed is actually running with. Pure: both inputs are passed in rather than read off
+ * the module-level dataset, so a test can describe any table/AOI combination directly.
+ */
+export function classifyBuildingMarker(
+    markerId: number,
+    mappings: readonly MarkerBuildingMapping[],
+    activeRegistry: MarkerObjectRegistry
+): BuildingMarkerClassification {
+    if (reservedMarkerRole(markerId) !== undefined) {
+        return { status: "reserved" };
+    }
+    const trackedBuildingId = activeRegistry.get(markerId);
+    if (trackedBuildingId !== undefined) {
+        return { status: "tracked", buildingId: trackedBuildingId };
+    }
+    const mapping = mappings.find((candidate) => candidate.marker_id === markerId);
+    return mapping === undefined ? { status: "unmapped" } : { status: "outside-aoi", buildingId: mapping.building_id };
 }

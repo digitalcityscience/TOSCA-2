@@ -10,7 +10,12 @@ import type { Feature, FeatureCollection, Polygon } from "@helpers/geojson";
 import { reportDeveloperError } from "@helpers/userFacingError";
 import { useToast } from "@helpers/toast";
 import { resolveCollabTrackingMode, resolveCollabTrackingWsUrl } from "../helpers/collabMode";
-import { markerRegistryForBuildings } from "../data/collabBuildingData";
+import {
+    classifyBuildingMarker,
+    collabBuildingDataset,
+    markerRegistryForBuildings,
+    type BuildingMarkerStatus,
+} from "../data/collabBuildingData";
 import { i18n } from "../../core/i18n";
 import { useMapStore } from "@store/map";
 import { useCollabSessionStore, type CollabSceneObject, type CollabTrackingObjectState } from "./collabSession";
@@ -55,6 +60,17 @@ const REFERENCE_MARKER_IDS: ReadonlySet<number> = new Set(REFERENCE_MARKERS.map(
  * doesn't exist.
  */
 export type CollabPythonConnectionState = PythonConnectionState | "mock"
+
+/**
+ * One building-marker id Python has reported since tracking started, with what the building layer
+ * currently makes of it (see {@link BuildingMarkerStatus}). Control's "Building markers" panel
+ * renders these; they are the operator's only view of a marker the tracking feed is dropping.
+ */
+export interface BuildingMarkerHealthEntry {
+    markerId: number;
+    status: BuildingMarkerStatus;
+    buildingId?: string;
+}
 
 const TRACKED_FOOTPRINT_SOURCE_ID = "collabTrackedFootprints";
 const TRACKED_FOOTPRINT_FILL_LAYER_ID = "collabTrackedFootprints-fill";
@@ -373,6 +389,21 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
      * separate from the public ref precisely so a single stray/wrong-camera reading (the "window
      * was only half set up" failure mode) can never satisfy `canCalibrateFromMarkers()` on its own.
      */
+    /**
+     * Every non-reserved marker id seen in a tracking snapshot since the transport started, with
+     * its current classification — sticky in the same sense as {@link detectedReferenceMarkerIds}
+     * (an id, once reported, stays listed), but its *status* is recomputed on every snapshot, since
+     * confirming a different AOI can move a marker between `tracked` and `outside-aoi` without
+     * Python's feed changing at all.
+     *
+     * This exists because `TrackingFeedNormalizer.applySnapshot` drops an unresolvable marker id
+     * silently by design, and a whole feed of them additionally reads as `suppressed` — which is
+     * indistinguishable, from the map alone, from "the socket is dead". Without this list the
+     * first question on the rig ("is Python even reaching us?") has no answer short of a console.
+     */
+    const buildingMarkerHealth = ref<readonly BuildingMarkerHealthEntry[]>([]);
+    /** Ids behind {@link buildingMarkerHealth}'s stickiness — statuses are re-derived from this each snapshot. */
+    const seenBuildingMarkerIds = new Set<number>();
     const pendingMarkerReadings = new Map<number, TrackedMarkerReading>();
     /**
      * Control-local view of Table's drag-override status (grilling doc Q1) — populated from the
@@ -1061,6 +1092,12 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             }
             detectedReferenceMarkerIds.value = new Set([...detectedReferenceMarkerIds.value, ...newlySeen]);
         });
+        // Building-marker health (see `buildingMarkerHealth`): the same unfiltered id relay, read
+        // for the building layer instead of the corner markers. Recomputed rather than merged, so a
+        // marker's status follows AOI changes; the id set behind it only ever grows.
+        source.onMarkerSnapshot((markerIds) => {
+            refreshBuildingMarkerHealth(markerIds);
+        });
         // Map-calibration marker health (ticket 08, gated by grilling doc Q4): only ids 200-203
         // ever enter `mapCalibrationMarkerHealth`, and only once `pendingMarkerReadings` has seen
         // MAP_CALIBRATION_MARKER_STABLE_READINGS consecutive, mutually-consistent readings within
@@ -1130,6 +1167,26 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         realSource.start();
     }
 
+    /**
+     * Folds one snapshot's marker ids into {@link buildingMarkerHealth}: remembers every
+     * non-reserved id, then re-derives every remembered id's status against the mappings and the
+     * AOI-filtered registry currently in force. Reserved ids (camera reference, map calibration,
+     * Python's ignored marker) are never listed — they have their own panels and would otherwise
+     * dominate this one.
+     */
+    function refreshBuildingMarkerHealth(markerIds: readonly number[]): void {
+        const activeRegistry = buildMarkerRegistryFromBase(session.base.objects);
+        const { markerMappings } = collabBuildingDataset();
+        for (const markerId of markerIds) {
+            if (classifyBuildingMarker(markerId, markerMappings, activeRegistry).status !== "reserved") {
+                seenBuildingMarkerIds.add(markerId);
+            }
+        }
+        buildingMarkerHealth.value = [...seenBuildingMarkerIds]
+            .sort((a, b) => a - b)
+            .map((markerId) => ({ markerId, ...classifyBuildingMarker(markerId, markerMappings, activeRegistry) }));
+    }
+
     /** Stops and clears the persistent Python transport (ticket 08). Only called on full store teardown — never by the "Stop Tracking" button, which must not disconnect an otherwise-healthy transport. */
     function disconnectPythonTransport(): void {
         realSource?.stop();
@@ -1138,6 +1195,8 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         detectedReferenceMarkerIds.value = new Set();
         mapCalibrationMarkerHealth.value = new Map();
         pendingMarkerReadings.clear();
+        seenBuildingMarkerIds.clear();
+        buildingMarkerHealth.value = [];
         session.calibration.mapCalibrationMarkerIdsSeen = [];
     }
 
@@ -1343,6 +1402,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         pythonConnectionState,
         detectedReferenceMarkerIds,
         mapCalibrationMarkerHealth,
+        buildingMarkerHealth,
         tableMarkerPositionsReady,
         tableMarkerPositions,
         debugOverlaysEnabled,

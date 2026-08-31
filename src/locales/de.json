@@ -385,6 +385,16 @@
               "bottom_left": "unten links",
               "bottom_right": "unten rechts"
             }
+          },
+          "buildings": {
+            "title": "Gebäudemarker",
+            "none": "Noch keine Gebäudemarker empfangen.",
+            "status": {
+              "tracked": "verfolgt",
+              "outside-aoi": "außerhalb des Interessengebiets",
+              "unmapped": "nicht zugeordnet"
+            },
+            "unmappedHint": "{count} Marker ohne zugeordnetes Gebäude. In marker-building-map.json ergänzen."
           }
         }
       }

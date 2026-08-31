@@ -1,4 +1,7 @@
 [
-  { "marker_id": 182, "building_id": "G28" },
-  { "marker_id": 35, "building_id": "G28" }
+  { "marker_id": 12, "building_id": "G12" },
+  { "marker_id": 18, "building_id": "G18" },
+  { "marker_id": 24, "building_id": "G24" },
+  { "marker_id": 27, "building_id": "G27" },
+  { "marker_id": 47, "building_id": "G47" }
 ]

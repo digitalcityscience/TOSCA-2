@@ -66,6 +66,28 @@
                     </span>
                 </li>
             </ul>
+
+            <h4 class="mt-2 text-xs font-medium text-muted">{{ t("collab.control.python.markers.buildings.title") }}</h4>
+            <p v-if="trackingRenderStore.buildingMarkerHealth.length === 0" class="text-xs text-muted">
+                {{ t("collab.control.python.markers.buildings.none") }}
+            </p>
+            <ul v-else class="flex flex-col gap-1 text-xs">
+                <li v-for="entry in trackingRenderStore.buildingMarkerHealth" :key="entry.markerId" class="flex items-center gap-1.5">
+                    <UIcon
+                        :name="buildingMarkerIcon(entry.status)"
+                        :class="buildingMarkerClass(entry.status)"
+                        class="size-3.5 shrink-0"
+                    />
+                    <span>{{ entry.markerId }}</span>
+                    <span v-if="entry.buildingId !== undefined" class="text-muted">— {{ entry.buildingId }}</span>
+                    <span :class="buildingMarkerClass(entry.status)">
+                        {{ t(`collab.control.python.markers.buildings.status.${entry.status}`) }}
+                    </span>
+                </li>
+            </ul>
+            <p v-if="unmappedMarkerCount > 0" class="text-xs text-warning">
+                {{ t("collab.control.python.markers.buildings.unmappedHint", { count: unmappedMarkerCount }) }}
+            </p>
         </div>
 
         <!-- 2. Select AOI -->
@@ -218,6 +240,7 @@ import { useCollabSessionStore } from "../stores/collabSession";
 import { canOpenTableWindow, useCollabScenarioStore } from "../stores/collabScenario";
 import { useCollabTrackingRenderStore } from "../stores/collabTrackingRender";
 import { MAP_CALIBRATION_MARKERS, REFERENCE_MARKERS } from "../stores/collabTracking";
+import type { BuildingMarkerStatus } from "../data/collabBuildingData";
 import { isRealTableRoute as resolveIsRealTableRoute, resolveCollabTrackingWsUrl } from "../helpers/collabMode";
 
 const sidebarID = "collabControl";
@@ -254,6 +277,34 @@ function isMapCalibrationMarkerDetected(markerId: number): boolean {
 
 function mapCalibrationMarkerReading(markerId: number) {
     return trackingRenderStore.mapCalibrationMarkerHealth.get(markerId);
+}
+
+/**
+ * How many building markers Python is reporting that `marker-building-map.json` says nothing about
+ * — the count the operator has to act on, since each is a block on the table moving nothing.
+ */
+const unmappedMarkerCount = computed(
+    () => trackingRenderStore.buildingMarkerHealth.filter((entry) => entry.status === "unmapped").length
+);
+
+/**
+ * `outside-aoi` and `unmapped` are both "this marker is arriving but moves nothing"; they are
+ * distinguished by color rather than icon because the fix differs — reselect the AOI vs. add a
+ * mapping. `reserved` never reaches this list (see `refreshBuildingMarkerHealth`).
+ */
+function buildingMarkerIcon(status: BuildingMarkerStatus): string {
+    return status === "tracked" ? "i-lucide-check" : "i-lucide-alert-circle";
+}
+
+function buildingMarkerClass(status: BuildingMarkerStatus): string {
+    switch (status) {
+        case "tracked":
+            return "text-success";
+        case "outside-aoi":
+            return "text-warning";
+        default:
+            return "text-error";
+    }
 }
 
 /** Compact status-dot color for the Python connection row (marker-health-plan §1/§5). */

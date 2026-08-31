@@ -385,6 +385,16 @@
               "bottom_left": "bottom-left",
               "bottom_right": "bottom-right"
             }
+          },
+          "buildings": {
+            "title": "Building markers",
+            "none": "No building markers received yet.",
+            "status": {
+              "tracked": "tracked",
+              "outside-aoi": "outside AOI",
+              "unmapped": "not mapped"
+            },
+            "unmappedHint": "{count} marker(s) arriving with no building. Add them to marker-building-map.json."
           }
         }
       }
