@@ -21,7 +21,6 @@ export default withVueTs(
             "dist/**",
             "docs/**",
             "postcss.config.js",
-            "scripts/**",
             "src/presets/**/*.js",
             "tailwind.config.js",
             "vite.config.ts",

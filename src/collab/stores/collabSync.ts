@@ -2,7 +2,6 @@ import { acceptHMRUpdate, defineStore } from "pinia";
 import { onScopeDispose, ref, watch } from "vue";
 import { BroadcastCollabChannel, COLLAB_CHANNEL_NAME, type CollabChannel } from "../helpers/collabChannel";
 import { reportDeveloperError } from "@helpers/userFacingError";
-import { collabDebugLog } from "../helpers/collabDebugLog"; // TEMPORARY diagnostic import
 import {
     useCollabSessionStore,
     type CollabBaseCityState,
@@ -199,11 +198,6 @@ export const useCollabSyncStore = defineStore("collabSync", () => {
 
         stopWatch = watch(currentSnapshot, (snapshot) => {
             const patch = diffSnapshot(lastPublished, snapshot);
-            // TEMPORARY — remove after AOI-update diagnosis
-            collabDebugLog("control", "controlSnapshotWatchFired", {
-                changedSlices: Object.keys(patch),
-                calibration: snapshot.calibration,
-            });
             if (Object.keys(patch).length === 0) {
                 return;
             }
@@ -234,11 +228,6 @@ export const useCollabSyncStore = defineStore("collabSync", () => {
         unsubscribe = channel.subscribe((message) => {
             lastMessageAt = Date.now();
             connected.value = true;
-            // TEMPORARY — remove after AOI-update diagnosis
-            collabDebugLog("table", "syncMessageReceived", {
-                kind: message.kind,
-                calibrationInMessage: message.kind === "snapshot" ? message.state.calibration : message.kind === "patch" ? message.state.calibration : undefined,
-            });
             if (message.kind === "snapshot") {
                 applySnapshot(message.state);
             } else if (message.kind === "patch") {

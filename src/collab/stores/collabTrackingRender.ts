@@ -10,7 +10,6 @@ import type { Feature, FeatureCollection, Polygon } from "@helpers/geojson";
 import { reportDeveloperError } from "@helpers/userFacingError";
 import { useToast } from "@helpers/toast";
 import { resolveCollabTrackingMode, resolveCollabTrackingWsUrl } from "../helpers/collabMode";
-import { collabDebugLog } from "../helpers/collabDebugLog"; // TEMPORARY diagnostic import — remove with the debug log calls below
 import { markerRegistryForBuildings } from "../data/collabBuildingData";
 import { i18n } from "../../core/i18n";
 import { useMapStore } from "@store/map";
@@ -310,7 +309,6 @@ function logCalibrationMarkerGeometry(
             positionProjectedPx: [markerProjectedPx.x, markerProjectedPx.y],
         };
         console.info(`[collab] calibration marker ${markerId} rendered`, geometry);
-        collabDebugLog("table", "markerGeometry", { markerId, ...geometry }); // TEMPORARY — remove after AOI/marker diagnosis
     } catch (error) {
         reportDeveloperError("collabTrackingRender.logCalibrationMarkerGeometry", error);
     }
@@ -719,15 +717,6 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         const map = mapStore.map as MapLibreMap | undefined;
         const aoi: AOIExtent | null = session.calibration.aoi;
         const presenting = session.calibration.phase === "presenting" && map !== undefined && aoi !== null;
-        // TEMPORARY — remove after AOI-update diagnosis
-        collabDebugLog("table", "syncCalibrationPresentation", {
-            presenting,
-            phase: session.calibration.phase,
-            hasMap: map !== undefined,
-            aoi,
-            revision: session.calibration.revision,
-        });
-
         if (!presenting) {
             if (map !== undefined && hiddenLayerIds.length > 0) {
                 restoreHiddenLayers(map, hiddenLayerIds);
@@ -943,7 +932,6 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                         // second AOI confirmed against an already-open Table window left Python
                         // stuck replaying the *first* AOI's calibration, so no marker ever went
                         // green until Recalibrate was pressed by hand).
-                        collabDebugLog("control", "aoiWatcherFired", { aoiIsNull: aoi === null }); // TEMPORARY
                         if (aoi !== null) {
                             recalibrate();
                         }
@@ -1051,18 +1039,6 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                     : { reading, firstSeenAt: now, lastUpdatedAt: now, consecutiveCount: 1 };
                 pendingMarkerReadings.set(markerId, tracked);
                 const stable = isMarkerReadingStable(tracked);
-                // TEMPORARY — remove after AOI/marker diagnosis: every raw 200-203 reading, whether
-                // or not it clears the stability gate, so we can see if Python is sending an id that
-                // the frontend is silently rejecting (vs. Python never sending it at all).
-                collabDebugLog("control", "rawMarkerReading", {
-                    markerId,
-                    reading,
-                    isFreshAndConsistent,
-                    consecutiveCount: tracked.consecutiveCount,
-                    stable,
-                    alreadyAccepted: next.has(markerId),
-                });
-
                 if (!stable) {
                     continue;
                 }
@@ -1139,7 +1115,6 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         session.calibration.mapCalibrationMarkerIdsSeen = [];
         session.calibration.phase = "presenting";
         session.calibration.revision += 1;
-        collabDebugLog("control", "enterCalibrationPresentation", { phase: session.calibration.phase, aoi: session.calibration.aoi }); // TEMPORARY
     }
 
     /** Leaves calibration-presentation mode — a clean seam for the real four-marker calibration flow to call once calibration succeeds. */

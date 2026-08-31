@@ -1,6 +1,5 @@
 import { watch } from "vue";
 import type { useMapStore } from "@store/map";
-import { collabDebugLog } from "../helpers/collabDebugLog"; // TEMPORARY diagnostic import — remove with the debug log calls below
 import { aoiBoundingBox, aoiChecksum, calibrationMarkerSizePx } from "./collabCalibration";
 import type { AOIExtent } from "./collabCalibration";
 import type { useCollabSessionStore } from "./collabSession";
@@ -17,34 +16,6 @@ const MAX_FIT_ATTEMPTS = 4;
 
 /** Bounded deferred (one-animation-frame-later) re-fits per AOI/canvas pair — see `verificationRetries`. */
 const MAX_VERIFICATION_RETRIES = 6;
-
-/**
- * TEMPORARY — AOI-update diagnosis (2026-08-31). Reports the Table map's camera/canvas state and
- * where the AOI's own 4 corners currently project to, tagged `before`/`after` one `fitBounds`
- * call. Every field is read defensively (`?.`) so this can run unmodified against the fake map
- * store `collabTableViewport.test.ts` uses, and the whole thing is wrapped so a reporting failure
- * can never break the real fit/lock flow.
- */
-function logFitState(windowKind: "table", tag: string, map: { project?: (lngLat: [number, number]) => { x: number; y: number }; getBounds?: () => unknown; getZoom?: () => number; getCenter?: () => unknown; getBearing?: () => number; getPitch?: () => number; getCanvas?: () => HTMLCanvasElement }, aoi: AOIExtent, checksum: string): void {
-    try {
-        const projectedCorners = map.project === undefined ? undefined : aoi.corners.map((corner) => map.project!(corner as [number, number]));
-        const canvas = map.getCanvas?.();
-        collabDebugLog(windowKind, tag, {
-            aoiChecksum: checksum,
-            aoiCorners: aoi.corners,
-            projectedCorners,
-            bounds: map.getBounds?.(),
-            center: map.getCenter?.(),
-            zoom: map.getZoom?.(),
-            bearing: map.getBearing?.(),
-            pitch: map.getPitch?.(),
-            canvasCssPx: canvas === undefined ? undefined : [canvas.clientWidth, canvas.clientHeight],
-            devicePixelRatio: typeof window === "undefined" ? undefined : window.devicePixelRatio,
-        });
-    } catch {
-        // best-effort only — never let diagnostic reporting break the real fit/lock flow.
-    }
-}
 
 /**
  * Table-window viewport control (ticket 11, fix-tickets): fits the Table map exactly to the
@@ -250,10 +221,6 @@ export function startTableViewportSync(
         try {
             const [minLng, minLat, maxLng, maxLat] = aoiBoundingBox(aoi);
             for (let attempt = 0; attempt < MAX_FIT_ATTEMPTS; attempt++) {
-                // TEMPORARY — remove after AOI-update diagnosis: bounds/zoom BEFORE this fit, so a
-                // second AOI Update can be compared against whatever camera state the first fit
-                // actually left behind (as opposed to what fitThenLock *assumed* it left behind).
-                logFitState("table", "fitThenLock:before", map, aoi, checksum);
                 map.fitBounds(
                     [
                         [minLng, minLat],
@@ -261,10 +228,6 @@ export function startTableViewportSync(
                     ],
                     { padding: calibrationMarkerSizePx() / 2, animate: false }
                 );
-                // TEMPORARY — remove after AOI-update diagnosis: with `animate: false`, MapLibre
-                // applies the new camera transform synchronously, so `map.project()` here reflects
-                // the fit this call just performed, not a stale/pre-fit one.
-                logFitState("table", "fitThenLock:after", map, aoi, checksum);
                 if (fitIsAccurate(map, aoi)) {
                     break;
                 }
