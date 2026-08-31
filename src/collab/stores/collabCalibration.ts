@@ -140,10 +140,34 @@ export interface MapCalibrationPoint {
  * `server.py:107-145` / `client_test_web.py:10-15`). `pixel_position` is in the unified
  * table-pixel space; `lat_lon_position` is `[lat, lon]` (protocol field name, despite the
  * GeoJSON `[lon, lat]` convention used elsewhere in this module).
+ *
+ * `version: 2` (grilling doc Q3) is a defensive marker, not a protocol negotiation with Python —
+ * it exists purely as an HMR backstop in `collabTrackingRender.ts`'s `handleTransportReconnected`,
+ * in case Vite HMR ever preserves a Pinia store holding a pre-`version` cached payload across a
+ * reload during development.
  */
 export interface MapCalibrationMessage {
     type: "map_calibration"
     points: MapCalibrationPoint[]
+    version: 2
+}
+
+/**
+ * A simple, non-cryptographic checksum over an AOI's four corners (grilling doc Q3) — purely to
+ * answer "is this cached calibration still for the same AOI", not for any security purpose. FNV-1a
+ * over the corners' fixed-precision coordinates, so floating-point formatting noise doesn't change
+ * the hash for the same practical AOI.
+ */
+export function aoiChecksum(aoi: AOIExtent): string {
+    const FNV_OFFSET_BASIS = 0x811c9dc5
+    const FNV_PRIME = 0x01000193
+    let hash = FNV_OFFSET_BASIS
+    const serialized = aoi.corners.map((corner) => corner.map((value) => value.toFixed(8)).join(",")).join(";")
+    for (let i = 0; i < serialized.length; i++) {
+        hash ^= serialized.charCodeAt(i)
+        hash = Math.imul(hash, FNV_PRIME)
+    }
+    return (hash >>> 0).toString(16)
 }
 
 function usableTableWidthCm(config: CollabTableConfig): number {
@@ -183,7 +207,7 @@ export function buildMapCalibration(aoi: AOIExtent, config: CollabTableConfig): 
         pixel_position: pixelCorners[index] as [number, number],
         lat_lon_position: [corner[1], corner[0]],
     }))
-    return { type: "map_calibration", points }
+    return { type: "map_calibration", points, version: 2 }
 }
 
 /**

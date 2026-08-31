@@ -8,6 +8,7 @@ import {
     ROTATION_JITTER_THRESHOLD_DEG,
     angularDistanceDeg,
     aoiBoundingBox,
+    aoiChecksum,
     buildMapCalibration,
     calibrationMarkerSizePx,
     deriveGroundScale,
@@ -27,6 +28,24 @@ const hamburgAOI: AOIExtent = {
         [9.98, 53.54],
     ],
 };
+
+describe("aoiChecksum (grilling doc Q3)", () => {
+    test("is stable for the exact same AOI across repeated calls", () => {
+        expect(aoiChecksum(hamburgAOI)).toBe(aoiChecksum(hamburgAOI));
+    });
+
+    test("differs for a different AOI", () => {
+        const movedAOI: AOIExtent = {
+            corners: [
+                [9.98, 53.561],
+                [10.0, 53.56],
+                [10.0, 53.54],
+                [9.98, 53.54],
+            ],
+        };
+        expect(aoiChecksum(hamburgAOI)).not.toBe(aoiChecksum(movedAOI));
+    });
+});
 
 describe("calibrationMarkerSizePx (exact Vanilla formula)", () => {
     test("copies Vanilla's 27 metre marker and meters-per-pixel calculation verbatim", () => {

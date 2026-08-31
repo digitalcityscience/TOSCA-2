@@ -169,7 +169,53 @@ export function buildMapCalibrationFromMarkerReadings(
         const [lng, lat] = aoiCornerForMapMarker(aoi, marker.corner)
         points.push({ pixel_position: [reading.pixelX, reading.pixelY], lat_lon_position: [lat, lng] })
     }
-    return { type: "map_calibration", points }
+    return { type: "map_calibration", points, version: 2 }
+}
+
+/**
+ * How long a map-calibration marker reading (grilling doc Q4) may go without a fresh, consistent
+ * snapshot before it's discarded and the stability count restarts — long enough to cover normal
+ * per-frame jitter, short enough that a stray reading from a half-settled rig (camera stitching
+ * not yet stable, or briefly reading the wrong physical marker) can't sit "pending" indefinitely
+ * and then get confirmed by an unrelated later snapshot.
+ */
+export const MAP_CALIBRATION_MARKER_TTL_MS = 750
+
+/**
+ * How many consecutive, mutually-consistent raw snapshots a map-calibration marker id must appear
+ * in before {@link isMarkerReadingStable} accepts it (grilling doc Q4) — the actual fix for "the
+ * window was only half set up and a stray/wrong-camera reading got treated as valid forever": a
+ * single sighting is no longer enough.
+ */
+export const MAP_CALIBRATION_MARKER_STABLE_READINGS = 2
+
+/**
+ * Pixel distance under which two consecutive readings for the same marker id count as "the same"
+ * (grilling doc Q4: "pixel tolerance to be picked on the physical table test, kept as an easily
+ * tunable constant, not hardcoded logic" — B6). A tunable constant, not a computed value.
+ */
+export const MAP_CALIBRATION_MARKER_PIXEL_TOLERANCE = 4
+
+/** One map-calibration marker's reading plus how long/consistently it's been seen (grilling doc Q4). */
+export interface TrackedMarkerReading {
+    reading: RawMarkerReading
+    firstSeenAt: number
+    lastUpdatedAt: number
+    consecutiveCount: number
+}
+
+/** Whether `tracked` has been confirmed consistently enough to be trusted (grilling doc Q4). */
+export function isMarkerReadingStable(tracked: TrackedMarkerReading): boolean {
+    return tracked.consecutiveCount >= MAP_CALIBRATION_MARKER_STABLE_READINGS
+}
+
+/** Whether two raw readings are within {@link MAP_CALIBRATION_MARKER_PIXEL_TOLERANCE} of each other (grilling doc Q4). */
+export function pixelReadingsWithinTolerance(
+    a: RawMarkerReading,
+    b: RawMarkerReading,
+    tolerancePx = MAP_CALIBRATION_MARKER_PIXEL_TOLERANCE
+): boolean {
+    return Math.hypot(a.pixelX - b.pixelX, a.pixelY - b.pixelY) <= tolerancePx
 }
 
 /**
@@ -592,6 +638,17 @@ function isRawMarkerDictionary(data: unknown): data is Record<string, RawMarkerE
     return Object.values(data).every(isRawMarkerEntry)
 }
 
+/**
+ * Recognizes a `{"type": "calibration_ack"}` message (grilling doc item 6, "conditional"). Python's
+ * `server.py` sends no such acknowledgement today — this guard exists so `handleMessage` can tell
+ * the shape apart from the raw marker dictionary/GeoJSON cases without throwing, once/if Python
+ * ever adds one. Deliberately inert: recognized and relayed via {@link RealTrackingSource.onCalibrationAck}
+ * but nothing in this codebase currently subscribes to it.
+ */
+function isCalibrationAck(data: unknown): data is { type: "calibration_ack" } {
+    return typeof data === "object" && data !== null && (data as { type?: unknown }).type === "calibration_ack"
+}
+
 function parseRawMarkerSnapshot(data: Record<string, RawMarkerEntry>): RawMarkerSnapshot {
     const markers = new Map<number, RawMarkerReading>()
     for (const [key, [pixelX, pixelY, rotation, cameraOrTag]] of Object.entries(data)) {
@@ -632,6 +689,7 @@ export class RealTrackingSource implements TrackingSource {
     private readonly connectionStateListeners: Array<(state: PythonConnectionState) => void> = []
     private readonly markerSnapshotListeners: Array<(markerIds: readonly number[]) => void> = []
     private readonly rawMarkerSnapshotListeners: Array<(markers: RawMarkerSnapshot) => void> = []
+    private readonly calibrationAckListeners: Array<() => void> = []
     private socket: TrackingWebSocket | undefined
     /** True only between `onopen` and the socket closing/erroring — {@link sendMapCalibration} refuses to send onto a socket that isn't actually open yet. */
     private socketOpen = false
@@ -718,6 +776,15 @@ export class RealTrackingSource implements TrackingSource {
     }
 
     /**
+     * Fires on a recognized `{"type": "calibration_ack"}` message (grilling doc item 6). Python
+     * sends no such message today — this exists as inert, forward-compatible scaffolding, not a
+     * behavior change; nothing in this codebase wires a listener onto it yet.
+     */
+    onCalibrationAck(cb: () => void): void {
+        this.calibrationAckListeners.push(cb)
+    }
+
+    /**
      * Sends `map_calibration` explicitly (ticket 12) — the only way it is ever sent; `connect()`
      * never sends it automatically on open or reconnect. Sends `calibration` if given, otherwise
      * the one passed to the constructor (if any). No-ops with a developer error if neither is
@@ -797,6 +864,10 @@ export class RealTrackingSource implements TrackingSource {
             const markers = parseRawMarkerSnapshot(data)
             this.emitMarkerSnapshot([...markers.keys()])
             this.emitRawMarkerSnapshot(markers)
+            return
+        }
+        if (isCalibrationAck(data)) {
+            this.emitCalibrationAck()
         }
     }
 
@@ -891,6 +962,12 @@ export class RealTrackingSource implements TrackingSource {
     private emitRawMarkerSnapshot(markers: RawMarkerSnapshot): void {
         for (const listener of this.rawMarkerSnapshotListeners) {
             listener(markers)
+        }
+    }
+
+    private emitCalibrationAck(): void {
+        for (const listener of this.calibrationAckListeners) {
+            listener()
         }
     }
 }

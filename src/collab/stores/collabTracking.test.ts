@@ -153,6 +153,7 @@ describe("buildMapCalibrationFromMarkerReadings (ticket 12)", () => {
                 { pixel_position: [10, 780], lat_lon_position: [53.54, 9.98] },
                 { pixel_position: [1590, 780], lat_lon_position: [53.54, 10.0] },
             ],
+            version: 2,
         });
     });
 
@@ -377,6 +378,7 @@ class FakeSocket implements TrackingWebSocket {
 const calibration: MapCalibrationMessage = {
     type: "map_calibration",
     points: [{ pixel_position: [0, 0], lat_lon_position: [53.5, 10] }],
+    version: 2,
 };
 
 describe("RealTrackingSource", () => {
@@ -441,7 +443,7 @@ describe("RealTrackingSource", () => {
             calibration,
             createSocket: () => socket,
         });
-        const override: MapCalibrationMessage = { type: "map_calibration", points: [] };
+        const override: MapCalibrationMessage = { type: "map_calibration", points: [], version: 2 };
 
         source.start();
         socket.emitOpen();
@@ -510,6 +512,28 @@ describe("RealTrackingSource", () => {
 
         expect(rawSnapshots).toHaveLength(1);
         expect(rawSnapshots[0]!.size).toBe(0);
+
+        source.stop();
+    });
+
+    test("recognizes a {\"type\": \"calibration_ack\"} message via onCalibrationAck without disturbing raw/GeoJSON parsing (grilling doc item 6 — inert scaffolding, Python sends none of these today)", () => {
+        const socket = new FakeSocket();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, calibration, createSocket: () => socket });
+        const acks: number[] = [];
+        const rawSnapshots: RawMarkerSnapshot[] = [];
+        source.onCalibrationAck(() => acks.push(1));
+        source.onRawMarkerSnapshot((markers) => rawSnapshots.push(markers));
+
+        source.start();
+        socket.emitOpen();
+        socket.emitMessage({ type: "calibration_ack" });
+
+        expect(acks).toHaveLength(1);
+        expect(rawSnapshots).toHaveLength(0);
+
+        // Still parses ordinary raw snapshots normally afterward.
+        socket.emitMessage({ 182: [120, 80, 45, "000"] });
+        expect(rawSnapshots).toHaveLength(1);
 
         source.stop();
     });

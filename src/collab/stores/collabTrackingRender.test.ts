@@ -167,6 +167,7 @@ describe("collabTrackingRender store", () => {
         scenarioStore.mapCalibration = {
             type: "map_calibration",
             points: [{ pixel_position: [0, 0], lat_lon_position: [53.5, 10] }],
+            version: 2,
         };
 
         const trackingRender = useCollabTrackingRenderStore();
@@ -268,6 +269,12 @@ describe("collabTrackingRender store", () => {
         trackingRender.startRendering("control");
         sockets[0]?.onopen?.();
 
+        // Two consistent snapshots (grilling doc Q4 stability gate) are required before a reading
+        // is promoted — a lone sighting is deliberately not enough (see the dedicated stability
+        // tests below).
+        sockets[0]?.onmessage?.({
+            data: JSON.stringify({ 200: [10, 20, 0, "000"], 999: [1, 2, 0, "000"] }),
+        });
         sockets[0]?.onmessage?.({
             data: JSON.stringify({ 200: [10, 20, 0, "000"], 999: [1, 2, 0, "000"] }),
         });
@@ -283,6 +290,100 @@ describe("collabTrackingRender store", () => {
         trackingRender.stop();
         vi.unstubAllEnvs();
         vi.unstubAllGlobals();
+    });
+
+    test("a single map-calibration marker reading is never enough to promote it — two consecutive, consistent snapshots are required within the TTL window (grilling doc Q4)", () => {
+        vi.useFakeTimers();
+        vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
+
+        class FakeSocket {
+            onopen: (() => void) | null = null;
+            onmessage: ((event: { data: string }) => void) | null = null;
+            onclose: (() => void) | null = null;
+            onerror: ((event: unknown) => void) | null = null;
+            send(): void {}
+            close(): void {}
+        }
+        const sockets: FakeSocket[] = [];
+        vi.stubGlobal(
+            "WebSocket",
+            function FakeWebSocket() {
+                const created = new FakeSocket();
+                sockets.push(created);
+                return created;
+            } as unknown as typeof WebSocket
+        );
+
+        const trackingRender = useCollabTrackingRenderStore();
+        trackingRender.startRendering("control");
+        sockets[0]?.onopen?.();
+
+        sockets[0]?.onmessage?.({ data: JSON.stringify({ 200: [10, 20, 0, "000"] }) });
+        expect(trackingRender.mapCalibrationMarkerHealth.has(200)).toBe(false);
+
+        // Arrives after the TTL — treated as a fresh first sighting, not a confirming second one.
+        vi.advanceTimersByTime(800);
+        sockets[0]?.onmessage?.({ data: JSON.stringify({ 200: [10, 20, 0, "000"] }) });
+        expect(trackingRender.mapCalibrationMarkerHealth.has(200)).toBe(false);
+
+        // Arrives promptly and consistently — this is the confirming second reading.
+        sockets[0]?.onmessage?.({ data: JSON.stringify({ 200: [10, 20, 0, "000"] }) });
+        expect(trackingRender.mapCalibrationMarkerHealth.has(200)).toBe(true);
+
+        trackingRender.stop();
+        vi.unstubAllEnvs();
+        vi.unstubAllGlobals();
+        vi.useRealTimers();
+    });
+
+    test("a stray/out-of-tolerance reading does not count toward promoting a later, consistent one (grilling doc Q4 — the 'wrong camera reading while the rig settles' failure mode)", () => {
+        vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
+
+        class FakeSocket {
+            onopen: (() => void) | null = null;
+            onmessage: ((event: { data: string }) => void) | null = null;
+            onclose: (() => void) | null = null;
+            onerror: ((event: unknown) => void) | null = null;
+            send(): void {}
+            close(): void {}
+        }
+        const sockets: FakeSocket[] = [];
+        vi.stubGlobal(
+            "WebSocket",
+            function FakeWebSocket() {
+                const created = new FakeSocket();
+                sockets.push(created);
+                return created;
+            } as unknown as typeof WebSocket
+        );
+
+        const trackingRender = useCollabTrackingRenderStore();
+        trackingRender.startRendering("control");
+        sockets[0]?.onopen?.();
+
+        // One stray sighting far from the real position, then the real, consistent one.
+        sockets[0]?.onmessage?.({ data: JSON.stringify({ 200: [500, 500, 0, "000"] }) });
+        sockets[0]?.onmessage?.({ data: JSON.stringify({ 200: [10, 20, 0, "000"] }) });
+        expect(trackingRender.mapCalibrationMarkerHealth.has(200)).toBe(false);
+
+        sockets[0]?.onmessage?.({ data: JSON.stringify({ 200: [10, 20, 0, "000"] }) });
+        expect(trackingRender.mapCalibrationMarkerHealth.has(200)).toBe(true);
+
+        trackingRender.stop();
+        vi.unstubAllEnvs();
+        vi.unstubAllGlobals();
+    });
+
+    test("resetMarkerPositions() bumps session.calibration.resetPositionsToken (grilling doc Q2) so Table can react without touching Python or the sticky marker-health state", () => {
+        const session = useCollabSessionStore();
+        const trackingRender = useCollabTrackingRenderStore();
+        expect(session.calibration.resetPositionsToken).toBe(0);
+
+        trackingRender.resetMarkerPositions();
+        expect(session.calibration.resetPositionsToken).toBe(1);
+
+        trackingRender.resetMarkerPositions();
+        expect(session.calibration.resetPositionsToken).toBe(2);
     });
 
     describe("calibrateFromDetectedMarkers / canCalibrateFromMarkers (ticket 12)", () => {
@@ -320,8 +421,11 @@ describe("collabTrackingRender store", () => {
             return sockets;
         }
 
+        /** Sends the same reading twice — the grilling doc Q4 stability gate requires two consecutive, consistent snapshots before a reading is promoted/confirmed. */
         function sendRawMarkerReading(socket: FakeSocket, markerId: number, pixelX: number, pixelY: number): void {
-            socket.onmessage?.({ data: JSON.stringify({ [markerId]: [pixelX, pixelY, 0, "000"] }) });
+            const message = { data: JSON.stringify({ [markerId]: [pixelX, pixelY, 0, "000"] }) };
+            socket.onmessage?.(message);
+            socket.onmessage?.(message);
         }
 
         test("canCalibrateFromMarkers is false until all four ids (200-203) have a reading, true once they all do", () => {
@@ -375,6 +479,7 @@ describe("collabTrackingRender store", () => {
                     { pixel_position: [10, 780], lat_lon_position: [53.54, 9.98] },
                     { pixel_position: [1590, 780], lat_lon_position: [53.54, 10.0] },
                 ],
+                version: 2,
             });
             expect(scenarioStore.calibrated).toBe(true);
             expect(session.calibration.phase).toBe("idle");
@@ -439,8 +544,11 @@ describe("collabTrackingRender store", () => {
             return sockets;
         }
 
+        /** Sends the same reading twice — the grilling doc Q4 stability gate requires two consecutive, consistent snapshots before a reading is promoted/confirmed. */
         function sendRawMarkerReading(socket: FakeSocket, markerId: number, pixelX: number, pixelY: number): void {
-            socket.onmessage?.({ data: JSON.stringify({ [markerId]: [pixelX, pixelY, 0, "000"] }) });
+            const message = { data: JSON.stringify({ [markerId]: [pixelX, pixelY, 0, "000"] }) };
+            socket.onmessage?.(message);
+            socket.onmessage?.(message);
         }
 
         /** A post-calibration GeoJSON snapshot carrying one registered building marker (id 1 -> "G01"). */
@@ -563,7 +671,7 @@ describe("collabTrackingRender store", () => {
             const scenarioStore = useCollabScenarioStore();
             scenarioStore.aoi = aoi;
             scenarioStore.calibrated = true;
-            scenarioStore.lastMeasuredCalibration = { type: "map_calibration", points: [] };
+            scenarioStore.lastMeasuredCalibration = { type: "map_calibration", points: [], version: 2 };
             session.calibration.phase = "idle";
 
             useCollabTrackingRenderStore().recalibrate();

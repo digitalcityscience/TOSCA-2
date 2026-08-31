@@ -124,6 +124,59 @@ describe("collabSync store", () => {
         reopenedTableSync.stop();
     });
 
+    test("Table's tableStatus reaches Control via onTableStatus, without ever landing in session.calibration (grilling doc Q1)", async () => {
+        setActivePinia(createPinia());
+        const controlSession = useCollabSessionStore();
+        const controlSync = useCollabSyncStore();
+
+        setActivePinia(createPinia());
+        const tableSync = useCollabSyncStore();
+
+        const [controlChannel, tableChannel] = PairedTestChannel.createPair<CollabSyncMessage>();
+        controlSync.startAsControl(controlChannel);
+        tableSync.startAsTable(tableChannel);
+        await nextTick();
+
+        const received: Array<{ ready: boolean; markerPositions: Record<number, [number, number]> }> = [];
+        controlSync.onTableStatus((ready, markerPositions) => received.push({ ready, markerPositions }));
+
+        tableSync.publishTableStatus(false, { 200: [10, 20] });
+        expect(received).toEqual([{ ready: false, markerPositions: { 200: [10, 20] } }]);
+
+        tableSync.publishTableStatus(true, { 200: [10, 20], 201: [30, 40], 202: [50, 60], 203: [70, 80] });
+        expect(received).toHaveLength(2);
+        expect(received[1]).toEqual({ ready: true, markerPositions: { 200: [10, 20], 201: [30, 40], 202: [50, 60], 203: [70, 80] } });
+
+        // Never written into the broadcast session slice — Control is its only writer (CollabCalibrationState's contract).
+        expect(controlSession.calibration.mapCalibrationMarkerIdsSeen).toEqual([]);
+
+        controlSync.stop();
+        tableSync.stop();
+    });
+
+    test("resetPositionsToken syncs Control -> Table like any other calibration field (grilling doc Q2)", async () => {
+        setActivePinia(createPinia());
+        const controlSession = useCollabSessionStore();
+        const controlSync = useCollabSyncStore();
+
+        setActivePinia(createPinia());
+        const tableSession = useCollabSessionStore();
+        const tableSync = useCollabSyncStore();
+
+        const [controlChannel, tableChannel] = PairedTestChannel.createPair<CollabSyncMessage>();
+        controlSync.startAsControl(controlChannel);
+        tableSync.startAsTable(tableChannel);
+        await nextTick();
+
+        controlSession.calibration.resetPositionsToken += 1;
+        await nextTick();
+
+        expect(tableSession.calibration.resetPositionsToken).toBe(1);
+
+        controlSync.stop();
+        tableSync.stop();
+    });
+
     test("table reports disconnected once the heartbeat goes quiet", () => {
         vi.useFakeTimers();
         setActivePinia(createPinia());

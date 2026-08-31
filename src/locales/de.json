@@ -345,9 +345,11 @@
         "uncalibrated": "Verbunden, nicht kalibriert — Neukalibrierung erforderlich",
         "calibrated": "Kalibriert",
         "presenting": "Der Tisch zeigt die Kalibrierungsmarker an — Kameras positionieren, dann beenden, um zur normalen Projektion zurückzukehren",
-        "calibrate": "Kalibrieren",
-        "exitPresentation": "Kalibrierungsanzeige beenden",
+        "calibrate": "Kalibrierung abschließen & Markeransicht schließen",
+        "exitPresentation": "Abbrechen (ohne zu kalibrieren verlassen)",
+        "allMarkersDetectedHint": "Alle vier Marker erkannt. „Kalibrierung abschließen“ sendet sie an Python und kehrt zur normalen Ansicht zurück — nichts geschieht automatisch, bevor Sie klicken.",
         "recalibrate": "Neu kalibrieren",
+        "resetPositions": "Positionen zurücksetzen",
         "resendAssumption": "Beim erneuten Verbinden wird die letzte Kalibrierung automatisch erneut gesendet — unter der Annahme, dass Kameras und Projektor sich nicht bewegt haben. Falls doch, „Neu kalibrieren“ drücken.",
         "resendFailed": "Kalibrierung wurde nach der Wiederverbindung nicht fortgesetzt — mit den vier Markern neu kalibrieren"
       },

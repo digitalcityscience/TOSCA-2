@@ -125,7 +125,7 @@ describe("viewfinderScreenCorners", () => {
 });
 
 describe("canStartTracking", () => {
-    const calibration: MapCalibrationMessage = { type: "map_calibration", points: [] };
+    const calibration: MapCalibrationMessage = { type: "map_calibration", points: [], version: 2 };
 
     test("disabled while mapCalibration is null, even with footprints loaded", () => {
         expect(canStartTracking(true, null)).toBe(false);
@@ -340,6 +340,7 @@ describe("collabScenario store", () => {
         const measured: MapCalibrationMessage = {
             type: "map_calibration",
             points: [{ pixel_position: [0, 0], lat_lon_position: [53.5, 10] }],
+            version: 2,
         };
         scenario.lastMeasuredCalibration = measured;
 

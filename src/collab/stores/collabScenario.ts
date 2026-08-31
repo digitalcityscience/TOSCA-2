@@ -206,6 +206,13 @@ export const useCollabScenarioStore = defineStore("collabScenario", () => {
      * moment a (re)confirmed AOI makes any previously-cached payload stale.
      */
     const lastMeasuredCalibration = ref<MapCalibrationMessage | null>(null);
+    /**
+     * The {@link aoiChecksum} of the AOI `lastMeasuredCalibration` was measured against (grilling
+     * doc Q3) — a resend on reconnect (`collabTrackingRender.handleTransportReconnected`) is only
+     * safe while the confirmed AOI's checksum still matches this one. `null` exactly when
+     * `lastMeasuredCalibration` is `null`.
+     */
+    const lastMeasuredCalibrationAoiHash = ref<string | null>(null);
     const aoiSelectionInProgress = ref(false);
     /** The viewfinder's current geographic extent — recomputed on every map move/zoom while selecting. */
     const viewfinderExtent = ref<AOIExtent | null>(null);
@@ -464,6 +471,7 @@ export const useCollabScenarioStore = defineStore("collabScenario", () => {
         // built for a different AOI, may be resent against this one.
         calibrated.value = false;
         lastMeasuredCalibration.value = null;
+        lastMeasuredCalibrationAoiHash.value = null;
         renderAoiLayer().catch((error) => reportDeveloperError("collabScenario.finishAoiSelection", error));
         // Ticket 10: confirming an AOI is the load action. The operator never has to press a
         // separate fixture/data button; validation and AOI filtering happen before the registry
@@ -483,6 +491,7 @@ export const useCollabScenarioStore = defineStore("collabScenario", () => {
         mapCalibration,
         calibrated,
         lastMeasuredCalibration,
+        lastMeasuredCalibrationAoiHash,
         aoiFeature,
         aoiSelectionInProgress,
         viewfinderExtent,

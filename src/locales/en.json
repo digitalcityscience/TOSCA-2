@@ -345,9 +345,11 @@
         "uncalibrated": "Connected, uncalibrated — recalibration required",
         "calibrated": "Calibrated",
         "presenting": "Table is presenting calibration markers — position the cameras, then exit to resume the normal projected view",
-        "calibrate": "Calibrate",
-        "exitPresentation": "Exit calibration presentation",
+        "calibrate": "Finish calibration & close marker view",
+        "exitPresentation": "Cancel (leave without calibrating)",
+        "allMarkersDetectedHint": "All four markers detected. \"Finish calibration\" sends it to Python and returns to the normal view — nothing happens automatically until you press it.",
         "recalibrate": "Recalibrate",
+        "resetPositions": "Reset positions",
         "resendAssumption": "Reconnecting resends the last calibration automatically, assuming the cameras and projector haven't moved. If they have, press Recalibrate.",
         "resendFailed": "Calibration didn't resume after reconnecting — recalibrate using the four markers"
       },

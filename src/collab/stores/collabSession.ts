@@ -76,6 +76,14 @@ export interface CollabCalibrationState {
      * `marker-received` feedback (`COUP-table-web-interface/js/calibration.js`).
      */
     mapCalibrationMarkerIdsSeen: readonly number[];
+    /**
+     * Bumped by Control whenever the operator presses "Reset positions" (grilling doc Q2) — Table
+     * watches this counter (not a boolean, so a second reset while already at the default still
+     * triggers) and, on change, clears its local drag overrides and re-places the four calibration
+     * markers back at their AOI-corner defaults via the existing `syncCalibrationPresentation` path.
+     * Distinct from `revision`/`phase`: this is a one-shot signal, not a description of state.
+     */
+    resetPositionsToken: number;
 }
 
 /**
@@ -111,6 +119,7 @@ export const useCollabSessionStore = defineStore("collabSession", () => {
         phase: "idle",
         revision: 0,
         mapCalibrationMarkerIdsSeen: [],
+        resetPositionsToken: 0,
     });
     const trackedBuildings = reactive<CollabTrackedBuildingsState>({
         footprints: { type: "FeatureCollection", features: [] },

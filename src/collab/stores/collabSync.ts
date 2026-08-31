@@ -32,12 +32,20 @@ const SNAPSHOT_SLICES = [
 ] as const;
 type SnapshotSlice = (typeof SNAPSHOT_SLICES)[number];
 
-/** Control → Table wire messages (plan §11). `patch` carries only the slices that changed. */
+/**
+ * Control → Table wire messages (plan §11), plus one Table → Control message (grilling doc Q1).
+ * `patch` carries only the slices that changed. `tableStatus` is deliberately NOT one of
+ * {@link SNAPSHOT_SLICES}/{@link CollabSessionSnapshot} — it flows the opposite direction (Table
+ * publishes, Control subscribes) and is never written into `session.calibration`, since that
+ * slice's own contract says Control is its only writer. Control forwards a received `tableStatus`
+ * into a Control-local ref in `collabTrackingRender.ts`, next to `mapCalibrationMarkerHealth`.
+ */
 export type CollabSyncMessage =
     | { kind: "hello" }
     | { kind: "snapshot"; version: number; state: CollabSessionSnapshot }
     | { kind: "patch"; version: number; state: Partial<CollabSessionSnapshot> }
-    | { kind: "heartbeat"; version: number };
+    | { kind: "heartbeat"; version: number }
+    | { kind: "tableStatus"; ready: boolean; markerPositions: Record<number, [number, number]> };
 
 /** localStorage key a (re)opened Table reads before it has heard from Control (plan §11). */
 export const COLLAB_SNAPSHOT_STORAGE_KEY = "tosca-collab-session-snapshot";
@@ -70,6 +78,7 @@ function cloneCalibration(value: CollabCalibrationState): CollabCalibrationState
         phase: value.phase,
         revision: value.revision,
         mapCalibrationMarkerIdsSeen: [...value.mapCalibrationMarkerIdsSeen],
+        resetPositionsToken: value.resetPositionsToken,
     };
 }
 
@@ -133,6 +142,8 @@ export const useCollabSyncStore = defineStore("collabSync", () => {
     let lastPublished: CollabSessionSnapshot | undefined;
     let lastMessageAt = Date.now();
     let version = 0;
+    /** Control-side listeners for an incoming `tableStatus` message (grilling doc Q1) — registered by `collabTrackingRender.ts`. */
+    const tableStatusListeners: Array<(ready: boolean, markerPositions: Record<number, [number, number]>) => void> = [];
 
     function currentSnapshot(): CollabSessionSnapshot {
         return {
@@ -176,6 +187,10 @@ export const useCollabSyncStore = defineStore("collabSync", () => {
         unsubscribe = channel.subscribe((message) => {
             if (message.kind === "hello") {
                 publishFullSnapshot();
+            } else if (message.kind === "tableStatus") {
+                for (const listener of tableStatusListeners) {
+                    listener(message.ready, message.markerPositions);
+                }
             }
         });
 
@@ -229,6 +244,19 @@ export const useCollabSyncStore = defineStore("collabSync", () => {
         }, HEARTBEAT_INTERVAL_MS);
     }
 
+    /**
+     * Table side: reports drag-override readiness/positions back to Control (grilling doc Q1) —
+     * a no-op if this store hasn't been started (as either role) yet, i.e. no channel is open.
+     */
+    function publishTableStatus(ready: boolean, markerPositions: Record<number, [number, number]>): void {
+        channel?.publish({ kind: "tableStatus", ready, markerPositions });
+    }
+
+    /** Control side: registers a listener for an incoming `tableStatus` message (grilling doc Q1). */
+    function onTableStatus(listener: (ready: boolean, markerPositions: Record<number, [number, number]>) => void): void {
+        tableStatusListeners.push(listener);
+    }
+
     /** Tears down subscriptions/timers/transport. Idempotent — safe on unmount and HMR. */
     function stop(): void {
         stopWatch?.();
@@ -254,6 +282,8 @@ export const useCollabSyncStore = defineStore("collabSync", () => {
         connected,
         startAsControl,
         startAsTable,
+        publishTableStatus,
+        onTableStatus,
         stop,
     };
 });

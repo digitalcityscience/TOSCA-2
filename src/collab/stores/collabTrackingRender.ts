@@ -15,20 +15,32 @@ import { i18n } from "../../core/i18n";
 import { useMapStore } from "@store/map";
 import { useCollabSessionStore, type CollabSceneObject, type CollabTrackingObjectState } from "./collabSession";
 import { toFeature, useCollabScenarioStore, type CollabBuildingObject } from "./collabScenario";
-import { calibrationMarkerSizePx, deriveTrackedFootprint, tableToAoiRotationOffsetDeg, type AOIExtent, type MapCalibrationMessage } from "./collabCalibration";
+import { useCollabSyncStore } from "./collabSync";
+import {
+    aoiChecksum,
+    calibrationMarkerSizePx,
+    deriveTrackedFootprint,
+    tableToAoiRotationOffsetDeg,
+    type AOIExtent,
+    type MapCalibrationMessage,
+} from "./collabCalibration";
 import {
     aoiCornerForMapMarker,
     buildMapCalibrationFromMarkerReadings,
     calibrationMarkerImageUrl,
     createMarkerObjectRegistry,
+    isMarkerReadingStable,
     MAP_CALIBRATION_MARKER_IDS,
+    MAP_CALIBRATION_MARKER_TTL_MS,
     MAP_CALIBRATION_MARKERS,
+    pixelReadingsWithinTolerance,
     REFERENCE_MARKERS,
     RealTrackingSource,
     type MarkerObjectRegistry,
     type MarkerObjectRegistryEntry,
     type PythonConnectionState,
     type RawMarkerReading,
+    type TrackedMarkerReading,
     type TrackingAvailability,
     type TrackingEvent,
 } from "./collabTracking";
@@ -305,6 +317,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     const scenarioStore = useCollabScenarioStore();
     const mapStore = useMapStore();
     const toast = useToast();
+    const syncStore = useCollabSyncStore();
 
     const trackingAvailability = ref<TrackingAvailability>("live");
     /**
@@ -332,6 +345,24 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
      * snapshots — building markers never advance it.
      */
     const mapCalibrationMarkerHealth = ref<ReadonlyMap<number, RawMarkerReading>>(new Map());
+    /**
+     * Not-yet-confirmed map-calibration marker readings (grilling doc Q4) — a reading only reaches
+     * {@link mapCalibrationMarkerHealth} once {@link isMarkerReadingStable} accepts it. Kept
+     * separate from the public ref precisely so a single stray/wrong-camera reading (the "window
+     * was only half set up" failure mode) can never satisfy `canCalibrateFromMarkers()` on its own.
+     */
+    const pendingMarkerReadings = new Map<number, TrackedMarkerReading>();
+    /**
+     * Control-local view of Table's drag-override status (grilling doc Q1) — populated from the
+     * `tableStatus` message Table publishes over `collabSync`'s channel. Never written into
+     * `session.calibration` (that slice's contract: Control is its only writer).
+     */
+    const tableMarkerPositionsReady = ref(false);
+    const tableMarkerPositions = ref<Record<number, [number, number]>>({});
+    syncStore.onTableStatus((ready, markerPositions) => {
+        tableMarkerPositionsReady.value = ready;
+        tableMarkerPositions.value = markerPositions;
+    });
     const appliedRotationByObjectId = new Map<string, number>();
     /** Keyed by source id (A4): the in-flight create-source-and-layer promise, so concurrent render ticks await the same creation instead of both racing `addMapDataSource`. */
     const layerInitInFlight = new Map<string, Promise<void>>();
@@ -347,6 +378,15 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     let resumeConfirmationTimer: ReturnType<typeof setTimeout> | undefined;
     /** Live `maplibregl.Marker` instances for the four calibration markers, keyed by marker id (ticket 11). */
     const calibrationMarkers = new Map<number, MapLibreMarker>();
+    /**
+     * Table-window-local operator drag corrections for the four calibration markers (grilling doc
+     * Q1/Q2) — never sent to Python and never written into `session.calibration`; only reported to
+     * Control via `collabSync.publishTableStatus` for status display. Cleared by
+     * {@link resetMarkerPositions}'s `resetPositionsToken` broadcast or on `stop()`.
+     */
+    const markerPositionOverrides = new Map<number, [number, number]>();
+    /** Last `session.calibration.resetPositionsToken` value {@link syncCalibrationPresentation} has reacted to (grilling doc Q2). */
+    let lastSeenResetPositionsToken: number | undefined;
     let calibrationResizeMap: MapLibreMap | undefined;
 
     function resizeCalibrationMarkers(): void {
@@ -676,6 +716,15 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
      * never calls this — the calibration overlay is Table-only, matching "Control keeps its own
      * basemap for operator context."
      */
+    /** Reports the current drag-override set to Control via `collabSync` (grilling doc Q1). */
+    function publishTableMarkerStatus(): void {
+        const markerPositions: Record<number, [number, number]> = {};
+        for (const [id, position] of markerPositionOverrides) {
+            markerPositions[id] = position;
+        }
+        syncStore.publishTableStatus(markerPositionOverrides.size === MAP_CALIBRATION_MARKERS.length, markerPositions);
+    }
+
     function syncCalibrationPresentation(): void {
         const map = mapStore.map as MapLibreMap | undefined;
         const aoi: AOIExtent | null = session.calibration.aoi;
@@ -694,12 +743,24 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             return;
         }
 
+        // "Reset positions" (grilling doc Q2): Control bumps `resetPositionsToken` over the
+        // existing broadcast channel; Table reacts here by dropping every drag override so the
+        // corner-placement loop below falls back to the AOI's own corners.
+        if (lastSeenResetPositionsToken !== session.calibration.resetPositionsToken) {
+            lastSeenResetPositionsToken = session.calibration.resetPositionsToken;
+            if (markerPositionOverrides.size > 0) {
+                markerPositionOverrides.clear();
+                publishTableMarkerStatus();
+            }
+        }
+
         if (hiddenLayerIds.length === 0) {
             hiddenLayerIds = hideNonCalibrationLayers(map);
         }
         attachCalibrationResizeListeners(map);
         for (const config of MAP_CALIBRATION_MARKERS) {
-            const corner = aoiCornerForMapMarker(aoi, config.corner);
+            const corner = aoiCornerForMapMarker(aoi, config.corner) as [number, number];
+            const position = markerPositionOverrides.get(config.id) ?? corner;
             const received = session.calibration.mapCalibrationMarkerIdsSeen.includes(config.id);
             const existing = calibrationMarkers.get(config.id);
             if (existing === undefined) {
@@ -707,16 +768,20 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                 applyCalibrationMarkerSize(element, map);
                 applyCalibrationMarkerReceivedState(element, received);
                 const marker = new maplibre.Marker({ element, draggable: true, anchor: "center" })
-                    .setLngLat(corner as [number, number])
+                    .setLngLat(position)
                     .addTo(map);
+                // Operator correction (grilling doc Q1/item 2): persisted as a Table-local override
+                // (so the next render tick doesn't snap it back to the raw AOI corner) and reported
+                // to Control purely for status display — this never changes what's sent to Python.
                 marker.on("dragend", () => {
                     const pos = marker.getLngLat();
-                    console.log("Marker moved:", { id: config.id, lng: pos.lng, lat: pos.lat });
+                    markerPositionOverrides.set(config.id, [pos.lng, pos.lat]);
+                    publishTableMarkerStatus();
                 });
                 calibrationMarkers.set(config.id, marker);
                 logCalibrationMarkerGeometry(config.id, element, map, aoi);
             } else {
-                existing.setLngLat(corner as [number, number]);
+                existing.setLngLat(position);
                 // Re-size as well as re-position: the AOI may have changed under an existing marker.
                 applyCalibrationMarkerSize(existing.getElement(), map);
                 applyCalibrationMarkerReceivedState(existing.getElement(), received);
@@ -948,13 +1013,32 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             }
             detectedReferenceMarkerIds.value = new Set([...detectedReferenceMarkerIds.value, ...newlySeen]);
         });
-        // Map-calibration marker health (ticket 08): only ids 200-203 ever enter this map, fed
-        // exclusively from raw pre-calibration snapshots — sticky, holds each id's latest reading.
+        // Map-calibration marker health (ticket 08, gated by grilling doc Q4): only ids 200-203
+        // ever enter `mapCalibrationMarkerHealth`, and only once `pendingMarkerReadings` has seen
+        // MAP_CALIBRATION_MARKER_STABLE_READINGS consecutive, mutually-consistent readings within
+        // MAP_CALIBRATION_MARKER_TTL_MS of each other. This is the actual fix for a stray/wrong-
+        // camera reading (rig still settling — "the window was only half open") permanently
+        // satisfying `canCalibrateFromMarkers()` off a single sighting. Once promoted, a marker id
+        // is sticky exactly as before — promotion is the only path in.
         source.onRawMarkerSnapshot((markers) => {
+            const now = Date.now();
             let changed = false;
             const next = new Map(mapCalibrationMarkerHealth.value);
             for (const [markerId, reading] of markers) {
                 if (!MAP_CALIBRATION_MARKER_IDS.has(markerId)) {
+                    continue;
+                }
+                const pending = pendingMarkerReadings.get(markerId);
+                const isFreshAndConsistent =
+                    pending !== undefined &&
+                    now - pending.lastUpdatedAt <= MAP_CALIBRATION_MARKER_TTL_MS &&
+                    pixelReadingsWithinTolerance(pending.reading, reading);
+                const tracked: TrackedMarkerReading = isFreshAndConsistent
+                    ? { reading, firstSeenAt: pending.firstSeenAt, lastUpdatedAt: now, consecutiveCount: pending.consecutiveCount + 1 }
+                    : { reading, firstSeenAt: now, lastUpdatedAt: now, consecutiveCount: 1 };
+                pendingMarkerReadings.set(markerId, tracked);
+
+                if (!isMarkerReadingStable(tracked)) {
                     continue;
                 }
                 if (!next.has(markerId)) {
@@ -1005,6 +1089,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         pythonConnectionState.value = "mock";
         detectedReferenceMarkerIds.value = new Set();
         mapCalibrationMarkerHealth.value = new Map();
+        pendingMarkerReadings.clear();
         session.calibration.mapCalibrationMarkerIdsSeen = [];
     }
 
@@ -1025,6 +1110,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
      */
     function enterCalibrationPresentation(): void {
         mapCalibrationMarkerHealth.value = new Map();
+        pendingMarkerReadings.clear();
         session.calibration.mapCalibrationMarkerIdsSeen = [];
         session.calibration.phase = "presenting";
         session.calibration.revision += 1;
@@ -1066,6 +1152,17 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         if (cached === null || session.calibration.phase === "presenting" || realSource === undefined) {
             return;
         }
+        const aoi = scenarioStore.aoi;
+        if (aoi === null || scenarioStore.lastMeasuredCalibrationAoiHash !== aoiChecksum(aoi)) {
+            // The confirmed AOI no longer matches the one this cached payload was measured
+            // against (grilling doc Q3) — resending it would silently georeference tracked poses
+            // against the wrong extent. Treated exactly like a failed resend: drop back to
+            // four-marker detection instead of trusting a stale payload.
+            scenarioStore.calibrated = false;
+            toast.add({ severity: "warning", summary: i18n.global.t("collab.control.calibration.resendFailed") });
+            enterCalibrationPresentation();
+            return;
+        }
         realSource.sendMapCalibration(cached);
         clearResumeConfirmationTimer();
         resumeConfirmationTimer = setTimeout(() => {
@@ -1088,9 +1185,21 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         clearResumeConfirmationTimer();
         scenarioStore.calibrated = false;
         scenarioStore.lastMeasuredCalibration = null;
+        scenarioStore.lastMeasuredCalibrationAoiHash = null;
         mapCalibrationMarkerHealth.value = new Map();
         realSource?.resetMapCalibration();
         enterCalibrationPresentation();
+    }
+
+    /**
+     * Control-side action for the "Reset positions" button (grilling doc Q2), distinct from
+     * `recalibrate()`: broadcasts over the existing Control→Table channel (`resetPositionsToken`)
+     * so Table clears its local drag overrides and the four calibration markers snap back to their
+     * AOI-corner defaults — without touching Python's raw-pixel feed or the sticky marker-health
+     * state `recalibrate()` resets.
+     */
+    function resetMarkerPositions(): void {
+        session.calibration.resetPositionsToken += 1;
     }
 
     /**
@@ -1139,6 +1248,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         // Cached for ticket 14's reconnect policy: the payload built from real measured pixel
         // positions, resendable as-is on a later reconnect as long as this AOI stays confirmed.
         scenarioStore.lastMeasuredCalibration = message;
+        scenarioStore.lastMeasuredCalibrationAoiHash = aoiChecksum(aoi);
         exitCalibrationPresentation();
         toast.add({
             severity: "success",
@@ -1160,6 +1270,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             marker.remove();
         }
         calibrationMarkers.clear();
+        markerPositionOverrides.clear();
         hiddenLayerIds = [];
     }
 
@@ -1170,6 +1281,8 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         pythonConnectionState,
         detectedReferenceMarkerIds,
         mapCalibrationMarkerHealth,
+        tableMarkerPositionsReady,
+        tableMarkerPositions,
         debugOverlaysEnabled,
         setDebugOverlaysEnabled,
         startRendering,
@@ -1179,6 +1292,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         canCalibrateFromMarkers,
         calibrateFromDetectedMarkers,
         recalibrate,
+        resetMarkerPositions,
         stop,
     };
 });

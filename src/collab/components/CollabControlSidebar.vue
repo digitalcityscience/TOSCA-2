@@ -134,32 +134,47 @@
                 <span class="size-2 shrink-0 rounded-full" :class="calibrationStatusDotClass" />
                 {{ calibrationStatusText }}
             </p>
-            <div v-if="collabSession.calibration.phase === 'presenting'" class="flex gap-2">
-                <UButton
-                    v-if="trackingRenderStore.canCalibrateFromMarkers()"
-                    :label="t('collab.control.calibration.calibrate')"
-                    icon="i-lucide-crosshair"
-                    size="xs"
-                    color="primary"
-                    @click="trackingRenderStore.calibrateFromDetectedMarkers()"
-                />
-                <UButton
-                    :label="t('collab.control.calibration.exitPresentation')"
-                    icon="i-lucide-eye-off"
-                    size="xs"
-                    variant="soft"
-                    @click="trackingRenderStore.exitCalibrationPresentation()"
-                />
+            <div v-if="collabSession.calibration.phase === 'presenting'" class="flex flex-col gap-2">
+                <p v-if="trackingRenderStore.canCalibrateFromMarkers()" class="text-xs text-success">
+                    {{ t("collab.control.calibration.allMarkersDetectedHint") }}
+                </p>
+                <div class="flex gap-2">
+                    <UButton
+                        v-if="trackingRenderStore.canCalibrateFromMarkers()"
+                        :label="t('collab.control.calibration.calibrate')"
+                        icon="i-lucide-check"
+                        size="xs"
+                        color="primary"
+                        @click="trackingRenderStore.calibrateFromDetectedMarkers()"
+                    />
+                    <UButton
+                        :label="t('collab.control.calibration.exitPresentation')"
+                        icon="i-lucide-x"
+                        size="xs"
+                        variant="soft"
+                        @click="trackingRenderStore.exitCalibrationPresentation()"
+                    />
+                </div>
             </div>
             <div v-else-if="scenarioStore.aoi !== null" class="flex flex-col gap-2">
-                <UButton
-                    :label="t('collab.control.calibration.recalibrate')"
-                    icon="i-lucide-refresh-ccw"
-                    size="xs"
-                    variant="soft"
-                    class="self-start"
-                    @click="trackingRenderStore.recalibrate()"
-                />
+                <div class="flex gap-2">
+                    <UButton
+                        :label="t('collab.control.calibration.recalibrate')"
+                        icon="i-lucide-refresh-ccw"
+                        size="xs"
+                        variant="soft"
+                        class="self-start"
+                        @click="trackingRenderStore.recalibrate()"
+                    />
+                    <UButton
+                        :label="t('collab.control.calibration.resetPositions')"
+                        icon="i-lucide-locate-fixed"
+                        size="xs"
+                        variant="soft"
+                        class="self-start"
+                        @click="trackingRenderStore.resetMarkerPositions()"
+                    />
+                </div>
                 <p class="text-xs text-muted">{{ t("collab.control.calibration.resendAssumption") }}</p>
             </div>
         </div>

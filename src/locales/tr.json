@@ -345,9 +345,11 @@
         "uncalibrated": "Bağlı, kalibre edilmedi — yeniden kalibrasyon gerekli",
         "calibrated": "Kalibre edildi",
         "presenting": "Masa kalibrasyon işaretçilerini gösteriyor — kameraları konumlandırın, ardından normal görünüme dönmek için çıkın",
-        "calibrate": "Kalibre et",
-        "exitPresentation": "Kalibrasyon sunumundan çık",
+        "calibrate": "Kalibrasyonu bitir ve marker görünümünü kapat",
+        "exitPresentation": "İptal et (kalibre etmeden çık)",
+        "allMarkersDetectedHint": "Dört işaretleyicinin tümü algılandı. \"Kalibrasyonu bitir\" Python'a gönderir ve normal görünüme döner — sen basmadan hiçbir şey otomatik olarak olmaz.",
         "recalibrate": "Yeniden kalibre et",
+        "resetPositions": "Konumları sıfırla",
         "resendAssumption": "Yeniden bağlanma, kameraların ve projektörün hareket etmediği varsayılarak son kalibrasyonu otomatik olarak yeniden gönderir. Hareket ettiyse \"Yeniden kalibre et\"e basın.",
         "resendFailed": "Yeniden bağlandıktan sonra kalibrasyon devam etmedi — dört işaretleyiciyi kullanarak yeniden kalibre edin"
       },
