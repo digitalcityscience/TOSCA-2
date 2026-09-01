@@ -871,16 +871,22 @@ export class RealTrackingSource implements TrackingSource {
         this.socket.send(JSON.stringify(message))
     }
 
-    /** Returns Python to its raw-pixel feed so a fresh four-marker calibration can be measured. */
-    resetMapCalibration(): void {
+    /**
+     * Returns Python to its raw-pixel feed so a fresh four-marker calibration can be measured.
+     * Reports whether the message actually went out, so the caller can decide whether to wait for
+     * Python to confirm the clear by reverting to raw snapshots (grilling doc 2026-09-01 Q13).
+     *
+     * A closed socket is an ordinary outcome here, not a developer error (grilling doc Q5): this is
+     * called on every AOI (re)confirmation, and the operator is free to choose an AOI while Python
+     * is down or still reconnecting. Nothing is queued for later — a Python that was never told to
+     * clear has no stale homography to clear either, since it is starting from nothing.
+     */
+    resetMapCalibration(): boolean {
         if (!this.socketOpen || this.socket === undefined) {
-            reportDeveloperError(
-                "collabTracking.RealTrackingSource.resetMapCalibration",
-                new Error("cannot reset map calibration: socket is not open")
-            )
-            return
+            return false
         }
         this.socket.send(JSON.stringify({ type: "clear_calibration" }))
+        return true
     }
 
     private connect(): void {

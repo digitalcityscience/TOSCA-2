@@ -44,13 +44,26 @@ export interface CollabTableRenderState {
 }
 
 /**
- * Whether the Table window is presenting the four map-calibration reference markers (ticket 11,
- * fix-tickets). `"idle"` — normal Table rendering (scenario/tracked footprints etc.); `"presenting"`
- * — Table shows only the `200`-`203` marker images at the AOI corners so the cameras can read them,
- * with everything else hidden. A future ticket (real four-marker calibration) is expected to add
- * further phases (e.g. `"calibrated"`) once it lands — kept to these two for now (YAGNI).
+ * What the Table window is currently showing, as decided by Control (ticket 11, fix-tickets;
+ * grilling doc 2026-09-01 Q14/Q16). Control is the only writer; Table reads this and nothing else
+ * to decide between the normal projection and a blackout.
+ *
+ * - `"idle"` — normal Table rendering (scenario/tracked footprints etc.).
+ * - `"presenting"` — only the `200`-`203` marker images at the AOI corners, everything else hidden,
+ *   so the cameras can read them.
+ * - `"needs-calibration"` — blacked out over the (already updated) map with a "calibration needed"
+ *   notice. The single state for *every* reason the session isn't calibrated: no AOI chosen yet, an
+ *   AOI just (re)confirmed, or a Python restart that invalidated the calibration. Table tells the
+ *   two messages apart from `aoi === null`, not from a separate phase — one path, not three.
+ * - `"unreachable"` — blacked out, but Python did not answer within the confirmation window
+ *   (`CALIBRATION_CONFIRMATION_TIMEOUT_MS`). Distinct from `"needs-calibration"` because pressing
+ *   "Start calibration" cannot fix it: the problem is the transport, not the missing calibration,
+ *   and showing the operator that button here would send them down the wrong path.
+ *
+ * The two blackout phases share one backdrop in `CollabTableView.vue` — the same `#050505` the
+ * marker presentation already uses — so a blackout always looks like a blackout regardless of why.
  */
-export type CollabCalibrationPhase = "idle" | "presenting";
+export type CollabCalibrationPhase = "idle" | "presenting" | "needs-calibration" | "unreachable";
 
 /**
  * Derived calibration values both windows need but only Control can compute (plan §5b/§13):

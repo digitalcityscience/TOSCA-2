@@ -356,7 +356,11 @@
         "recalibrate": "Recalibrate",
         "resetPositions": "Reset positions",
         "resendAssumption": "Reconnecting resends the last calibration automatically, assuming the cameras and projector haven't moved. If they have, press Recalibrate.",
-        "resendFailed": "Calibration didn't resume after reconnecting — recalibrate using the four markers"
+        "resendFailed": "Calibration didn't resume after reconnecting — recalibrate using the four markers",
+        "notConfirmed": "Python didn't confirm the calibration — check that the tracking server is running, then try again",
+        "clearUnconfirmed": "Python didn't confirm that the previous calibration was cleared — check that the tracking server is running",
+        "confirmedSummary": "Calibration confirmed",
+        "confirmedDetail": "Python switched to the building feed, so it accepted the calibration. The table view is live."
       },
       "footprints": {
         "loadRequiresAoi": "Select an AOI first",
@@ -402,7 +406,21 @@
       }
     },
     "table": {
-      "disconnected": "Disconnected — recalibrate"
+      "disconnected": "Disconnected — recalibrate",
+      "blackout": {
+        "needsCalibration": {
+          "title": "Calibration needed",
+          "hint": "The area of interest changed. Press \"Start calibration\" on the control window to show the markers."
+        },
+        "noAoi": {
+          "title": "No area selected",
+          "hint": "Choose an area of interest on the control window to begin."
+        },
+        "unreachable": {
+          "title": "Tracking server unreachable",
+          "hint": "Python didn't respond. Restart the tracking server — calibrating won't help until it's back."
+        }
+      }
     },
     "layers": {
       "aoiViewfinder": "Collab · AOI selection frame",

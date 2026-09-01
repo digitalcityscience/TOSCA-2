@@ -356,7 +356,11 @@
         "recalibrate": "Neu kalibrieren",
         "resetPositions": "Positionen zurücksetzen",
         "resendAssumption": "Beim erneuten Verbinden wird die letzte Kalibrierung automatisch erneut gesendet — unter der Annahme, dass Kameras und Projektor sich nicht bewegt haben. Falls doch, „Neu kalibrieren“ drücken.",
-        "resendFailed": "Kalibrierung wurde nach der Wiederverbindung nicht fortgesetzt — mit den vier Markern neu kalibrieren"
+        "resendFailed": "Kalibrierung wurde nach der Wiederverbindung nicht fortgesetzt — mit den vier Markern neu kalibrieren",
+        "notConfirmed": "Python hat die Kalibrierung nicht bestätigt — prüfen Sie, ob der Tracking-Server läuft, und versuchen Sie es erneut",
+        "clearUnconfirmed": "Python hat das Zurücksetzen der vorherigen Kalibrierung nicht bestätigt — prüfen Sie, ob der Tracking-Server läuft",
+        "confirmedSummary": "Kalibrierung bestätigt",
+        "confirmedDetail": "Python hat auf den Gebäude-Feed umgeschaltet und die Kalibrierung damit übernommen. Die Tischansicht ist aktiv."
       },
       "footprints": {
         "loadRequiresAoi": "Wählen Sie zuerst ein Interessengebiet aus",
@@ -402,7 +406,21 @@
       }
     },
     "table": {
-      "disconnected": "Verbindung getrennt — neu kalibrieren"
+      "disconnected": "Verbindung getrennt — neu kalibrieren",
+      "blackout": {
+        "needsCalibration": {
+          "title": "Kalibrierung erforderlich",
+          "hint": "Das Interessengebiet hat sich geändert. Drücken Sie im Kontrollfenster „Kalibrierung starten“, um die Marker anzuzeigen."
+        },
+        "noAoi": {
+          "title": "Kein Gebiet ausgewählt",
+          "hint": "Wählen Sie im Kontrollfenster ein Interessengebiet aus, um zu beginnen."
+        },
+        "unreachable": {
+          "title": "Tracking-Server nicht erreichbar",
+          "hint": "Python hat nicht geantwortet. Starten Sie den Tracking-Server neu — Kalibrieren hilft erst, wenn er wieder läuft."
+        }
+      }
     },
     "layers": {
       "aoiViewfinder": "Collab · Auswahlrahmen (Interessengebiet)",

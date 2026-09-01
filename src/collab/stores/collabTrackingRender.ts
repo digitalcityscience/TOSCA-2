@@ -13,7 +13,12 @@ import { resolveCollabTrackingMode, resolveCollabTrackingWsUrl } from "../helper
 import type { BuildingMarkerStatus } from "../data/collabBuildingData";
 import { i18n } from "../../core/i18n";
 import { useMapStore } from "@store/map";
-import { useCollabSessionStore, type CollabSceneObject, type CollabTrackingObjectState } from "./collabSession";
+import {
+    useCollabSessionStore,
+    type CollabCalibrationPhase,
+    type CollabSceneObject,
+    type CollabTrackingObjectState,
+} from "./collabSession";
 import { toFeature, useCollabScenarioStore, type CollabBuildingObject } from "./collabScenario";
 import { useCollabSyncStore } from "./collabSync";
 import {
@@ -114,6 +119,25 @@ const ORIENTATION_LINE_METERS = 5;
  * clearly not resumed.
  */
 const RECONNECT_RESUME_TIMEOUT_MS = 8000;
+
+/**
+ * How long Python gets to prove that a calibration message took effect before the session is
+ * declared `"unreachable"` (grilling doc 2026-09-01 Q11/Q13).
+ *
+ * Both directions are judged by the same observable: Python's output *type*. It emits GeoJSON
+ * `FeatureCollection`s exactly while it holds a homography and raw marker dictionaries exactly
+ * while it doesn't (`server.py`'s `if basemap_homography is not None`), so a `map_calibration` is
+ * proven by the feed switching to GeoJSON and a `clear_calibration` by it switching back — no
+ * acknowledgement message, and nothing added to the protocol. Python never answers either message,
+ * so without this the frontend can only report "I sent it", which is exactly the sentence that
+ * hides a rejected payload (`server.py` prints the rejection to its own console and tells nobody).
+ *
+ * Neither signal depends on anything being on the table: Python pushes a snapshot every 200 ms and
+ * `Markers.toDict()` returns `{}` when it saw nothing, so an empty table still produces proof.
+ * Shorter than {@link RECONNECT_RESUME_TIMEOUT_MS} deliberately — that window covers a whole
+ * process restart re-detecting its markers, this one covers a single 200 ms publish cycle.
+ */
+const CALIBRATION_CONFIRMATION_TIMEOUT_MS = 3000;
 
 /**
  * Builds a {@link MarkerObjectRegistry} from the loaded base-city objects' `marker_id` (OD-4,
@@ -428,6 +452,26 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
      * first.
      */
     let resumeConfirmationTimer: ReturnType<typeof setTimeout> | undefined;
+    /**
+     * Set only between sending a freshly measured `map_calibration` and Python proving it took
+     * (grilling doc 2026-09-01 Q11): the first GeoJSON `FeatureCollection` clears it and completes
+     * the calibration; firing it means Python never switched feeds and the session goes
+     * `"unreachable"`. Never more than one pending at a time.
+     */
+    let calibrationConfirmationTimer: ReturnType<typeof setTimeout> | undefined;
+    /**
+     * Set only between sending `clear_calibration` and Python proving it took (grilling doc Q13) —
+     * the mirror image of {@link calibrationConfirmationTimer}: here the proof is a *raw* marker
+     * snapshot, i.e. Python having dropped back off the GeoJSON feed. Never more than one pending.
+     */
+    let clearConfirmationTimer: ReturnType<typeof setTimeout> | undefined;
+    /**
+     * The `map_calibration` sent but not yet proven to have taken (grilling doc Q11), held here
+     * rather than written straight into `scenarioStore` so a payload Python rejects never becomes
+     * the cached one ticket 14 would later resend on reconnect. Cleared on confirmation and on
+     * timeout alike; `undefined` whenever no calibration is in flight.
+     */
+    let pendingCalibration: { message: MapCalibrationMessage; aoiHash: string } | undefined;
     /** Live `maplibregl.Marker` instances for the four calibration markers, keyed by marker id (ticket 11). */
     const calibrationMarkers = new Map<number, MapLibreMarker>();
     /**
@@ -1017,9 +1061,16 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                         // satisfy the two-reading stability gate before the markers were genuinely,
                         // stably projected, which is what made calibration look "random". Presentation
                         // is now only ever entered explicitly via `startCalibration()`.
+                        // Blacked out, not `"idle"` (grilling doc Q14/Q16): the Table's map has
+                        // already moved to the new AOI by this point, and leaving it in the normal
+                        // projection would show that new extent still carrying the *previous*
+                        // calibration's tracked buildings — the exact silent-wrong-data state the
+                        // AOI reset exists to prevent. `resetCalibrationTracking()` clears
+                        // `calibrated`, so this write and `phaseWhenNotPresenting()` agree; it is
+                        // written out here rather than derived because the reset must land first.
                         if (aoi !== null) {
                             resetCalibrationTracking();
-                            session.calibration.phase = "idle";
+                            session.calibration.phase = "needs-calibration";
                         }
                     },
                     { immediate: true }
@@ -1069,6 +1120,9 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             // the resend's own `socket.send()` returning. Any event received while a resend is
             // pending its confirmation window proves Python is back on the post-calibration feed.
             clearResumeConfirmationTimer();
+            // The same evidence completes a *fresh* calibration (grilling doc Q11): Python only ever
+            // emits GeoJSON while it holds a homography, so this event is proof it took the payload.
+            confirmCalibration();
         });
         source.onAvailabilityChange((availability) => {
             trackingAvailability.value = availability;
@@ -1108,6 +1162,14 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         // satisfying `canCalibrateFromMarkers()` off a single sighting. Once promoted, a marker id
         // is sticky exactly as before — promotion is the only path in.
         source.onRawMarkerSnapshot((markers) => {
+            // A raw snapshot is Python telling us it is *not* holding a homography, which is exactly
+            // the proof `clear_calibration` was applied (grilling doc Q13). Checked before the phase
+            // gate below on purpose: the clear is confirmed while the session is blacked out, long
+            // before anything is being presented, so gating this behind `"presenting"` would leave
+            // every clear unconfirmed and time out into a false `"unreachable"`. Python publishes a
+            // snapshot every 200 ms even when it saw no markers at all (`Markers.toDict()` returns
+            // `{}`), so an empty table still produces the proof.
+            clearClearConfirmationTimer();
             // Only accept readings while the Table is actually presenting the four marker images
             // (fix, 2026-09-01): the two-consecutive-reading stability check above only guards
             // against a *noisy* reading of a marker that is genuinely being projected — it does
@@ -1218,9 +1280,24 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         session.calibration.revision += 1;
     }
 
+    /**
+     * The one rule for what the Table shows whenever it isn't presenting markers (grilling doc
+     * 2026-09-01 Q16): calibrated means the normal projection, anything else means the blackout.
+     *
+     * Every path that leaves or skips presentation routes its phase write through here rather than
+     * hardcoding `"idle"`, so there is exactly one definition of "may the Table be trusted" and no
+     * per-situation variants — a freshly confirmed AOI, a first launch with no AOI at all, and a
+     * Python restart that invalidated the cached calibration all land in the same state by the same
+     * test. `"unreachable"` is deliberately not produced here: it is only ever set by a confirmation
+     * timeout, which is the one thing this predicate cannot observe.
+     */
+    function phaseWhenNotPresenting(): CollabCalibrationPhase {
+        return scenarioStore.calibrated ? "idle" : "needs-calibration";
+    }
+
     /** Leaves calibration-presentation mode — a clean seam for the real four-marker calibration flow to call once calibration succeeds. */
     function exitCalibrationPresentation(): void {
-        session.calibration.phase = "idle";
+        session.calibration.phase = phaseWhenNotPresenting();
         session.calibration.revision += 1;
     }
 
@@ -1231,6 +1308,37 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         }
         clearTimeout(resumeConfirmationTimer);
         resumeConfirmationTimer = undefined;
+    }
+
+    /** Cancels a pending `map_calibration` confirmation window (grilling doc Q11). Idempotent. */
+    function clearCalibrationConfirmationTimer(): void {
+        if (calibrationConfirmationTimer === undefined) {
+            return;
+        }
+        clearTimeout(calibrationConfirmationTimer);
+        calibrationConfirmationTimer = undefined;
+    }
+
+    /** Cancels a pending `clear_calibration` confirmation window (grilling doc Q13). Idempotent. */
+    function clearClearConfirmationTimer(): void {
+        if (clearConfirmationTimer === undefined) {
+            return;
+        }
+        clearTimeout(clearConfirmationTimer);
+        clearConfirmationTimer = undefined;
+    }
+
+    /**
+     * Python did not switch feeds within {@link CALIBRATION_CONFIRMATION_TIMEOUT_MS} (grilling doc
+     * Q11/Q13). Blacks the Table out as `"unreachable"` rather than `"needs-calibration"`: the
+     * operator's next move is to get Python back, not to press "Start calibration", and offering
+     * that button here would send them round a loop that cannot succeed.
+     */
+    function failCalibrationConfirmation(messageKey: string): void {
+        scenarioStore.calibrated = false;
+        session.calibration.phase = "unreachable";
+        session.calibration.revision += 1;
+        toast.add({ severity: "error", summary: i18n.global.t(messageKey) });
     }
 
     /**
@@ -1260,19 +1368,33 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             // against (grilling doc Q3) — resending it would silently georeference tracked poses
             // against the wrong extent. Treated exactly like a failed resend: drop back to
             // four-marker detection instead of trusting a stale payload.
-            scenarioStore.calibrated = false;
-            toast.add({ severity: "warning", summary: i18n.global.t("collab.control.calibration.resendFailed") });
-            enterCalibrationPresentation();
+            resendFailed();
             return;
         }
         realSource.sendMapCalibration(cached);
         clearResumeConfirmationTimer();
         resumeConfirmationTimer = setTimeout(() => {
             resumeConfirmationTimer = undefined;
-            scenarioStore.calibrated = false;
-            toast.add({ severity: "warning", summary: i18n.global.t("collab.control.calibration.resendFailed") });
-            enterCalibrationPresentation();
+            resendFailed();
         }, RECONNECT_RESUME_TIMEOUT_MS);
+    }
+
+    /**
+     * A cached calibration could not be resumed after reconnecting — either it was measured against
+     * a different AOI, or Python never resumed GeoJSON within the window (ticket 14).
+     *
+     * Blacks the Table out instead of jumping straight into marker presentation as this path used to
+     * (grilling doc Q16). Auto-presenting here is the same mistake `941ff5e` removed from the AOI
+     * watcher: it starts projecting markers, and starts accepting readings against them, at a moment
+     * the operator did not choose and may not be watching — a reconnect can land at any time. The
+     * blackout states the problem and waits for "Start calibration" like every other uncalibrated
+     * state does.
+     */
+    function resendFailed(): void {
+        scenarioStore.calibrated = false;
+        session.calibration.phase = "needs-calibration";
+        session.calibration.revision += 1;
+        toast.add({ severity: "warning", summary: i18n.global.t("collab.control.calibration.resendFailed") });
     }
 
     /**
@@ -1306,7 +1428,22 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         // pinning that marker there instead of the *new* AOI's corner, which can land it far outside
         // the new AOI's viewport entirely (reported as markers missing / Table looking blank).
         session.calibration.resetPositionsToken += 1;
-        realSource?.resetMapCalibration();
+        // Tell Python to drop its homography, then wait for it to prove it did (grilling doc Q13).
+        // Without the wait, the frontend goes uncalibrated while Python may still be holding the
+        // *previous* AOI's homography and happily emitting buildings positioned against an extent
+        // that no longer exists — the blackout would be hiding a live wrong-data feed rather than an
+        // idle one. `sent === false` means the socket wasn't open, so there is nothing to wait for
+        // and nothing stale on the other end either: a Python that never got the message is a Python
+        // that isn't connected, and reconnecting is what will resolve it.
+        clearCalibrationConfirmationTimer();
+        clearClearConfirmationTimer();
+        const sent = realSource?.resetMapCalibration() ?? false;
+        if (sent) {
+            clearConfirmationTimer = setTimeout(() => {
+                clearConfirmationTimer = undefined;
+                failCalibrationConfirmation("collab.control.calibration.clearUnconfirmed");
+            }, CALIBRATION_CONFIRMATION_TIMEOUT_MS);
+        }
     }
 
     /**
@@ -1401,16 +1538,49 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             return;
         }
         realSource.sendMapCalibration(message);
+        // Deliberately NOT marked calibrated here (grilling doc Q11). Sending proves only that the
+        // socket accepted the bytes; Python can still reject the payload (`server.py`'s
+        // `_parse_calibration_points` raising) and it says so only on its own console. Claiming
+        // success at `send()` is what produced the worst failure available: the Table opens looking
+        // calibrated, no buildings ever arrive, and nothing on screen explains why. Stay in
+        // presentation until the feed itself switches to GeoJSON — see `confirmCalibration`, driven
+        // from `wireRealSource`'s `onEvent`.
+        pendingCalibration = { message, aoiHash: aoiChecksum(aoi) };
+        clearClearConfirmationTimer();
+        clearCalibrationConfirmationTimer();
+        calibrationConfirmationTimer = setTimeout(() => {
+            calibrationConfirmationTimer = undefined;
+            pendingCalibration = undefined;
+            failCalibrationConfirmation("collab.control.calibration.notConfirmed");
+        }, CALIBRATION_CONFIRMATION_TIMEOUT_MS);
+    }
+
+    /**
+     * Python switched to the GeoJSON feed after a freshly measured `map_calibration` — the only
+     * evidence that it actually adopted the homography (grilling doc Q11). Completes what
+     * `calibrateFromDetectedMarkers` deliberately left unfinished: marks the AOI calibrated, caches
+     * the payload for ticket 14's reconnect resend, and drops the marker presentation.
+     *
+     * A no-op unless a calibration is actually pending, so ordinary tracking events on an
+     * already-calibrated session cost nothing here.
+     */
+    function confirmCalibration(): void {
+        if (pendingCalibration === undefined) {
+            return;
+        }
+        const { message, aoiHash } = pendingCalibration;
+        pendingCalibration = undefined;
+        clearCalibrationConfirmationTimer();
         scenarioStore.calibrated = true;
         // Cached for ticket 14's reconnect policy: the payload built from real measured pixel
         // positions, resendable as-is on a later reconnect as long as this AOI stays confirmed.
         scenarioStore.lastMeasuredCalibration = message;
-        scenarioStore.lastMeasuredCalibrationAoiHash = aoiChecksum(aoi);
+        scenarioStore.lastMeasuredCalibrationAoiHash = aoiHash;
         exitCalibrationPresentation();
         toast.add({
             severity: "success",
-            summary: "Calibration successful",
-            detail: "All four calibration markers were detected and the calibration was sent to the Python server.",
+            summary: i18n.global.t("collab.control.calibration.confirmedSummary"),
+            detail: i18n.global.t("collab.control.calibration.confirmedDetail"),
             life: 5000,
         });
     }
@@ -1421,6 +1591,9 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         stopWatch = undefined;
         disconnectPythonTransport();
         clearResumeConfirmationTimer();
+        clearCalibrationConfirmationTimer();
+        clearClearConfirmationTimer();
+        pendingCalibration = undefined;
         appliedRotationByObjectId.clear();
         for (const marker of calibrationMarkers.values()) {
             marker.remove();

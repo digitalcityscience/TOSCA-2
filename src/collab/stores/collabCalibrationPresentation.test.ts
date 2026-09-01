@@ -254,7 +254,11 @@ describe("calibration presentation mode on Table (ticket 11)", () => {
         trackingRender.exitCalibrationPresentation();
         await flush();
 
-        expect(session.calibration.phase).toBe("idle");
+        // Leaving presentation without having calibrated lands on the blackout, not on the normal
+        // projection (grilling doc 2026-09-01 Q16): this is the operator cancelling, and a cancelled
+        // calibration leaves the table exactly as uncalibrated as it was. The layer restoration
+        // below is unaffected — the blackout covers the map, it does not tear it down.
+        expect(session.calibration.phase).toBe("needs-calibration");
         expect(fakeLayerVisibility.get("collabTrackedFootprints-fill")).toBe("visible");
         expect(fakeLayerVisibility.get("osm-basemap")).toBe("visible");
         expect(createdMarkers.get("200")?.removed).toBe(true);

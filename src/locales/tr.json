@@ -356,7 +356,11 @@
         "recalibrate": "Yeniden kalibre et",
         "resetPositions": "Konumları sıfırla",
         "resendAssumption": "Yeniden bağlanma, kameraların ve projektörün hareket etmediği varsayılarak son kalibrasyonu otomatik olarak yeniden gönderir. Hareket ettiyse \"Yeniden kalibre et\"e basın.",
-        "resendFailed": "Yeniden bağlandıktan sonra kalibrasyon devam etmedi — dört işaretleyiciyi kullanarak yeniden kalibre edin"
+        "resendFailed": "Yeniden bağlandıktan sonra kalibrasyon devam etmedi — dört işaretleyiciyi kullanarak yeniden kalibre edin",
+        "notConfirmed": "Python kalibrasyonu onaylamadı — takip sunucusunun çalıştığını kontrol edip tekrar deneyin",
+        "clearUnconfirmed": "Python önceki kalibrasyonun temizlendiğini onaylamadı — takip sunucusunun çalıştığını kontrol edin",
+        "confirmedSummary": "Kalibrasyon onaylandı",
+        "confirmedDetail": "Python bina akışına geçti, yani kalibrasyonu kabul etti. Masa görünümü aktif."
       },
       "footprints": {
         "loadRequiresAoi": "Önce bir ilgi alanı seçin",
@@ -402,7 +406,21 @@
       }
     },
     "table": {
-      "disconnected": "Bağlantı kesildi — yeniden kalibre edin"
+      "disconnected": "Bağlantı kesildi — yeniden kalibre edin",
+      "blackout": {
+        "needsCalibration": {
+          "title": "Kalibrasyon gerekli",
+          "hint": "İlgi alanı değişti. Markerları göstermek için kontrol penceresindeki „Kalibrasyonu başlat“ düğmesine basın."
+        },
+        "noAoi": {
+          "title": "Alan seçilmedi",
+          "hint": "Başlamak için kontrol penceresinden bir ilgi alanı seçin."
+        },
+        "unreachable": {
+          "title": "Takip sunucusuna ulaşılamıyor",
+          "hint": "Python yanıt vermedi. Takip sunucusunu yeniden başlatın — o dönene kadar kalibrasyon işe yaramaz."
+        }
+      }
     },
     "layers": {
       "aoiViewfinder": "Collab · İlgi alanı seçim çerçevesi",
