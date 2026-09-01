@@ -1116,12 +1116,15 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     function wireRealSource(source: RealTrackingSource): void {
         source.onEvent((event) => {
             applyTrackingEvent(session.tracking, event);
-            // A live event is the only thing that counts as "GeoJSON resumed" (ticket 14) — never
-            // the resend's own `socket.send()` returning. Any event received while a resend is
-            // pending its confirmation window proves Python is back on the post-calibration feed.
+        });
+        // Confirmation hangs off the *message*, not off `onEvent` (fix, 2026-09-01). `onEvent`
+        // fires per tracked object, so a correctly calibrated Python with a bare table — an empty
+        // `FeatureCollection`, its normal output in exactly the situation the operator calibrates
+        // in — emitted nothing, the 3s window elapsed, and a calibration that had actually
+        // succeeded was reported as "Python unreachable". Whether a building happens to be sitting
+        // on the table has nothing to do with whether the homography took.
+        source.onGeojsonSnapshot(() => {
             clearResumeConfirmationTimer();
-            // The same evidence completes a *fresh* calibration (grilling doc Q11): Python only ever
-            // emits GeoJSON while it holds a homography, so this event is proof it took the payload.
             confirmCalibration();
         });
         source.onAvailabilityChange((availability) => {

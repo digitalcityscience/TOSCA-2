@@ -751,6 +751,7 @@ export class RealTrackingSource implements TrackingSource {
     private readonly connectionStateListeners: Array<(state: PythonConnectionState) => void> = []
     private readonly markerSnapshotListeners: Array<(markerIds: readonly number[]) => void> = []
     private readonly rawMarkerSnapshotListeners: Array<(markers: RawMarkerSnapshot) => void> = []
+    private readonly geojsonSnapshotListeners: Array<() => void> = []
     private readonly calibrationAckListeners: Array<() => void> = []
     private socket: TrackingWebSocket | undefined
     /** True only between `onopen` and the socket closing/erroring — {@link sendMapCalibration} refuses to send onto a socket that isn't actually open yet. */
@@ -838,6 +839,20 @@ export class RealTrackingSource implements TrackingSource {
     }
 
     /**
+     * Fires once for every GeoJSON `FeatureCollection` message, **including an empty one** — the
+     * mirror of {@link onRawMarkerSnapshot}, and the only honest answer to "is Python on the
+     * calibrated feed right now?".
+     *
+     * {@link onEvent} cannot answer that: it fires per *tracked object*, so an empty collection —
+     * which is exactly what a correctly calibrated Python sends while nothing is on the table —
+     * emits nothing at all. Anything that treats "no event arrived" as "Python never switched
+     * feeds" is really testing whether a building happens to be sitting on the table.
+     */
+    onGeojsonSnapshot(cb: () => void): void {
+        this.geojsonSnapshotListeners.push(cb)
+    }
+
+    /**
      * Fires on a recognized `{"type": "calibration_ack"}` message (grilling doc item 6). Python
      * sends no such message today — this exists as inert, forward-compatible scaffolding, not a
      * behavior change; nothing in this codebase wires a listener onto it yet.
@@ -922,6 +937,9 @@ export class RealTrackingSource implements TrackingSource {
             return
         }
         if (isTrackingFeatureCollection(data)) {
+            // Before normalizing, and unconditionally: an empty collection is still proof that
+            // Python is on the calibrated feed, and it is the normal shape while the table is bare.
+            this.emitGeojsonSnapshot()
             this.emitMarkerSnapshot(data.features.map((feature) => feature.properties.marker_id))
             const events = this.normalizer.applySnapshot(data, this.now())
             this.emitAvailability(this.normalizer.currentAvailability())
@@ -1030,6 +1048,12 @@ export class RealTrackingSource implements TrackingSource {
     private emitRawMarkerSnapshot(markers: RawMarkerSnapshot): void {
         for (const listener of this.rawMarkerSnapshotListeners) {
             listener(markers)
+        }
+    }
+
+    private emitGeojsonSnapshot(): void {
+        for (const listener of this.geojsonSnapshotListeners) {
+            listener()
         }
     }
 

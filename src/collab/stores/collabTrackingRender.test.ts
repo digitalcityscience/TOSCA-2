@@ -538,8 +538,10 @@ describe("collabTrackingRender store", () => {
             expect(session.calibration.phase).toBe("presenting");
 
             // Python switching to the GeoJSON feed is the proof, since it only ever emits GeoJSON
-            // while holding a homography.
-            sendGeojson(sockets[0]!);
+            // while holding a homography. Deliberately an *empty* collection: nothing is on the
+            // table during a calibration, so this is the shape the confirmation actually has to
+            // work with, and hanging it off `onEvent` meant it never fired here.
+            sockets[0]?.onmessage?.({ data: JSON.stringify({ type: "FeatureCollection", features: [] }) });
 
             expect(scenarioStore.calibrated).toBe(true);
             expect(scenarioStore.lastMeasuredCalibration).not.toBeNull();
