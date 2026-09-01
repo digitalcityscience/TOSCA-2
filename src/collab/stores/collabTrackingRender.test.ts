@@ -267,6 +267,8 @@ describe("collabTrackingRender store", () => {
 
         const trackingRender = useCollabTrackingRenderStore();
         trackingRender.startRendering("control");
+        // Raw marker readings are only accepted while presenting (fix, 2026-09-01).
+        useCollabSessionStore().calibration.phase = "presenting";
         sockets[0]?.onopen?.();
 
         // Two consistent snapshots (grilling doc Q4 stability gate) are required before a reading
@@ -316,6 +318,8 @@ describe("collabTrackingRender store", () => {
 
         const trackingRender = useCollabTrackingRenderStore();
         trackingRender.startRendering("control");
+        // Raw marker readings are only accepted while presenting (fix, 2026-09-01).
+        useCollabSessionStore().calibration.phase = "presenting";
         sockets[0]?.onopen?.();
 
         sockets[0]?.onmessage?.({ data: JSON.stringify({ 200: [10, 20, 0, "000"] }) });
@@ -359,6 +363,8 @@ describe("collabTrackingRender store", () => {
 
         const trackingRender = useCollabTrackingRenderStore();
         trackingRender.startRendering("control");
+        // Raw marker readings are only accepted while presenting (fix, 2026-09-01).
+        useCollabSessionStore().calibration.phase = "presenting";
         sockets[0]?.onopen?.();
 
         // One stray sighting far from the real position, then the real, consistent one.
@@ -432,6 +438,10 @@ describe("collabTrackingRender store", () => {
             vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
             const sockets = stubRealSocket();
 
+            // Raw marker readings are only accepted while presenting (fix, 2026-09-01) — see
+            // `wireRealSource`'s onRawMarkerSnapshot gate.
+            useCollabSessionStore().calibration.phase = "presenting";
+
             const trackingRender = useCollabTrackingRenderStore();
             trackingRender.startRendering("control");
             sockets[0]?.onopen?.();
@@ -454,13 +464,15 @@ describe("collabTrackingRender store", () => {
             const sockets = stubRealSocket();
 
             const session = useCollabSessionStore();
-            session.calibration.phase = "presenting";
             const scenarioStore = useCollabScenarioStore();
             scenarioStore.aoi = aoi;
             scenarioStore.calibrated = false;
 
             const trackingRender = useCollabTrackingRenderStore();
             trackingRender.startRendering("control");
+            // Presentation is only ever entered explicitly now (fix, 2026-09-01) — the AOI watcher
+            // above already ran (immediate: true) and reset `phase` back to "idle".
+            trackingRender.startCalibration();
             sockets[0]?.onopen?.();
 
             sendRawMarkerReading(sockets[0]!, 200, 10, 20);
@@ -581,10 +593,12 @@ describe("collabTrackingRender store", () => {
             session.base.objects = [{ id: "G01", properties: { marker_id: 1 } }];
             const scenarioStore = useCollabScenarioStore();
             scenarioStore.aoi = aoi;
-            session.calibration.phase = "presenting";
 
             const trackingRender = useCollabTrackingRenderStore();
             trackingRender.startRendering("control");
+            // Presentation is only ever entered explicitly now (fix, 2026-09-01) — the AOI watcher
+            // above already ran (immediate: true) and reset `phase` back to "idle".
+            trackingRender.startCalibration();
             sockets[0]?.onopen?.();
             calibrateOnce(sockets[0]!);
             expect(scenarioStore.calibrated).toBe(true);

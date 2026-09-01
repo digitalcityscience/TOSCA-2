@@ -348,6 +348,8 @@
         "uncalibrated": "Bağlı, kalibre edilmedi — yeniden kalibrasyon gerekli",
         "calibrated": "Kalibre edildi",
         "presenting": "Masa kalibrasyon işaretçilerini gösteriyor — kameraları konumlandırın, ardından normal görünüme dönmek için çıkın",
+        "start": "Kalibrasyonu başlat",
+        "startHint": "Önce Masa penceresini açın, ardından işaretçileri göstermek ve okumaya başlamak için buna basın.",
         "calibrate": "Kalibrasyonu bitir ve marker görünümünü kapat",
         "exitPresentation": "İptal et (kalibre etmeden çık)",
         "allMarkersDetectedHint": "Dört işaretleyicinin tümü algılandı. \"Kalibrasyonu bitir\" Python'a gönderir ve normal görünüme döner — sen basmadan hiçbir şey otomatik olarak olmaz.",

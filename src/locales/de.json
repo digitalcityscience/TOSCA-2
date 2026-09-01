@@ -348,6 +348,8 @@
         "uncalibrated": "Verbunden, nicht kalibriert — Neukalibrierung erforderlich",
         "calibrated": "Kalibriert",
         "presenting": "Der Tisch zeigt die Kalibrierungsmarker an — Kameras positionieren, dann beenden, um zur normalen Projektion zurückzukehren",
+        "start": "Kalibrierung starten",
+        "startHint": "Öffnen Sie zuerst das Tisch-Fenster, dann drücken Sie dies, um die Marker anzuzeigen und mit dem Lesen zu beginnen.",
         "calibrate": "Kalibrierung abschließen & Markeransicht schließen",
         "exitPresentation": "Abbrechen (ohne zu kalibrieren verlassen)",
         "allMarkersDetectedHint": "Alle vier Marker erkannt. „Kalibrierung abschließen“ sendet sie an Python und kehrt zur normalen Ansicht zurück — nichts geschieht automatisch, bevor Sie klicken.",

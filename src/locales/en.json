@@ -348,6 +348,8 @@
         "uncalibrated": "Connected, uncalibrated — recalibration required",
         "calibrated": "Calibrated",
         "presenting": "Table is presenting calibration markers — position the cameras, then exit to resume the normal projected view",
+        "start": "Start calibration",
+        "startHint": "Open the Table window first, then press this to show the markers and start reading them.",
         "calibrate": "Finish calibration & close marker view",
         "exitPresentation": "Cancel (leave without calibrating)",
         "allMarkersDetectedHint": "All four markers detected. \"Finish calibration\" sends it to Python and returns to the normal view — nothing happens automatically until you press it.",

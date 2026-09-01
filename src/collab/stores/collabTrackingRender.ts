@@ -1004,14 +1004,19 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                         // values happen to change structurally (see CollabCalibrationState's doc).
                         session.calibration.revision += 1;
                         // Every confirmed AOI (first one or a replacement) drops Python's stale
-                        // homography/health and re-enters four-marker presentation on its own —
-                        // never dependent on the operator separately re-opening the Table window
-                        // or pressing Recalibrate (live-rig diagnosis, 2026-08-31: without this, a
-                        // second AOI confirmed against an already-open Table window left Python
-                        // stuck replaying the *first* AOI's calibration, so no marker ever went
-                        // green until Recalibrate was pressed by hand).
+                        // homography/health so nothing green survives from a previous AOI (live-rig
+                        // diagnosis, 2026-08-31: without this, a second AOI confirmed against an
+                        // already-open Table window left Python stuck replaying the *first* AOI's
+                        // calibration). Unlike before, this no longer re-enters presentation on its
+                        // own (fix, 2026-09-01): auto-presenting the instant an AOI was confirmed —
+                        // often mid-transition while the operator was still adjusting the AOI or the
+                        // Table window hadn't settled yet — let the camera's stray/transient reads
+                        // satisfy the two-reading stability gate before the markers were genuinely,
+                        // stably projected, which is what made calibration look "random". Presentation
+                        // is now only ever entered explicitly via `startCalibration()`.
                         if (aoi !== null) {
-                            recalibrate();
+                            resetCalibrationTracking();
+                            session.calibration.phase = "idle";
                         }
                     },
                     { immediate: true }
@@ -1106,6 +1111,18 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         // satisfying `canCalibrateFromMarkers()` off a single sighting. Once promoted, a marker id
         // is sticky exactly as before — promotion is the only path in.
         source.onRawMarkerSnapshot((markers) => {
+            // Only accept readings while the Table is actually presenting the four marker images
+            // (fix, 2026-09-01): the two-consecutive-reading stability check above only guards
+            // against a *noisy* reading of a marker that is genuinely being projected — it does
+            // nothing against reading a marker that isn't on screen yet at all (AOI selection,
+            // a Table window still loading/transitioning, or after calibration already finished).
+            // Gating on `phase` means readings can only start accumulating once the operator has
+            // pressed "Start Calibration" (`startCalibration()`), which is also the moment
+            // `enterCalibrationPresentation()` clears out any earlier `pendingMarkerReadings` —
+            // so every calibration attempt starts counting from zero, never off a stray reading.
+            if (session.calibration.phase !== "presenting") {
+                return;
+            }
             const now = Date.now();
             let changed = false;
             const next = new Map(mapCalibrationMarkerHealth.value);
@@ -1281,19 +1298,21 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     }
 
     /**
-     * Manually returns the session to four-marker detection mode (ticket 14) — available whenever
-     * the physical setup changes (cameras/projector moved, so a resend's unmoved-hardware
-     * assumption no longer holds) or the operator otherwise wants a fresh calibration, independent
-     * of whatever triggered it. Clears the cached measured payload and calibrated status first, and
-     * cancels any pending resend-confirmation window, so no stale auto-resend can fire mid-flow
-     * once a fresh calibration is underway.
+     * Invalidates whatever calibration a confirmed AOI implied it had (fix, 2026-09-01): drops the
+     * cached measured payload, calibrated status, sticky marker-health tracking, and every tracked
+     * object's stale pose, and returns Python to its raw-pixel feed. Pulled out of `recalibrate()`
+     * so the AOI watcher in `startRendering()` can run these resets on every AOI change without
+     * also (re-)entering calibration presentation — that step now only ever happens explicitly, via
+     * `startCalibration()`.
      */
-    function recalibrate(): void {
+    function resetCalibrationTracking(): void {
         clearResumeConfirmationTimer();
         scenarioStore.calibrated = false;
         scenarioStore.lastMeasuredCalibration = null;
         scenarioStore.lastMeasuredCalibrationAoiHash = null;
         mapCalibrationMarkerHealth.value = new Map();
+        pendingMarkerReadings.clear();
+        session.calibration.mapCalibrationMarkerIdsSeen = [];
         // Drop every tracked object's last-known pose (live-rig diagnosis, 2026-08-31): these were
         // georeferenced against whatever AOI/homography was active when they last arrived, and
         // `applyTrackingEvent` only ever deletes an entry on an explicit "disappeared" event — never
@@ -1310,6 +1329,44 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         // the new AOI's viewport entirely (reported as markers missing / Table looking blank).
         session.calibration.resetPositionsToken += 1;
         realSource?.resetMapCalibration();
+    }
+
+    /**
+     * Manually returns the session to four-marker detection mode (ticket 14) — available whenever
+     * the physical setup changes (cameras/projector moved, so a resend's unmoved-hardware
+     * assumption no longer holds) or the operator otherwise wants a fresh calibration, independent
+     * of whatever triggered it. Clears the cached measured payload and calibrated status first (via
+     * {@link resetCalibrationTracking}), cancelling any pending resend-confirmation window so no
+     * stale auto-resend can fire mid-flow once a fresh calibration is underway, then immediately
+     * re-enters presentation — unlike the AOI watcher's own reset, this one is itself the operator's
+     * explicit action, so showing the markers right away is the whole point of pressing it.
+     */
+    function recalibrate(): void {
+        resetCalibrationTracking();
+        enterCalibrationPresentation();
+    }
+
+    /**
+     * Entry point for the operator's "Start Calibration" button (fix, 2026-09-01) — the only way
+     * calibration presentation is entered for a freshly-confirmed AOI that has never been
+     * calibrated yet. Confirming an AOI no longer auto-enters presentation on its own (see the AOI
+     * watcher in `startRendering()`): it used to, and that meant the Table could start presenting
+     * markers — and Python's raw reads could start counting toward the two-reading stability gate
+     * in `wireRealSource`'s `onRawMarkerSnapshot` handler — while the operator was still mid-AOI-
+     * selection or the Table window hadn't finished opening/settling, which is what made accepted
+     * marker readings look random. Requiring this explicit press means the operator controls the
+     * moment reading starts: open Table first, confirm it's showing the normal view, then press
+     * this. A thin wrapper around the existing {@link enterCalibrationPresentation} rather than a
+     * reimplementation — same idempotent, safe-to-repeat contract — with the same "no AOI yet"
+     * guard `calibrateFromDetectedMarkers` uses, since the button that reaches this is expected to
+     * be disabled without a confirmed AOI, but the store's own contract must not silently no-op if
+     * called anyway.
+     */
+    function startCalibration(): void {
+        if (scenarioStore.aoi === null) {
+            reportDeveloperError("collabTrackingRender.startCalibration", new Error("no AOI confirmed"));
+            return;
+        }
         enterCalibrationPresentation();
     }
 
@@ -1411,6 +1468,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         retryPythonConnection,
         enterCalibrationPresentation,
         exitCalibrationPresentation,
+        startCalibration,
         canCalibrateFromMarkers,
         calibrateFromDetectedMarkers,
         recalibrate,

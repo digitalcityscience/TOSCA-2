@@ -190,6 +190,17 @@
                     />
                 </div>
             </div>
+            <div v-else-if="scenarioStore.aoi !== null && !scenarioStore.calibrated" class="flex flex-col gap-2">
+                <UButton
+                    :label="t('collab.control.calibration.start')"
+                    icon="i-lucide-play"
+                    size="xs"
+                    color="primary"
+                    class="self-start"
+                    @click="trackingRenderStore.startCalibration()"
+                />
+                <p class="text-xs text-muted">{{ t("collab.control.calibration.startHint") }}</p>
+            </div>
             <div v-else-if="scenarioStore.aoi !== null" class="flex flex-col gap-2">
                 <div class="flex gap-2">
                     <UButton
@@ -387,11 +398,13 @@ function openTableWindow(): void {
         return;
     }
     tableWindow.focus();
-    // ticket 11 / live-rig diagnosis 2026-08-31: presentation mode is entered by the AOI watcher
-    // in collabTrackingRender.ts as soon as an AOI is confirmed, not by opening this window — Table
-    // recovers the current `session.calibration` snapshot (phase included) on connect, so it's
-    // already showing the right thing by the time this window opens (normal order: pick AOI, then
-    // open Table). No separate call needed here.
+    // fix, 2026-09-01: presentation mode is deliberately NOT entered here, or automatically on AOI
+    // confirmation — it's only ever entered by the operator's explicit "Start Calibration" button
+    // (`trackingRenderStore.startCalibration()`, Calibration status section below), pressed once
+    // the Table window is open and settled. Table recovers the current `session.calibration`
+    // snapshot (phase included) on connect, so whatever phase Control is in by the time this
+    // window opens is what it shows — normal order: pick AOI, open Table, then press Start
+    // Calibration once the projected view looks right.
 }
 
 /**
