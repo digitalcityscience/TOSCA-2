@@ -10,12 +10,7 @@ import type { Feature, FeatureCollection, Polygon } from "@helpers/geojson";
 import { reportDeveloperError } from "@helpers/userFacingError";
 import { useToast } from "@helpers/toast";
 import { resolveCollabTrackingMode, resolveCollabTrackingWsUrl } from "../helpers/collabMode";
-import {
-    classifyBuildingMarker,
-    collabBuildingDataset,
-    markerRegistryForBuildings,
-    type BuildingMarkerStatus,
-} from "../data/collabBuildingData";
+import type { BuildingMarkerStatus } from "../data/collabBuildingData";
 import { i18n } from "../../core/i18n";
 import { useMapStore } from "@store/map";
 import { useCollabSessionStore, type CollabSceneObject, type CollabTrackingObjectState } from "./collabSession";
@@ -127,13 +122,10 @@ const RECONNECT_RESUME_TIMEOUT_MS = 8000;
  * trackable building).
  */
 export function buildMarkerRegistryFromBase(objects: readonly CollabSceneObject[]): MarkerObjectRegistry {
-    const mapped = markerRegistryForBuildings(objects.map((object) => object.id));
-    const entries: MarkerObjectRegistryEntry[] = [...mapped].map(([markerId, objectId]) => ({ markerId, objectId }));
-    // Preserve the explicitly mock/fixture-only path used off the real-table route. Production
-    // buildings carry no marker_id; their associations came from marker-building-map.json above.
+    const entries: MarkerObjectRegistryEntry[] = [];
     for (const object of objects) {
         const markerId = (object as Partial<CollabBuildingObject>).properties?.marker_id;
-        if (typeof markerId === "number" && !mapped.has(markerId)) {
+        if (typeof markerId === "number") {
             entries.push({ markerId, objectId: object.id });
         }
     }
@@ -153,7 +145,14 @@ export function applyTrackingEvent(
         delete tracking[event.objectId];
         return;
     }
-    tracking[event.objectId] = { pose: event.pose, confidence: event.confidence, lastSeen: event.timestamp };
+    tracking[event.objectId] = {
+        pose: event.pose,
+        confidence: event.confidence,
+        lastSeen: event.timestamp,
+        geometry: event.geometry,
+        bbox: event.bbox,
+        cityScopeId: event.cityScopeId,
+    };
 }
 
 /**
@@ -477,17 +476,21 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
 
         for (const [objectId, tracked] of Object.entries(session.tracking)) {
             const known = knownFootprint(objectId);
-            if (known === undefined) {
+            if (tracked.geometry === undefined && known === undefined) {
                 continue;
             }
 
             const previousRotation = appliedRotationByObjectId.get(objectId);
-            const { feature, appliedRotationDeg } = deriveTrackedFootprint(
-                known,
-                tracked.pose,
-                previousRotation,
-                offset
-            );
+            const { feature, appliedRotationDeg } = tracked.geometry !== undefined
+                ? {
+                    feature: {
+                        type: "Feature" as const,
+                        properties: { building_id: objectId, city_scope_id: tracked.cityScopeId },
+                        geometry: tracked.geometry,
+                    },
+                    appliedRotationDeg: tracked.pose.rotation,
+                }
+                : deriveTrackedFootprint(known!, tracked.pose, previousRotation, offset);
             appliedRotationByObjectId.set(objectId, appliedRotationDeg);
             footprints.push({ ...feature, id: objectId });
 
@@ -1097,12 +1100,6 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             }
             detectedReferenceMarkerIds.value = new Set([...detectedReferenceMarkerIds.value, ...newlySeen]);
         });
-        // Building-marker health (see `buildingMarkerHealth`): the same unfiltered id relay, read
-        // for the building layer instead of the corner markers. Recomputed rather than merged, so a
-        // marker's status follows AOI changes; the id set behind it only ever grows.
-        source.onMarkerSnapshot((markerIds) => {
-            refreshBuildingMarkerHealth(markerIds);
-        });
         // Map-calibration marker health (ticket 08, gated by grilling doc Q4): only ids 200-203
         // ever enter `mapCalibrationMarkerHealth`, and only once `pendingMarkerReadings` has seen
         // MAP_CALIBRATION_MARKER_STABLE_READINGS consecutive, mutually-consistent readings within
@@ -1178,30 +1175,11 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         if (url === undefined || realSource !== undefined) {
             return;
         }
-        const registry = buildMarkerRegistryFromBase(session.base.objects);
-        realSource = new RealTrackingSource({ url, registry });
+        // Real Python payloads are self-identifying (building_id + geometry); the empty
+        // registry keeps only the legacy/mock adapter seam without influencing production.
+        realSource = new RealTrackingSource({ url, registry: createMarkerObjectRegistry([]) });
         wireRealSource(realSource);
         realSource.start();
-    }
-
-    /**
-     * Folds one snapshot's marker ids into {@link buildingMarkerHealth}: remembers every
-     * non-reserved id, then re-derives every remembered id's status against the mappings and the
-     * AOI-filtered registry currently in force. Reserved ids (camera reference, map calibration,
-     * Python's ignored marker) are never listed — they have their own panels and would otherwise
-     * dominate this one.
-     */
-    function refreshBuildingMarkerHealth(markerIds: readonly number[]): void {
-        const activeRegistry = buildMarkerRegistryFromBase(session.base.objects);
-        const { markerMappings } = collabBuildingDataset();
-        for (const markerId of markerIds) {
-            if (classifyBuildingMarker(markerId, markerMappings, activeRegistry).status !== "reserved") {
-                seenBuildingMarkerIds.add(markerId);
-            }
-        }
-        buildingMarkerHealth.value = [...seenBuildingMarkerIds]
-            .sort((a, b) => a - b)
-            .map((markerId) => ({ markerId, ...classifyBuildingMarker(markerId, markerMappings, activeRegistry) }));
     }
 
     /** Stops and clears the persistent Python transport (ticket 08). Only called on full store teardown — never by the "Stop Tracking" button, which must not disconnect an otherwise-healthy transport. */

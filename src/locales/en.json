@@ -396,7 +396,7 @@
               "not-loaded": "not loaded",
               "unmapped": "not mapped"
             },
-            "unmappedHint": "{count} marker(s) arriving with no building. Add them to marker-building-map.json."
+            "unmappedHint": "{count} marker(s) arrived without a building identity. Check the Python physical-building catalog."
           }
         }
       }

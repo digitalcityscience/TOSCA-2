@@ -1,4 +1,4 @@
-import type { Feature, FeatureCollection, Point, Position } from "geojson"
+import type { Feature, FeatureCollection, MultiPolygon, Point, Polygon, Position } from "geojson"
 import { reportDeveloperError } from "@helpers/userFacingError"
 import { DEFAULT_COLLAB_TABLE_CONFIG, calibrationMarkerUvs, quadPointAt } from "./collabCalibration"
 import type { AOIExtent, CollabTableConfig, MapCalibrationMessage, MapCalibrationPoint } from "./collabCalibration"
@@ -15,6 +15,9 @@ export interface TrackingEvent {
     pose: { lng: number; lat: number; rotation: number }
     confidence: number
     timestamp: number
+    geometry?: Polygon | MultiPolygon
+    bbox?: [number, number, number, number]
+    cityScopeId?: string
 }
 
 /**
@@ -84,9 +87,13 @@ export interface TrackingMarkerFeatureProperties {
     marker_id: number
     rotation: number
     confidence?: number
+    building_id?: string
+    city_scope_id?: string
+    center?: [number, number]
+    bbox?: [number, number, number, number]
 }
 
-export type TrackingMarkerFeatureCollection = FeatureCollection<Point, TrackingMarkerFeatureProperties>
+export type TrackingMarkerFeatureCollection = FeatureCollection<Point | Polygon | MultiPolygon, TrackingMarkerFeatureProperties>
 
 /** Python's ignored calibration marker (`marker.py::calibrationMarkerIds` companion, plan §17.4) — never a trackable object. */
 export const IGNORED_MARKER_ID = 500
@@ -412,12 +419,25 @@ export class TrackingFeedNormalizer {
             const pose = poseFromFeature(feature)
             const previousPose = this.lastPose.get(objectId)
             const confidence = feature.properties.confidence ?? 1
+            const geometry =
+                feature.geometry.type === "Polygon" || feature.geometry.type === "MultiPolygon"
+                    ? feature.geometry
+                    : undefined
+            const eventData = {
+                objectId,
+                pose,
+                confidence,
+                timestamp,
+                geometry,
+                bbox: feature.properties.bbox,
+                cityScopeId: feature.properties.city_scope_id,
+            }
 
             if (previousPose === undefined) {
-                events.push({ type: "appeared", objectId, pose, confidence, timestamp })
+                events.push({ type: "appeared", ...eventData })
                 this.lastPose.set(objectId, pose)
             } else if (!poseEquals(previousPose, pose)) {
-                events.push({ type: "updated", objectId, pose, confidence, timestamp })
+                events.push({ type: "updated", ...eventData })
                 this.lastPose.set(objectId, pose)
             }
         }
@@ -449,17 +469,29 @@ export class TrackingFeedNormalizer {
         return events
     }
 
-    private resolveObjectId(feature: Feature<Point, TrackingMarkerFeatureProperties>): string | undefined {
+    private resolveObjectId(feature: Feature<Point | Polygon | MultiPolygon, TrackingMarkerFeatureProperties>): string | undefined {
         const markerId = feature.properties.marker_id
         if (markerId === IGNORED_MARKER_ID) {
             return undefined
         }
-        return this.registry.get(markerId)
+        const buildingId = feature.properties.building_id
+        if (typeof buildingId === "string" && buildingId.trim() !== "") {
+            return buildingId
+        }
+        const legacyObjectId = this.registry.get(markerId)
+        if (legacyObjectId === undefined) {
+            reportDeveloperError(
+                "collabTracking.TrackingFeedNormalizer",
+                new Error(`unknown marker ${markerId}: Python supplied no building_id`)
+            )
+        }
+        return legacyObjectId
     }
 }
 
-function poseFromFeature(feature: Feature<Point, TrackingMarkerFeatureProperties>): TrackingEvent["pose"] {
-    const [lng, lat] = feature.geometry.coordinates
+function poseFromFeature(feature: Feature<Point | Polygon | MultiPolygon, TrackingMarkerFeatureProperties>): TrackingEvent["pose"] {
+    const center = feature.properties.center
+    const [lng, lat] = center ?? (feature.geometry.type === "Point" ? feature.geometry.coordinates : [NaN, NaN])
     return { lng, lat, rotation: feature.properties.rotation }
 }
 

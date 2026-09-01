@@ -30,6 +30,38 @@ import {
 
 const registry: MarkerObjectRegistry = createMarkerObjectRegistry([{ markerId: 182, objectId: "B-28" }]);
 
+test("uses Python building identity and geometry directly without a marker registry", () => {
+    const normalizer = new TrackingFeedNormalizer(createMarkerObjectRegistry([]));
+    const geometry = {
+        type: "Polygon" as const,
+        coordinates: [[[10, 53], [10.001, 53], [10.001, 53.001], [10, 53.001], [10, 53]]],
+    };
+    const events = normalizer.applySnapshot({
+        type: "FeatureCollection",
+        features: [{
+            type: "Feature",
+            geometry,
+            properties: {
+                marker_id: 24,
+                building_id: "G17",
+                city_scope_id: "B-17",
+                center: [10.0005, 53.0005],
+                rotation: 32,
+                bbox: [10, 53, 10.001, 53.001],
+            },
+        }],
+    }, 1000);
+
+    expect(events).toEqual([expect.objectContaining({
+        type: "appeared",
+        objectId: "G17",
+        geometry,
+        bbox: [10, 53, 10.001, 53.001],
+        cityScopeId: "B-17",
+        pose: { lng: 10.0005, lat: 53.0005, rotation: 32 },
+    })]);
+});
+
 function featureCollection(
     features: readonly { markerId: number; lng: number; lat: number; rotation: number; confidence?: number }[]
 ): TrackingMarkerFeatureCollection {

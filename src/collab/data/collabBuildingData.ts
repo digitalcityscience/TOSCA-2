@@ -2,7 +2,6 @@ import booleanWithin from "@turf/boolean-within";
 import { polygon } from "@turf/helpers";
 import type { Feature, FeatureCollection, MultiPolygon, Polygon, Position } from "geojson";
 import rawBuildingsText from "./buildings_all.geojson?raw";
-import rawMarkerBuildingMap from "./marker-building-map.json";
 import type { AOIExtent } from "../stores/collabCalibration";
 import {
     MAP_CALIBRATION_MARKER_IDS,
@@ -15,7 +14,7 @@ export interface CollabBuildingProperties {
     building_id: string;
     /** Legacy mock/fixture compatibility; real Collab data is keyed by `building_id`. */
     id?: string;
-    /** Legacy mock/fixture compatibility; real associations live in marker-building-map.json. */
+    /** Legacy mock/fixture compatibility; real tracking identity arrives from Python. */
     marker_id?: number;
     city_scope_id: string;
     building_height?: number;
@@ -105,7 +104,7 @@ export function validateCollabBuildingDataset(footprintsValue: unknown, mappings
 let validatedDataset: CollabBuildingDataset | undefined;
 
 export function collabBuildingDataset(): CollabBuildingDataset {
-    validatedDataset ??= validateCollabBuildingDataset(JSON.parse(rawBuildingsText) as unknown, rawMarkerBuildingMap);
+    validatedDataset ??= validateCollabBuildingDataset(JSON.parse(rawBuildingsText) as unknown, []);
     return validatedDataset;
 }
 
@@ -122,12 +121,8 @@ export function collabFootprintsWithinAoi(features: readonly CollabBuildingFeatu
 
 /** Builds the tracking registry only for buildings active in the confirmed AOI. */
 export function markerRegistryForBuildings(buildingIds: readonly string[]): MarkerObjectRegistry {
-    const activeIds = new Set(buildingIds);
-    return createMarkerObjectRegistry(
-        collabBuildingDataset().markerMappings
-            .filter((mapping) => activeIds.has(mapping.building_id))
-            .map((mapping) => ({ markerId: mapping.marker_id, objectId: mapping.building_id }))
-    );
+    void buildingIds;
+    return createMarkerObjectRegistry([]);
 }
 
 /**
@@ -138,8 +133,7 @@ export function markerRegistryForBuildings(buildingIds: readonly string[]): Mark
  * - `tracked` — mapped here and its building is loaded: the footprint follows the marker.
  * - `not-loaded` — mapped here, but the base city has not been loaded into the session yet (no AOI
  *   confirmed), so there is no footprint to move.
- * - `unmapped` — Python is reporting this marker and `marker-building-map.json` says nothing about
- *   it. The block on the table has no building behind it.
+ * - `unmapped` — a legacy/mock feed reports a marker without a building identity.
  *
  * The last two are the states worth surfacing: both look identical from the map (nothing moves),
  * and `TrackingFeedNormalizer` discards both silently by design.

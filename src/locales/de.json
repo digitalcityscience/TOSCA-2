@@ -396,7 +396,7 @@
               "not-loaded": "nicht geladen",
               "unmapped": "nicht zugeordnet"
             },
-            "unmappedHint": "{count} Marker ohne zugeordnetes Gebäude. In marker-building-map.json ergänzen."
+            "unmappedHint": "{count} Marker ohne Gebäude-ID. Den physischen Gebäudekatalog in Python prüfen."
           }
         }
       }

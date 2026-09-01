@@ -396,7 +396,7 @@
               "not-loaded": "yüklenmedi",
               "unmapped": "eşlenmemiş"
             },
-            "unmappedHint": "{count} marker geliyor ama karşılığında bina yok. marker-building-map.json dosyasına ekleyin."
+            "unmappedHint": "{count} marker bina kimliği olmadan geldi. Python fiziksel bina kataloğunu kontrol edin."
           }
         }
       }

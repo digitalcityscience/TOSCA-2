@@ -1,6 +1,7 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
 import { reactive } from "vue";
 import type { FeatureCollection } from "@helpers/geojson";
+import type { MultiPolygon, Polygon } from "geojson";
 import type { AOIExtent } from "./collabCalibration";
 
 /**
@@ -27,6 +28,9 @@ export interface CollabTrackingObjectState {
     pose: { lng: number; lat: number; rotation: number };
     confidence: number;
     lastSeen: number;
+    geometry?: Polygon | MultiPolygon;
+    bbox?: [number, number, number, number];
+    cityScopeId?: string;
 }
 
 /** Per-window UI state (selection/camera/panels). Local only — never broadcast between windows. */

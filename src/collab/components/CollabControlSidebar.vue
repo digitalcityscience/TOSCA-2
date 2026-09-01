@@ -291,7 +291,7 @@ function mapCalibrationMarkerReading(markerId: number) {
 }
 
 /**
- * How many building markers Python is reporting that `marker-building-map.json` says nothing about
+ * How many legacy/mock building markers arrive without a building identity
  * — the count the operator has to act on, since each is a block on the table moving nothing.
  */
 const unmappedMarkerCount = computed(
