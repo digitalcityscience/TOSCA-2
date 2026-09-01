@@ -11,6 +11,7 @@ import { getRandomHexColor, isNullOrEmpty } from "../core/helpers/functions";
 import { type FeatureCollection } from "@helpers/geojson";
 import { type MapStyleLegendContext } from "@helpers/mapStyleLegend";
 import { useToast } from "@helpers/toast";
+import { isCollabModeEnabled } from "../collab/helpers/collabMode";
 export interface LayerStyleOptions {
     paint?: Record<string, unknown>;
     layout?: Record<string, unknown>;
@@ -602,9 +603,13 @@ export const useMapStore = defineStore("map", () => {
         } else {
             layersOnMap.value.push(layerObject);
         }
+        // Silenced on the table build: Collab adds its own layers (AOI, viewfinder, tracked
+        // buildings) as scenario state changes, so the per-layer success toast is noise piling
+        // up in the corner of a shared display rather than feedback anyone acted on.
         if (
             layerObject.showOnLayerList !== undefined &&
-      layerObject.showOnLayerList
+      layerObject.showOnLayerList &&
+      !isCollabModeEnabled()
         ) {
             toast.add({
                 severity: "success",
