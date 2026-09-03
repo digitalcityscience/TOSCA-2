@@ -47,8 +47,8 @@ describe("BaseMapControl load feedback", () => {
         };
         const unavailable: BasemapOption = {
             kind: "vector",
-            id: "in-house",
-            title: "In-house",
+            id: "inHouse",
+            title: "inHouse",
             styleUrl: "https://maps.example.test/style.json",
         };
         const onBasemapLoadError = vi.fn();
@@ -66,7 +66,7 @@ describe("BaseMapControl load feedback", () => {
                 .toContain("active");
             expect(consoleError).toHaveBeenCalled();
         });
-        container.querySelector<HTMLElement>("[data-id='in-house']")?.click();
+        container.querySelector<HTMLElement>("[data-id='inHouse']")?.click();
 
         await vi.waitFor(() => {
             expect(onBasemapLoadError).toHaveBeenCalledOnce();

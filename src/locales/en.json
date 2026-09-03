@@ -74,7 +74,7 @@
     "basemap": {
       "dataviz": "Dataviz",
       "backdrop": "Backdrop",
-      "inHouse": "In-house",
+      "inHouse": "inHouse",
       "satellite": "Satellite",
       "loadErrorTitle": "Basemap unavailable",
       "loadErrorDetail": "We couldn't load {name}. Your current basemap is still active."
