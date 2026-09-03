@@ -17,7 +17,7 @@ describe("map configuration", () => {
         const resolved = resolveMapConfiguration(mapConfiguration, environment, (key) => key);
         const dataviz = resolved.basemaps.find(({ id }) => id === "dataviz");
 
-        expect(resolved.initialBasemapId).toBe("inHouse");
+        expect(resolved.initialBasemapId).toBe("backdrop");
         expect(dataviz).toMatchObject({
             kind: "vector",
             id: "dataviz",
