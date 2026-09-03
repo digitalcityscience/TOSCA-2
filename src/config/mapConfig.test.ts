@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
+    inHouseTerrainExample,
     mapConfiguration,
     resolveMapConfiguration,
     resolveMapProviderUrl,
@@ -57,8 +58,12 @@ describe("map configuration", () => {
         );
     });
 
-    test("resolves direct terrain and hillshade tile templates", () => {
-        const resolved = resolveMapConfiguration(mapConfiguration, environment, (key) => key);
+    test("keeps the in-house direct terrain implementation as a working example", () => {
+        const directConfiguration: MapConfiguration = {
+            ...mapConfiguration,
+            terrain: inHouseTerrainExample,
+        };
+        const resolved = resolveMapConfiguration(directConfiguration, environment, (key) => key);
 
         expect(resolved.terrain).toMatchObject({
             exaggeration: 1,
@@ -84,33 +89,11 @@ describe("map configuration", () => {
         });
     });
 
-    test("supports TileJSON terrain and hillshade sources", () => {
-        const tileJsonConfiguration: MapConfiguration = {
-            ...mapConfiguration,
-            terrain: {
-                exaggeration: 0.75,
-                dem: {
-                    kind: "tilejson",
-                    url: { provider: "maptiler", path: "tiles/terrain-rgb-v2/tiles.json" },
-                    encoding: "mapbox",
-                    tileSize: 512,
-                    maxzoom: 14,
-                },
-                hillshade: {
-                    kind: "tilejson",
-                    url: { provider: "maptiler", path: "tiles/hillshade/tiles.json" },
-                },
-            },
-        };
-
-        const resolved = resolveMapConfiguration(
-            tileJsonConfiguration,
-            environment,
-            (key) => key
-        );
+    test("uses MapTiler TileJSON terrain and hillshade sources", () => {
+        const resolved = resolveMapConfiguration(mapConfiguration, environment, (key) => key);
 
         expect(resolved.terrain).toMatchObject({
-            exaggeration: 0.75,
+            exaggeration: 1,
             demSource: {
                 type: "raster-dem",
                 url: "https://api.maptiler.com/tiles/terrain-rgb-v2/tiles.json?key=map%20key",

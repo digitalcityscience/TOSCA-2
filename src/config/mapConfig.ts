@@ -108,14 +108,35 @@ export interface MapConfiguration {
 export interface ResolvedMapConfiguration {
     initialBasemapId: string;
     basemaps: BasemapOption[];
-    // Direct Martin example. To use TileJSON instead, change each source to:
-    // { kind: "tilejson", url: { provider: "...", path: ".../tiles.json" } }.
     terrain: {
         exaggeration: number;
         demSource: RasterDEMSourceSpecification;
         hillshadeSource: RasterSourceSpecification;
     };
 }
+
+/**
+ * Direct Martin terrain example. Assign this to `mapConfiguration.terrain`
+ * when an in-house deployment should be used instead of MapTiler TileJSON.
+ */
+export const inHouseTerrainExample = {
+    exaggeration: 1,
+    dem: {
+        kind: "tiles",
+        tiles: [{ provider: "inHouse", path: "tiles/terrain-hamburg-official/{z}/{x}/{y}" }],
+        encoding: "mapbox",
+        tileSize: 256,
+        minzoom: 9,
+        maxzoom: 14,
+    },
+    hillshade: {
+        kind: "tiles",
+        tiles: [{ provider: "inHouse", path: "tiles/hillshade-hamburg-official/{z}/{x}/{y}" }],
+        tileSize: 256,
+        minzoom: 9,
+        maxzoom: 14,
+    },
+} satisfies TerrainDefinition;
 
 export const mapConfiguration = {
     initialBasemapId: "backdrop",
@@ -166,19 +187,15 @@ export const mapConfiguration = {
     terrain: {
         exaggeration: 1,
         dem: {
-            kind: "tiles",
-            tiles: [{ provider: "inHouse", path: "tiles/terrain-hamburg-official/{z}/{x}/{y}" }],
+            kind: "tilejson",
+            url: { provider: "maptiler", path: "tiles/terrain-rgb-v2/tiles.json" },
             encoding: "mapbox",
-            tileSize: 256,
-            minzoom: 9,
+            tileSize: 512,
             maxzoom: 14,
         },
         hillshade: {
-            kind: "tiles",
-            tiles: [{ provider: "inHouse", path: "tiles/hillshade-hamburg-official/{z}/{x}/{y}" }],
-            tileSize: 256,
-            minzoom: 9,
-            maxzoom: 14,
+            kind: "tilejson",
+            url: { provider: "maptiler", path: "tiles/hillshade/tiles.json" },
         },
     },
 } satisfies MapConfiguration;
