@@ -118,7 +118,7 @@ export interface ResolvedMapConfiguration {
 }
 
 export const mapConfiguration = {
-    initialBasemapId: "in-house",
+    initialBasemapId: "inHouse",
     providers: {
         maptiler: {
             baseUrl: { value: "https://api.maptiler.com" },
@@ -148,7 +148,7 @@ export const mapConfiguration = {
         },
         {
             kind: "vector",
-            id: "in-house",
+            id: "inHouse",
             titleKey: "map.basemap.inHouse",
             styleUrl: { provider: "inHouse", path: "styles/osm-bright.json" },
             thumbnailUrl: { provider: "inHouse", path: "/thumbnails/osmBright.jpg" },

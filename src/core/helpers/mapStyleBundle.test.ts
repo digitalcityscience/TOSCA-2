@@ -134,7 +134,7 @@ describe("compileVectorStyleBundle", () => {
     });
 
     test("omits terrain and hillshade sources owned by the application shell", () => {
-        const bundle = compileVectorStyleBundle("in-house", {
+        const bundle = compileVectorStyleBundle("inHouse", {
             version: 8,
             terrain: { source: "terrain-dem" },
             sources: {

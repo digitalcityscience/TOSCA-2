@@ -9,18 +9,18 @@ import {
 const environment = {
     VITE_MAPTILER_API_KEY: "map key",
     VITE_INHOUSE_MAP_BASE_URL: "https://maps.example.test/",
-    VITE_INHOUSE_MAP_API_KEY: "in-house key",
+    VITE_INHOUSE_MAP_API_KEY: "inHouse key",
 };
 
 describe("map configuration", () => {
     test("keeps application ids separate from provider map ids", () => {
         const resolved = resolveMapConfiguration(mapConfiguration, environment, (key) => key);
-        const streets = resolved.basemaps.find(({ id }) => id === "streets");
+        const dataviz = resolved.basemaps.find(({ id }) => id === "dataviz");
 
-        expect(resolved.initialBasemapId).toBe("streets");
-        expect(streets).toMatchObject({
+        expect(resolved.initialBasemapId).toBe("inHouse");
+        expect(dataviz).toMatchObject({
             kind: "vector",
-            id: "streets",
+            id: "dataviz",
             styleUrl: "https://api.maptiler.com/maps/dataviz-v4/style.json?key=map%20key",
             thumbnailUrl: "https://api.maptiler.com/maps/dataviz-v4/0/0/0.png?key=map%20key",
         });
@@ -35,14 +35,14 @@ describe("map configuration", () => {
             .toContain("/maps/satellite/0/0/0.jpg");
     });
 
-    test("resolves MapTiler and in-house resources through the same provider model", () => {
+    test("resolves MapTiler and inHouse resources through the same provider model", () => {
         const resolved = resolveMapConfiguration(mapConfiguration, environment, (key) => key);
-        const inHouse = resolved.basemaps.find(({ id }) => id === "in-house");
+        const inHouse = resolved.basemaps.find(({ id }) => id === "inHouse");
 
         expect(inHouse).toMatchObject({
             kind: "vector",
-            styleUrl: "https://maps.example.test/styles/osm-bright.json?key=in-house%20key",
-            thumbnailUrl: "https://maps.example.test/thumbnails/osmBright.jpg?key=in-house%20key",
+            styleUrl: "https://maps.example.test/styles/osm-bright.json?key=inHouse%20key",
+            thumbnailUrl: "https://maps.example.test/thumbnails/osmBright.jpg?key=inHouse%20key",
         });
     });
 
@@ -53,7 +53,7 @@ describe("map configuration", () => {
             "tiles/terrain/{z}/{x}/{y}",
             environment
         )).toBe(
-            "https://maps.example.test/tiles/terrain/{z}/{x}/{y}?key=in-house%20key"
+            "https://maps.example.test/tiles/terrain/{z}/{x}/{y}?key=inHouse%20key"
         );
     });
 
@@ -65,7 +65,7 @@ describe("map configuration", () => {
             demSource: {
                 type: "raster-dem",
                 tiles: [
-                    "https://maps.example.test/tiles/terrain-hamburg-official/{z}/{x}/{y}?key=in-house%20key",
+                    "https://maps.example.test/tiles/terrain-hamburg-official/{z}/{x}/{y}?key=inHouse%20key",
                 ],
                 encoding: "mapbox",
                 tileSize: 256,
@@ -75,7 +75,7 @@ describe("map configuration", () => {
             hillshadeSource: {
                 type: "raster",
                 tiles: [
-                    "https://maps.example.test/tiles/hillshade-hamburg-official/{z}/{x}/{y}?key=in-house%20key",
+                    "https://maps.example.test/tiles/hillshade-hamburg-official/{z}/{x}/{y}?key=inHouse%20key",
                 ],
                 tileSize: 256,
                 minzoom: 9,
