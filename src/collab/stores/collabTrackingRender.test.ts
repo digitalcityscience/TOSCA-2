@@ -739,7 +739,7 @@ describe("collabTrackingRender store", () => {
             expect(scenarioStore.calibrated).toBe(false);
             expect(toastAdd).toHaveBeenCalledWith({
                 severity: "warning",
-                summary: "Calibration didn't resume after reconnecting — recalibrate using the four markers",
+                summary: "Calibration didn't resume after reconnecting — recalibrate using the corner markers",
             });
         });
 
