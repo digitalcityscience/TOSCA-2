@@ -1741,8 +1741,10 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
      * than "delta from where the drag started": the draft is an accumulator the arrow keys also
      * write to, and a from-the-start delta would silently discard any key nudge made mid-drag.
      *
-     * The map's own pan is suspended for the duration, or the basemap would slide out from under
-     * the building the operator is trying to line up against it.
+     * The map's own pan is suspended for as long as the panel is open, not just between mousedown
+     * and mouseup: MapLibre begins its own drag on the same mousedown this handler sees, so
+     * disabling it from inside that handler is already too late and the basemap slides out from
+     * under the building the operator is lining up against it.
      */
     function attachCalibrationDrag(): void {
         const map = mapStore.map as MapLibreMap | undefined;
@@ -1750,11 +1752,11 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             return;
         }
         let previous: { lng: number; lat: number } | undefined;
+        map.dragPan.disable();
 
         const onDown = (event: { lngLat: { lng: number; lat: number }; preventDefault: () => void }): void => {
             previous = { lng: event.lngLat.lng, lat: event.lngLat.lat };
             event.preventDefault();
-            map.dragPan.disable();
         };
         const onMove = (event: { lngLat: { lng: number; lat: number } }): void => {
             if (previous === undefined) {
@@ -1767,18 +1769,21 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             });
             previous = { lng: event.lngLat.lng, lat: event.lngLat.lat };
         };
+        // Also on `mouseout`: a drag released outside the canvas never delivers `mouseup` here,
+        // and a still-armed drag would then keep moving the building on the next stray mousemove.
         const onUp = (): void => {
             previous = undefined;
-            map.dragPan.enable();
         };
 
         map.on("mousedown", onDown);
         map.on("mousemove", onMove);
         map.on("mouseup", onUp);
+        map.on("mouseout", onUp);
         detachCalibrationDrag = () => {
             map.off("mousedown", onDown);
             map.off("mousemove", onMove);
             map.off("mouseup", onUp);
+            map.off("mouseout", onUp);
             map.dragPan.enable();
         };
     }
