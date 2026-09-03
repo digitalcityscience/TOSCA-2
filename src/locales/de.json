@@ -73,7 +73,11 @@
     },
     "basemap": {
       "streets": "Straßen",
-      "satellite": "Satellit"
+      "backdrop": "Hintergrund",
+      "inHouse": "Intern",
+      "satellite": "Satellit",
+      "loadErrorTitle": "Basiskarte nicht verfügbar",
+      "loadErrorDetail": "{name} konnte nicht geladen werden. Ihre aktuelle Basiskarte bleibt aktiv."
     },
     "attributeDialog": {
       "featureLabel": "Feature {index}",

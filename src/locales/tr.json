@@ -73,7 +73,11 @@
     },
     "basemap": {
       "streets": "Sokaklar",
-      "satellite": "Uydu"
+      "backdrop": "Arka plan",
+      "inHouse": "Kurum içi",
+      "satellite": "Uydu",
+      "loadErrorTitle": "Altlık harita kullanılamıyor",
+      "loadErrorDetail": "{name} yüklenemedi. Mevcut altlık haritanız etkin kalacak."
     },
     "attributeDialog": {
       "featureLabel": "Öğe {index}",

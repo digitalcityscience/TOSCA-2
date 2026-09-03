@@ -12,6 +12,9 @@ import MapAttributeDialog from "./MapAttributeDialog.vue"
 import { useDrawStore } from "@store/draw";
 import { useParticipationStore } from "@store/participation";
 import { BaseMapControl, type BaseMapControlOptions } from "@helpers/baseMapControl";
+import { syncTerrainHillshadeVisibility } from "@helpers/mapTerrain";
+import { useToast } from "@helpers/toast";
+import { mapConfiguration, resolveMapConfiguration } from "../../config/mapConfig";
 import {
     queryRasterFeatureInfo,
     deduplicatePopupAttributeFeatures,
@@ -21,6 +24,7 @@ import {
 } from "@store/geoserver";
 
 const { t } = useI18n();
+const toast = useToast();
 const mapStore = useMapStore()
 const clickedLayers = ref()
 type PopupAnchor = "center" | "top" | "bottom" | "left" | "right" | "top-left" | "top-right" | "bottom-left" | "bottom-right";
@@ -65,9 +69,11 @@ onMounted(() => {
                     id: "terrain-hillshade",
                     type: "raster",
                     source: "terrain-hillshade",
+                    layout: {
+                        visibility: "none",
+                    },
                 },
             ],
-            terrain,
         },
         center: [lng, lat], // starting position [lng, lat]
         zoom, // starting zoom
@@ -84,7 +90,10 @@ onMounted(() => {
         });
         mapStore.terrainEnabled = mapStore.map.getTerrain() !== null;
         mapStore.map.on("terrain", () => {
-            mapStore.terrainEnabled = mapStore.map.getTerrain() !== null;
+            mapStore.terrainEnabled = syncTerrainHillshadeVisibility(
+                mapStore.map,
+                "terrain-hillshade"
+            );
         });
         /**
          * Initialize TerraDraw after the map is loaded. This is necessary to ensure that the map object is available.
@@ -121,29 +130,23 @@ onMounted(() => {
     const zoomControl = new maplibre.NavigationControl({ visualizePitch: true })
     mapStore.map.addControl(zoomControl, "bottom-right");
 
-    // Terrain is on initially through the style above. This control lets the
-    // user flatten/re-enable it without changing the selected surface texture
-    // (streets or satellite) or any MapLibre data-layer visibility.
+    // Terrain and its paired hillshade start disabled. This control enables or
+    // disables both without changing the selected basemap or data layers.
     mapStore.map.addControl(new maplibre.TerrainControl(terrain), "bottom-right");
 
+    const resolvedMapConfiguration = resolveMapConfiguration(mapConfiguration, import.meta.env, t);
     const options: BaseMapControlOptions = {
-        maps:[
-            {
-                id:"streets-v2",
-                title: t("map.basemap.streets"),
-                tiles: [
-                    `https://api.maptiler.com/maps/${import.meta.env.VITE_MAPTILER_API_MAP_ID}/{z}/{x}/{y}.png?key=${import.meta.env.VITE_MAPTILER_API_KEY}`
-                ]
-            },
-            {
-                id:"satellite",
-                title: t("map.basemap.satellite"),
-                tiles: [
-                    `https://api.maptiler.com/maps/satellite/{z}/{x}/{y}.jpg?key=${import.meta.env.VITE_MAPTILER_API_KEY}`
-                ]
-            }
-        ],
-        initialBasemap: "streets-v2"
+        beforeLayerId: "terrain-hillshade",
+        onBasemapLoadError: (basemap) => {
+            toast.add({
+                severity: "error",
+                summary: t("map.basemap.loadErrorTitle"),
+                detail: t("map.basemap.loadErrorDetail", { name: basemap.title }),
+                life: 5000,
+            });
+        },
+        maps: resolvedMapConfiguration.basemaps,
+        initialBasemap: resolvedMapConfiguration.initialBasemapId,
     }
     mapStore.map.addControl(new BaseMapControl(options), "bottom-left");
 })

@@ -18,6 +18,7 @@ import { getRandomHexColor, isNullOrEmpty } from "../core/helpers/functions";
 import { type FeatureCollection } from "@helpers/geojson";
 import { type MapStyleLegendContext } from "@helpers/mapStyleLegend";
 import { isEditableMapStyleColorProperty } from "@helpers/mapStyleEditing";
+import { validateSpriteUrl } from "@helpers/mapStyleBundle";
 import { useToast } from "@helpers/toast";
 
 /**
@@ -1049,10 +1050,16 @@ export const useMapStore = defineStore("map", () => {
             }
             return existing.runtimeId;
         }
-        // Reserve the registry slot synchronously, before awaiting addSprite, so
+        // Reserve the registry slot synchronously, before awaiting validation, so
         // concurrent acquires of the same URL share this single sprite and its
-        // reference count instead of each adding a duplicate.
-        const loading = map.value.addSprite(preferredRuntimeId, url) as Promise<void>;
+        // reference count instead of each adding a duplicate. `Map.addSprite`
+        // itself has no awaitable result (it fetches and applies the sprite
+        // fire-and-forget), so the sprite's manifest is validated first and
+        // `addSprite` is only called once that succeeds — this is what makes
+        // `loading` a real signal callers can await and catch failures from.
+        const loading = validateSpriteUrl(url).then(() => {
+            map.value.addSprite(preferredRuntimeId, url);
+        });
         const entry: { runtimeId: string; references: number; loading?: Promise<void> } = {
             runtimeId: preferredRuntimeId,
             references: 1,
