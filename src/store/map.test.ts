@@ -4,12 +4,14 @@ import { type CatalogLayerGroupManifest, type GeoserverRasterTypeLayerDetail } f
 import { createMapRuntimeId, mbStyleLayerOptions, type LayerObjectWithAttributes, useMapStore } from "./map";
 
 const toastAdd = vi.hoisted(() => vi.fn());
+const validateSpriteUrl = vi.hoisted(() => vi.fn(async () => {}));
 
 vi.mock("@helpers/toast", () => ({
     useToast: () => ({
         add: toastAdd,
     }),
 }));
+vi.mock("@helpers/mapStyleBundle", () => ({ validateSpriteUrl }));
 
 function createLayer(
     id: string,
@@ -535,9 +537,10 @@ describe("catalog layer group lifecycle", () => {
     test("shares one sprite across concurrent additions of the same URL", async () => {
         const sources = new Map<string, unknown>();
         const layers = new Map<string, unknown>();
-        // addSprite resolves on a later tick so both additions overlap inside
-        // the load window that used to add a duplicate sprite per caller.
-        const addSprite = vi.fn(async () => await Promise.resolve());
+        // validateSpriteUrl (mocked async above) resolves on a later tick, so
+        // both additions overlap inside the load window that used to add a
+        // duplicate sprite per caller.
+        const addSprite = vi.fn();
         const removeSprite = vi.fn();
         const mapStore = useMapStore();
         mapStore.map = {
@@ -585,6 +588,31 @@ describe("catalog layer group lifecycle", () => {
         await expect(mapStore.addMapGroup(groupManifest())).rejects.toThrow("invalid style layer");
         expect(layers.size).toBe(0);
         expect(sources.size).toBe(0);
+        expect(mapStore.layersOnMap).toHaveLength(0);
+    });
+
+    test("rolls back everything when a sprite fails to load", async () => {
+        const sources = new Map<string, unknown>();
+        const layers = new Map<string, unknown>();
+        const addSprite = vi.fn();
+        const mapStore = useMapStore();
+        mapStore.map = {
+            addSource: (id: string, source: unknown) => sources.set(id, source),
+            getSource: (id: string) => sources.get(id),
+            removeSource: (id: string) => sources.delete(id),
+            addLayer: (layer: { id: string }) => layers.set(layer.id, layer),
+            getLayer: (id: string) => layers.get(id),
+            removeLayer: (id: string) => layers.delete(id),
+            addSprite,
+            removeSprite: vi.fn(),
+        };
+        validateSpriteUrl.mockRejectedValueOnce(new Error("sprite 404"));
+
+        await expect(mapStore.addMapGroup(groupManifest())).rejects.toThrow("sprite 404");
+
+        expect(addSprite).not.toHaveBeenCalled();
+        expect(sources.size).toBe(0);
+        expect(layers.size).toBe(0);
         expect(mapStore.layersOnMap).toHaveLength(0);
     });
 });

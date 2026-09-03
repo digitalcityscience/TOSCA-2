@@ -1,23 +1,27 @@
-import { type IControl } from "maplibre-gl";
-interface BasemapOption {
-    id: string;
-    title: string;
-    tiles: string[];
-    sourceExtraParams?: Partial<maplibregl.RasterSourceSpecification>;
-    layerExtraParams?: Partial<maplibregl.RasterLayerSpecification>;
-}
-export interface BaseMapControlOptions {
+import { type IControl, type Map } from "maplibre-gl";
+import {
+    BasemapManager,
+    type BasemapManagerOptions,
+    type BasemapOption,
+} from "./basemapManager";
+
+export type { BasemapOption, RasterBasemapOption, VectorBasemapOption } from "./basemapManager";
+
+export interface BaseMapControlOptions extends BasemapManagerOptions {
     maps: BasemapOption[];
-    initialBasemap: string; // id of the initial basemap
+    initialBasemap: string;
+    onBasemapLoadError?: (basemap: BasemapOption) => void;
 }
+
 export class BaseMapControl implements IControl {
-    private readonly options: BaseMapControlOptions;
-
     private readonly container: HTMLElement;
+    private manager?: BasemapManager;
+    private map?: Map;
+    private readonly onMapLoad = (): void => {
+        void this.initializeBasemaps();
+    };
 
-    constructor(options: BaseMapControlOptions) {
-        this.options = options;
-
+    constructor(private readonly options: BaseMapControlOptions) {
         this.container = document.createElement("div");
         this.container.classList.add("maplibregl-ctrl", "maplibregl-ctrl-basemaps", "closed", "row");
         this.container.addEventListener("mouseenter", () => {
@@ -28,121 +32,112 @@ export class BaseMapControl implements IControl {
         });
     }
 
-    onAdd(map: maplibregl.Map): HTMLElement {
-        /**
-         * Add basemaps to the map.
-         * We should check if the map is loaded before adding the basemaps. Also if there is already another layers
-         * on the map, we should add the basemaps before the first layer.
-         */
-        const layers = map.getStyle()?.layers;
-        const firstLayerId: string|undefined = layers !== undefined && layers.length > 0 ? layers[0].id : undefined;
+    onAdd(map: Map): HTMLElement {
+        this.map = map;
+        this.manager = new BasemapManager(map, this.options.maps, {
+            beforeLayerId: this.options.beforeLayerId,
+            fetchStyle: this.options.fetchStyle,
+        });
+        this.options.maps.forEach((basemap) => {
+            this.container.appendChild(this.createBasemapElement(basemap));
+        });
         if (map.loaded()) {
-            this.initializeBasemaps(map, firstLayerId);
+            void this.initializeBasemaps();
         } else {
-            map.on("load", () => {
-                this.initializeBasemaps(map, firstLayerId);
-            })
+            void map.once("load", this.onMapLoad);
         }
         return this.container;
     }
 
     onRemove(): void {
+        this.map?.off("load", this.onMapLoad);
+        this.manager?.destroy();
+        this.manager = undefined;
+        this.map = undefined;
         this.container.parentNode?.removeChild(this.container);
     }
 
-    private initializeBasemaps(map: maplibregl.Map, firstLayerId?: string): void {
-        this.options.maps.forEach((basemap) => {
-            this.addBasemapSource(map, basemap);
-            this.addBasemapLayer(map, basemap, firstLayerId);
-            const basemapElement = this.createbasemapElement(map, basemap);
-            const isActive = basemap.id === this.options.initialBasemap;
-            map.setLayoutProperty(basemap.id, "visibility", isActive ? "visible" : "none");
-            if (isActive) {
-                basemapElement.classList.add("active");
-            }
-            this.container.appendChild(basemapElement);
-        });
-    }
+    private async initializeBasemaps(): Promise<void> {
+        try {
+            const activated = await this.manager?.activate(this.options.initialBasemap);
+            if (activated === true) this.syncActiveElement();
+        } catch (error) {
+            this.reportLoadFailure(this.options.initialBasemap, error);
+        }
 
-    private addBasemapSource(map: maplibregl.Map, basemap: BasemapOption): void {
-        const { id, tiles, sourceExtraParams = {} } = basemap;
-        if (map.getSource(id) === undefined) {
-            try {
-                map.addSource(id, {
-                    ...sourceExtraParams,
-                    type: "raster",
-                    tiles,
+        this.options.maps
+            .filter(({ id }) => id !== this.options.initialBasemap)
+            .forEach(({ id }) => {
+                void this.manager?.preload(id).catch((error: unknown) => {
+                    console.error(`Failed to preload basemap ${id}:`, error);
                 });
-            } catch (error) {
-                console.error(`Failed to add source for basemap ${id}:`, error);
-            }
-        }
+            });
     }
 
-    private addBasemapLayer(map: maplibregl.Map, basemap: BasemapOption, beforeId?: string): void {
-        const { id, layerExtraParams = {} } = basemap;
-        if (map.getLayer(id) === undefined) {
-            map.addLayer(
-                { ...layerExtraParams, id, source: id, type: "raster" },
-                beforeId
-            );
-        }
-    }
-
-    private createbasemapElement(map: maplibregl.Map, basemap: BasemapOption): HTMLElement {
-        const { id, title, tiles, sourceExtraParams = {} } = basemap;
-        const basemapElement = document.createElement("div");
-        const tileUrl = tiles[0];
-        const thumbnailUrl = (tileUrl.length > 0) ? this.getThumbnailUrl(tileUrl, sourceExtraParams) : "";
-        if (thumbnailUrl.length === 0) {
-            basemapElement.style.backgroundColor = "#f0f0f0";
+    private createBasemapElement(basemap: BasemapOption): HTMLElement {
+        const element = document.createElement("div");
+        const thumbnailUrl = basemap.thumbnailUrl ?? this.getRasterThumbnailUrl(basemap);
+        if (thumbnailUrl === undefined) {
+            element.style.backgroundColor = "#f0f0f0";
         } else {
-            basemapElement.style.backgroundImage = `url('${thumbnailUrl}')`;
+            element.style.backgroundImage = `url('${thumbnailUrl}')`;
         }
-        basemapElement.classList.add("basemap");
-        basemapElement.dataset.id = id;
+        element.classList.add("basemap");
+        element.dataset.id = basemap.id;
 
-        const basemapTitle = document.createElement("span");
-        basemapTitle.textContent = title;
-        basemapElement.appendChild(basemapTitle);
-
-        basemapElement.addEventListener("click", () => {
-            this.onBasemapClick(map, id, basemapElement);
+        const title = document.createElement("span");
+        title.textContent = basemap.title;
+        element.appendChild(title);
+        element.setAttribute("role", "button");
+        element.setAttribute("aria-label", `Select basemap ${basemap.title}`);
+        element.setAttribute("tabindex", "0");
+        element.addEventListener("click", () => {
+            void this.activateBasemap(basemap.id, element);
         });
-        basemapElement.setAttribute("role", "button");
-        basemapElement.setAttribute("aria-label", `Select basemap ${title}`);
-        basemapElement.setAttribute("tabindex", "0");
-        basemapElement.addEventListener("keydown", (event) => {
+        element.addEventListener("keydown", (event) => {
             if (event.key === "Enter" || event.key === " ") {
-                this.onBasemapClick(map, id, basemapElement);
+                event.preventDefault();
+                void this.activateBasemap(basemap.id, element);
             }
         });
-        return basemapElement;
+        return element;
     }
 
-    private getThumbnailUrl(tileUrl: string, sourceParams: Partial<maplibregl.RasterSourceSpecification>): string {
-        if (tileUrl.length === 0) {
-            return "";
+    private async activateBasemap(id: string, element: HTMLElement): Promise<void> {
+        if (element.getAttribute("aria-busy") === "true") return;
+        element.setAttribute("aria-busy", "true");
+        try {
+            const activated = await this.manager?.activate(id);
+            if (activated === true) this.syncActiveElement();
+        } catch (error) {
+            this.reportLoadFailure(id, error);
+        } finally {
+            element.removeAttribute("aria-busy");
         }
-        const minZoom = sourceParams.minzoom ?? 0;
-        const thumbnailUrl = tileUrl
+    }
+
+    private syncActiveElement(): void {
+        const activeId = this.manager?.getActiveId();
+        this.container.querySelectorAll<HTMLElement>(".basemap").forEach((element) => {
+            const isActive = element.dataset.id === activeId;
+            element.classList.toggle("active", isActive);
+            element.setAttribute("aria-pressed", String(isActive));
+        });
+    }
+
+    private reportLoadFailure(id: string, error: unknown): void {
+        console.error(`Failed to activate basemap ${id}:`, error);
+        const basemap = this.options.maps.find((candidate) => candidate.id === id);
+        if (basemap !== undefined) this.options.onBasemapLoadError?.(basemap);
+    }
+
+    private getRasterThumbnailUrl(basemap: BasemapOption): string | undefined {
+        if (basemap.kind !== "raster" || basemap.source.tiles?.[0] === undefined) return undefined;
+        const minZoom = basemap.source.minzoom ?? 0;
+        const thumbnailUrl = basemap.source.tiles[0]
             .replace("{x}", "0")
             .replace("{y}", "0")
             .replace("{z}", minZoom.toString());
-        const placeholderRegex = /{.*?}/;
-        return placeholderRegex.test(thumbnailUrl) ? "" : thumbnailUrl;
-    }
-
-    private onBasemapClick(map: maplibregl.Map, id: string, basemapElement: HTMLElement): void {
-        const activeElement = this.container.querySelector(".active");
-        if ((activeElement != null) && activeElement instanceof HTMLElement) {
-            const activeId = activeElement.dataset.id;
-            if (activeId != null) {
-                activeElement.classList.remove("active");
-                map.setLayoutProperty(activeId, "visibility", "none");
-            }
-        }
-        basemapElement.classList.add("active");
-        map.setLayoutProperty(id, "visibility", "visible");
+        return /{.*?}/.test(thumbnailUrl) ? undefined : thumbnailUrl;
     }
 }

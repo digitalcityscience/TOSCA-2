@@ -73,7 +73,11 @@
     },
     "basemap": {
       "streets": "Streets",
-      "satellite": "Satellite"
+      "backdrop": "Backdrop",
+      "inHouse": "In-house",
+      "satellite": "Satellite",
+      "loadErrorTitle": "Basemap unavailable",
+      "loadErrorDetail": "We couldn't load {name}. Your current basemap is still active."
     },
     "attributeDialog": {
       "featureLabel": "Feature {index}",
