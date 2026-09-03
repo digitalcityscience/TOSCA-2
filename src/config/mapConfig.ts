@@ -118,7 +118,7 @@ export interface ResolvedMapConfiguration {
 }
 
 export const mapConfiguration = {
-    initialBasemapId: "inHouse",
+    initialBasemapId: "backdrop",
     providers: {
         maptiler: {
             baseUrl: { value: "https://api.maptiler.com" },
