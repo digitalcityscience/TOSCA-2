@@ -31,6 +31,14 @@ export interface CollabTrackingObjectState {
     geometry?: Polygon | MultiPolygon;
     bbox?: [number, number, number, number];
     cityScopeId?: string;
+    /** The ArUco id this object was resolved from — what a `building_calibration` addresses. */
+    markerId?: number;
+    /**
+     * Where the marker was last seen in Python's table-pixel space. The frontend's only view of
+     * pixel space once calibrated, and what the admin panel's coverage grid is drawn from.
+     */
+    tableXPx?: number;
+    tableYPx?: number;
 }
 
 /** Per-window UI state (selection/camera/panels). Local only — never broadcast between windows. */

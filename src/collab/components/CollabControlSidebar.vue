@@ -224,6 +224,15 @@
             </div>
         </div>
 
+        <!--
+            Per-building calibration (workflow step 4). Real-table only: it addresses a marker id
+            Python resolved and writes through Python's own catalog, neither of which exists in a
+            mock build.
+        -->
+        <div v-if="isRealTableRoute" class="mt-5 border-t border-muted pt-4">
+            <CollabBuildingCalibrationPanel />
+        </div>
+
         <div class="mt-5 flex flex-col gap-2 border-t border-muted pt-4">
             <div class="flex items-center justify-between gap-2">
                 <div class="flex flex-col gap-0.5">
@@ -245,6 +254,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import BaseSlideoverSidebarComponent from "@components/Base/BaseSlideoverSidebarComponent.vue";
+import CollabBuildingCalibrationPanel from "./CollabBuildingCalibrationPanel.vue";
 import { useToast } from "@helpers/toast";
 import { useCollabSyncStore } from "../stores/collabSync";
 import { useCollabSessionStore } from "../stores/collabSession";

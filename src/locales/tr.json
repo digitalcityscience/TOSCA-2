@@ -403,6 +403,35 @@
             "unmappedHint": "{count} marker bina kimliği olmadan geldi. Python fiziksel bina kataloğunu kontrol edin."
           }
         }
+      },
+      "buildingCalibration": {
+        "title": "Bina kalibrasyonu",
+        "description": "Binanın çizimini bloğunun üstüne oturt. Masanın başında dur ve bu panele değil, projeksiyona bak.",
+        "noBuildings": "Masada henüz bina yok — bir blok koy ve izlenmesini bekle.",
+        "select": "Kalibre et",
+        "selected": "{buildingId} kalibre ediliyor",
+        "instructions": "Kaba ayar için haritada sürükle. Ok tuşları masada 1 mm kaydırır, Q/E 0,5° döndürür, +/− %0,5 boyutlandırır.",
+        "holdNotice": "Bu panel açıkken çizim ekranda tutuluyor; marker'ın üzerine eğilsen de kaybolmuyor.",
+        "readout": {
+          "offset": "Kaydırma",
+          "rotation": "Açı",
+          "scale": "Boyut",
+          "east": "D",
+          "north": "K"
+        },
+        "coverage": {
+          "title": "Nerelerden örnek aldın",
+          "summary": "{total} masa bölgesinden {sampled} tanesi ölçüldü",
+          "empty": "Bu oturumda henüz kayıt yok. Kenarlardan da ölç — hata orada büyüyor.",
+          "cell": "{count} kayıt"
+        },
+        "save": "Kaydet",
+        "cancel": "İptal",
+        "reset": "Nötre döndür",
+        "savedSummary": "Kalibrasyon kaydedildi",
+        "savedDetail": "Python çalışma kataloğuna ve kalibrasyon kaydına yazdı. Bir sonraki açılışta geçerli olması için publish-to-runtime.ps1 çalıştır.",
+        "saveFailedSummary": "Kaydedilmedi",
+        "saveFailedDetail": "İzleme bağlantısı açık değil, hiçbir şey gönderilmedi. Hiçbir şey değişmedi — yeniden bağlanıp tekrar dene."
       }
     },
     "table": {
@@ -430,7 +459,8 @@
       "trackedOrientation": "Collab · Takip edilen yönelim",
       "trackedId": "Collab · Takip edilen kimlik",
       "trackedConfidence": "Collab · Takip edilen güven",
-      "aoi": "Collab · Seçilen ilgi alanı"
+      "aoi": "Collab · Seçilen ilgi alanı",
+      "calibrationSelection": "Collab · Kalibre edilen bina"
     }
   }
 }

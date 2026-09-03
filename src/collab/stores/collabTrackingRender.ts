@@ -22,13 +22,31 @@ import {
 import { toFeature, useCollabScenarioStore, type CollabBuildingObject } from "./collabScenario";
 import { useCollabSyncStore } from "./collabSync";
 import {
+    METERS_PER_DEGREE_LATITUDE,
     aoiChecksum,
     calibrationMarkerSizePx,
+    deriveGroundScale,
     deriveTrackedFootprint,
+    metersPerDegreeLongitude,
     tableToAoiRotationOffsetDeg,
     type AOIExtent,
     type MapCalibrationMessage,
 } from "./collabCalibration";
+import {
+    NEUTRAL_BUILDING_CALIBRATION_DRAFT,
+    buildBuildingCalibrationMessage,
+    draggedDraft,
+    localMmFromGeographicDelta,
+    nudgedDraft,
+    resizedDraft,
+    rotatedDraft,
+    tableCoverage,
+    type BuildingCalibrationDraft,
+    type PlanarDeltaM,
+    type PlanarDeltaMm,
+    type TableCoverage,
+    type TableSample,
+} from "./collabBuildingCalibration";
 import {
     aoiCalibrationMarkerPosition,
     buildMapCalibrationFromMarkerReadings,
@@ -51,6 +69,18 @@ import {
 } from "./collabTracking";
 
 const REFERENCE_MARKER_IDS: ReadonlySet<number> = new Set(REFERENCE_MARKERS.map((marker) => marker.id));
+
+/**
+ * The one place the building-calibration panel's state lives (workflow step 4). Kept in this
+ * store rather than in the component so it survives the sidebar being collapsed mid-adjustment,
+ * and so the map layers -- which are owned here -- can highlight the building being seated
+ * without the component reaching into them.
+ */
+interface BuildingCalibrationSession {
+    buildingId: string;
+    markerId: number;
+    draft: BuildingCalibrationDraft;
+}
 
 /**
  * `RealTrackingSource`'s Python transport state, widened with `"mock"` for when
@@ -78,6 +108,17 @@ const TRACKED_FOOTPRINT_OUTLINE_LAYER_ID = "collabTrackedFootprints-outline";
 
 const TRACKED_BBOX_SOURCE_ID = "collabTrackedBbox";
 const TRACKED_BBOX_LAYER_ID = "collabTrackedBbox-line";
+
+/**
+ * The bounding box of the building currently being calibrated, drawn in its own colour on its own
+ * layer (workflow step 4: "seçili binanın bbox'ı farklı renkte"). A separate source/layer rather
+ * than a paint expression on the debug bbox layer, because the two are independent: the debug
+ * overlay is a switch the operator may have off, and the selection highlight must show regardless.
+ */
+const CALIBRATION_SELECTION_SOURCE_ID = "collabCalibrationSelection";
+const CALIBRATION_SELECTION_LAYER_ID = "collabCalibrationSelection-line";
+const CALIBRATION_SELECTION_COLOR = "#f59e0b";
+const CALIBRATION_SELECTION_WIDTH_PX = 3;
 
 const TRACKED_ORIENTATION_SOURCE_ID = "collabTrackedOrientation";
 const TRACKED_ORIENTATION_LAYER_ID = "collabTrackedOrientation-line";
@@ -176,6 +217,9 @@ export function applyTrackingEvent(
         geometry: event.geometry,
         bbox: event.bbox,
         cityScopeId: event.cityScopeId,
+        markerId: event.markerId,
+        tableXPx: event.tableXPx,
+        tableYPx: event.tableYPx,
     };
 }
 
@@ -483,6 +527,26 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     const markerPositionOverrides = new Map<number, [number, number]>();
     /** Last `session.calibration.resetPositionsToken` value {@link syncCalibrationPresentation} has reacted to (grilling doc Q2). */
     let lastSeenResetPositionsToken: number | undefined;
+
+    /**
+     * The building the operator is currently seating from the admin panel, or `null`. While this
+     * is set the live feed holds presence (a leaning operator occludes the marker they are aiming
+     * at) and the selected building's bbox is drawn in its own colour.
+     */
+    const buildingCalibration = ref<BuildingCalibrationSession | null>(null);
+
+    /**
+     * Where on the table a calibration has been saved *this session*, in Python's table pixels.
+     *
+     * Deliberately session-local rather than read back from Python: the durable record is the
+     * SQLite file, which a browser cannot read, and the panel's coverage grid answers a
+     * here-and-now question -- "which parts of this table have I sampled in this sitting, and
+     * which edges am I still missing?" -- not a historical one.
+     */
+    const savedCalibrationSamples = ref<TableSample[]>([]);
+
+    /** Detaches the Control-map drag handlers installed while a building is being calibrated. */
+    let detachCalibrationDrag: (() => void) | undefined;
     /** Layer ids {@link syncCalibrationPresentation} hid — restored verbatim once presentation mode ends. */
     let hiddenLayerIds: string[] = [];
 
@@ -726,11 +790,53 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         layerId: string,
         data: FeatureCollection,
         displayName: string,
-        color: string
+        color: string,
+        widthPx = 2
     ): Promise<void> {
         await ensureGeojsonLayer(sourceId, layerId, "line", data, displayName, {
-            paint: { "line-color": color, "line-width": 2 },
+            paint: { "line-color": color, "line-width": widthPx },
         });
+    }
+
+    /**
+     * The bounding rectangle of the building currently being calibrated, or an empty collection.
+     *
+     * Empty rather than absent when nothing is selected, so the layer stays on the map with no
+     * features instead of being torn down and rebuilt every time the operator picks a different
+     * building -- a rebuild would flash the outline off and back on mid-adjustment.
+     */
+    function selectedCalibrationBbox(footprints: FeatureCollection): FeatureCollection {
+        const selected = buildingCalibration.value;
+        if (selected === null) {
+            return { type: "FeatureCollection", features: [] };
+        }
+        const footprint = footprints.features.find((feature) => feature.id === selected.buildingId);
+        if (footprint === undefined) {
+            return { type: "FeatureCollection", features: [] };
+        }
+        const [minX, minY, maxX, maxY] = bbox(footprint);
+        return {
+            type: "FeatureCollection",
+            features: [
+                {
+                    type: "Feature",
+                    id: selected.buildingId,
+                    properties: { building_id: selected.buildingId },
+                    geometry: {
+                        type: "Polygon",
+                        coordinates: [
+                            [
+                                [minX, minY],
+                                [maxX, minY],
+                                [maxX, maxY],
+                                [minX, maxY],
+                                [minX, minY],
+                            ],
+                        ],
+                    },
+                },
+            ],
+        };
     }
 
     /**
@@ -974,6 +1080,23 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                     tracked.ids,
                     i18n.global.t("collab.layers.trackedCentre"),
                     "#f97316"
+                )
+            );
+        }
+
+        // The building being seated, outlined in its own colour so the operator can tell which of
+        // three near-identical orange footprints their arrow keys are moving. Control-only, and
+        // independent of the debug switch: the highlight must be visible whether or not the
+        // operator happens to have the debug overlays on.
+        if (windowKind === "control") {
+            await safelyEnsure("calibrationSelection", () =>
+                ensureLineLayer(
+                    CALIBRATION_SELECTION_SOURCE_ID,
+                    CALIBRATION_SELECTION_LAYER_ID,
+                    selectedCalibrationBbox(tracked.footprints),
+                    i18n.global.t("collab.layers.calibrationSelection"),
+                    CALIBRATION_SELECTION_COLOR,
+                    CALIBRATION_SELECTION_WIDTH_PX
                 )
             );
         }
@@ -1588,6 +1711,217 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         });
     }
 
+    /**
+     * How far the AOI's own axes run off the compass, or `0` with no AOI confirmed.
+     *
+     * Cached on `session.calibration.rotationOffsetDeg` by the AOI watcher; read from the scenario
+     * AOI directly here so a panel opened before the first render tick still converts arrow keys
+     * correctly rather than silently treating the table as compass-aligned.
+     */
+    function aoiRotationOffsetDeg(): number {
+        const aoi = scenarioStore.aoi;
+        return aoi === null ? session.calibration.rotationOffsetDeg : tableToAoiRotationOffsetDeg(aoi);
+    }
+
+    /** The heading the selected building is currently *drawn* at — the frame its offset is stored in. */
+    function selectedDrawnRotationDeg(): number {
+        const selected = buildingCalibration.value;
+        const tracked = selected === null ? undefined : session.tracking[selected.buildingId];
+        return tracked?.pose.rotation ?? 0;
+    }
+
+    /**
+     * Turns the Control map into the coarse adjustment for the building being seated: press,
+     * drag, release moves the drawing, one drag step at a time.
+     *
+     * Deliberately incremental (each `mousemove` contributes the step since the last one) rather
+     * than "delta from where the drag started": the draft is an accumulator the arrow keys also
+     * write to, and a from-the-start delta would silently discard any key nudge made mid-drag.
+     *
+     * The map's own pan is suspended for the duration, or the basemap would slide out from under
+     * the building the operator is trying to line up against it.
+     */
+    function attachCalibrationDrag(): void {
+        const map = mapStore.map as MapLibreMap | undefined;
+        if (map === undefined) {
+            return;
+        }
+        let previous: { lng: number; lat: number } | undefined;
+
+        const onDown = (event: { lngLat: { lng: number; lat: number }; preventDefault: () => void }): void => {
+            previous = { lng: event.lngLat.lng, lat: event.lngLat.lat };
+            event.preventDefault();
+            map.dragPan.disable();
+        };
+        const onMove = (event: { lngLat: { lng: number; lat: number } }): void => {
+            if (previous === undefined) {
+                return;
+            }
+            const midLatitude = (previous.lat + event.lngLat.lat) / 2;
+            dragBuildingCalibration({
+                eastM: (event.lngLat.lng - previous.lng) * metersPerDegreeLongitude(midLatitude),
+                northM: (event.lngLat.lat - previous.lat) * METERS_PER_DEGREE_LATITUDE,
+            });
+            previous = { lng: event.lngLat.lng, lat: event.lngLat.lat };
+        };
+        const onUp = (): void => {
+            previous = undefined;
+            map.dragPan.enable();
+        };
+
+        map.on("mousedown", onDown);
+        map.on("mousemove", onMove);
+        map.on("mouseup", onUp);
+        detachCalibrationDrag = () => {
+            map.off("mousedown", onDown);
+            map.off("mousemove", onMove);
+            map.off("mouseup", onUp);
+            map.dragPan.enable();
+        };
+    }
+
+    /**
+     * Begins seating `buildingId` from the admin panel. Starts from a neutral draft: the panel
+     * shows what the operator is *adding* on top of whatever Python already has stored, not the
+     * accumulated total, so a nudge always means the same thing no matter how often a building
+     * has been calibrated before.
+     *
+     * Holds the live feed's presence timeout for as long as the panel is open (see
+     * `TrackingFeedNormalizer.setPresenceHold`): seating a building means leaning over the table,
+     * which occludes the marker keeping its footprint alive.
+     */
+    function startBuildingCalibration(buildingId: string): void {
+        const tracked = session.tracking[buildingId];
+        const markerId = tracked?.markerId;
+        if (markerId === undefined) {
+            reportDeveloperError(
+                "collabTrackingRender.startBuildingCalibration",
+                new Error(`${buildingId} has no marker id yet; it has not been seen on the table`)
+            );
+            return;
+        }
+        buildingCalibration.value = { buildingId, markerId, draft: { ...NEUTRAL_BUILDING_CALIBRATION_DRAFT } };
+        realSource?.setPresenceHold(true);
+        detachCalibrationDrag?.();
+        attachCalibrationDrag();
+    }
+
+    /** Abandons the draft. Nothing was ever sent, so nothing has to be undone anywhere. */
+    function cancelBuildingCalibration(): void {
+        buildingCalibration.value = null;
+        realSource?.setPresenceHold(false);
+        detachCalibrationDrag?.();
+        detachCalibrationDrag = undefined;
+    }
+
+    /** Puts the draft back to neutral without closing the panel — the operator's "start over". */
+    function resetBuildingCalibrationDraft(): void {
+        if (buildingCalibration.value === null) {
+            return;
+        }
+        buildingCalibration.value = {
+            ...buildingCalibration.value,
+            draft: { ...NEUTRAL_BUILDING_CALIBRATION_DRAFT },
+        };
+    }
+
+    function updateDraft(next: BuildingCalibrationDraft): void {
+        if (buildingCalibration.value === null) {
+            return;
+        }
+        buildingCalibration.value = { ...buildingCalibration.value, draft: next };
+    }
+
+    /** One arrow-key tick, given in *table* axes; stored in the building's own frame. */
+    function nudgeBuildingCalibration(delta: PlanarDeltaMm): void {
+        const current = buildingCalibration.value;
+        if (current === null) {
+            return;
+        }
+        updateDraft(nudgedDraft(current.draft, delta, selectedDrawnRotationDeg(), aoiRotationOffsetDeg()));
+    }
+
+    /**
+     * A drag on the Control map, given as the geographic east/north metres it covered.
+     *
+     * Converted through the AOI's ground scale rather than the map's zoom: what the operator is
+     * adjusting is where the drawing sits *on the table*, and the table's millimetres are what
+     * Python stores. A zoom-derived conversion would make the same drag mean different amounts at
+     * different zoom levels.
+     */
+    function dragBuildingCalibration(delta: PlanarDeltaM): void {
+        const current = buildingCalibration.value;
+        if (current === null) {
+            return;
+        }
+        const aoi = scenarioStore.aoi;
+        if (aoi === null) {
+            return;
+        }
+        const groundScale = deriveGroundScale(aoi, scenarioStore.tableConfig);
+        updateDraft(
+            draggedDraft(current.draft, localMmFromGeographicDelta(delta, selectedDrawnRotationDeg(), groundScale))
+        );
+    }
+
+    /** `Q`/`E`: one rotation tick, positive anticlockwise. */
+    function rotateBuildingCalibration(steps: number): void {
+        const current = buildingCalibration.value;
+        if (current !== null) {
+            updateDraft(rotatedDraft(current.draft, steps));
+        }
+    }
+
+    /** `+`/`-`: one size tick on this building's scale residual. */
+    function resizeBuildingCalibration(steps: number): void {
+        const current = buildingCalibration.value;
+        if (current !== null) {
+            updateDraft(resizedDraft(current.draft, steps));
+        }
+    }
+
+    /**
+     * Sends the draft to Python and closes the panel. Reports whether the bytes went out.
+     *
+     * There is nothing to wait for: Python writes the working catalog and the SQLite row, and the
+     * confirmation the operator actually cares about arrives as the next tracking frame, with the
+     * building drawn where they put it. The panel records the table position it saved at so the
+     * coverage grid can show which regions have been sampled -- that is the frontend's own
+     * bookkeeping, separate from the `table_x_px` Python stamps on the stored measurement.
+     */
+    function saveBuildingCalibration(): boolean {
+        const current = buildingCalibration.value;
+        if (current === null) {
+            return false;
+        }
+        if (realSource === undefined) {
+            reportDeveloperError(
+                "collabTrackingRender.saveBuildingCalibration",
+                new Error("no real tracking transport connected")
+            );
+            return false;
+        }
+        const message = buildBuildingCalibrationMessage(current.buildingId, current.markerId, current.draft);
+        const sent = realSource.sendBuildingCalibration(message);
+        if (!sent) {
+            return false;
+        }
+        const tracked = session.tracking[current.buildingId];
+        if (tracked?.tableXPx !== undefined && tracked.tableYPx !== undefined) {
+            savedCalibrationSamples.value = [
+                ...savedCalibrationSamples.value,
+                { tableXPx: tracked.tableXPx, tableYPx: tracked.tableYPx },
+            ];
+        }
+        cancelBuildingCalibration();
+        return true;
+    }
+
+    /** Which thirds of the table have been sampled this session — the panel's diagram. */
+    function buildingCalibrationCoverage(): TableCoverage {
+        return tableCoverage(savedCalibrationSamples.value, scenarioStore.tableConfig);
+    }
+
     /** Tears down every tracking source, the Python transport, and the render watch. Idempotent — safe on unmount and HMR. */
     function stop(): void {
         stopWatch?.();
@@ -1597,6 +1931,10 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         clearCalibrationConfirmationTimer();
         clearClearConfirmationTimer();
         pendingCalibration = undefined;
+        detachCalibrationDrag?.();
+        detachCalibrationDrag = undefined;
+        buildingCalibration.value = null;
+        savedCalibrationSamples.value = [];
         appliedRotationByObjectId.clear();
         for (const marker of calibrationMarkers.values()) {
             marker.remove();
@@ -1627,6 +1965,17 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         calibrateFromDetectedMarkers,
         recalibrate,
         resetMarkerPositions,
+        buildingCalibration,
+        savedCalibrationSamples,
+        startBuildingCalibration,
+        cancelBuildingCalibration,
+        resetBuildingCalibrationDraft,
+        nudgeBuildingCalibration,
+        dragBuildingCalibration,
+        rotateBuildingCalibration,
+        resizeBuildingCalibration,
+        saveBuildingCalibration,
+        buildingCalibrationCoverage,
         stop,
     };
 });

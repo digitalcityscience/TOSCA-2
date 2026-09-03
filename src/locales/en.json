@@ -403,6 +403,35 @@
             "unmappedHint": "{count} marker(s) arrived without a building identity. Check the Python physical-building catalog."
           }
         }
+      },
+      "buildingCalibration": {
+        "title": "Building calibration",
+        "description": "Seat a building's drawing on top of its block. Stand at the table and watch the projection, not this panel.",
+        "noBuildings": "No buildings on the table yet — place a block and wait for it to be tracked.",
+        "select": "Calibrate",
+        "selected": "Calibrating {buildingId}",
+        "instructions": "Drag on the map for the coarse move. Arrow keys nudge 1 mm on the table, Q/E turn 0.5°, +/− resize 0.5%.",
+        "holdNotice": "The footprint is held while this panel is open, so leaning over the marker won't make it disappear.",
+        "readout": {
+          "offset": "Offset",
+          "rotation": "Rotation",
+          "scale": "Size",
+          "east": "E",
+          "north": "N"
+        },
+        "coverage": {
+          "title": "Where you've sampled",
+          "summary": "{sampled} of {total} table regions sampled",
+          "empty": "Nothing saved yet this session. Measure at the edges too — that's where the error grows.",
+          "cell": "{count} saved"
+        },
+        "save": "Save",
+        "cancel": "Cancel",
+        "reset": "Reset to neutral",
+        "savedSummary": "Calibration saved",
+        "savedDetail": "Python has written it to the working catalog and the calibration record. Run publish-to-runtime.ps1 to make it the next start-up's default.",
+        "saveFailedSummary": "Not saved",
+        "saveFailedDetail": "The tracking connection isn't open, so nothing was sent. Nothing has changed — reconnect and try again."
       }
     },
     "table": {
@@ -430,7 +459,8 @@
       "trackedOrientation": "Collab · Tracked orientation",
       "trackedId": "Collab · Tracked id",
       "trackedConfidence": "Collab · Tracked confidence",
-      "aoi": "Collab · Selected AOI"
+      "aoi": "Collab · Selected AOI",
+      "calibrationSelection": "Collab · Building being calibrated"
     }
   }
 }

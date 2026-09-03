@@ -18,6 +18,15 @@ export interface TrackingEvent {
     geometry?: Polygon | MultiPolygon
     bbox?: [number, number, number, number]
     cityScopeId?: string
+    /** The ArUco id Python resolved this object from — what a `building_calibration` addresses. */
+    markerId?: number
+    /**
+     * Where the marker was seen in Python's table-pixel space. Carried through because after
+     * calibration this is the frontend's *only* view of pixel space, and the admin panel's
+     * coverage grid needs to know which parts of the table a measurement has been taken on.
+     */
+    tableXPx?: number
+    tableYPx?: number
 }
 
 /**
@@ -91,6 +100,13 @@ export interface TrackingMarkerFeatureProperties {
     city_scope_id?: string
     center?: [number, number]
     bbox?: [number, number, number, number]
+    /** Where the marker was seen in the stitched table image (`server.py`). Absent on the mock. */
+    table_x_px?: number
+    table_y_px?: number
+    /** The blocks' milling scale, published by Python so nothing here restates 1:500. */
+    model_scale?: number
+    /** The session's global k times this building's scale residual, as actually drawn. */
+    model_scale_factor?: number
 }
 
 export type TrackingMarkerFeatureCollection = FeatureCollection<Point | Polygon | MultiPolygon, TrackingMarkerFeatureProperties>
@@ -339,6 +355,23 @@ export function createMarkerObjectRegistry(entries: readonly MarkerObjectRegistr
     return registry
 }
 
+/**
+ * How long a building's footprint survives after its marker stops appearing in Python's
+ * snapshots, before it is treated as gone and removed from the projection.
+ *
+ * Read from `VITE_COLLAB_GEOMETRY_FLASH_MS` so the rig can tune it without a rebuild; unset or
+ * unparsable falls back to the 1000 ms this has always used. It is *not* raised globally to cover
+ * the calibration case: while the admin panel is seating a building the operator leans across the
+ * table and occludes its marker, and a footprint that blinks out mid-adjustment removes the very
+ * thing being aimed at. That case is handled properly instead, by
+ * {@link TrackingFeedNormalizer.setPresenceHold} — held for exactly as long as the panel is open,
+ * rather than by making every building on the table linger for everyone all the time.
+ */
+export function geometryDisappearTimeoutMs(): number {
+    const raw = Number(import.meta.env.VITE_COLLAB_GEOMETRY_FLASH_MS ?? "")
+    return Number.isFinite(raw) && raw > 0 ? raw : 1000
+}
+
 const DEFAULT_DISAPPEAR_TIMEOUT_MS = 1000
 
 /**
@@ -383,6 +416,8 @@ class MarkerPresenceTracker {
 export class TrackingFeedNormalizer {
     private readonly registry: MarkerObjectRegistry
     private readonly presence: MarkerPresenceTracker
+    /** While true, absence never becomes `disappeared` — see {@link setPresenceHold}. */
+    private presenceHeld = false
     private readonly lastPose = new Map<string, TrackingEvent["pose"]>()
     private availability: TrackingAvailability = "live"
 
@@ -431,6 +466,9 @@ export class TrackingFeedNormalizer {
                 geometry,
                 bbox: feature.properties.bbox,
                 cityScopeId: feature.properties.city_scope_id,
+                markerId: feature.properties.marker_id,
+                tableXPx: feature.properties.table_x_px,
+                tableYPx: feature.properties.table_y_px,
             }
 
             if (previousPose === undefined) {
@@ -457,6 +495,13 @@ export class TrackingFeedNormalizer {
             return events
         }
 
+        if (this.presenceHeld) {
+            // Still observe presence (so a held object's clock keeps running and it does not
+            // vanish the instant the hold lifts), but synthesize nothing.
+            this.presence.observe(presentObjectIds, timestamp)
+            return events
+        }
+
         for (const objectId of this.presence.observe(presentObjectIds, timestamp)) {
             const pose = this.lastPose.get(objectId)
             if (pose === undefined) {
@@ -467,6 +512,19 @@ export class TrackingFeedNormalizer {
         }
 
         return events
+    }
+
+    /**
+     * Suspends (or resumes) turning absence into `disappeared`.
+     *
+     * Held while the admin panel is calibrating a building: the operator stands over the table to
+     * seat it, occluding the very marker that keeps its footprint alive, and a footprint that
+     * blinks out is a footprint that cannot be aimed. Positions still update normally from every
+     * snapshot the marker *is* visible in — this only stops the removal, and only for as long as
+     * the panel is open.
+     */
+    setPresenceHold(held: boolean): void {
+        this.presenceHeld = held
     }
 
     private resolveObjectId(feature: Feature<Point | Polygon | MultiPolygon, TrackingMarkerFeatureProperties>): string | undefined {
@@ -884,6 +942,29 @@ export class RealTrackingSource implements TrackingSource {
             return
         }
         this.socket.send(JSON.stringify(message))
+    }
+
+    /**
+     * Sends one `building_calibration` (workflow step 3/4) — the operator's saved nudge for a
+     * single building. Reports whether the bytes actually went out, so the panel can tell the
+     * operator "not saved" instead of silently keeping a draft it believes was persisted.
+     *
+     * There is no acknowledgement to wait for: Python applies the message, writes the working
+     * catalog and the SQLite row, and the *evidence* arrives as the next tracking frame, where
+     * the building is drawn at its new pose. That is a far better confirmation than an ack —
+     * the operator is looking at the projection, which is the thing they were adjusting.
+     */
+    /** Suspends/resumes disappearance synthesis for the live feed — see {@link TrackingFeedNormalizer.setPresenceHold}. */
+    setPresenceHold(held: boolean): void {
+        this.normalizer.setPresenceHold(held)
+    }
+
+    sendBuildingCalibration(message: object): boolean {
+        if (!this.socketOpen || this.socket === undefined) {
+            return false
+        }
+        this.socket.send(JSON.stringify(message))
+        return true
     }
 
     /**

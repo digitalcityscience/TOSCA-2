@@ -244,8 +244,16 @@ describe("TrackingFeedNormalizer", () => {
         const normalizer = new TrackingFeedNormalizer(registry);
 
         const first = normalizer.applySnapshot(featureCollection([{ markerId: 182, lng: 10, lat: 53.5, rotation: 0 }]), 0);
-        expect(first).toEqual<TrackingEvent[]>([
-            { type: "appeared", objectId: "B-28", pose: { lng: 10, lat: 53.5, rotation: 0 }, confidence: 1, timestamp: 0 },
+        // `objectContaining`, because an event also carries the marker id and the table-pixel
+        // position it was read at; this test is about the appeared/unchanged/updated decision.
+        expect(first).toEqual([
+            expect.objectContaining({
+                type: "appeared",
+                objectId: "B-28",
+                pose: { lng: 10, lat: 53.5, rotation: 0 },
+                confidence: 1,
+                timestamp: 0,
+            }),
         ]);
 
         const unchanged = normalizer.applySnapshot(
@@ -258,14 +266,14 @@ describe("TrackingFeedNormalizer", () => {
             featureCollection([{ markerId: 182, lng: 10.001, lat: 53.5, rotation: 90 }]),
             400
         );
-        expect(moved).toEqual<TrackingEvent[]>([
-            {
+        expect(moved).toEqual([
+            expect.objectContaining({
                 type: "updated",
                 objectId: "B-28",
                 pose: { lng: 10.001, lat: 53.5, rotation: 90 },
                 confidence: 1,
                 timestamp: 400,
-            },
+            }),
         ]);
     });
 
@@ -516,8 +524,14 @@ describe("RealTrackingSource", () => {
         now = 100;
         socket.emitMessage(featureCollection([{ markerId: 182, lng: 10, lat: 53.5, rotation: 0 }]));
 
-        expect(events).toEqual<TrackingEvent[]>([
-            { type: "appeared", objectId: "B-28", pose: { lng: 10, lat: 53.5, rotation: 0 }, confidence: 1, timestamp: 100 },
+        expect(events).toEqual([
+            expect.objectContaining({
+                type: "appeared",
+                objectId: "B-28",
+                pose: { lng: 10, lat: 53.5, rotation: 0 },
+                confidence: 1,
+                timestamp: 100,
+            }),
         ]);
     });
 

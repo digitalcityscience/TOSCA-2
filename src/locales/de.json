@@ -403,6 +403,35 @@
             "unmappedHint": "{count} Marker ohne Gebäude-ID. Den physischen Gebäudekatalog in Python prüfen."
           }
         }
+      },
+      "buildingCalibration": {
+        "title": "Gebäudekalibrierung",
+        "description": "Setze die Zeichnung eines Gebäudes auf seinen Block. Stelle dich an den Tisch und schaue auf die Projektion, nicht auf dieses Panel.",
+        "noBuildings": "Noch keine Gebäude auf dem Tisch — lege einen Block auf und warte, bis er erkannt wird.",
+        "select": "Kalibrieren",
+        "selected": "{buildingId} wird kalibriert",
+        "instructions": "Ziehen auf der Karte für die grobe Bewegung. Pfeiltasten verschieben 1 mm auf dem Tisch, Q/E drehen 0,5°, +/− skalieren 0,5 %.",
+        "holdNotice": "Der Grundriss bleibt sichtbar, solange dieses Panel offen ist — auch wenn du den Marker verdeckst.",
+        "readout": {
+          "offset": "Versatz",
+          "rotation": "Drehung",
+          "scale": "Größe",
+          "east": "O",
+          "north": "N"
+        },
+        "coverage": {
+          "title": "Wo du gemessen hast",
+          "summary": "{sampled} von {total} Tischbereichen gemessen",
+          "empty": "In dieser Sitzung noch nichts gespeichert. Miss auch an den Rändern — dort wächst der Fehler.",
+          "cell": "{count} gespeichert"
+        },
+        "save": "Speichern",
+        "cancel": "Abbrechen",
+        "reset": "Auf neutral zurücksetzen",
+        "savedSummary": "Kalibrierung gespeichert",
+        "savedDetail": "Python hat sie in den Arbeitskatalog und die Kalibrierungsdatenbank geschrieben. Führe publish-to-runtime.ps1 aus, damit sie beim nächsten Start gilt.",
+        "saveFailedSummary": "Nicht gespeichert",
+        "saveFailedDetail": "Die Tracking-Verbindung ist nicht offen, es wurde nichts gesendet. Es hat sich nichts geändert — verbinde neu und versuche es erneut."
       }
     },
     "table": {
@@ -430,7 +459,8 @@
       "trackedOrientation": "Collab · Verfolgte Ausrichtung",
       "trackedId": "Collab · Verfolgte ID",
       "trackedConfidence": "Collab · Verfolgte Konfidenz",
-      "aoi": "Collab · Ausgewähltes Interessengebiet"
+      "aoi": "Collab · Ausgewähltes Interessengebiet",
+      "calibrationSelection": "Collab · Gebäude in Kalibrierung"
     }
   }
 }
