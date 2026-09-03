@@ -389,7 +389,12 @@
               "top_left": "oben links",
               "top_right": "oben rechts",
               "bottom_left": "unten links",
-              "bottom_right": "unten rechts"
+              "bottom_right": "unten rechts",
+              "top": "obere Kante",
+              "bottom": "untere Kante",
+              "left": "linke Kante",
+              "right": "rechte Kante",
+              "centre": "Mitte"
             }
           },
           "buildings": {

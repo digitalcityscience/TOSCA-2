@@ -51,7 +51,7 @@
                         :class="isMapCalibrationMarkerDetected(marker.id) ? 'text-success' : 'text-muted'"
                         class="size-3.5 shrink-0"
                     />
-                    <span>{{ marker.id }} — {{ t(`collab.control.python.markers.calibration.corners.${marker.corner}`) }}</span>
+                    <span>{{ marker.id }} — {{ t(`collab.control.python.markers.calibration.corners.${marker.place}`) }}</span>
                     <span class="text-muted">
                         {{
                             t(

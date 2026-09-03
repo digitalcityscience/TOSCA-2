@@ -17,7 +17,7 @@
  */
 import { describe, expect, test } from "vitest";
 import {
-    MAP_CALIBRATION_MARKERS,
+    REQUIRED_MAP_CALIBRATION_MARKERS,
     RealTrackingSource,
     buildMapCalibrationFromMarkerReadings,
     createMarkerObjectRegistry,
@@ -30,7 +30,14 @@ import {
 } from "./collabTracking";
 import type { AOIExtent } from "./collabCalibration";
 
-/** Captured verbatim from `server.handle_web_client`; see this file's header. */
+/**
+ * Captured verbatim from `server.handle_web_client`; see this file's header.
+ *
+ * These bytes predate the 3x3 calibration grid (workflow step 5), so they carry only the four
+ * corner markers. That is exactly the case the grid is designed to survive: the four required
+ * markers alone still calibrate, and the five extra ones are used whenever they are decoded.
+ * Assertions below therefore walk `REQUIRED_MAP_CALIBRATION_MARKERS`, not all nine.
+ */
 const CAPTURED_BACKEND_SNAPSHOT: Record<string, [number, number, number, string]> = {
     "12": [700, 400, 12.5, "000"],
     "200": [288, 658, 0.0, "000"],
@@ -95,14 +102,14 @@ function readingsFrom(entries: Record<string, [number, number, number, string]>)
 }
 
 describe("Python's raw marker snapshot -> RealTrackingSource", () => {
-    test("is recognised as a raw marker dictionary and yields all four calibration markers", () => {
+    test("is recognised as a raw marker dictionary and yields all four required calibration markers", () => {
         const { socket, snapshots, source } = connectedSource();
 
         socket.emitRaw(JSON.stringify(CAPTURED_BACKEND_SNAPSHOT));
 
         expect(snapshots).toHaveLength(1);
         const snapshot = snapshots[0]!;
-        for (const marker of MAP_CALIBRATION_MARKERS) {
+        for (const marker of REQUIRED_MAP_CALIBRATION_MARKERS) {
             expect(snapshot.get(marker.id), `marker ${marker.id} missing from the snapshot`).toBeDefined();
         }
         expect(snapshot.get(200)).toEqual({ pixelX: 288, pixelY: 658, rotation: 0, cameraOrTag: "000" });
@@ -139,7 +146,7 @@ describe("Python's raw marker snapshot -> RealTrackingSource", () => {
         // Mirrors `collabTrackingRender`'s stability bookkeeping.
         const tracked = new Map<number, TrackedMarkerReading>();
         for (const snapshot of snapshots) {
-            for (const marker of MAP_CALIBRATION_MARKERS) {
+            for (const marker of REQUIRED_MAP_CALIBRATION_MARKERS) {
                 const reading = snapshot.get(marker.id) as RawMarkerReading | undefined;
                 if (reading === undefined) continue;
                 const previous = tracked.get(marker.id);
@@ -154,7 +161,7 @@ describe("Python's raw marker snapshot -> RealTrackingSource", () => {
                 });
             }
         }
-        for (const marker of MAP_CALIBRATION_MARKERS) {
+        for (const marker of REQUIRED_MAP_CALIBRATION_MARKERS) {
             expect(isMarkerReadingStable(tracked.get(marker.id)!), `marker ${marker.id} never stabilised`).toBe(true);
         }
         source.stop();

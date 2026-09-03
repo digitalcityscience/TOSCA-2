@@ -127,25 +127,72 @@ export const RESERVED_BUILDING_MARKER_IDS: readonly number[] = [100, 101, 102, 1
 /** One of the four table-pixel corners `RESERVED_MARKER_REGISTRY`'s map-calibration markers occupy. */
 export type MapCalibrationMarkerCorner = "top_left" | "top_right" | "bottom_left" | "bottom_right"
 
-/** One map-calibration marker (ticket 08/12): a fixed ArUco id taped at a known table-pixel corner, read from the raw pre-calibration marker dictionary to derive `map_calibration`'s pixel corners. */
+/**
+ * One band of the projectable rectangle a calibration marker sits in, on either axis: `min` is
+ * inset from the low edge, `mid` is halfway across, `max` is inset from the high edge. The insets
+ * are {@link calibrationMarkerInsetFractions}', so a marker never straddles the table's edge.
+ */
+export type MapCalibrationMarkerBand = "min" | "mid" | "max"
+
+/**
+ * One map-calibration marker (ticket 08/12): a fixed ArUco id projected at a known place in the
+ * AOI, read back out of Python's raw pre-calibration marker dictionary to pair a table pixel with
+ * a geographic position.
+ *
+ * `required` splits the nine into the four the calibration cannot proceed without and the five
+ * that only improve it — see {@link MAP_CALIBRATION_MARKERS}.
+ */
 export interface MapCalibrationMarkerConfig {
     id: number
-    corner: MapCalibrationMarkerCorner
+    column: MapCalibrationMarkerBand
+    row: MapCalibrationMarkerBand
+    required: boolean
+    /** Human-readable place, for the operator's detection list. */
+    place: string
+    /** Set only on the four corner markers, whose id -> corner meaning is a physical contract. */
+    corner?: MapCalibrationMarkerCorner
 }
 
 /**
- * The four map-calibration marker ids this milestone depends on (ticket 08) — physically taped at
- * the table's projectable corners so `RealTrackingSource`'s raw pre-calibration snapshots (see
- * {@link RawMarkerReading}) can locate them without any dedicated Python message. Distinct from
- * {@link REFERENCE_MARKERS} (per-camera stitching calibration, Python-side) and from
+ * The nine map-calibration markers (workflow step 5): a 3x3 grid over the projectable area,
+ * projected by the Table window and read back out of `RealTrackingSource`'s raw pre-calibration
+ * snapshots (see {@link RawMarkerReading}) with no dedicated Python message.
+ *
+ * Why nine and not the original four. `cv2.findHomography` with exactly four correspondences has
+ * no freedom left: it passes through all four exactly and dumps every bit of detection noise into
+ * the map *everywhere else*. On the 2026-08-31 rig those four pixels spanned only the middle
+ * two-thirds of the stitched image — `(288,658) (1347,663) (298,153) (1350,150)` out of 1600x800 —
+ * so the whole outer third of the table was extrapolation off a fit that could not even measure
+ * its own error. With nine, the solve is least-squares: the noise averages out instead of being
+ * absorbed exactly, and there is a residual per point to look at.
+ *
+ * Ids 200-203 keep their existing corners exactly, because that mapping is a physical contract
+ * shared with Python (`calibration_contract.py`) and the Vanilla reference app. 204-208 are new
+ * and additive.
+ *
+ * Only the four corners are `required`. Demanding all nine would make calibration *more* fragile
+ * than before — one marker landing on a seam or in a camera's weak corner would block the whole
+ * session — while the corners alone still give exactly the fit that worked before. Every extra
+ * marker that is decoded is used; every one that is not is simply absent from the solve.
+ *
+ * Distinct from {@link REFERENCE_MARKERS} (per-camera stitching calibration, Python-side) and from
  * {@link RESERVED_BUILDING_MARKER_IDS} (a reserved *range* for buildings, not real markers).
  */
 export const MAP_CALIBRATION_MARKERS: readonly MapCalibrationMarkerConfig[] = [
-    { id: 200, corner: "top_left" },
-    { id: 201, corner: "top_right" },
-    { id: 202, corner: "bottom_left" },
-    { id: 203, corner: "bottom_right" },
+    { id: 200, column: "min", row: "min", required: true, place: "top_left", corner: "top_left" },
+    { id: 201, column: "max", row: "min", required: true, place: "top_right", corner: "top_right" },
+    { id: 202, column: "min", row: "max", required: true, place: "bottom_left", corner: "bottom_left" },
+    { id: 203, column: "max", row: "max", required: true, place: "bottom_right", corner: "bottom_right" },
+    { id: 204, column: "mid", row: "min", required: false, place: "top" },
+    { id: 205, column: "mid", row: "max", required: false, place: "bottom" },
+    { id: 206, column: "min", row: "mid", required: false, place: "left" },
+    { id: 207, column: "max", row: "mid", required: false, place: "right" },
+    { id: 208, column: "mid", row: "mid", required: false, place: "centre" },
 ]
+
+/** The four markers a calibration cannot be built without — see {@link MAP_CALIBRATION_MARKERS}. */
+export const REQUIRED_MAP_CALIBRATION_MARKERS: readonly MapCalibrationMarkerConfig[] =
+    MAP_CALIBRATION_MARKERS.filter((marker) => marker.required)
 
 /** Every {@link MAP_CALIBRATION_MARKERS} id, for cheap membership checks ("does this raw snapshot id matter for calibration readiness?"). */
 export const MAP_CALIBRATION_MARKER_IDS: ReadonlySet<number> = new Set(MAP_CALIBRATION_MARKERS.map((marker) => marker.id))
@@ -183,18 +230,29 @@ export function aoiCornerForMapMarker(aoi: AOIExtent, corner: MapCalibrationMark
  */
 export function aoiCalibrationMarkerPosition(
     aoi: AOIExtent,
-    corner: MapCalibrationMarkerCorner,
+    marker: MapCalibrationMarkerConfig,
     config: CollabTableConfig = DEFAULT_COLLAB_TABLE_CONFIG
 ): Position {
-    const [topLeft, topRight, bottomRight, bottomLeft] = calibrationMarkerUvs(config)
-    const uv = corner === "top_left"
-        ? topLeft
-        : corner === "top_right"
-            ? topRight
-            : corner === "bottom_right"
-                ? bottomRight
-                : bottomLeft
-    return quadPointAt(aoi.corners, uv[0], uv[1])
+    const [u, v] = mapCalibrationMarkerUv(marker, config)
+    return quadPointAt(aoi.corners, u, v)
+}
+
+/**
+ * Where a marker sits within the AOI/table rectangle, as a `(u, v)` fraction.
+ *
+ * `min`/`max` land on the inset corners {@link calibrationMarkerUvs} already defines, so the four
+ * original markers keep their exact previous positions; `mid` is the midpoint of the *inset*
+ * rectangle rather than of the table, so the grid stays regular and every marker is equally clear
+ * of the edge.
+ */
+export function mapCalibrationMarkerUv(
+    marker: MapCalibrationMarkerConfig,
+    config: CollabTableConfig = DEFAULT_COLLAB_TABLE_CONFIG
+): [number, number] {
+    const [[minU, minV], , [maxU, maxV]] = calibrationMarkerUvs(config)
+    const band = (which: MapCalibrationMarkerBand, low: number, high: number): number =>
+        which === "min" ? low : which === "max" ? high : (low + high) / 2
+    return [band(marker.column, minU, maxU), band(marker.row, minV, maxV)]
 }
 
 /**
@@ -211,15 +269,22 @@ export function buildMapCalibrationFromMarkerReadings(
     readings: RawMarkerSnapshot,
     config: CollabTableConfig = DEFAULT_COLLAB_TABLE_CONFIG
 ): MapCalibrationMessage | undefined {
+    if (REQUIRED_MAP_CALIBRATION_MARKERS.some((marker) => readings.get(marker.id) === undefined)) {
+        // A partial set of *corners* cannot be calibrated from: the quad they define is what the
+        // homography is anchored on. The five extra markers are a different matter — see below.
+        return undefined
+    }
     const points: MapCalibrationPoint[] = []
     for (const marker of MAP_CALIBRATION_MARKERS) {
         const reading = readings.get(marker.id)
         if (reading === undefined) {
-            return undefined
+            // A non-required marker the cameras could not decode this round. Dropping it costs a
+            // little averaging; refusing to calibrate without it would cost the whole session.
+            continue
         }
         // The inset position, not the raw corner: this must be the geographic point the Table
         // actually projected that marker at, or the correspondence is off by the inset itself.
-        const [lng, lat] = aoiCalibrationMarkerPosition(aoi, marker.corner, config)
+        const [lng, lat] = aoiCalibrationMarkerPosition(aoi, marker, config)
         points.push({ pixel_position: [reading.pixelX, reading.pixelY], lat_lon_position: [lat, lng] })
     }
     return { type: "map_calibration", points, version: 2 }

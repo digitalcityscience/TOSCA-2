@@ -58,6 +58,7 @@ import {
     MAP_CALIBRATION_MARKERS,
     pixelReadingsWithinTolerance,
     REFERENCE_MARKERS,
+    REQUIRED_MAP_CALIBRATION_MARKERS,
     RealTrackingSource,
     type MarkerObjectRegistry,
     type MarkerObjectRegistryEntry,
@@ -961,7 +962,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             // The inset position (Vanilla's `MARKER_INSET_RATIO`), not the bare AOI corner: an AOI
             // corner is a physical table corner, and a centre-anchored marker there hangs half off
             // the table edge before any projector misalignment is counted.
-            const corner = aoiCalibrationMarkerPosition(aoi, config.corner, scenarioStore.tableConfig) as [number, number];
+            const corner = aoiCalibrationMarkerPosition(aoi, config, scenarioStore.tableConfig) as [number, number];
             const usedOverride = markerPositionOverrides.has(config.id);
             const position = markerPositionOverrides.get(config.id) ?? corner;
             const received = session.calibration.mapCalibrationMarkerIdsSeen.includes(config.id);
@@ -1628,7 +1629,9 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
      * worse than refusing to send at all.
      */
     function canCalibrateFromMarkers(): boolean {
-        return MAP_CALIBRATION_MARKERS.every((marker) => mapCalibrationMarkerHealth.value.has(marker.id));
+        // The four corners, not all nine: the extra grid markers sharpen the fit but must never be
+        // able to block a calibration that would otherwise have worked (workflow step 5).
+        return REQUIRED_MAP_CALIBRATION_MARKERS.every((marker) => mapCalibrationMarkerHealth.value.has(marker.id));
     }
 
     /**

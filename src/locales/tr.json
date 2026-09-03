@@ -389,7 +389,12 @@
               "top_left": "sol üst",
               "top_right": "sağ üst",
               "bottom_left": "sol alt",
-              "bottom_right": "sağ alt"
+              "bottom_right": "sağ alt",
+              "top": "üst kenar",
+              "bottom": "alt kenar",
+              "left": "sol kenar",
+              "right": "sağ kenar",
+              "centre": "orta"
             }
           },
           "buildings": {

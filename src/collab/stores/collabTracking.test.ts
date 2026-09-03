@@ -14,6 +14,7 @@ import {
     IGNORED_MARKER_ID,
     MAP_CALIBRATION_MARKER_IDS,
     MAP_CALIBRATION_MARKERS,
+    REQUIRED_MAP_CALIBRATION_MARKERS,
     MockTrackingSource,
     REFERENCE_MARKERS,
     RealTrackingSource,
@@ -94,14 +95,25 @@ describe("createMarkerObjectRegistry", () => {
 });
 
 describe("reserved marker id registry (ticket 08)", () => {
-    test("MAP_CALIBRATION_MARKERS are exactly 200-203, each labelled with its corner", () => {
-        expect(MAP_CALIBRATION_MARKERS).toEqual([
-            { id: 200, corner: "top_left" },
-            { id: 201, corner: "top_right" },
-            { id: 202, corner: "bottom_left" },
-            { id: 203, corner: "bottom_right" },
-        ]);
-        expect([...MAP_CALIBRATION_MARKER_IDS].sort()).toEqual([200, 201, 202, 203]);
+    test("MAP_CALIBRATION_MARKERS are a 3x3 grid over ids 200-208", () => {
+        expect([...MAP_CALIBRATION_MARKER_IDS].sort()).toEqual([200, 201, 202, 203, 204, 205, 206, 207, 208]);
+        const bands = MAP_CALIBRATION_MARKERS.map((marker) => `${marker.column}/${marker.row}`);
+        expect(new Set(bands).size).toBe(9);
+    });
+
+    test("200-203 keep exactly their original corners, because that mapping is a physical contract", () => {
+        // Shared verbatim with Python's `calibration_contract.py` and the Vanilla reference app.
+        // The five new markers are additive; re-labelling these four would silently invalidate
+        // every marker already taped or projected against them.
+        const byId = new Map(MAP_CALIBRATION_MARKERS.map((marker) => [marker.id, marker]));
+        expect(byId.get(200)?.corner).toBe("top_left");
+        expect(byId.get(201)?.corner).toBe("top_right");
+        expect(byId.get(202)?.corner).toBe("bottom_left");
+        expect(byId.get(203)?.corner).toBe("bottom_right");
+    });
+
+    test("only the four corners are required, so an undecodable extra cannot block a session", () => {
+        expect(REQUIRED_MAP_CALIBRATION_MARKERS.map((marker) => marker.id)).toEqual([200, 201, 202, 203]);
     });
 
     test("reservedMarkerRole resolves every role via the one registry, and undefined for a non-reserved id", () => {
@@ -145,7 +157,7 @@ describe("aoiCornerForMapMarker (ticket 11)", () => {
     });
 
     test("agrees with MAP_CALIBRATION_MARKERS' own id-to-corner mapping (200 top-left ... 203 bottom-right)", () => {
-        const byId = new Map(MAP_CALIBRATION_MARKERS.map((marker) => [marker.id, marker.corner]));
+        const byId = new Map(REQUIRED_MAP_CALIBRATION_MARKERS.map((marker) => [marker.id, marker.corner!]));
         expect(aoiCornerForMapMarker(aoi, byId.get(200)!)).toEqual(aoi.corners[0]);
         expect(aoiCornerForMapMarker(aoi, byId.get(201)!)).toEqual(aoi.corners[1]);
         expect(aoiCornerForMapMarker(aoi, byId.get(202)!)).toEqual(aoi.corners[3]);
@@ -179,7 +191,9 @@ describe("buildMapCalibrationFromMarkerReadings (ticket 12)", () => {
         );
 
         // 5% of the AOI's 0.02° width in from each vertical edge, and the same distance — 10% of
-        // its 0.02° height, on a 2:1 table — in from each horizontal one.
+        // its 0.02° height, on a 2:1 table — in from each horizontal one. Only the four corners
+        // were read here, so only those four correspondences go out (workflow step 5: the extra
+        // grid markers are used when present, never required).
         expect(message).toEqual<MapCalibrationMessage>({
             type: "map_calibration",
             points: [
@@ -192,9 +206,9 @@ describe("buildMapCalibrationFromMarkerReadings (ticket 12)", () => {
         });
     });
 
-    test("every marker position sits strictly inside the AOI, on both axes, for all four corners", () => {
+    test("every marker position sits strictly inside the AOI, on both axes, for all nine markers", () => {
         for (const marker of MAP_CALIBRATION_MARKERS) {
-            const [lng, lat] = aoiCalibrationMarkerPosition(aoi, marker.corner);
+            const [lng, lat] = aoiCalibrationMarkerPosition(aoi, marker);
             expect(lng).toBeGreaterThan(9.98);
             expect(lng).toBeLessThan(10.0);
             expect(lat).toBeGreaterThan(53.54);
@@ -202,7 +216,50 @@ describe("buildMapCalibrationFromMarkerReadings (ticket 12)", () => {
         }
     });
 
-    test("returns undefined when any of the four marker ids has no reading yet", () => {
+    test("uses every extra grid marker that was decoded, in id order", () => {
+        const message = buildMapCalibrationFromMarkerReadings(
+            aoi,
+            readings([
+                [200, [10, 20]],
+                [201, [1590, 20]],
+                [202, [10, 780]],
+                [203, [1590, 780]],
+                [208, [800, 400]], // the centre marker — the one place four corners never constrain
+            ])
+        );
+
+        expect(message?.points).toHaveLength(5);
+        expect(message?.points[4]?.pixel_position).toEqual([800, 400]);
+    });
+
+    test("a missing extra marker costs a correspondence, never the calibration", () => {
+        // Requiring all nine would make calibration more fragile than the four-marker version it
+        // replaces: one marker on a stitching seam would block the whole session.
+        const message = buildMapCalibrationFromMarkerReadings(
+            aoi,
+            readings([
+                [200, [10, 20]],
+                [201, [1590, 20]],
+                [202, [10, 780]],
+                [203, [1590, 780]],
+            ])
+        );
+
+        expect(message).toBeDefined();
+        expect(message?.points).toHaveLength(4);
+    });
+
+    test("the extra markers spread the sampled quad, they do not sit on top of the corners", () => {
+        const message = buildMapCalibrationFromMarkerReadings(
+            aoi,
+            readings(MAP_CALIBRATION_MARKERS.map((marker, index) => [marker.id, [100 + index, 200 + index]]))
+        );
+
+        const positions = message!.points.map((point) => point.lat_lon_position.join(","));
+        expect(new Set(positions).size).toBe(MAP_CALIBRATION_MARKERS.length);
+    });
+
+    test("returns undefined when any of the four required marker ids has no reading yet", () => {
         expect(
             buildMapCalibrationFromMarkerReadings(
                 aoi,
