@@ -37,7 +37,11 @@ export interface RasterBasemapOption extends BaseBasemapOption {
 export type BasemapOption = VectorBasemapOption | RasterBasemapOption;
 
 export interface BasemapManagerOptions {
-    beforeLayerId?: string;
+    /**
+     * Visual hillshade layer to keep above basemap geometry/imagery, below
+     * vector symbols, and below application data layers.
+     */
+    terrainOverlayLayerId?: string;
     fetchStyle?: (styleUrl: string) => Promise<StyleSpecification>;
     validateSprite?: (spriteUrl: string) => Promise<void>;
 }
@@ -93,12 +97,19 @@ export class BasemapManager {
             // Reveal the fully installed target first. These synchronous style
             // mutations render together, and a failure can be rolled back
             // without leaving the map blank.
+            this.positionTerrainOverlay(target);
             setStyleBundleVisibility(this.map, target, true);
             if (active !== undefined) setStyleBundleVisibility(this.map, active, false);
         } catch (error) {
             try {
                 setStyleBundleVisibility(this.map, target, false);
-                if (active !== undefined) setStyleBundleVisibility(this.map, active, true);
+                if (active !== undefined) {
+                    setStyleBundleVisibility(this.map, active, true);
+                    // positionTerrainOverlay may already have repositioned the
+                    // overlay for the target that failed to activate; put it
+                    // back relative to the basemap that's still actually shown.
+                    this.positionTerrainOverlay(active);
+                }
             } catch (rollbackError) {
                 console.error(`Failed to roll back basemap visibility after activating "${id}" failed:`, rollbackError);
             }
@@ -176,7 +187,11 @@ export class BasemapManager {
                     );
                 })();
             if (this.disposed) throw new Error("Basemap manager has been removed");
-            const installed = installStyleBundle(this.map, compiled, this.options.beforeLayerId);
+            const installed = installStyleBundle(
+                this.map,
+                compiled,
+                this.options.terrainOverlayLayerId
+            );
             this.installed.set(definition.id, installed);
             if (acquiredSpriteUrl !== undefined) {
                 this.spriteUrlByBasemap.set(definition.id, acquiredSpriteUrl);
@@ -195,6 +210,31 @@ export class BasemapManager {
             }
             throw error;
         }
+    }
+
+    /** Position visible shading over the basemap without obscuring its labels. */
+    private positionTerrainOverlay(bundle: InstalledStyleBundle): void {
+        const overlayId = this.options.terrainOverlayLayerId;
+        if (overlayId === undefined || this.map.getLayer(overlayId) === undefined) return;
+
+        const firstSymbolId = bundle.layers.find(({ type }) => type === "symbol")?.id;
+        if (firstSymbolId !== undefined && this.map.getLayer(firstSymbolId) !== undefined) {
+            this.map.moveLayer(overlayId, firstSymbolId);
+            return;
+        }
+
+        const orderedLayerIds = (this.map.getStyle().layers ?? [])
+            .map(({ id }) => id)
+            .filter((id) => id !== overlayId);
+        const bundleLayerIds = new Set(bundle.layers.map(({ id }) => id));
+        const lastBundleLayerIndex = orderedLayerIds.reduce(
+            (lastIndex, id, index) => bundleLayerIds.has(id) ? index : lastIndex,
+            -1
+        );
+        const nextLayerId = lastBundleLayerIndex < 0
+            ? undefined
+            : orderedLayerIds[lastBundleLayerIndex + 1];
+        this.map.moveLayer(overlayId, nextLayerId);
     }
 
     /**

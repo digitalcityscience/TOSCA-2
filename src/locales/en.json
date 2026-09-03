@@ -72,7 +72,7 @@
       "layers": "Layers"
     },
     "basemap": {
-      "streets": "Streets",
+      "dataviz": "Dataviz",
       "backdrop": "Backdrop",
       "inHouse": "In-house",
       "satellite": "Satellite",

@@ -14,7 +14,10 @@ import { useParticipationStore } from "@store/participation";
 import { BaseMapControl, type BaseMapControlOptions } from "@helpers/baseMapControl";
 import { syncTerrainHillshadeVisibility } from "@helpers/mapTerrain";
 import { useToast } from "@helpers/toast";
-import { mapConfiguration, resolveMapConfiguration } from "../../config/mapConfig";
+import {
+    mapConfiguration,
+    resolveMapConfiguration,
+} from "../../config/mapConfig";
 import {
     queryRasterFeatureInfo,
     deduplicatePopupAttributeFeatures,
@@ -36,12 +39,10 @@ onMounted(() => {
     const lng = Number.isNaN(configuredLng) ? 9.993163 : configuredLng
     const lat = Number.isNaN(configuredLat) ? 53.552123 : configuredLat
     const zoom = Number.isNaN(Number(import.meta.env.VITE_MAP_START_ZOOM)) ? 15 : Number(import.meta.env.VITE_MAP_START_ZOOM);
-    const mapTilerApiKey = import.meta.env.VITE_MAPTILER_API_KEY
-    const terrainTileJsonUrl = `https://api.maptiler.com/tiles/terrain-rgb-v2/tiles.json?key=${mapTilerApiKey}`
-    const hillshadeTileJsonUrl = `https://api.maptiler.com/tiles/hillshade/tiles.json?key=${mapTilerApiKey}`
+    const resolvedMapConfiguration = resolveMapConfiguration(mapConfiguration, import.meta.env, t);
     const terrain = {
         source: "terrain-dem",
-        exaggeration: 1,
+        exaggeration: resolvedMapConfiguration.terrain.exaggeration,
     } as const
     mapStore.map = new maplibre.Map({
         container: "map",
@@ -49,20 +50,8 @@ onMounted(() => {
             version: 8,
             glyphs: "/fonts/{fontstack}/{range}.pbf",
             sources: {
-                // MapLibre renders its native raster, fill, and line layers
-                // onto this MapTiler DEM-backed surface.
-                "terrain-dem": {
-                    type: "raster-dem",
-                    url: terrainTileJsonUrl,
-                    tileSize: 512,
-                    maxzoom: 14,
-                },
-                // MapTiler's hillshade dataset is pre-rendered raster imagery,
-                // not elevation data for MapLibre's `hillshade` layer.
-                "terrain-hillshade": {
-                    type: "raster",
-                    url: hillshadeTileJsonUrl,
-                },
+                "terrain-dem": resolvedMapConfiguration.terrain.demSource,
+                "terrain-hillshade": resolvedMapConfiguration.terrain.hillshadeSource,
             },
             layers: [
                 {
@@ -71,6 +60,14 @@ onMounted(() => {
                     source: "terrain-hillshade",
                     layout: {
                         visibility: "none",
+                    },
+                    paint: {
+                        // Pre-rendered shading, not elevation data: at the default
+                        // opacity of 1 this opaque raster is placed above basemap
+                        // imagery (see BasemapManager.positionTerrainOverlay) and
+                        // blots out all basemap colors underneath it. Partial
+                        // opacity lets it shade the basemap instead of replacing it.
+                        "raster-opacity": 0.35,
                     },
                 },
             ],
@@ -134,9 +131,8 @@ onMounted(() => {
     // disables both without changing the selected basemap or data layers.
     mapStore.map.addControl(new maplibre.TerrainControl(terrain), "bottom-right");
 
-    const resolvedMapConfiguration = resolveMapConfiguration(mapConfiguration, import.meta.env, t);
     const options: BaseMapControlOptions = {
-        beforeLayerId: "terrain-hillshade",
+        terrainOverlayLayerId: "terrain-hillshade",
         onBasemapLoadError: (basemap) => {
             toast.add({
                 severity: "error",

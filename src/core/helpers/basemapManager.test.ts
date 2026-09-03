@@ -38,6 +38,18 @@ function createMapMock(initialSprites: Array<{ id: string; url: string }> = []):
             else layers.splice(beforeIndex, 0, specification);
         },
         getLayer: (id: string) => layers.find((layer) => layer.id === id),
+        getStyle: () => ({ version: 8, sources: {}, layers }),
+        moveLayer: (id: string, beforeId?: string) => {
+            const currentIndex = layers.findIndex((layer) => layer.id === id);
+            if (currentIndex === -1) throw new Error(`missing layer ${id}`);
+            const [layer] = layers.splice(currentIndex, 1);
+            const beforeIndex = beforeId === undefined
+                ? -1
+                : layers.findIndex((candidate) => candidate.id === beforeId);
+            if (beforeId !== undefined && beforeIndex === -1) throw new Error("missing anchor");
+            if (beforeIndex === -1) layers.push(layer);
+            else layers.splice(beforeIndex, 0, layer);
+        },
         removeLayer: (id: string) => {
             const index = layers.findIndex((layer) => layer.id === id);
             if (index >= 0) layers.splice(index, 1);
@@ -110,7 +122,7 @@ describe("BasemapManager", () => {
             return streetStyle;
         });
         const manager = new BasemapManager(map, definitions, {
-            beforeLayerId: "terrain-hillshade",
+            terrainOverlayLayerId: "terrain-hillshade",
             fetchStyle,
             validateSprite: async () => {},
         });
@@ -120,12 +132,15 @@ describe("BasemapManager", () => {
         expect(manager.getActiveId()).toBe("streets");
         expect(layers.map(({ id }) => id)).toEqual([
             "basemap:streets:layer:0:land",
-            "basemap:streets:layer:1:optional-labels",
             "terrain-hillshade",
+            "basemap:streets:layer:1:optional-labels",
         ]);
-        expect(layers[0].layout?.visibility).toBe("visible");
-        expect(layers[1].layout?.visibility).toBe("none");
+        expect(layers.find(({ id }) => id === "basemap:streets:layer:0:land")?.layout?.visibility)
+            .toBe("visible");
+        expect(layers.find(({ id }) => id === "basemap:streets:layer:1:optional-labels")?.layout?.visibility)
+            .toBe("none");
 
+        layers.push({ id: "application-data", type: "circle", source: "application-data" });
         await manager.activate("satellite");
 
         expect(manager.getActiveId()).toBe("satellite");
@@ -133,14 +148,18 @@ describe("BasemapManager", () => {
             .toBe("none");
         expect(layers.find(({ id }) => id === "basemap:satellite:layer:0:raster")?.layout?.visibility)
             .toBe("visible");
-        expect(layers.at(-1)?.id).toBe("terrain-hillshade");
+        const satelliteIndex = layers.findIndex(({ id }) => id === "basemap:satellite:layer:0:raster");
+        const hillshadeIndex = layers.findIndex(({ id }) => id === "terrain-hillshade");
+        const applicationDataIndex = layers.findIndex(({ id }) => id === "application-data");
+        expect(satelliteIndex).toBeLessThan(hillshadeIndex);
+        expect(hillshadeIndex).toBeLessThan(applicationDataIndex);
         expect(setStyle).not.toHaveBeenCalled();
     });
 
     test("keeps the current basemap active when another basemap cannot load", async () => {
         const { map, layers } = createMapMock();
         const manager = new BasemapManager(map, definitions, {
-            beforeLayerId: "terrain-hillshade",
+            terrainOverlayLayerId: "terrain-hillshade",
             fetchStyle: async (url) => {
                 if (url.includes("broken")) throw new Error("network error");
                 return streetStyle;
@@ -159,7 +178,7 @@ describe("BasemapManager", () => {
     test("shares one registered sprite when basemaps use the same sprite URL", async () => {
         const { map, addSprite, removeSprite } = createMapMock();
         const manager = new BasemapManager(map, definitions, {
-            beforeLayerId: "terrain-hillshade",
+            terrainOverlayLayerId: "terrain-hillshade",
             fetchStyle: async () => streetStyle,
             validateSprite: async () => {},
         });
@@ -207,7 +226,7 @@ describe("BasemapManager", () => {
     test("rejects the basemap when its sprite cannot be loaded, without installing it", async () => {
         const { map, layers, addSprite } = createMapMock();
         const manager = new BasemapManager(map, definitions, {
-            beforeLayerId: "terrain-hillshade",
+            terrainOverlayLayerId: "terrain-hillshade",
             fetchStyle: async () => streetStyle,
             validateSprite: async () => {
                 throw new Error("sprite 404");
@@ -228,7 +247,7 @@ describe("BasemapManager", () => {
             resolveStyle = resolve;
         });
         const manager = new BasemapManager(map, definitions, {
-            beforeLayerId: "terrain-hillshade",
+            terrainOverlayLayerId: "terrain-hillshade",
             fetchStyle: async () => await pendingStyle,
             validateSprite: async () => {},
         });

@@ -35,8 +35,9 @@ export class BaseMapControl implements IControl {
     onAdd(map: Map): HTMLElement {
         this.map = map;
         this.manager = new BasemapManager(map, this.options.maps, {
-            beforeLayerId: this.options.beforeLayerId,
+            terrainOverlayLayerId: this.options.terrainOverlayLayerId,
             fetchStyle: this.options.fetchStyle,
+            validateSprite: this.options.validateSprite,
         });
         this.options.maps.forEach((basemap) => {
             this.container.appendChild(this.createBasemapElement(basemap));

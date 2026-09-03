@@ -72,7 +72,7 @@
       "layers": "Ebenen"
     },
     "basemap": {
-      "streets": "Straßen",
+      "dataviz": "Dataviz",
       "backdrop": "Hintergrund",
       "inHouse": "Intern",
       "satellite": "Satellit",

@@ -1,9 +1,39 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { type StyleSpecification } from "maplibre-gl";
 import {
     compileRasterStyleBundle,
     compileVectorStyleBundle,
+    resolveStyleResourceUrl,
+    validateSpriteUrl,
 } from "./mapStyleBundle";
+
+describe("validateSpriteUrl", () => {
+    test("places the manifest extension before sprite query parameters", async () => {
+        const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+            ok: true,
+            json: async () => ({}),
+        } as Response);
+
+        try {
+            await validateSpriteUrl("http://localhost:8500/sprites/sprite?key=APIKEY");
+
+            expect(fetchMock).toHaveBeenCalledWith(
+                "http://localhost:8500/sprites/sprite.json?key=APIKEY"
+            );
+        } finally {
+            fetchMock.mockRestore();
+        }
+    });
+});
+
+describe("resolveStyleResourceUrl", () => {
+    test("preserves MapLibre placeholders while resolving a tile template", () => {
+        expect(resolveStyleResourceUrl(
+            "../../tiles/terrain/{z}/{x}/{y}?key=APIKEY",
+            "http://localhost:8500/styles/osm-bright/style.json?key=APIKEY"
+        )).toBe("http://localhost:8500/tiles/terrain/{z}/{x}/{y}?key=APIKEY");
+    });
+});
 
 describe("compileVectorStyleBundle", () => {
     test("namespaces sources and layers while retaining style order and visibility", () => {
@@ -101,6 +131,36 @@ describe("compileVectorStyleBundle", () => {
         }, "https://maps.example.test/style.json")).toThrow(
             "Basemap layer \"water\" references unknown source \"missing\""
         );
+    });
+
+    test("omits terrain and hillshade sources owned by the application shell", () => {
+        const bundle = compileVectorStyleBundle("in-house", {
+            version: 8,
+            terrain: { source: "terrain-dem" },
+            sources: {
+                openmaptiles: {
+                    type: "vector",
+                    tiles: ["https://maps.example.test/tiles/{z}/{x}/{y}.pbf"],
+                },
+                "terrain-dem": {
+                    type: "raster-dem",
+                    tiles: ["https://maps.example.test/terrain/{z}/{x}/{y}.png"],
+                },
+                "hillshade-tiles": {
+                    type: "raster",
+                    tiles: ["https://maps.example.test/hillshade/{z}/{x}/{y}.png"],
+                },
+            },
+            layers: [
+                { id: "land", type: "fill", source: "openmaptiles" },
+                { id: "terrain-hillshade", type: "raster", source: "hillshade-tiles" },
+            ],
+        }, "https://maps.example.test/styles/osm-bright.json");
+
+        expect(bundle.sources).toHaveLength(1);
+        expect(bundle.sources[0].id).toContain("openmaptiles");
+        expect(bundle.layers).toHaveLength(1);
+        expect(bundle.layers[0].specification.id).toContain("land");
     });
 });
 
