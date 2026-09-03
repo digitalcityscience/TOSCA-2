@@ -6,6 +6,7 @@ import {
     NEUTRAL_BUILDING_CALIBRATION_DRAFT,
     TABLE_COVERAGE_GRID,
     buildBuildingCalibrationMessage,
+    draftFromStoredCalibration,
     draftIsNeutral,
     draftReadout,
     localMmFromGeographicDelta,
@@ -207,6 +208,28 @@ describe("the message Python receives", () => {
 
     test("the building id is normalised the way the catalog stores it", () => {
         expect(buildBuildingCalibrationMessage(" g07 ", 12, NEUTRAL).building_id).toBe("G07");
+    });
+});
+
+describe("opening at what Python already stored", () => {
+    test("a stored calibration round-trips through the panel unchanged", () => {
+        // Python publishes the stored calibration in the message's own units, so the panel can
+        // open at it and send it back untouched. Any conversion here would be a second home for
+        // the 1:500 factor and a factor-of-500 error that looks plausible on screen.
+        const stored = {
+            rotation_offset_deg: -2.5,
+            offset_east_mm: 0.7,
+            offset_north_mm: -0.24,
+            scale_residual: 1.01,
+        };
+
+        const message = buildBuildingCalibrationMessage("G07", 12, draftFromStoredCalibration(stored));
+
+        expect(message).toMatchObject(stored);
+    });
+
+    test("no stored calibration means neutral, not a guess", () => {
+        expect(draftFromStoredCalibration(undefined)).toEqual(NEUTRAL);
     });
 });
 

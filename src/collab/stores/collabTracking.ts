@@ -20,6 +20,8 @@ export interface TrackingEvent {
     cityScopeId?: string
     /** The ArUco id Python resolved this object from — what a `building_calibration` addresses. */
     markerId?: number
+    /** The calibration this object is currently drawn with — see {@link StoredBuildingCalibration}. */
+    calibration?: StoredBuildingCalibration
     /**
      * Where the marker was seen in Python's table-pixel space. Carried through because after
      * calibration this is the frontend's *only* view of pixel space, and the admin panel's
@@ -105,8 +107,27 @@ export interface TrackingMarkerFeatureProperties {
     table_y_px?: number
     /** The blocks' milling scale, published by Python so nothing here restates 1:500. */
     model_scale?: number
+    /**
+     * What this building's stored calibration currently is, in the units a `building_calibration`
+     * carries. The admin panel opens from this rather than from zero -- Python *replaces* each
+     * field it receives, so a save built from a neutral draft would wipe the previous sitting's
+     * measurements instead of refining them.
+     */
+    calibration?: StoredBuildingCalibration
     /** The session's global k times this building's scale residual, as actually drawn. */
     model_scale_factor?: number
+}
+
+/**
+ * A building's stored calibration as Python publishes it: field-for-field the `building_calibration`
+ * message's own shape, so the panel sends back exactly what it received with no conversion of its
+ * own. Offsets are table millimetres in the building's local frame (see `collabBuildingCalibration`).
+ */
+export interface StoredBuildingCalibration {
+    rotation_offset_deg: number
+    offset_east_mm: number
+    offset_north_mm: number
+    scale_residual: number
 }
 
 export type TrackingMarkerFeatureCollection = FeatureCollection<Point | Polygon | MultiPolygon, TrackingMarkerFeatureProperties>
@@ -420,6 +441,9 @@ export function createMarkerObjectRegistry(entries: readonly MarkerObjectRegistr
     return registry
 }
 
+/** The timeout `VITE_COLLAB_GEOMETRY_FLASH_MS` overrides — unchanged from before it was configurable. */
+const DEFAULT_DISAPPEAR_TIMEOUT_MS = 1000
+
 /**
  * How long a building's footprint survives after its marker stops appearing in Python's
  * snapshots, before it is treated as gone and removed from the projection.
@@ -434,10 +458,8 @@ export function createMarkerObjectRegistry(entries: readonly MarkerObjectRegistr
  */
 export function geometryDisappearTimeoutMs(): number {
     const raw = Number(import.meta.env.VITE_COLLAB_GEOMETRY_FLASH_MS ?? "")
-    return Number.isFinite(raw) && raw > 0 ? raw : 1000
+    return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_DISAPPEAR_TIMEOUT_MS
 }
-
-const DEFAULT_DISAPPEAR_TIMEOUT_MS = 1000
 
 /**
  * Synthesizes `disappeared` from absence + timeout, since Python never sends a disappearance
@@ -452,10 +474,22 @@ class MarkerPresenceTracker {
         this.timeoutMs = timeoutMs
     }
 
-    /** Record which object ids were present in this snapshot; returns ids now past the timeout. */
-    observe(presentObjectIds: readonly string[], timestamp: number): string[] {
+    /**
+     * Record which object ids were present in this snapshot; returns ids now past the timeout.
+     *
+     * `expire: false` records presence without collecting or forgetting anything. It exists for
+     * the calibration hold: expiry *deletes* the entry it reports, so a caller that merely
+     * discarded the return value would forget the object with no event ever emitted, and its
+     * footprint would stay on the table forever. Skipping expiry instead leaves `lastSeenAt`
+     * untouched, so an object that really did leave is still stale and disappears on the first
+     * snapshot after the hold lifts.
+     */
+    observe(presentObjectIds: readonly string[], timestamp: number, expire = true): string[] {
         for (const objectId of presentObjectIds) {
             this.lastSeenAt.set(objectId, timestamp)
+        }
+        if (!expire) {
+            return []
         }
 
         const timedOut: string[] = []
@@ -486,7 +520,7 @@ export class TrackingFeedNormalizer {
     private readonly lastPose = new Map<string, TrackingEvent["pose"]>()
     private availability: TrackingAvailability = "live"
 
-    constructor(registry: MarkerObjectRegistry, disappearTimeoutMs: number = DEFAULT_DISAPPEAR_TIMEOUT_MS) {
+    constructor(registry: MarkerObjectRegistry, disappearTimeoutMs: number = geometryDisappearTimeoutMs()) {
         this.registry = registry
         this.presence = new MarkerPresenceTracker(disappearTimeoutMs)
     }
@@ -534,6 +568,7 @@ export class TrackingFeedNormalizer {
                 markerId: feature.properties.marker_id,
                 tableXPx: feature.properties.table_x_px,
                 tableYPx: feature.properties.table_y_px,
+                calibration: feature.properties.calibration,
             }
 
             if (previousPose === undefined) {
@@ -561,9 +596,11 @@ export class TrackingFeedNormalizer {
         }
 
         if (this.presenceHeld) {
-            // Still observe presence (so a held object's clock keeps running and it does not
-            // vanish the instant the hold lifts), but synthesize nothing.
-            this.presence.observe(presentObjectIds, timestamp)
+            // Record what was seen, but expire nothing: `observe` deletes the entries it reports,
+            // so expiring here and dropping the result would forget a departed object outright and
+            // strand its footprint on the table with no event to remove it. Anything genuinely
+            // gone stays stale and disappears on the first snapshot after the hold lifts.
+            this.presence.observe(presentObjectIds, timestamp, false)
             return events
         }
 
@@ -1009,6 +1046,11 @@ export class RealTrackingSource implements TrackingSource {
         this.socket.send(JSON.stringify(message))
     }
 
+    /** Suspends/resumes disappearance synthesis for the live feed — see {@link TrackingFeedNormalizer.setPresenceHold}. */
+    setPresenceHold(held: boolean): void {
+        this.normalizer.setPresenceHold(held)
+    }
+
     /**
      * Sends one `building_calibration` (workflow step 3/4) — the operator's saved nudge for a
      * single building. Reports whether the bytes actually went out, so the panel can tell the
@@ -1019,11 +1061,6 @@ export class RealTrackingSource implements TrackingSource {
      * the building is drawn at its new pose. That is a far better confirmation than an ack —
      * the operator is looking at the projection, which is the thing they were adjusting.
      */
-    /** Suspends/resumes disappearance synthesis for the live feed — see {@link TrackingFeedNormalizer.setPresenceHold}. */
-    setPresenceHold(held: boolean): void {
-        this.normalizer.setPresenceHold(held)
-    }
-
     sendBuildingCalibration(message: object): boolean {
         if (!this.socketOpen || this.socket === undefined) {
             return false

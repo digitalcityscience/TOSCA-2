@@ -46,6 +46,14 @@ function trackedBuilding(overrides: Record<string, unknown> = {}) {
     };
 }
 
+/** What Python publishes for a building an earlier sitting already calibrated. */
+const STORED = {
+    rotation_offset_deg: -2.5,
+    offset_east_mm: 10,
+    offset_north_mm: -4,
+    scale_residual: 1.02,
+};
+
 describe("selecting a building to calibrate", () => {
     beforeEach(() => {
         setActivePinia(createPinia());
@@ -57,12 +65,12 @@ describe("selecting a building to calibrate", () => {
         expect(useCollabTrackingRenderStore().buildingCalibration).toBeNull();
     });
 
-    test("picking a tracked building starts it from neutral, not from what Python already stored", () => {
-        // The panel shows what is being *added*, so one nudge always means one nudge. Seeding it
-        // with the accumulated total would make the readout drift further from zero every session
-        // while the visible correction stayed the same size.
+    test("picking a building opens it at the calibration Python is already drawing it with", () => {
+        // Not at neutral. A save replaces every field it carries, so a panel that opened at zero
+        // would silently wipe the previous sitting's offsets and rotation the first time an
+        // operator came back to refine a building.
         const session = useCollabSessionStore();
-        session.tracking.G07 = trackedBuilding();
+        session.tracking.G07 = trackedBuilding({ calibration: STORED });
         const store = useCollabTrackingRenderStore();
 
         store.startBuildingCalibration("G07");
@@ -70,7 +78,40 @@ describe("selecting a building to calibrate", () => {
         expect(store.buildingCalibration).toEqual({
             buildingId: "G07",
             markerId: 12,
-            draft: { offsetEastMm: 0, offsetNorthMm: 0, rotationOffsetDeg: 0, scaleResidual: 1 },
+            draft: { offsetEastMm: 10, offsetNorthMm: -4, rotationOffsetDeg: -2.5, scaleResidual: 1.02 },
+        });
+    });
+
+    test("refining an already-calibrated building adds to it rather than replacing it", () => {
+        // The end-to-end shape of the bug: nudge once on a second pass and the message must still
+        // carry the first pass's measurements.
+        const session = useCollabSessionStore();
+        session.tracking.G07 = trackedBuilding({ calibration: STORED });
+        const scenario = useCollabScenarioStore();
+        scenario.aoi = AOI;
+        const store = useCollabTrackingRenderStore();
+
+        store.startBuildingCalibration("G07");
+        store.nudgeBuildingCalibration({ eastMm: 1, northMm: 0 });
+
+        expect(store.buildingCalibration?.draft.offsetEastMm).toBeCloseTo(11, 3);
+        expect(store.buildingCalibration?.draft.rotationOffsetDeg).toBe(-2.5);
+        expect(store.buildingCalibration?.draft.scaleResidual).toBe(1.02);
+    });
+
+    test("a building Python published no calibration for opens at neutral", () => {
+        // "Nothing is stored" is the honest reading of a missing property, not a guess.
+        const session = useCollabSessionStore();
+        session.tracking.G07 = trackedBuilding();
+        const store = useCollabTrackingRenderStore();
+
+        store.startBuildingCalibration("G07");
+
+        expect(store.buildingCalibration?.draft).toEqual({
+            offsetEastMm: 0,
+            offsetNorthMm: 0,
+            rotationOffsetDeg: 0,
+            scaleResidual: 1,
         });
     });
 
@@ -266,6 +307,21 @@ describe("holding the footprint while calibrating", () => {
         const events = normalizer.applySnapshot(snapshotWith(undefined), 5000);
 
         expect(events).toEqual([]);
+    });
+
+    test("a block taken off the table during a hold disappears once the hold lifts", () => {
+        // The bug the hold introduced: expiry *deletes* the entry it reports, so discarding the
+        // result while held forgot the object outright -- no event was ever emitted and its
+        // footprint stayed on the table forever. Presence must be postponed, not swallowed.
+        const normalizer = new TrackingFeedNormalizer(registry);
+        normalizer.applySnapshot(snapshotWith("G07"), 0);
+        normalizer.setPresenceHold(true);
+        normalizer.applySnapshot(snapshotWith(undefined), 5000);
+        normalizer.setPresenceHold(false);
+
+        const events = normalizer.applySnapshot(snapshotWith(undefined), 6000);
+
+        expect(events.map((event) => event.type)).toContain("disappeared");
     });
 
     test("releasing the hold does not immediately dump every building that was held", () => {

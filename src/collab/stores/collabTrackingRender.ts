@@ -35,6 +35,7 @@ import {
 import {
     NEUTRAL_BUILDING_CALIBRATION_DRAFT,
     buildBuildingCalibrationMessage,
+    draftFromStoredCalibration,
     draggedDraft,
     localMmFromGeographicDelta,
     nudgedDraft,
@@ -221,6 +222,7 @@ export function applyTrackingEvent(
         markerId: event.markerId,
         tableXPx: event.tableXPx,
         tableYPx: event.tableYPx,
+        calibration: event.calibration,
     };
 }
 
@@ -1789,10 +1791,18 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     }
 
     /**
-     * Begins seating `buildingId` from the admin panel. Starts from a neutral draft: the panel
-     * shows what the operator is *adding* on top of whatever Python already has stored, not the
-     * accumulated total, so a nudge always means the same thing no matter how often a building
-     * has been calibrated before.
+     * Begins seating `buildingId` from the admin panel, starting from the calibration Python is
+     * *already* drawing it with.
+     *
+     * Not from a neutral draft, which is what this did until a review caught it: a save replaces
+     * every field it carries, so a panel that opened at zero would have silently wiped the
+     * previous sitting's offsets and rotation the first time an operator nudged a building a
+     * second time. Seeding from `tracked.calibration` (published on every feature by Python, in
+     * these same units) makes the readout the building's real state and the save a refinement.
+     *
+     * Falls back to neutral only when Python published no calibration at all -- an older server,
+     * or a build where the property is missing -- which is the honest reading of "nothing is
+     * stored" rather than a guess.
      *
      * Holds the live feed's presence timeout for as long as the panel is open (see
      * `TrackingFeedNormalizer.setPresenceHold`): seating a building means leaning over the table,
@@ -1808,7 +1818,11 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             );
             return;
         }
-        buildingCalibration.value = { buildingId, markerId, draft: { ...NEUTRAL_BUILDING_CALIBRATION_DRAFT } };
+        buildingCalibration.value = {
+            buildingId,
+            markerId,
+            draft: draftFromStoredCalibration(tracked.calibration),
+        };
         realSource?.setPresenceHold(true);
         detachCalibrationDrag?.();
         attachCalibrationDrag();
@@ -1822,7 +1836,12 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         detachCalibrationDrag = undefined;
     }
 
-    /** Puts the draft back to neutral without closing the panel — the operator's "start over". */
+    /**
+     * Puts the draft back to neutral without closing the panel — the operator's "start over".
+     *
+     * Neutral means neutral: saving after this asks Python to drop the building's stored
+     * correction entirely, which is why the message always carries all four fields.
+     */
     function resetBuildingCalibrationDraft(): void {
         if (buildingCalibration.value === null) {
             return;

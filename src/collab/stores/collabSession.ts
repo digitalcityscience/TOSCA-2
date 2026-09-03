@@ -3,6 +3,7 @@ import { reactive } from "vue";
 import type { FeatureCollection } from "@helpers/geojson";
 import type { MultiPolygon, Polygon } from "geojson";
 import type { AOIExtent } from "./collabCalibration";
+import type { StoredBuildingCalibration } from "./collabTracking";
 
 /**
  * One object in the Base City dataset. Only `id` is meaningful to the store itself; geometry/
@@ -39,6 +40,12 @@ export interface CollabTrackingObjectState {
      */
     tableXPx?: number;
     tableYPx?: number;
+    /**
+     * The calibration Python currently draws this building with, in the units the admin panel
+     * nudges in. The panel seeds its draft from this: Python replaces each field a save carries,
+     * so opening at zero would make the next save wipe the last sitting's measurements.
+     */
+    calibration?: StoredBuildingCalibration;
 }
 
 /** Per-window UI state (selection/camera/panels). Local only — never broadcast between windows. */

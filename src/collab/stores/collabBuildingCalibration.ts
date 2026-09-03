@@ -1,4 +1,5 @@
 import { DEFAULT_COLLAB_TABLE_CONFIG, type CollabTableConfig } from "./collabCalibration"
+import type { StoredBuildingCalibration } from "./collabTracking"
 
 /**
  * The admin panel's side of per-building calibration (workflow step 4).
@@ -212,6 +213,30 @@ export interface BuildingCalibrationMessage {
     offset_east_mm: number
     offset_north_mm: number
     scale_residual: number
+}
+
+/**
+ * The draft the panel should open at, given what Python is already drawing the building with.
+ *
+ * Python publishes the stored calibration in exactly the message's units, so this is a rename
+ * rather than a conversion -- deliberately, because a unit conversion here would be a second
+ * place for the 1:500 factor to live and a factor-of-500 error that looks plausible on screen.
+ *
+ * `undefined` (an older server, or a feature without the property) means "nothing is stored", so
+ * neutral is the honest answer rather than a guess.
+ */
+export function draftFromStoredCalibration(
+    stored: StoredBuildingCalibration | undefined
+): BuildingCalibrationDraft {
+    if (stored === undefined) {
+        return { ...NEUTRAL_BUILDING_CALIBRATION_DRAFT }
+    }
+    return {
+        offsetEastMm: stored.offset_east_mm,
+        offsetNorthMm: stored.offset_north_mm,
+        rotationOffsetDeg: stored.rotation_offset_deg,
+        scaleResidual: stored.scale_residual,
+    }
 }
 
 export function buildBuildingCalibrationMessage(
