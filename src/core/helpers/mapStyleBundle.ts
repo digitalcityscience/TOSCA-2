@@ -22,7 +22,11 @@ export interface CompiledStyleBundle {
 export interface InstalledStyleBundle {
     id: string;
     sourceIds: string[];
-    layers: Array<{ id: string; activeVisibility: "visible" | "none" }>;
+    layers: Array<{
+        id: string;
+        type: LayerSpecification["type"];
+        activeVisibility: "visible" | "none";
+    }>;
     spriteIds: string[];
 }
 
@@ -60,11 +64,18 @@ export async function fetchMapStyle(styleUrl: string): Promise<StyleSpecificatio
  * missing icons instead of surfacing as a load failure.
  */
 export async function validateSpriteUrl(url: string): Promise<void> {
-    const response = await fetch(`${url}.json`);
+    const response = await fetch(resolveSpriteResourceUrl(url, ".json"));
     if (!response.ok) {
         throw new Error(`Failed to load sprite (${response.status} ${response.statusText})`);
     }
     await response.json();
+}
+
+/** Add a sprite file extension to the URL path without modifying its query parameters. */
+export function resolveSpriteResourceUrl(url: string, extension: ".json" | ".png"): string {
+    const resolved = new URL(url);
+    resolved.pathname += extension;
+    return resolved.toString();
 }
 
 /**
@@ -83,14 +94,16 @@ export function compileVectorStyleBundle(
     }
 
     const prefix = `basemap:${sanitizeRuntimePart(id)}`;
+    const excludedSourceIds = findApplicationOwnedTerrainSourceIds(style);
     const sourceIds = new Map<string, string>();
-    const sources = Object.entries(style.sources).map(([sourceId, specification], index) => {
+    const sources = Object.entries(style.sources).flatMap(([sourceId, specification], index) => {
+        if (excludedSourceIds.has(sourceId)) return [];
         const runtimeId = `${prefix}:source:${index}:${sanitizeRuntimePart(sourceId)}`;
         sourceIds.set(sourceId, runtimeId);
-        return {
+        return [{
             id: runtimeId,
             specification: resolveSourceUrls(specification, styleUrl),
-        };
+        }];
     });
 
     const spriteRuntimeId = style.sprite === undefined
@@ -100,8 +113,13 @@ export function compileVectorStyleBundle(
         ? []
         : [{ id: spriteRuntimeId, url: resolveStyleResourceUrl(style.sprite, styleUrl) }];
 
-    const layers = style.layers.map((layer, index): CompiledStyleBundleLayer => {
+    const layers = style.layers.flatMap((layer, index): CompiledStyleBundleLayer[] => {
         const sourceId = "source" in layer ? layer.source : undefined;
+        if (
+            isTerrainOrHillshadeId(layer.id) ||
+            layer.type === "hillshade" ||
+            (sourceId !== undefined && excludedSourceIds.has(sourceId))
+        ) return [];
         const runtimeSourceId = sourceId === undefined ? undefined : sourceIds.get(sourceId);
         if (sourceId !== undefined && runtimeSourceId === undefined) {
             throw new Error(`Basemap layer "${layer.id}" references unknown source "${sourceId}"`);
@@ -127,10 +145,10 @@ export function compileVectorStyleBundle(
             ...(Object.keys(paint).length === 0 ? {} : { paint }),
         } as LayerSpecification;
 
-        return {
+        return [{
             specification,
             activeVisibility: rawLayout.visibility === "none" ? "none" : "visible",
-        };
+        }];
     });
 
     return { id, sources, layers, sprites };
@@ -205,6 +223,7 @@ export function installStyleBundle(
         sourceIds: addedSources,
         layers: bundle.layers.map(({ specification, activeVisibility }) => ({
             id: specification.id,
+            type: specification.type,
             activeVisibility,
         })),
         spriteIds: addedSprites,
@@ -276,7 +295,43 @@ function resolveSourceUrls(
 }
 
 export function resolveStyleResourceUrl(resourceUrl: string, styleUrl: string): string {
-    return new URL(resourceUrl, styleUrl).toString();
+    const placeholders: string[] = [];
+    const protectedResourceUrl = resourceUrl.replace(/\{[^{}]+\}/g, (placeholder) => {
+        const token = `__tosca_url_template_${placeholders.length}__`;
+        placeholders.push(placeholder);
+        return token;
+    });
+    let resolvedUrl = new URL(protectedResourceUrl, styleUrl).toString();
+    placeholders.forEach((placeholder, index) => {
+        resolvedUrl = resolvedUrl.replace(
+            `__tosca_url_template_${index}__`,
+            placeholder
+        );
+    });
+    return resolvedUrl;
+}
+
+function findApplicationOwnedTerrainSourceIds(style: StyleSpecification): Set<string> {
+    const excludedSourceIds = new Set<string>();
+    const terrainSourceId = style.terrain?.source;
+    if (terrainSourceId !== undefined) excludedSourceIds.add(terrainSourceId);
+
+    Object.entries(style.sources).forEach(([sourceId, specification]) => {
+        if (specification.type === "raster-dem" || isTerrainOrHillshadeId(sourceId)) {
+            excludedSourceIds.add(sourceId);
+        }
+    });
+    style.layers.forEach((layer) => {
+        if (!isTerrainOrHillshadeId(layer.id) && layer.type !== "hillshade") return;
+        if ("source" in layer && typeof layer.source === "string") {
+            excludedSourceIds.add(layer.source);
+        }
+    });
+    return excludedSourceIds;
+}
+
+function isTerrainOrHillshadeId(id: string): boolean {
+    return /(^|[-_:])(terrain|hillshade)(?=$|[-_:])/i.test(id);
 }
 
 function rewriteImageProperties(

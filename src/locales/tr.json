@@ -72,7 +72,7 @@
       "layers": "Katmanlar"
     },
     "basemap": {
-      "streets": "Sokaklar",
+      "dataviz": "Dataviz",
       "backdrop": "Arka plan",
       "inHouse": "Kurum içi",
       "satellite": "Uydu",

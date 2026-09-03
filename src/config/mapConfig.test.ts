@@ -1,5 +1,10 @@
 import { describe, expect, test } from "vitest";
-import { mapConfiguration, resolveMapConfiguration } from "./mapConfig";
+import {
+    mapConfiguration,
+    resolveMapConfiguration,
+    resolveMapProviderUrl,
+    type MapConfiguration,
+} from "./mapConfig";
 
 const environment = {
     VITE_MAPTILER_API_KEY: "map key",
@@ -36,9 +41,90 @@ describe("map configuration", () => {
 
         expect(inHouse).toMatchObject({
             kind: "vector",
-            styleUrl: "https://maps.example.test/styles/light.json?key=in-house%20key",
-            thumbnailUrl: "https://maps.example.test/styles/light/0/0/0.png?key=in-house%20key",
+            styleUrl: "https://maps.example.test/styles/osm-bright.json?key=in-house%20key",
+            thumbnailUrl: "https://maps.example.test/thumbnails/osmBright.jpg?key=in-house%20key",
         });
+    });
+
+    test("builds direct Martin tile templates without encoding placeholders", () => {
+        expect(resolveMapProviderUrl(
+            mapConfiguration,
+            "inHouse",
+            "tiles/terrain/{z}/{x}/{y}",
+            environment
+        )).toBe(
+            "https://maps.example.test/tiles/terrain/{z}/{x}/{y}?key=in-house%20key"
+        );
+    });
+
+    test("resolves direct terrain and hillshade tile templates", () => {
+        const resolved = resolveMapConfiguration(mapConfiguration, environment, (key) => key);
+
+        expect(resolved.terrain).toMatchObject({
+            exaggeration: 1,
+            demSource: {
+                type: "raster-dem",
+                tiles: [
+                    "https://maps.example.test/tiles/terrain-hamburg-official/{z}/{x}/{y}?key=in-house%20key",
+                ],
+                encoding: "mapbox",
+                tileSize: 256,
+                minzoom: 9,
+                maxzoom: 14,
+            },
+            hillshadeSource: {
+                type: "raster",
+                tiles: [
+                    "https://maps.example.test/tiles/hillshade-hamburg-official/{z}/{x}/{y}?key=in-house%20key",
+                ],
+                tileSize: 256,
+                minzoom: 9,
+                maxzoom: 14,
+            },
+        });
+    });
+
+    test("supports TileJSON terrain and hillshade sources", () => {
+        const tileJsonConfiguration: MapConfiguration = {
+            ...mapConfiguration,
+            terrain: {
+                exaggeration: 0.75,
+                dem: {
+                    kind: "tilejson",
+                    url: { provider: "maptiler", path: "tiles/terrain-rgb-v2/tiles.json" },
+                    encoding: "mapbox",
+                    tileSize: 512,
+                    maxzoom: 14,
+                },
+                hillshade: {
+                    kind: "tilejson",
+                    url: { provider: "maptiler", path: "tiles/hillshade/tiles.json" },
+                },
+            },
+        };
+
+        const resolved = resolveMapConfiguration(
+            tileJsonConfiguration,
+            environment,
+            (key) => key
+        );
+
+        expect(resolved.terrain).toMatchObject({
+            exaggeration: 0.75,
+            demSource: {
+                type: "raster-dem",
+                url: "https://api.maptiler.com/tiles/terrain-rgb-v2/tiles.json?key=map%20key",
+                encoding: "mapbox",
+                tileSize: 512,
+                maxzoom: 14,
+            },
+            hillshadeSource: {
+                type: "raster",
+                url: "https://api.maptiler.com/tiles/hillshade/tiles.json?key=map%20key",
+            },
+        });
+        expect(resolved.terrain.demSource.tiles).toBeUndefined();
+        expect(resolved.terrain.hillshadeSource.tiles).toBeUndefined();
     });
 
     test("reports missing environment-backed basemap resources", () => {

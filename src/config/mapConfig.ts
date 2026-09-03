@@ -1,4 +1,8 @@
 import type { BasemapOption } from "@helpers/baseMapControl";
+import type {
+    RasterDEMSourceSpecification,
+    RasterSourceSpecification,
+} from "maplibre-gl";
 
 type Translate = (key: string) => string;
 
@@ -43,19 +47,78 @@ interface RasterBasemapDefinition extends BaseBasemapDefinition {
 
 export type BasemapDefinition = VectorBasemapDefinition | RasterBasemapDefinition;
 
+/**
+ * Load source metadata from a TileJSON endpoint. The provider URL resolver
+ * appends the configured API key. TileJSON normally supplies `tiles`, zoom
+ * limits, bounds, and attribution; the optional values below override it.
+ */
+interface TileJsonSourceDefinition {
+    /** Select MapLibre's `url`/TileJSON source form. */
+    kind: "tilejson";
+    /** Provider-relative URL of the TileJSON document. */
+    url: BasemapUrlDefinition;
+    /** Optional override for the TileJSON tile size. */
+    tileSize?: number;
+    /** Optional override for the TileJSON minimum zoom. */
+    minzoom?: number;
+    /** Optional override for the TileJSON maximum zoom. */
+    maxzoom?: number;
+}
+
+/**
+ * Load tiles directly from one or more URL templates. Use this for Martin or
+ * another service without TileJSON. Since no metadata document is fetched,
+ * declare tile size and zoom limits here when they differ from MapLibre's
+ * defaults. Templates may contain `{z}`, `{x}`, and `{y}` placeholders.
+ */
+interface DirectTileSourceDefinition {
+    /** Select MapLibre's direct `tiles` source form. */
+    kind: "tiles";
+    /** Provider-relative tile URL templates. */
+    tiles: BasemapUrlDefinition[];
+    /** Tile pixel size; MapLibre defaults to 512 when omitted. */
+    tileSize?: number;
+    /** Lowest available tile zoom; MapLibre defaults to 0 when omitted. */
+    minzoom?: number;
+    /** Highest available tile zoom; MapLibre defaults to 22 when omitted. */
+    maxzoom?: number;
+}
+
+type TerrainSourceDefinition = TileJsonSourceDefinition | DirectTileSourceDefinition;
+
+export interface TerrainDefinition {
+    /** Vertical scale applied when terrain is enabled. Defaults to 1. */
+    exaggeration?: number;
+    /** Elevation source used to construct MapLibre's 3D terrain mesh. */
+    dem: TerrainSourceDefinition & {
+        /** DEM pixel encoding. Use the encoding produced by the tile service. */
+        encoding?: RasterDEMSourceSpecification["encoding"];
+    };
+    /** Pre-rendered raster shading shown only while terrain is enabled. */
+    hillshade: TerrainSourceDefinition;
+}
+
 export interface MapConfiguration {
     initialBasemapId: string;
     providers: Record<string, BasemapProviderDefinition>;
     basemaps: BasemapDefinition[];
+    terrain: TerrainDefinition;
 }
 
 export interface ResolvedMapConfiguration {
     initialBasemapId: string;
     basemaps: BasemapOption[];
+    // Direct Martin example. To use TileJSON instead, change each source to:
+    // { kind: "tilejson", url: { provider: "...", path: ".../tiles.json" } }.
+    terrain: {
+        exaggeration: number;
+        demSource: RasterDEMSourceSpecification;
+        hillshadeSource: RasterSourceSpecification;
+    };
 }
 
 export const mapConfiguration = {
-    initialBasemapId: "streets",
+    initialBasemapId: "in-house",
     providers: {
         maptiler: {
             baseUrl: { value: "https://api.maptiler.com" },
@@ -69,8 +132,8 @@ export const mapConfiguration = {
     basemaps: [
         {
             kind: "vector",
-            id: "streets",
-            titleKey: "map.basemap.streets",
+            id: "dataviz",
+            titleKey: "map.basemap.dataviz",
             styleUrl: { provider: "maptiler", path: "maps/dataviz-v4/style.json" },
             thumbnailUrl: { provider: "maptiler", path: "maps/dataviz-v4/0/0/0.png" },
             fontStackOverride: ["Open Sans Regular"],
@@ -87,8 +150,8 @@ export const mapConfiguration = {
             kind: "vector",
             id: "in-house",
             titleKey: "map.basemap.inHouse",
-            styleUrl: { provider: "inHouse", path: "styles/light.json" },
-            thumbnailUrl: { provider: "inHouse", path: "styles/light/0/0/0.png" },
+            styleUrl: { provider: "inHouse", path: "styles/osm-bright.json" },
+            thumbnailUrl: { provider: "inHouse", path: "/thumbnails/osmBright.jpg" },
             fontStackOverride: ["Open Sans Regular"],
         },
         {
@@ -100,6 +163,24 @@ export const mapConfiguration = {
             tileSize: 512,
         },
     ],
+    terrain: {
+        exaggeration: 1,
+        dem: {
+            kind: "tiles",
+            tiles: [{ provider: "inHouse", path: "tiles/terrain-hamburg-official/{z}/{x}/{y}" }],
+            encoding: "mapbox",
+            tileSize: 256,
+            minzoom: 9,
+            maxzoom: 14,
+        },
+        hillshade: {
+            kind: "tiles",
+            tiles: [{ provider: "inHouse", path: "tiles/hillshade-hamburg-official/{z}/{x}/{y}" }],
+            tileSize: 256,
+            minzoom: 9,
+            maxzoom: 14,
+        },
+    },
 } satisfies MapConfiguration;
 
 export function resolveMapConfiguration(
@@ -153,7 +234,58 @@ export function resolveMapConfiguration(
     return {
         initialBasemapId: configuration.initialBasemapId,
         basemaps,
+        terrain: {
+            exaggeration: configuration.terrain.exaggeration ?? 1,
+            demSource: {
+                type: "raster-dem",
+                ...resolveTerrainSource(configuration.terrain.dem, configuration, environment),
+                ...(configuration.terrain.dem.encoding === undefined
+                    ? {}
+                    : { encoding: configuration.terrain.dem.encoding }),
+            },
+            hillshadeSource: {
+                type: "raster",
+                ...resolveTerrainSource(configuration.terrain.hillshade, configuration, environment),
+            },
+        },
     };
+}
+
+function resolveTerrainSource(
+    definition: TerrainSourceDefinition,
+    configuration: MapConfiguration,
+    environment: Record<string, string | undefined>
+): Omit<RasterSourceSpecification, "type"> {
+    const endpoint = definition.kind === "tilejson"
+        ? {
+            url: resolveBasemapUrl(
+                definition.url,
+                configuration.providers,
+                environment
+            ),
+        }
+        : {
+            tiles: definition.tiles.map((tile) => resolveBasemapUrl(
+                tile,
+                configuration.providers,
+                environment
+            )),
+        };
+    return {
+        ...endpoint,
+        ...(definition.tileSize === undefined ? {} : { tileSize: definition.tileSize }),
+        ...(definition.minzoom === undefined ? {} : { minzoom: definition.minzoom }),
+        ...(definition.maxzoom === undefined ? {} : { maxzoom: definition.maxzoom }),
+    };
+}
+
+export function resolveMapProviderUrl(
+    configuration: MapConfiguration,
+    provider: string,
+    path: string,
+    environment: Record<string, string | undefined>
+): string {
+    return resolveBasemapUrl({ provider, path }, configuration.providers, environment);
 }
 
 function resolveBasemapUrl(
