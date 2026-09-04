@@ -16,9 +16,9 @@ import { quadPointAt } from "./collabCalibration"
  * own footprint onto the table at its real heading, and the operator answers the question by
  * turning the block parallel to it rather than by typing a number nobody can know.
  *
- * Parallel, not on top of — only the angle is being measured, and position comes from live
- * tracking every frame. That is what lets an operator register at the left, centre and right of
- * the table in turn to check that both cameras read the same heading.
+ * On the outline and parallel to it. Only the angle is *recorded* — position comes from live
+ * tracking every frame — but position is how the server picks this block out from the others on
+ * the table, so being on the outline stopped being optional when that identification landed.
  */
 
 /**

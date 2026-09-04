@@ -699,7 +699,20 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         const ids: Feature[] = [];
         const confidences: Feature[] = [];
 
+        // Whichever building has a target projected for it right now. It is deliberately not
+        // *also* drawn from live tracking: that would put two of the same building on the table
+        // at once -- the cyan outline the operator is aiming at, and the same building drawn from
+        // the very reference they are in the middle of replacing. The second one is wrong by
+        // definition and is the more eye-catching of the two.
+        const aiming =
+            buildingRegistration.value.phase === "aiming" || buildingRegistration.value.phase === "sending"
+                ? buildingRegistration.value.buildingId
+                : null;
+
         for (const [objectId, tracked] of Object.entries(session.tracking)) {
+            if (objectId === aiming) {
+                continue;
+            }
             const known = knownFootprint(objectId);
             if (tracked.geometry === undefined && known === undefined) {
                 continue;
@@ -957,7 +970,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             return empty;
         }
         // Placed at the middle of the calibrated AOI, NOT at the building's real coordinates.
-        // Only the heading is being measured, so the target's position carries no information --
+        // Only the heading is recorded, so the target's own coordinates carry no information --
         // but drawing it at the true location does carry a bug: the rig's AOI sits kilometres
         // from these footprints, so the target rendered perfectly and entirely off the table.
         const target = placedAtCentre(registrationTargetFootprint(footprint, scale), centre);

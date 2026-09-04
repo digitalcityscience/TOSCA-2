@@ -145,9 +145,10 @@
  *
  * This panel asks for it the only way it can be asked: it projects the building's own footprint
  * onto the table at its real heading, and the operator answers by turning the block parallel to
- * it. Parallel, not on top of — only the angle is measured, position comes from live tracking —
- * so the block may sit anywhere, which is what lets an operator check both cameras by registering
- * at the left, centre and right of the table in turn.
+ * it — on the outline and facing the same way. The heading is what gets recorded; the position is
+ * how the server tells this block from the others already on the table. The panel used to say the
+ * block could sit anywhere, which was true before blocks were identified by position and has been
+ * wrong since: following that instruction produced a refusal the operator could not explain.
  */
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";

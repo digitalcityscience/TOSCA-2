@@ -387,6 +387,57 @@ describe("the registration target reaches the table", () => {
 
         expect(store.registrationScaleFactor()).toBeCloseTo(0.5632, 6);
     });
+
+    test("is not also drawn from live tracking while its target is projected", async () => {
+        // Two G11s on the table at once: the cyan target the operator is aiming at, and the same
+        // building drawn red at wherever Python currently thinks the block is. The red one is
+        // drawn from the very reference the operator is in the middle of replacing, so it is both
+        // wrong and the most eye-catching thing on the table. Reported from the rig as simply
+        // confusing, which is the kindest possible reading of "the projection contradicts the
+        // instructions".
+        const { store, session } = await controlStore(0.5);
+        const blockAt = (lng: number, lat: number): CollabTrackingObjectState => ({
+            pose: { lng, lat, rotation: 0 },
+            confidence: 1,
+            lastSeen: 0,
+            geometry: {
+                type: "Polygon",
+                coordinates: [
+                    [
+                        [lng - 0.0001, lat - 0.0001],
+                        [lng + 0.0001, lat - 0.0001],
+                        [lng + 0.0001, lat + 0.0001],
+                        [lng - 0.0001, lat + 0.0001],
+                        [lng - 0.0001, lat - 0.0001],
+                    ],
+                ],
+            },
+        });
+        session.tracking["G11"] = blockAt(10.0107, 53.5737);
+        session.tracking["G07"] = blockAt(10.0109, 53.5739);
+        for (let i = 0; i < 30; i++) {
+            await Promise.resolve();
+        }
+
+        store.startBuildingRegistration("G11");
+        for (let i = 0; i < 30; i++) {
+            await Promise.resolve();
+        }
+
+        const drawn = session.trackedBuildings.footprints.features.map((feature) => feature.id);
+        expect(drawn).not.toContain("G11");
+        // Every other block stays: they are not what the operator is aiming at, and hiding the
+        // table wholesale would take away the context that says which way round it is.
+        expect(drawn).toContain("G07");
+
+        store.cancelBuildingRegistration();
+        for (let i = 0; i < 30; i++) {
+            await Promise.resolve();
+        }
+
+        expect(session.trackedBuildings.footprints.features.map((feature) => feature.id)).toContain("G11");
+        store.stop();
+    });
 });
 
 describe("the Table window actually draws the registration target", () => {
