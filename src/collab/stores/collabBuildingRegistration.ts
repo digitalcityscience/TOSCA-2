@@ -117,7 +117,7 @@ export function footprintCentre(footprint: Feature<Polygon | MultiPolygon>): Pos
 }
 
 /** How the registration panel is doing, so it can say something other than nothing. */
-export type RegistrationPhase = "idle" | "aiming" | "sending" | "registered" | "refused"
+export type RegistrationPhase = "idle" | "aiming" | "scanning" | "sending" | "registered" | "refused"
 
 export interface BuildingRegistrationState {
     /** Which building the operator is registering, or `null` when the panel is closed. */
@@ -127,14 +127,19 @@ export interface BuildingRegistrationState {
     message: string | null
     markerId: number | null
     /**
-     * The marker the operator named outright, or `null` to let position decide.
+     * The marker the server can currently read on the outline, or `null` when it can read none.
      *
-     * Distinct from `markerId`, which is Python's *answer*. This is the operator overruling the
-     * question: proximity infers which block this is through the AOI-centre → projector → table
-     * → camera → pixel chain, and when a link in it is off the refusal is identical whatever the
-     * cause and there is nothing to act on. Naming the id needs none of that chain to be right.
+     * Filled from `scan_progress` rather than chosen by the operator: they already answered
+     * "which block?" by putting it on the outline, and the server is the only party that can say
+     * whether that answer came through. Carried into `register_building` so the registration
+     * commits to the same marker the operator watched the counter fill up for.
      */
-    chosenMarkerId: number | null
+    scannedMarkerId: number | null
+    /** How many readings of that marker the server holds, and how many it needs. */
+    scanReadings: number
+    scanRequired: number
+    /** The server's own verdict that the sample set is now enough — what unlocks Register. */
+    scanReady: boolean
 }
 
 export const IDLE_BUILDING_REGISTRATION: BuildingRegistrationState = {
@@ -142,7 +147,10 @@ export const IDLE_BUILDING_REGISTRATION: BuildingRegistrationState = {
     phase: "idle",
     message: null,
     markerId: null,
-    chosenMarkerId: null,
+    scannedMarkerId: null,
+    scanReadings: 0,
+    scanRequired: 0,
+    scanReady: false,
 }
 
 /**

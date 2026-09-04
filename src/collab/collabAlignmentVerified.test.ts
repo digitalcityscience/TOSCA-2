@@ -572,7 +572,11 @@ describe("a registration that gets no answer", () => {
             }
 
             store.startBuildingRegistration("G11");
-            store.confirmBuildingRegistration();
+            // The scan is now the first thing that touches the socket, so it is where an offline
+            // server has to become visible -- Register is locked until a scan reports back, so a
+            // dead socket would otherwise leave the operator on a button that never enables and
+            // never explains itself.
+            store.scanRegistrationBlock();
 
             // Offline in this harness (no socket), so it refuses immediately and names that.
             expect(store.buildingRegistration.phase).toBe("refused");
@@ -619,7 +623,10 @@ describe("naming the block instead of aiming at it", () => {
         store.stop();
     });
 
-    test("the chosen marker survives being picked, and clears with the panel", async () => {
+    test("Register stays locked until the server says it can read the block", async () => {
+        // The gate itself. Registration used to be one blind shot: press confirm and find out.
+        // The operator cannot see whether the cameras have picked their block out, so a refusal
+        // was the first news that anything was wrong.
         localStorage.clear();
         setActivePinia(createPinia());
         const store = useCollabTrackingRenderStore();
@@ -629,17 +636,38 @@ describe("naming the block instead of aiming at it", () => {
         }
 
         store.startBuildingRegistration("G11");
-        store.chooseRegistrationMarker(18);
-        expect(store.buildingRegistration.chosenMarkerId).toBe(18);
+        expect(store.buildingRegistration.scanReady).toBe(false);
 
-        // Re-opening on another building must not carry the previous block's id across: that
-        // would file one block's heading as a different building's true-north reference.
+        // Confirming before the scan is good does nothing at all -- the rule lives here, not only
+        // on the button's disabled attribute.
+        store.confirmBuildingRegistration();
+        expect(store.buildingRegistration.phase).toBe("aiming");
+
+        store.stop();
+    });
+
+    test("starting on another building drops the previous scan entirely", async () => {
+        // Carrying a marker or a reading count across would unlock Register for one block using
+        // evidence gathered about a different one, and file its heading as this building's
+        // true-north reference.
+        localStorage.clear();
+        setActivePinia(createPinia());
+        const store = useCollabTrackingRenderStore();
+        store.startRendering("control");
+        for (let i = 0; i < 30; i++) {
+            await Promise.resolve();
+        }
+
+        store.startBuildingRegistration("G11");
         store.startBuildingRegistration("G07");
-        expect(store.buildingRegistration.chosenMarkerId).toBeNull();
+
+        expect(store.buildingRegistration.buildingId).toBe("G07");
+        expect(store.buildingRegistration.scannedMarkerId).toBeNull();
+        expect(store.buildingRegistration.scanReadings).toBe(0);
+        expect(store.buildingRegistration.scanReady).toBe(false);
 
         store.cancelBuildingRegistration();
-        expect(store.buildingRegistration.chosenMarkerId).toBeNull();
-
+        expect(store.buildingRegistration.phase).toBe("idle");
         store.stop();
     });
 });

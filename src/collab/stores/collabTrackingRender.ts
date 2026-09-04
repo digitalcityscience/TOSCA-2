@@ -705,7 +705,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         // the very reference they are in the middle of replacing. The second one is wrong by
         // definition and is the more eye-catching of the two.
         const aiming =
-            buildingRegistration.value.phase === "aiming" || buildingRegistration.value.phase === "sending"
+            buildingRegistration.value.phase !== "idle" && buildingRegistration.value.phase !== "registered"
                 ? buildingRegistration.value.buildingId
                 : null;
 
@@ -1068,19 +1068,50 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     }
 
     /**
-     * Names the block outright, or hands the question back to position with `null`.
+     * The operator saying the block is on the outline and the server should start reading it.
      *
-     * Deliberately does not survive `startBuildingRegistration`: carrying a previous block's id
-     * into the next building would file one block's heading as another building's true-north
-     * reference — silently, and permanently, which is the exact error this flow exists to end.
+     * Registration used to be one blind shot: press confirm and find out. From here the server
+     * answers every cycle, so an unreadable block is discovered while the operator can still
+     * nudge it rather than from a refusal after the fact.
      */
-    function chooseRegistrationMarker(markerId: number | null): void {
-        buildingRegistration.value = { ...buildingRegistration.value, chosenMarkerId: markerId };
+    function scanRegistrationBlock(): void {
+        const buildingId = buildingRegistration.value.buildingId;
+        if (buildingId === null) {
+            return;
+        }
+        // Every way this can fail has to say so. It is the operator's first press, and a button
+        // that silently does nothing is the exact failure mode this whole gate exists to remove.
+        const centre = targetCentre();
+        if (centre === null) {
+            buildingRegistration.value = {
+                ...buildingRegistration.value,
+                phase: "refused",
+                message: i18n.global.t("collab.control.buildingRegistration.needsCalibration"),
+            };
+            return;
+        }
+        if (realSource === undefined || !realSource.sendScanTarget(buildingId, [centre[0], centre[1]])) {
+            buildingRegistration.value = {
+                ...buildingRegistration.value,
+                phase: "refused",
+                message: i18n.global.t("collab.control.buildingRegistration.offline"),
+            };
+            return;
+        }
+        buildingRegistration.value = {
+            ...buildingRegistration.value,
+            phase: "scanning",
+            message: null,
+            scannedMarkerId: null,
+            scanReadings: 0,
+            scanReady: false,
+        };
     }
 
-    /** Closes the panel. Nothing was sent, so nothing has to be undone anywhere. */
+    /** Closes the panel. Nothing was written, so only the scan has to be called off. */
     function cancelBuildingRegistration(): void {
         clearRegistrationTimeout();
+        realSource?.sendScanStop();
         buildingRegistration.value = { ...IDLE_BUILDING_REGISTRATION };
         realSource?.setPresenceHold(false);
     }
@@ -1094,7 +1125,10 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
      */
     function confirmBuildingRegistration(): void {
         const buildingId = buildingRegistration.value.buildingId;
-        if (buildingId === null) {
+        // Only from a scan the server has already said is good. The button is disabled until
+        // then, and this is the same rule stated where it is actually enforced -- a UI that is
+        // the only thing standing between an operator and a bad catalog entry is not a rule.
+        if (buildingId === null || !buildingRegistration.value.scanReady) {
             return;
         }
         const centre = targetCentre();
@@ -1103,7 +1137,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             !realSource.sendRegisterBuilding(
                 buildingId,
                 centre === null ? undefined : [centre[0], centre[1]],
-                buildingRegistration.value.chosenMarkerId ?? undefined
+                buildingRegistration.value.scannedMarkerId ?? undefined
             )
         ) {
             buildingRegistration.value = {
@@ -1654,21 +1688,43 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         source.onMarkersOnTable((markers) => {
             markersOnTable.value = markers;
         });
+        // The scan gate's evidence. Ignored unless it is about the building actually open in the
+        // panel: a stale reply from a scan the operator has already moved on from would unlock
+        // Register against the wrong block.
+        source.onScanProgress((progress) => {
+            if (
+                buildingRegistration.value.buildingId !== progress.buildingId ||
+                buildingRegistration.value.phase !== "scanning"
+            ) {
+                return;
+            }
+            buildingRegistration.value = {
+                ...buildingRegistration.value,
+                scannedMarkerId: progress.markerId,
+                scanReadings: progress.readings,
+                scanRequired: progress.required,
+                scanReady: progress.ready,
+            };
+        });
         // A registration can be *refused* -- two unclaimed blocks, a block still being moved --
         // and a refusal changes nothing on the projection, so without this the panel would look
         // identical whether the catalog was written or the request was thrown away.
         source.onRegisterBuildingResult((result) => {
             clearRegistrationTimeout();
             if (result.ok) {
-                buildingRegistration.value = {
-                    ...buildingRegistration.value,
-                    phase: "registered",
-                    markerId: result.markerId ?? null,
-                    message: i18n.global.t("collab.control.buildingRegistration.registered", {
+                // Straight back to the building list. The catalog is written and the projection
+                // is already redrawing against the new reference, so a panel left sitting on a
+                // finished registration is one more thing to dismiss before the next block --
+                // and the operator has several to get through in a sitting.
+                toast.add({
+                    severity: "success",
+                    summary: i18n.global.t("collab.control.buildingRegistration.registered", {
+                        buildingId: result.buildingId ?? buildingRegistration.value.buildingId ?? "?",
                         markerId: result.markerId ?? "?",
                         rotation: (result.referenceRotationDeg ?? 0).toFixed(2),
                     }),
-                };
+                });
+                buildingRegistration.value = { ...IDLE_BUILDING_REGISTRATION };
                 realSource?.setPresenceHold(false);
                 return;
             }
@@ -2430,7 +2486,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         registrationScaleFactor,
         registrationTargetCentre,
         markersOnTable,
-        chooseRegistrationMarker,
+        scanRegistrationBlock,
         startBuildingRegistration,
         cancelBuildingRegistration,
         confirmBuildingRegistration,

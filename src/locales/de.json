@@ -446,20 +446,19 @@
         "select": "Zielen",
         "noMatches": "Kein Gebaeude gefunden.",
         "alreadyRegistered": "· registriert",
-        "markerHint": "Welcher Block ist das? Normalerweise der auf dem Umriss — waehle nur dann eine Id, wenn der Server deinen Block dort weiterhin nicht findet.",
-        "markersUnknown": "Der Server hat noch nicht gemeldet, was er sieht.",
-        "markersNone": "Die Kameras sehen gerade gar keinen Marker. Liegt der Block im Blickfeld und ist er unverdeckt?",
-        "markerAuto": "Der Block auf dem Umriss",
         "aiming": "{buildingId} wird registriert",
         "step1": "Suche den cyanfarbenen Umriss auf dem Tisch. Er liegt knapp neben der Mitte, abseits der Naht zwischen den beiden Kameras.",
-        "step2": "Lege den Block AUF den Umriss und drehe ihn, bis er genauso ausgerichtet ist. Beides zaehlt: ueber die Position erkennt der Server, welcher Block das ist, die Ausrichtung ist das, was er aufzeichnet.",
-        "step3": "Nimm die Haende weg, lass ihn kurz ruhig liegen, dann druecke Registrieren.",
+        "step2": "Lege den Block AUF den Umriss und drehe ihn, bis er genauso ausgerichtet ist.",
+        "step3": "Nimm die Haende weg, druecke Bereit zum Scannen und warte auf den Zaehler. Registrieren wird frei, sobald der Server den Block lesen kann.",
         "confirm": "Registrieren",
         "cancel": "Abbrechen",
-        "registered": "Als Marker {markerId} registriert, Referenzrichtung {rotation}°.",
+        "registered": "{buildingId} als Marker {markerId} registriert, Referenzausrichtung {rotation}°.",
         "refused": "Python hat die Registrierung abgelehnt.",
         "offline": "Keine Verbindung zu Python — es wurde nichts gesendet.",
-        "noAnswer": "Python hat nicht geantwortet. Laeuft der Server auf dem aktuellen Stand? Ein Server ohne register_building meldet \"unknown message type\" und antwortet nicht."
+        "noAnswer": "Python hat nicht geantwortet. Laeuft der Server auf dem aktuellen Stand? Ein Server ohne register_building meldet \"unknown message type\" und antwortet nicht.",
+        "scan": "Bereit zum Scannen",
+        "scanSearching": "Suche… noch kein Marker auf dem Umriss lesbar. Ist der Block verdeckt?",
+        "scanFound": "Lese Marker {markerId} — {readings}/{required}"
       }
     },
     "table": {

@@ -446,20 +446,19 @@
         "select": "Nisan al",
         "noMatches": "Eslesen bina yok.",
         "alreadyRegistered": "· kayitli",
-        "markerHint": "Bu hangi blok? Normalde cercevenin uzerindeki. Sunucu blogunu orada bulamamakta israr ederse id sec.",
-        "markersUnknown": "Sunucu henuz ne gordugunu bildirmedi.",
-        "markersNone": "Kameralar su anda hicbir marker gormuyor. Blok goruste mi, ustu kapali mi?",
-        "markerAuto": "Cercevenin uzerindeki blok",
         "aiming": "{buildingId} kaydediliyor",
         "step1": "Masaya yansiyan turkuaz cerceveyi bul. Tam ortada degil, iki kameranin birlestigi dikisin biraz yaninda duruyor.",
-        "step2": "Blogu cercevenin UZERINE koy ve ayni yone bakacak sekilde cevir. Ikisi de onemli: konum sunucunun hangi blok oldugunu anlamasini saglar, yon ise kaydedilen seyin ta kendisi.",
-        "step3": "Ellerini cek, bir an kimildamadan dursun, sonra Kaydet'e bas.",
+        "step2": "Blogu cercevenin UZERINE koy ve ayni yone bakacak sekilde cevir.",
+        "step3": "Ellerini cek, Taramaya hazir'a bas ve sayaci bekle. Sunucu blogu okuyabildiginde Kaydet aktif olur.",
         "confirm": "Kaydet",
         "cancel": "Vazgec",
-        "registered": "Marker {markerId} olarak kaydedildi, referans yon {rotation}°.",
+        "registered": "{buildingId} marker {markerId} olarak kaydedildi, referans yon {rotation}°.",
         "refused": "Python kaydi reddetti.",
         "offline": "Python'a baglanti yok — hicbir sey gonderilmedi.",
-        "noAnswer": "Python cevap vermedi. Sunucu guncel surumu mu calistiriyor? register_building bilmeyen bir sunucu \"unknown message type\" yazip hic cevap vermez."
+        "noAnswer": "Python cevap vermedi. Sunucu guncel surumu mu calistiriyor? register_building bilmeyen bir sunucu \"unknown message type\" yazip hic cevap vermez.",
+        "scan": "Taramaya hazir",
+        "scanSearching": "Bakiyorum… cerceve uzerinde henuz okunabilir marker yok. Blogun ustu kapali mi?",
+        "scanFound": "Marker {markerId} okunuyor — {readings}/{required}"
       }
     },
     "table": {

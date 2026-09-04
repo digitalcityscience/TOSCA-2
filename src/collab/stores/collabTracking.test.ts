@@ -1272,3 +1272,82 @@ describe("markers_on_table", () => {
         source.stop();
     });
 });
+
+describe("the scan gate", () => {
+    // Registration used to be one blind shot: press confirm and find out. The operator cannot see
+    // whether the cameras have picked their block out, so a refusal was the first news that
+    // anything was wrong. The scan turns that into evidence arriving every cycle.
+    test("asking the server to look at the outline names the building and where it is", () => {
+        const socket = new FakeSocket();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, createSocket: () => socket });
+        source.start();
+        socket.emitOpen();
+
+        expect(source.sendScanTarget("g11", [10.0107, 53.5737])).toBe(true);
+
+        expect(JSON.parse(socket.sent[0])).toEqual({
+            type: "scan_target",
+            building_id: "G11",
+            target: [10.0107, 53.5737],
+        });
+        source.stop();
+    });
+
+    test("progress is relayed while the block is not yet readable", () => {
+        const socket = new FakeSocket();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, createSocket: () => socket });
+        const seen: unknown[] = [];
+        source.onScanProgress((progress) => seen.push(progress));
+        source.start();
+        socket.emitOpen();
+
+        socket.emitMessage({
+            type: "scan_progress",
+            building_id: "G11",
+            marker_id: null,
+            readings: 0,
+            required: 5,
+            ready: false,
+        });
+
+        expect(seen).toEqual([
+            { buildingId: "G11", markerId: null, readings: 0, required: 5, ready: false },
+        ]);
+        source.stop();
+    });
+
+    test("progress says which marker it found and when the sample set is enough", () => {
+        const socket = new FakeSocket();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, createSocket: () => socket });
+        const seen: unknown[] = [];
+        source.onScanProgress((progress) => seen.push(progress));
+        source.start();
+        socket.emitOpen();
+
+        socket.emitMessage({
+            type: "scan_progress",
+            building_id: "G11",
+            marker_id: 18,
+            readings: 6,
+            required: 5,
+            ready: true,
+        });
+
+        expect(seen).toEqual([
+            { buildingId: "G11", markerId: 18, readings: 6, required: 5, ready: true },
+        ]);
+        source.stop();
+    });
+
+    test("stopping the scan tells the server to stop looking", () => {
+        const socket = new FakeSocket();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, createSocket: () => socket });
+        source.start();
+        socket.emitOpen();
+
+        source.sendScanStop();
+
+        expect(JSON.parse(socket.sent[0])).toEqual({ type: "scan_stop" });
+        source.stop();
+    });
+});

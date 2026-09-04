@@ -959,6 +959,30 @@ function parseMarkersOnTable(raw: unknown): MarkerOnTable[] {
     return markers
 }
 
+/**
+ * How the server is getting on with reading the block on the outline.
+ *
+ * `markerId` is null while nothing is on the target yet, which is the ordinary state for the
+ * first second. `ready` is the server's own verdict that it now holds enough readings for the
+ * reference average to accept them — the panel unlocks Register on this and never on a guess,
+ * so the button cannot promise something the registration would then refuse.
+ */
+export interface ScanProgress {
+    buildingId: string
+    markerId: number | null
+    readings: number
+    required: number
+    ready: boolean
+}
+
+function isScanProgress(data: unknown): data is Record<string, unknown> {
+    return (
+        typeof data === "object" &&
+        data !== null &&
+        (data as { type?: unknown }).type === "scan_progress"
+    )
+}
+
 function isSessionState(data: unknown): data is Record<string, unknown> {
     return typeof data === "object" && data !== null && (data as { type?: unknown }).type === "session_state"
 }
@@ -1020,6 +1044,7 @@ export class RealTrackingSource implements TrackingSource {
     private readonly sessionStateListeners: Array<(state: SessionState) => void> = []
     private readonly registerBuildingListeners: Array<(result: RegisterBuildingResult) => void> = []
     private readonly markersOnTableListeners: Array<(markers: readonly MarkerOnTable[]) => void> = []
+    private readonly scanProgressListeners: Array<(progress: ScanProgress) => void> = []
     private socket: TrackingWebSocket | undefined
     /** True only between `onopen` and the socket closing/erroring — {@link sendMapCalibration} refuses to send onto a socket that isn't actually open yet. */
     private socketOpen = false
@@ -1148,6 +1173,42 @@ export class RealTrackingSource implements TrackingSource {
     /** Fires every cycle with the markers Python can currently see — see {@link MarkerOnTable}. */
     onMarkersOnTable(cb: (markers: readonly MarkerOnTable[]) => void): void {
         this.markersOnTableListeners.push(cb)
+    }
+
+    /** Fires every cycle while a scan is running — see {@link ScanProgress}. */
+    onScanProgress(cb: (progress: ScanProgress) => void): void {
+        this.scanProgressListeners.push(cb)
+    }
+
+    /**
+     * Asks the server to watch the outline at `target` and report what it can read there.
+     *
+     * Sent when the operator says the block is in place, not when they press Register. That is
+     * the whole point of the gate: the server starts answering "can I see it yet?" every cycle,
+     * so the operator finds out the block is unreadable while they can still nudge it, rather
+     * than from a refusal after the fact.
+     */
+    sendScanTarget(buildingId: string, target: readonly [number, number]): boolean {
+        if (!this.socketOpen || this.socket === undefined) {
+            return false
+        }
+        this.socket.send(
+            JSON.stringify({
+                type: "scan_target",
+                building_id: buildingId.trim().toUpperCase(),
+                target: [target[0], target[1]],
+            })
+        )
+        return true
+    }
+
+    /** Tells the server to stop watching — the panel closed, so nothing is listening. */
+    sendScanStop(): boolean {
+        if (!this.socketOpen || this.socket === undefined) {
+            return false
+        }
+        this.socket.send(JSON.stringify({ type: "scan_stop" }))
+        return true
     }
 
     /**
@@ -1328,6 +1389,19 @@ export class RealTrackingSource implements TrackingSource {
             const markers = parseMarkersOnTable(data.markers)
             for (const listener of this.markersOnTableListeners) {
                 listener(markers)
+            }
+            return
+        }
+        if (isScanProgress(data)) {
+            const progress: ScanProgress = {
+                buildingId: typeof data.building_id === "string" ? data.building_id : "",
+                markerId: typeof data.marker_id === "number" ? data.marker_id : null,
+                readings: Number(data.readings) || 0,
+                required: Number(data.required) || 0,
+                ready: data.ready === true,
+            }
+            for (const listener of this.scanProgressListeners) {
+                listener(progress)
             }
             return
         }
