@@ -1,5 +1,23 @@
 import bbox from "@turf/bbox"
 import type { Feature, MultiPolygon, Polygon, Position } from "geojson"
+
+const REGISTRATION_TARGET_UVS: readonly (readonly [number, number])[] = [
+    [0.25, 0.25],
+    [0.75, 0.25],
+    [0.25, 0.75],
+    [0.75, 0.75],
+]
+
+/** A stable target in one of the four gaps between the 3x3 calibration markers. */
+export function distributedTargetCentreOnTable(
+    corners: readonly Position[],
+    buildingId: string
+): Position {
+    const slot = [...buildingId].reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) >>> 0, 0)
+        % REGISTRATION_TARGET_UVS.length
+    const [u, v] = REGISTRATION_TARGET_UVS[slot]
+    return quadPointAt(corners, u, v)
+}
 import { quadPointAt } from "./collabCalibration"
 
 /**

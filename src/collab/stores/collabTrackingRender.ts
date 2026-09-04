@@ -51,6 +51,7 @@ import {
 } from "./collabBuildingCalibration";
 import {
     IDLE_BUILDING_REGISTRATION,
+    distributedTargetCentreOnTable,
     footprintCentre,
     placedAtCentre,
     registrationTargetFootprint,
@@ -1016,7 +1017,10 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         if (aoi === null) {
             return null;
         }
-        return targetCentreOnTable(aoi.corners, DEFAULT_COLLAB_TABLE_CONFIG.physicalTable.widthCm);
+        const buildingId = buildingRegistration.value.buildingId;
+        return buildingId === null
+            ? targetCentreOnTable(aoi.corners, DEFAULT_COLLAB_TABLE_CONFIG.physicalTable.widthCm)
+            : distributedTargetCentreOnTable(aoi.corners, buildingId);
     }
 
     /**
