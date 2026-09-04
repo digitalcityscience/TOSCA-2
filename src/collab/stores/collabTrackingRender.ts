@@ -1264,9 +1264,6 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         try {
             // Tracked buildings are derived exactly once, in Control (ticket 13) — Table reads the
             // broadcast collection instead of calling deriveTrackedFootprint itself.
-            if (windowKind === "control") {
-                publishRegistrationTarget();
-            }
             tracked = windowKind === "control" ? trackedRenderState() : tableTrackedRenderState();
         } catch (error) {
             reportDeveloperError("collabTrackingRender.updateLayers.deriveState", error);
@@ -1471,6 +1468,23 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                 { deep: true, immediate: true }
             )
         );
+
+        // The alignment target is published on its own watcher rather than as a side effect of
+        // drawing. It has one job -- get the target in front of the operator on the Table -- and
+        // hanging that off `updateLayers` made it depend on the render pipeline's timing, its
+        // style-loaded wait, and its watch list, none of which have anything to do with which
+        // building was picked. It failed exactly there once already.
+        if (windowKind === "control") {
+            stopFns.push(
+                watch(
+                    () => [buildingRegistration.value, registrationScaleFactor()],
+                    () => {
+                        publishRegistrationTarget();
+                    },
+                    { deep: true, immediate: true }
+                )
+            );
+        }
 
         stopWatch = () => {
             for (const stopFn of stopFns) {

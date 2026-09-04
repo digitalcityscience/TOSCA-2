@@ -1,5 +1,6 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
 import { onScopeDispose, ref, watch } from "vue";
+import type { FeatureCollection } from "geojson";
 import { BroadcastCollabChannel, COLLAB_CHANNEL_NAME, type CollabChannel } from "../helpers/collabChannel";
 import { reportDeveloperError } from "@helpers/userFacingError";
 import {
@@ -82,15 +83,24 @@ function cloneCalibration(value: CollabCalibrationState): CollabCalibrationState
     };
 }
 
+/**
+ * Tolerates a slice that predates any of its fields, because one genuinely arrives: a Table
+ * recovers from `localStorage` before it has heard from Control (`startAsTable`), and that stored
+ * snapshot was written by whatever version last ran. Dereferencing a field an older snapshot has
+ * never heard of throws inside `applySnapshot`, and `startAsTable` does not catch it — so the
+ * channel subscription below it is never made and the Table silently never syncs again, for a
+ * reason that looks nothing like "an upgrade added a field".
+ */
+function cloneFeatureCollection(value: FeatureCollection | undefined): FeatureCollection {
+    return { type: "FeatureCollection", features: [...(value?.features ?? [])] };
+}
+
 function cloneTrackedBuildings(value: CollabTrackedBuildingsState): CollabTrackedBuildingsState {
     return {
-        footprints: { type: "FeatureCollection", features: [...value.footprints.features] },
-        ids: { type: "FeatureCollection", features: [...value.ids.features] },
-        registrationTarget: {
-            type: "FeatureCollection",
-            features: [...value.registrationTarget.features],
-        },
-        revision: value.revision,
+        footprints: cloneFeatureCollection(value?.footprints),
+        ids: cloneFeatureCollection(value?.ids),
+        registrationTarget: cloneFeatureCollection(value?.registrationTarget),
+        revision: value?.revision ?? 0,
     };
 }
 

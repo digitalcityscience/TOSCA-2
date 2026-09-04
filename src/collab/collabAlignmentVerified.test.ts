@@ -44,6 +44,7 @@ import {
     type TrackingMarkerFeatureCollection,
 } from "./stores/collabTracking";
 import { draftFromStoredCalibration } from "./stores/collabBuildingCalibration";
+import type { CollabSyncMessage } from "./stores/collabSync";
 
 /**
  * D1 on the frontend: a building whose heading nobody has ever verified must be visibly different
@@ -318,3 +319,118 @@ describe("the registration target reaches the table", () => {
         expect(store.registrationScaleFactor()).toBeCloseTo(0.5632, 6);
     });
 });
+
+describe("the Table window actually draws the registration target", () => {
+    test("Table renders the broadcast target, which is the surface the block is aligned against", async () => {
+        // The panel lives on Control, but the projection the operator physically lays the block
+        // against is the Table. A target that reaches only Control is an instruction shown to
+        // nobody, which is exactly how this failed in the rig.
+        localStorage.clear();
+        setActivePinia(createPinia());
+        const session = useCollabSessionStore();
+        const target = {
+            type: "FeatureCollection" as const,
+            features: [
+                {
+                    type: "Feature" as const,
+                    id: "G11",
+                    properties: { building_id: "G11" },
+                    geometry: squareFootprint(9.99, 53.55),
+                },
+            ],
+        };
+        session.trackedBuildings.registrationTarget = target;
+        session.trackedBuildings.revision = 1;
+
+        const store = useCollabTrackingRenderStore();
+        store.startRendering("table");
+        for (let i = 0; i < 60; i++) {
+            await Promise.resolve();
+        }
+
+        expect(fakeSources.has("collabRegistrationTarget")).toBe(true);
+        expect(fakeSources.get("collabRegistrationTarget")?.setData).toHaveBeenCalledWith(target);
+
+        store.stop();
+    });
+});
+
+describe("a Table recovering an older stored snapshot", () => {
+    test("a snapshot written before registrationTarget existed does not break the Table", async () => {
+        // `startAsTable` recovers from localStorage before it has heard from Control, and that
+        // stored snapshot was written by whatever version last ran. Dereferencing a field an older
+        // snapshot has never heard of throws inside `applySnapshot`, which `startAsTable` does not
+        // catch — so the channel subscription below it is never made and the Table silently never
+        // syncs again, for a reason that looks nothing like "an upgrade added a field".
+        localStorage.clear();
+        setActivePinia(createPinia());
+        localStorage.setItem(
+            "tosca-collab-session-snapshot",
+            JSON.stringify({
+                base: { loaded: true, objects: [] },
+                tracking: {},
+                calibration: {
+                    rotationOffsetDeg: 0,
+                    aoi: null,
+                    phase: "idle",
+                    revision: 0,
+                    mapCalibrationMarkerIdsSeen: [],
+                    resetPositionsToken: 0,
+                },
+                tableRender: { visibleLayerIds: [] },
+                // Exactly the shape the previous release wrote: no registrationTarget.
+                trackedBuildings: {
+                    footprints: { type: "FeatureCollection", features: [] },
+                    ids: { type: "FeatureCollection", features: [] },
+                    revision: 3,
+                },
+            })
+        );
+
+        const { useCollabSyncStore } = await import("./stores/collabSync");
+        const sync = useCollabSyncStore();
+        const session = useCollabSessionStore();
+
+        const [tableChannel] = PairedTestChannel.createPair<CollabSyncMessage>();
+        expect(() => sync.startAsTable(tableChannel)).not.toThrow();
+        expect(session.trackedBuildings.registrationTarget).toEqual({
+            type: "FeatureCollection",
+            features: [],
+        });
+        expect(session.trackedBuildings.revision).toBe(3);
+
+        sync.stop();
+        localStorage.clear();
+    });
+});
+
+/** Minimal in-memory channel pair (mirrors collabSync.test.ts / collabRegression.test.ts). */
+class PairedTestChannel<TMessage> {
+    private listeners: Array<(message: TMessage) => void> = [];
+    private peer: PairedTestChannel<TMessage> | undefined;
+
+    static createPair<T>(): [PairedTestChannel<T>, PairedTestChannel<T>] {
+        const a = new PairedTestChannel<T>();
+        const b = new PairedTestChannel<T>();
+        a.peer = b;
+        b.peer = a;
+        return [a, b];
+    }
+
+    publish(message: TMessage): void {
+        for (const listener of this.peer?.listeners ?? []) {
+            listener(message);
+        }
+    }
+
+    subscribe(listener: (message: TMessage) => void): () => void {
+        this.listeners.push(listener);
+        return () => {
+            this.listeners = this.listeners.filter((candidate) => candidate !== listener);
+        };
+    }
+
+    close(): void {
+        this.listeners = [];
+    }
+}
