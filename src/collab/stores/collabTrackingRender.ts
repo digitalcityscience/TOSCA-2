@@ -1055,7 +1055,14 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         if (buildingId === null) {
             return;
         }
-        if (realSource === undefined || !realSource.sendRegisterBuilding(buildingId)) {
+        const centre = targetCentre();
+        if (
+            realSource === undefined ||
+            !realSource.sendRegisterBuilding(
+                buildingId,
+                centre === null ? undefined : [centre[0], centre[1]]
+            )
+        ) {
             buildingRegistration.value = {
                 ...buildingRegistration.value,
                 phase: "refused",

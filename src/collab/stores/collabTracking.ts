@@ -1114,12 +1114,21 @@ export class RealTrackingSource implements TrackingSource {
      * Only send this once the operator has turned the block *parallel* to the projected target —
      * that alignment is the entire measurement, and Python has no way to check it was done.
      */
-    sendRegisterBuilding(buildingId: string): boolean {
+    sendRegisterBuilding(buildingId: string, target?: readonly [number, number]): boolean {
         if (!this.socketOpen || this.socket === undefined) {
             return false
         }
         this.socket.send(
-            JSON.stringify({ type: "register_building", building_id: buildingId.trim().toUpperCase() })
+            JSON.stringify({
+                type: "register_building",
+                building_id: buildingId.trim().toUpperCase(),
+                // Where the alignment target is drawn. This is how Python knows *which* block is
+                // being registered: the operator answered that physically by putting it on the
+                // outline. Without it Python can only guess by elimination, which makes every
+                // other object on the table -- and every spurious ArUco read from a noisy frame --
+                // a reason to refuse.
+                ...(target === undefined ? {} : { target: [target[0], target[1]] }),
+            })
         )
         return true
     }

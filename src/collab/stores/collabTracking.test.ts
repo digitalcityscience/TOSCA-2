@@ -1092,6 +1092,25 @@ describe("register_building over the wire", () => {
         source.stop();
     });
 
+    test("the alignment target's position rides along, so Python knows which block it is", () => {
+        // The operator answered "which block?" physically by putting it on the outline. Without
+        // this Python can only guess by elimination, which turns every other object on the table
+        // — and every spurious ArUco read from a noisy frame — into a reason to refuse.
+        const socket = new FakeSocket();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, createSocket: () => socket });
+        source.start();
+        socket.emitOpen();
+
+        source.sendRegisterBuilding("G11", [10.0107, 53.5737]);
+
+        expect(JSON.parse(socket.sent[0])).toEqual({
+            type: "register_building",
+            building_id: "G11",
+            target: [10.0107, 53.5737],
+        });
+        source.stop();
+    });
+
     test("sendRegisterBuilding reports failure rather than dropping the request silently", () => {
         // The panel has to be able to say "not sent"; a registration that vanished looks exactly
         // like one that was refused, and both look like nothing happening.
