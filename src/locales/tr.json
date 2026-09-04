@@ -437,6 +437,24 @@
         "savedDetail": "Python çalışma kataloğuna ve kalibrasyon kaydına yazdı. Bir sonraki açılışta geçerli olması için publish-to-runtime.ps1 çalıştır.",
         "saveFailedSummary": "Kaydedilmedi",
         "saveFailedDetail": "İzleme bağlantısı açık değil, hiçbir şey gönderilmedi. Hiçbir şey değişmedi — yeniden bağlanıp tekrar dene."
+      },
+      "buildingRegistration": {
+        "title": "Bina kaydet",
+        "description": "Binanin gercek tabanini masaya yansitir, blogu ona paralel cevirip onaylarsin. Bu hizalama, hicbir kameranin olcemedigi tek sey.",
+        "needsCalibration": "Once harita kalibrasyonu kabul edilmeli — o olmadan hedef blok olcusunde cizilemez.",
+        "search": "Bina id, orn. G11",
+        "select": "Nisan al",
+        "noMatches": "Eslesen bina yok.",
+        "alreadyRegistered": "· kayitli",
+        "aiming": "{buildingId} kaydediliyor",
+        "step1": "Masaya yansiyan turkuaz cerceveyi bul.",
+        "step2": "Blogu o cerceveye PARALEL olana kadar cevir. Ustune oturmasi gerekmez — sadece aci olculuyor, masanin herhangi bir yeri olur.",
+        "step3": "Sabit tut ve onayla.",
+        "confirm": "Blok hizalandi — kaydet",
+        "cancel": "Vazgec",
+        "registered": "Marker {markerId} olarak kaydedildi, referans yon {rotation}°.",
+        "refused": "Python kaydi reddetti.",
+        "offline": "Python'a baglanti yok — hicbir sey gonderilmedi."
       }
     },
     "table": {
@@ -465,7 +483,8 @@
       "trackedId": "Collab · Takip edilen kimlik",
       "trackedConfidence": "Collab · Takip edilen güven",
       "aoi": "Collab · Seçilen ilgi alanı",
-      "calibrationSelection": "Collab · Kalibre edilen bina"
+      "calibrationSelection": "Collab · Kalibre edilen bina",
+      "registrationTarget": "Collab · Kayit hedefi"
     },
     "tracking": {
       "unaligned": "(hizalanmamis)",

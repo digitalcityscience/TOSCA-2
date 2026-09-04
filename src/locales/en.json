@@ -437,6 +437,24 @@
         "savedDetail": "Python has written it to the working catalog and the calibration record. Run publish-to-runtime.ps1 to make it the next start-up's default.",
         "saveFailedSummary": "Not saved",
         "saveFailedDetail": "The tracking connection isn't open, so nothing was sent. Nothing has changed — reconnect and try again."
+      },
+      "buildingRegistration": {
+        "title": "Register building",
+        "description": "Project a building's real footprint on the table, turn the block parallel to it, and confirm. That alignment is the one thing no camera can measure.",
+        "needsCalibration": "Accept a map calibration first — until then the target cannot be drawn at the block's size.",
+        "search": "Building id, e.g. G11",
+        "select": "Aim",
+        "noMatches": "No building matches.",
+        "alreadyRegistered": "· registered",
+        "aiming": "Registering {buildingId}",
+        "step1": "Find the cyan outline projected on the table.",
+        "step2": "Turn the block until it is PARALLEL to that outline. It need not sit on it — only the angle is measured, so any spot on the table works.",
+        "step3": "Hold it still and confirm.",
+        "confirm": "Block is aligned — register",
+        "cancel": "Cancel",
+        "registered": "Registered as marker {markerId}, reference heading {rotation}°.",
+        "refused": "Python refused the registration.",
+        "offline": "Not connected to Python — nothing was sent."
       }
     },
     "table": {
@@ -465,7 +483,8 @@
       "trackedId": "Collab · Tracked id",
       "trackedConfidence": "Collab · Tracked confidence",
       "aoi": "Collab · Selected AOI",
-      "calibrationSelection": "Collab · Building being calibrated"
+      "calibrationSelection": "Collab · Building being calibrated",
+      "registrationTarget": "Collab · Registration target"
     },
     "tracking": {
       "unaligned": "(unaligned)",

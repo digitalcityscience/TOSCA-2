@@ -233,6 +233,16 @@
             <CollabBuildingCalibrationPanel />
         </div>
 
+        <!--
+            Registering a block against its building. Placed above nothing and below calibration
+            deliberately: registration comes first in time (a building must exist in the catalog
+            before it can be nudged), but calibration is the panel used on every sitting, while
+            this one is used once per physical block.
+        -->
+        <div v-if="isRealTableRoute" class="mt-5 border-t border-muted pt-4">
+            <CollabBuildingRegistrationPanel />
+        </div>
+
         <div class="mt-5 flex flex-col gap-2 border-t border-muted pt-4">
             <div class="flex items-center justify-between gap-2">
                 <div class="flex flex-col gap-0.5">
@@ -255,6 +265,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import BaseSlideoverSidebarComponent from "@components/Base/BaseSlideoverSidebarComponent.vue";
 import CollabBuildingCalibrationPanel from "./CollabBuildingCalibrationPanel.vue";
+import CollabBuildingRegistrationPanel from "./CollabBuildingRegistrationPanel.vue";
 import { useToast } from "@helpers/toast";
 import { useCollabSyncStore } from "../stores/collabSync";
 import { useCollabSessionStore } from "../stores/collabSession";

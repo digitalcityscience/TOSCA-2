@@ -889,6 +889,42 @@ function isRawMarkerDictionary(data: unknown): data is Record<string, RawMarkerE
  * ever adds one. Deliberately inert: recognized and relayed via {@link RealTrackingSource.onCalibrationAck}
  * but nothing in this codebase currently subscribes to it.
  */
+/**
+ * What Python publishes about the session the moment a `map_calibration` is accepted.
+ *
+ * `modelScaleFactor` is the reason this message exists: drawing a registration target at the
+ * size of the *physical block* needs it, and until now it only ever arrived on a tracked
+ * building's feature — which a building being registered for the first time does not have.
+ */
+export interface SessionState {
+    sessionId: string
+    modelScale: number
+    modelScaleFactor: number
+    groundScale: number
+}
+
+/** Python's answer to one `register_building`: what it wrote, or why it refused. */
+export interface RegisterBuildingResult {
+    ok: boolean
+    buildingId?: string
+    markerId?: number
+    referenceRotationDeg?: number
+    sampleCount?: number
+    error?: string
+}
+
+function isSessionState(data: unknown): data is Record<string, unknown> {
+    return typeof data === "object" && data !== null && (data as { type?: unknown }).type === "session_state"
+}
+
+function isRegisterBuildingResult(data: unknown): data is Record<string, unknown> {
+    return (
+        typeof data === "object" &&
+        data !== null &&
+        (data as { type?: unknown }).type === "register_building_result"
+    )
+}
+
 function isCalibrationAck(data: unknown): data is { type: "calibration_ack" } {
     return typeof data === "object" && data !== null && (data as { type?: unknown }).type === "calibration_ack"
 }
@@ -935,6 +971,8 @@ export class RealTrackingSource implements TrackingSource {
     private readonly rawMarkerSnapshotListeners: Array<(markers: RawMarkerSnapshot) => void> = []
     private readonly geojsonSnapshotListeners: Array<() => void> = []
     private readonly calibrationAckListeners: Array<() => void> = []
+    private readonly sessionStateListeners: Array<(state: SessionState) => void> = []
+    private readonly registerBuildingListeners: Array<(result: RegisterBuildingResult) => void> = []
     private socket: TrackingWebSocket | undefined
     /** True only between `onopen` and the socket closing/erroring — {@link sendMapCalibration} refuses to send onto a socket that isn't actually open yet. */
     private socketOpen = false
@@ -1041,6 +1079,42 @@ export class RealTrackingSource implements TrackingSource {
      */
     onCalibrationAck(cb: () => void): void {
         this.calibrationAckListeners.push(cb)
+    }
+
+    /** Fires when Python reports the session's derived scale — see {@link SessionState}. */
+    onSessionState(cb: (state: SessionState) => void): void {
+        this.sessionStateListeners.push(cb)
+    }
+
+    /**
+     * Fires with Python's verdict on one `register_building`.
+     *
+     * Unlike `building_calibration`, this one genuinely needs an acknowledgement: a registration
+     * can be *refused* — two unclaimed blocks on the table, a block still being moved — and a
+     * refusal produces no visible change on the projection at all. Without the verdict the panel
+     * would look identical whether the catalog was written or the request was thrown away.
+     */
+    onRegisterBuildingResult(cb: (result: RegisterBuildingResult) => void): void {
+        this.registerBuildingListeners.push(cb)
+    }
+
+    /**
+     * Asks Python to register the block on the table as `buildingId`.
+     *
+     * Sends no marker id, deliberately: a building being registered for the first time has no
+     * catalog entry, so the frontend has none to send. Python resolves it by elimination.
+     *
+     * Only send this once the operator has turned the block *parallel* to the projected target —
+     * that alignment is the entire measurement, and Python has no way to check it was done.
+     */
+    sendRegisterBuilding(buildingId: string): boolean {
+        if (!this.socketOpen || this.socket === undefined) {
+            return false
+        }
+        this.socket.send(
+            JSON.stringify({ type: "register_building", building_id: buildingId.trim().toUpperCase() })
+        )
+        return true
     }
 
     /**
@@ -1157,6 +1231,27 @@ export class RealTrackingSource implements TrackingSource {
             this.emitRawMarkerSnapshot(markers)
             return
         }
+        if (isSessionState(data)) {
+            this.emitSessionState({
+                sessionId: typeof data.session_id === "string" ? data.session_id : "",
+                modelScale: Number(data.model_scale),
+                modelScaleFactor: Number(data.model_scale_factor),
+                groundScale: Number(data.ground_scale),
+            })
+            return
+        }
+        if (isRegisterBuildingResult(data)) {
+            this.emitRegisterBuildingResult({
+                ok: data.ok === true,
+                buildingId: typeof data.building_id === "string" ? data.building_id : undefined,
+                markerId: typeof data.marker_id === "number" ? data.marker_id : undefined,
+                referenceRotationDeg:
+                    typeof data.reference_rotation_deg === "number" ? data.reference_rotation_deg : undefined,
+                sampleCount: typeof data.sample_count === "number" ? data.sample_count : undefined,
+                error: typeof data.error === "string" ? data.error : undefined,
+            })
+            return
+        }
         if (isCalibrationAck(data)) {
             this.emitCalibrationAck()
         }
@@ -1265,6 +1360,18 @@ export class RealTrackingSource implements TrackingSource {
     private emitCalibrationAck(): void {
         for (const listener of this.calibrationAckListeners) {
             listener()
+        }
+    }
+
+    private emitSessionState(state: SessionState): void {
+        for (const listener of this.sessionStateListeners) {
+            listener(state)
+        }
+    }
+
+    private emitRegisterBuildingResult(result: RegisterBuildingResult): void {
+        for (const listener of this.registerBuildingListeners) {
+            listener(result)
         }
     }
 }

@@ -1076,3 +1076,113 @@ describe("RealTrackingSource — onMarkerSnapshot (marker-health-plan §3, no de
         source.stop();
     });
 });
+
+describe("register_building over the wire", () => {
+    test("sendRegisterBuilding carries only the building id", () => {
+        // Deliberately no marker id: a building being registered for the first time has no catalog
+        // entry, so the frontend has none to send. Python resolves it by elimination.
+        const socket = new FakeSocket();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, createSocket: () => socket });
+        source.start();
+        socket.emitOpen();
+
+        expect(source.sendRegisterBuilding("g11")).toBe(true);
+
+        expect(JSON.parse(socket.sent[0])).toEqual({ type: "register_building", building_id: "G11" });
+        source.stop();
+    });
+
+    test("sendRegisterBuilding reports failure rather than dropping the request silently", () => {
+        // The panel has to be able to say "not sent"; a registration that vanished looks exactly
+        // like one that was refused, and both look like nothing happening.
+        const socket = new FakeSocket();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, createSocket: () => socket });
+        source.start();
+
+        expect(source.sendRegisterBuilding("G11")).toBe(false);
+        expect(socket.sent).toEqual([]);
+        source.stop();
+    });
+
+    test("a successful result is relayed with what Python actually wrote", () => {
+        const socket = new FakeSocket();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, createSocket: () => socket });
+        const results: unknown[] = [];
+        source.onRegisterBuildingResult((result) => results.push(result));
+        source.start();
+        socket.emitOpen();
+
+        socket.emitMessage({
+            type: "register_building_result",
+            ok: true,
+            building_id: "G11",
+            marker_id: 18,
+            reference_rotation_deg: -116.25,
+            sample_count: 30,
+        });
+
+        expect(results).toEqual([
+            { ok: true, buildingId: "G11", markerId: 18, referenceRotationDeg: -116.25, sampleCount: 30 },
+        ]);
+        source.stop();
+    });
+
+    test("a refusal is relayed with its reason", () => {
+        // A refused registration changes nothing on the projection, so the reason is the only
+        // evidence the operator ever gets.
+        const socket = new FakeSocket();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, createSocket: () => socket });
+        const results: Array<{ ok: boolean; error?: string }> = [];
+        source.onRegisterBuildingResult((result) => results.push(result));
+        source.start();
+        socket.emitOpen();
+
+        socket.emitMessage({
+            type: "register_building_result",
+            ok: false,
+            building_id: "G11",
+            error: "markers [18, 24] are all unclaimed",
+        });
+
+        expect(results[0].ok).toBe(false);
+        expect(results[0].error).toContain("unclaimed");
+        source.stop();
+    });
+
+    test("a register_building_result is not mistaken for a tracking snapshot", () => {
+        const socket = new FakeSocket();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, createSocket: () => socket });
+        const events: unknown[] = [];
+        source.onEvent((event) => events.push(event));
+        source.start();
+        socket.emitOpen();
+
+        socket.emitMessage({ type: "register_building_result", ok: true, building_id: "G11", marker_id: 18 });
+
+        expect(events).toEqual([]);
+        source.stop();
+    });
+
+    test("session_state relays the scale the registration target has to be drawn at", () => {
+        // It arrives only on an accepted calibration, which is also the only time it can be known
+        // — and a building being registered for the first time has no feature to carry it.
+        const socket = new FakeSocket();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, createSocket: () => socket });
+        const states: Array<{ modelScaleFactor: number; modelScale: number }> = [];
+        source.onSessionState((state) => states.push(state));
+        source.start();
+        socket.emitOpen();
+
+        socket.emitMessage({
+            type: "session_state",
+            session_id: "20260904-36ddb645",
+            model_scale: 500,
+            model_scale_factor: 0.6652503320888592,
+            ground_scale: 332.6251660444296,
+        });
+
+        expect(states[0].modelScale).toBe(500);
+        expect(states[0].modelScaleFactor).toBeCloseTo(0.66525, 5);
+        source.stop();
+    });
+});

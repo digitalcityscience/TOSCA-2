@@ -86,6 +86,10 @@ function cloneTrackedBuildings(value: CollabTrackedBuildingsState): CollabTracke
     return {
         footprints: { type: "FeatureCollection", features: [...value.footprints.features] },
         ids: { type: "FeatureCollection", features: [...value.ids.features] },
+        registrationTarget: {
+            type: "FeatureCollection",
+            features: [...value.registrationTarget.features],
+        },
         revision: value.revision,
     };
 }

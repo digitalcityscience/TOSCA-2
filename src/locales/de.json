@@ -437,6 +437,24 @@
         "savedDetail": "Python hat sie in den Arbeitskatalog und die Kalibrierungsdatenbank geschrieben. Führe publish-to-runtime.ps1 aus, damit sie beim nächsten Start gilt.",
         "saveFailedSummary": "Nicht gespeichert",
         "saveFailedDetail": "Die Tracking-Verbindung ist nicht offen, es wurde nichts gesendet. Es hat sich nichts geändert — verbinde neu und versuche es erneut."
+      },
+      "buildingRegistration": {
+        "title": "Gebaeude registrieren",
+        "description": "Den echten Grundriss eines Gebaeudes auf den Tisch projizieren, den Block parallel dazu drehen und bestaetigen. Diese Ausrichtung ist das Einzige, was keine Kamera messen kann.",
+        "needsCalibration": "Zuerst eine Kartenkalibrierung annehmen — vorher kann das Ziel nicht in Blockgroesse gezeichnet werden.",
+        "search": "Gebaeude-ID, z. B. G11",
+        "select": "Zielen",
+        "noMatches": "Kein Gebaeude gefunden.",
+        "alreadyRegistered": "· registriert",
+        "aiming": "{buildingId} wird registriert",
+        "step1": "Den tuerkisen Umriss auf dem Tisch suchen.",
+        "step2": "Den Block drehen, bis er PARALLEL zu diesem Umriss steht. Er muss nicht darauf liegen — gemessen wird nur der Winkel, also ist jede Stelle auf dem Tisch geeignet.",
+        "step3": "Stillhalten und bestaetigen.",
+        "confirm": "Block ist ausgerichtet — registrieren",
+        "cancel": "Abbrechen",
+        "registered": "Als Marker {markerId} registriert, Referenzrichtung {rotation}°.",
+        "refused": "Python hat die Registrierung abgelehnt.",
+        "offline": "Keine Verbindung zu Python — es wurde nichts gesendet."
       }
     },
     "table": {
@@ -465,7 +483,8 @@
       "trackedId": "Collab · Verfolgte ID",
       "trackedConfidence": "Collab · Verfolgte Konfidenz",
       "aoi": "Collab · Ausgewähltes Interessengebiet",
-      "calibrationSelection": "Collab · Gebäude in Kalibrierung"
+      "calibrationSelection": "Collab · Gebäude in Kalibrierung",
+      "registrationTarget": "Collab · Registrierungsziel"
     },
     "tracking": {
       "unaligned": "(nicht ausgerichtet)",

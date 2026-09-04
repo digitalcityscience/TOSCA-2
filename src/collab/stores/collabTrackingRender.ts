@@ -10,7 +10,7 @@ import type { Feature, FeatureCollection, Polygon } from "@helpers/geojson";
 import { reportDeveloperError } from "@helpers/userFacingError";
 import { useToast } from "@helpers/toast";
 import { resolveCollabTrackingMode, resolveCollabTrackingWsUrl } from "../helpers/collabMode";
-import type { BuildingMarkerStatus } from "../data/collabBuildingData";
+import { collabBuildingDataset, type BuildingMarkerStatus } from "../data/collabBuildingData";
 import { i18n } from "../../core/i18n";
 import { useMapStore } from "@store/map";
 import {
@@ -48,6 +48,12 @@ import {
     type TableCoverage,
     type TableSample,
 } from "./collabBuildingCalibration";
+import {
+    IDLE_BUILDING_REGISTRATION,
+    footprintCentre,
+    registrationTargetFootprint,
+    type BuildingRegistrationState,
+} from "./collabBuildingRegistration";
 import {
     aoiCalibrationMarkerPosition,
     buildMapCalibrationFromMarkerReadings,
@@ -142,6 +148,24 @@ const TRACKED_FOOTPRINT_OUTLINE_PAINT: Record<string, unknown> = {
     ],
 };
 
+/**
+ * The alignment target a registration is done against: the building's own footprint, at its real
+ * heading, shrunk to the size of the physical block. The operator turns the block parallel to it
+ * and confirms, which is the one measurement no camera can make (see `collabBuildingRegistration`).
+ *
+ * Deliberately loud and unlike anything else on the table -- it is a transient instruction, not a
+ * piece of the scene, and mistaking it for a tracked building would mean aligning a block to a
+ * building that is not the one being registered.
+ */
+const REGISTRATION_TARGET_SOURCE_ID = "collabRegistrationTarget";
+const REGISTRATION_TARGET_FILL_LAYER_ID = "collabRegistrationTarget-fill";
+const REGISTRATION_TARGET_OUTLINE_LAYER_ID = "collabRegistrationTarget-outline";
+const REGISTRATION_TARGET_COLOR = "#22d3ee";
+const REGISTRATION_TARGET_OUTLINE_PAINT: Record<string, unknown> = {
+    "line-color": REGISTRATION_TARGET_COLOR,
+    "line-width": 3,
+};
+
 const TRACKED_BBOX_SOURCE_ID = "collabTrackedBbox";
 const TRACKED_BBOX_LAYER_ID = "collabTrackedBbox-line";
 
@@ -182,6 +206,10 @@ const TABLE_MANAGED_LAYER_IDS: readonly string[] = [
     TRACKED_FOOTPRINT_FILL_LAYER_ID,
     TRACKED_FOOTPRINT_OUTLINE_LAYER_ID,
     TRACKED_CENTRE_LAYER_ID,
+    // The registration target must live on the Table: the operator is looking at the projection,
+    // not at Control, and it is the thing they physically align the block to.
+    REGISTRATION_TARGET_FILL_LAYER_ID,
+    REGISTRATION_TARGET_OUTLINE_LAYER_ID,
 ];
 
 /** Control debug overlay's orientation-indicator line length (metres). */
@@ -583,6 +611,19 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
      */
     const savedCalibrationSamples = ref<TableSample[]>([]);
 
+    /** Which building is being registered, and how the attempt is going. */
+    const buildingRegistration = ref<BuildingRegistrationState>({ ...IDLE_BUILDING_REGISTRATION });
+
+    /**
+     * The session's catalog-to-table shrink factor, as Python derived it from the accepted
+     * homography (`session_state`).
+     *
+     * `null` until a calibration has been accepted, and the registration panel refuses to draw a
+     * target until it is known: a target drawn at the wrong size is one the operator would align
+     * a block to anyway, and the resulting reference would be wrong with nothing to show for it.
+     */
+    const sessionModelScaleFactor = ref<number | null>(null);
+
     /** Detaches the Control-map drag handlers installed while a building is being calibrated. */
     let detachCalibrationDrag: (() => void) | undefined;
     /** Layer ids {@link syncCalibrationPresentation} hid — restored verbatim once presentation mode ends. */
@@ -612,6 +653,19 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
      * `orientations`/`confidences` stay Control-only debug overlays (plan §4 "on-map layers") and
      * are never broadcast.
      */
+    /**
+     * Publishes the registration target for the Table window, which has no registration state of
+     * its own -- the panel lives on Control. Same one-derivation-then-broadcast shape the tracked
+     * buildings use, for the same reason: the two windows must be aiming at the same rectangle.
+     */
+    function publishRegistrationTarget(): void {
+        const target = registrationTargetState();
+        if (JSON.stringify(session.trackedBuildings.registrationTarget) !== JSON.stringify(target)) {
+            session.trackedBuildings.registrationTarget = target;
+            session.trackedBuildings.revision += 1;
+        }
+    }
+
     function trackedRenderState(): TrackedRenderProducts {
         const offset = session.calibration.rotationOffsetDeg;
         const footprints: Feature[] = [];
@@ -854,6 +908,88 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         await ensureGeojsonLayer(sourceId, layerId, "line", data, displayName, {
             paint: { "line-color": color, "line-width": widthPx },
         });
+    }
+
+    /**
+     * The footprint the operator aligns the block to, or an empty collection when not registering.
+     *
+     * Drawn at the building's own geographic position and its real heading, shrunk to the size of
+     * the physical block. Empty rather than absent when idle, so the layer stays on the map with
+     * no features instead of being torn down and rebuilt each time a building is picked.
+     */
+    function registrationTargetState(): FeatureCollection {
+        const empty: FeatureCollection = { type: "FeatureCollection", features: [] };
+        const buildingId = buildingRegistration.value.buildingId;
+        const scale = sessionModelScaleFactor.value;
+        if (buildingId === null || scale === null) {
+            return empty;
+        }
+        const footprint = collabBuildingDataset().footprints.features.find(
+            (feature) => feature.properties.building_id === buildingId
+        );
+        if (footprint === undefined) {
+            return empty;
+        }
+        return {
+            type: "FeatureCollection",
+            features: [{ ...registrationTargetFootprint(footprint, scale), id: buildingId } as Feature],
+        };
+    }
+
+    /** Where to point the map so the operator can see the target they are aiming at. */
+    function registrationTargetCentre(): Position | null {
+        const buildingId = buildingRegistration.value.buildingId;
+        if (buildingId === null) {
+            return null;
+        }
+        const footprint = collabBuildingDataset().footprints.features.find(
+            (feature) => feature.properties.building_id === buildingId
+        );
+        return footprint === undefined ? null : footprintCentre(footprint);
+    }
+
+    /**
+     * Opens the registration panel on `buildingId` and starts projecting its target.
+     *
+     * Holds the live feed's presence timeout for the same reason `startBuildingCalibration` does:
+     * lining a block up means leaning over the table, which occludes the marker.
+     */
+    function startBuildingRegistration(buildingId: string): void {
+        buildingRegistration.value = {
+            ...IDLE_BUILDING_REGISTRATION,
+            buildingId,
+            phase: "aiming",
+        };
+        realSource?.setPresenceHold(true);
+    }
+
+    /** Closes the panel. Nothing was sent, so nothing has to be undone anywhere. */
+    function cancelBuildingRegistration(): void {
+        buildingRegistration.value = { ...IDLE_BUILDING_REGISTRATION };
+        realSource?.setPresenceHold(false);
+    }
+
+    /**
+     * Tells Python the block is now aligned to the target, and to write the catalog entry.
+     *
+     * The alignment itself is the measurement and Python cannot check it -- it sees an angle, not
+     * whether the operator actually lined the block up -- so this is only ever sent on an explicit
+     * confirmation, never inferred from the block having stopped moving.
+     */
+    function confirmBuildingRegistration(): void {
+        const buildingId = buildingRegistration.value.buildingId;
+        if (buildingId === null) {
+            return;
+        }
+        if (realSource === undefined || !realSource.sendRegisterBuilding(buildingId)) {
+            buildingRegistration.value = {
+                ...buildingRegistration.value,
+                phase: "refused",
+                message: i18n.global.t("collab.control.buildingRegistration.offline"),
+            };
+            return;
+        }
+        buildingRegistration.value = { ...buildingRegistration.value, phase: "sending", message: null };
     }
 
     /**
@@ -1106,6 +1242,9 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         try {
             // Tracked buildings are derived exactly once, in Control (ticket 13) — Table reads the
             // broadcast collection instead of calling deriveTrackedFootprint itself.
+            if (windowKind === "control") {
+                publishRegistrationTarget();
+            }
             tracked = windowKind === "control" ? trackedRenderState() : tableTrackedRenderState();
         } catch (error) {
             reportDeveloperError("collabTrackingRender.updateLayers.deriveState", error);
@@ -1122,6 +1261,22 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                 i18n.global.t("collab.layers.trackedFootprint"),
                 "#f97316",
                 TRACKED_FOOTPRINT_OUTLINE_PAINT
+            )
+        );
+
+        // The alignment target, on both windows: Control so the operator can pick and see it, and
+        // Table because that is the projection they physically lay the block against.
+        await safelyEnsure("registrationTarget", () =>
+            ensureFillLayer(
+                REGISTRATION_TARGET_SOURCE_ID,
+                REGISTRATION_TARGET_FILL_LAYER_ID,
+                REGISTRATION_TARGET_OUTLINE_LAYER_ID,
+                windowKind === "control"
+                    ? registrationTargetState()
+                    : session.trackedBuildings.registrationTarget,
+                i18n.global.t("collab.layers.registrationTarget"),
+                REGISTRATION_TARGET_COLOR,
+                REGISTRATION_TARGET_OUTLINE_PAINT
             )
         );
 
@@ -1310,6 +1465,36 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         });
         source.onAvailabilityChange((availability) => {
             trackingAvailability.value = availability;
+        });
+        // The scale the registration target has to be drawn at. It arrives only on an accepted
+        // calibration, which is also the only time it can be known.
+        source.onSessionState((state) => {
+            sessionModelScaleFactor.value = Number.isFinite(state.modelScaleFactor)
+                ? state.modelScaleFactor
+                : null;
+        });
+        // A registration can be *refused* -- two unclaimed blocks, a block still being moved --
+        // and a refusal changes nothing on the projection, so without this the panel would look
+        // identical whether the catalog was written or the request was thrown away.
+        source.onRegisterBuildingResult((result) => {
+            if (result.ok) {
+                buildingRegistration.value = {
+                    ...buildingRegistration.value,
+                    phase: "registered",
+                    markerId: result.markerId ?? null,
+                    message: i18n.global.t("collab.control.buildingRegistration.registered", {
+                        markerId: result.markerId ?? "?",
+                        rotation: (result.referenceRotationDeg ?? 0).toFixed(2),
+                    }),
+                };
+                realSource?.setPresenceHold(false);
+                return;
+            }
+            buildingRegistration.value = {
+                ...buildingRegistration.value,
+                phase: "refused",
+                message: result.error ?? i18n.global.t("collab.control.buildingRegistration.refused"),
+            };
         });
         let previousConnectionState: PythonConnectionState = "disconnected";
         source.onConnectionStateChange((state) => {
@@ -2058,6 +2243,12 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         resizeBuildingCalibration,
         saveBuildingCalibration,
         buildingCalibrationCoverage,
+        buildingRegistration,
+        sessionModelScaleFactor,
+        registrationTargetCentre,
+        startBuildingRegistration,
+        cancelBuildingRegistration,
+        confirmBuildingRegistration,
         stop,
     };
 });

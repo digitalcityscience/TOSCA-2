@@ -137,6 +137,16 @@ export interface CollabCalibrationState {
 export interface CollabTrackedBuildingsState {
     footprints: FeatureCollection;
     ids: FeatureCollection;
+    /**
+     * The footprint the operator is currently aligning a block to while registering a building —
+     * its real shape, at its real heading, shrunk to the block's size — or an empty collection.
+     *
+     * Rides this slice rather than one of its own because it is broadcast for exactly the reason
+     * the tracked footprints are: the registration panel lives on Control, but the projection the
+     * operator physically lays the block against is the Table. A target that reached only Control
+     * would be an instruction shown to nobody.
+     */
+    registrationTarget: FeatureCollection;
     revision: number;
 }
 
@@ -162,6 +172,7 @@ export const useCollabSessionStore = defineStore("collabSession", () => {
     const trackedBuildings = reactive<CollabTrackedBuildingsState>({
         footprints: { type: "FeatureCollection", features: [] },
         ids: { type: "FeatureCollection", features: [] },
+        registrationTarget: { type: "FeatureCollection", features: [] },
         revision: 0,
     });
 
