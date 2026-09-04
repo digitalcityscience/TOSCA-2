@@ -22,8 +22,8 @@ import {
 import { toFeature, useCollabScenarioStore, type CollabBuildingObject } from "./collabScenario";
 import { useCollabSyncStore } from "./collabSync";
 import {
+    DEFAULT_COLLAB_TABLE_CONFIG,
     METERS_PER_DEGREE_LATITUDE,
-    aoiBoundingBox,
     aoiChecksum,
     calibrationMarkerSizePx,
     deriveGroundScale,
@@ -54,6 +54,7 @@ import {
     footprintCentre,
     placedAtCentre,
     registrationTargetFootprint,
+    targetCentreOnTable,
     type BuildingRegistrationState,
 } from "./collabBuildingRegistration";
 import {
@@ -988,14 +989,21 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         return null;
     }
 
-    /** The middle of the calibrated AOI — where a target is guaranteed to be on the table. */
+    /**
+     * Beside the middle of the calibrated AOI — on the table, and clear of the camera seam.
+     *
+     * Beside, not at: the table image is two camera frames hstacked and the join runs straight
+     * down its middle, so a block laid at the exact centre has its marker split between the two
+     * frames and decodes as nothing. The AOI centre was the one spot on a 160 cm table where
+     * registration could not work, and it was the only spot the target was ever drawn — see
+     * {@link TARGET_OFFSET_FROM_SEAM_CM}.
+     */
     function aoiCentre(): Position | null {
         const aoi = session.calibration.aoi;
         if (aoi === null) {
             return null;
         }
-        const [minX, minY, maxX, maxY] = aoiBoundingBox(aoi);
-        return [(minX + maxX) / 2, (minY + maxY) / 2];
+        return targetCentreOnTable(aoi.corners, DEFAULT_COLLAB_TABLE_CONFIG.physicalTable.widthCm);
     }
 
     /**

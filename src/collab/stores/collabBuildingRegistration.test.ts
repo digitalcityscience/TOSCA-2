@@ -1,10 +1,11 @@
 import bbox from "@turf/bbox"
 import { describe, expect, test } from "vitest"
-import type { Feature, MultiPolygon, Polygon } from "geojson"
+import type { Feature, MultiPolygon, Polygon, Position } from "geojson"
 
 import {
     footprintCentre,
     placedAtCentre,
+    targetCentreOnTable,
     registrationTargetFootprint,
 } from "./collabBuildingRegistration"
 
@@ -201,3 +202,62 @@ describe("placedAtCentre", () => {
         expect(maxX).toBeLessThan(10.012);
     });
 })
+
+describe("targetCentreOnTable", () => {
+    /**
+     * The table image is two camera frames hstacked, so there is a seam straight down its middle
+     * — at table pixel ~800 of 1600. The alignment target used to be drawn at the AOI centre,
+     * which lands exactly on it: a marker there is split between two frames and decodes as
+     * nothing, or as a phantom id. The operator sees the block dead centre on the turquoise and
+     * the server reports no marker anywhere near the target, with nothing to act on.
+     */
+    const square: [Position, Position, Position, Position] = [
+        [10.0, 53.6], // top-left
+        [10.4, 53.6], // top-right
+        [10.4, 53.4], // bottom-right
+        [10.0, 53.4], // bottom-left
+    ];
+
+    test("the target sits off the seam, not on it", () => {
+        const centre = targetCentreOnTable(square, 160);
+
+        // 10 cm of a 160 cm table is 1/16 of its width, east of the middle.
+        expect(centre[0]).toBeCloseTo(10.2 + 0.4 / 16, 10);
+        expect(centre[1]).toBeCloseTo(53.5, 10);
+    });
+
+    test("no offset puts it back at the centre, so the seam case is the deliberate one", () => {
+        const centre = targetCentreOnTable(square, 160, 0);
+
+        expect(centre[0]).toBeCloseTo(10.2, 10);
+        expect(centre[1]).toBeCloseTo(53.5, 10);
+    });
+
+    test("the offset follows the table's own axis, not true east", () => {
+        // An AOI the operator drew rotated is still a table with a seam down its middle, and the
+        // seam runs along the table's axes. Offsetting by true east would walk along the seam
+        // instead of away from it.
+        const rotated: [Position, Position, Position, Position] = [
+            [10.2, 53.6], // top-left
+            [10.4, 53.5], // top-right
+            [10.2, 53.4], // bottom-right
+            [10.0, 53.5], // bottom-left
+        ];
+
+        const centre = targetCentreOnTable(rotated, 160);
+
+        // Moved along the top-left -> top-right edge, which here runs south-east.
+        expect(centre[0]).toBeGreaterThan(10.2);
+        expect(centre[1]).toBeLessThan(53.5);
+    });
+
+    test("the offset stays inside the table however wide it is", () => {
+        // A guard, not a nicety: an offset that walked off the AOI would put the target somewhere
+        // the projector cannot draw and the cameras cannot see, which is the failure it exists to
+        // prevent, reintroduced from the other side.
+        const centre = targetCentreOnTable(square, 8);
+
+        expect(centre[0]).toBeGreaterThan(10.0);
+        expect(centre[0]).toBeLessThan(10.4);
+    });
+});

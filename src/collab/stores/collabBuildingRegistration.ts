@@ -1,5 +1,6 @@
 import bbox from "@turf/bbox"
 import type { Feature, MultiPolygon, Polygon, Position } from "geojson"
+import { quadPointAt } from "./collabCalibration"
 
 /**
  * The alignment target a registration is done against.
@@ -142,4 +143,43 @@ export const IDLE_BUILDING_REGISTRATION: BuildingRegistrationState = {
     message: null,
     markerId: null,
     chosenMarkerId: null,
+}
+
+/**
+ * How far along the table, from its middle, the alignment target is drawn — in table centimetres.
+ *
+ * The table image is two camera frames hstacked, so a seam runs straight down its middle: table
+ * pixel ~800 of 1600 on this rig. A marker lying across it is split between two frames and
+ * decodes as nothing, or as a phantom id at some unrelated place. Drawing the target at the AOI
+ * centre put every block being registered exactly there, which is a very good way to make a
+ * registration impossible for a reason nothing on screen can explain — the operator sees the
+ * block dead centre on the turquoise, and the server reports no marker anywhere near the target.
+ *
+ * Ten centimetres because a 1:500 block is 4-9 cm across, so this clears the seam by the width of
+ * a whole block while staying near the middle of the table, where the projection is squarest and
+ * both cameras have the operator's block comfortably in view.
+ */
+export const TARGET_OFFSET_FROM_SEAM_CM = 10
+
+/**
+ * Where to draw the alignment target: beside the middle of `corners`, clear of the camera seam.
+ *
+ * Offsets along the AOI's own top edge rather than by true east. The seam is a property of the
+ * *table* — it runs between the two cameras, along the table's axes — so an AOI the operator
+ * happened to draw rotated needs the target moved along the table's width, not along a compass
+ * bearing that might run straight down the seam instead of away from it.
+ *
+ * The offset is clamped to a quarter of the table's width so that a small table, or a
+ * mismeasured one, cannot push the target off the AOI entirely. That would put it somewhere the
+ * projector cannot draw and the cameras cannot see, which is the failure this exists to prevent,
+ * arrived at from the other side.
+ */
+export function targetCentreOnTable(
+    corners: readonly Position[],
+    tableWidthCm: number,
+    offsetCm: number = TARGET_OFFSET_FROM_SEAM_CM
+): Position {
+    const fraction =
+        tableWidthCm > 0 ? Math.min(Math.abs(offsetCm) / tableWidthCm, 0.25) * Math.sign(offsetCm) : 0
+    return quadPointAt(corners, 0.5 + fraction, 0.5)
 }
