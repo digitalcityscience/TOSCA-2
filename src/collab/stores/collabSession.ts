@@ -32,6 +32,12 @@ export interface CollabTrackingObjectState {
     geometry?: Polygon | MultiPolygon;
     bbox?: [number, number, number, number];
     cityScopeId?: string;
+    /**
+     * Whether anyone has verified that this building's stored reference heading is the direction
+     * the real building faces. `false` means the footprint may be turned by a constant of up to
+     * 180 degrees; `undefined` means an older server that does not say either way.
+     */
+    alignmentVerified?: boolean;
     /** The ArUco id this object was resolved from — what a `building_calibration` addresses. */
     markerId?: number;
     /**

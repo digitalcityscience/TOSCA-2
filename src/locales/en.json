@@ -466,6 +466,10 @@
       "trackedConfidence": "Collab · Tracked confidence",
       "aoi": "Collab · Selected AOI",
       "calibrationSelection": "Collab · Building being calibrated"
+    },
+    "tracking": {
+      "unaligned": "(unaligned)",
+      "unalignedHint": "Heading never verified - this footprint may be turned by up to 180 deg. Turn the block onto the real building, read the rotation, and save it as the rotation offset."
     }
   }
 }

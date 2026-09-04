@@ -1,0 +1,229 @@
+import { createPinia, setActivePinia } from "pinia";
+import { describe, expect, test, vi } from "vitest";
+import type { Feature, Polygon } from "geojson";
+
+vi.mock("@helpers/toast", () => ({
+    useToast: () => ({ add: vi.fn() }),
+}));
+
+const { addMapDataSource, addMapLayer, addCompanionLayer, fakeSources } = vi.hoisted(() => {
+    const sources = new Map<string, { setData: ReturnType<typeof vi.fn> }>();
+    return {
+        fakeSources: sources,
+        addMapDataSource: vi.fn(async ({ identifier }: { identifier: string }) => {
+            await Promise.resolve();
+            await Promise.resolve();
+            sources.set(identifier, { setData: vi.fn() });
+        }),
+        addMapLayer: vi.fn(async () => {
+            await Promise.resolve();
+        }),
+        addCompanionLayer: vi.fn(),
+    };
+});
+
+vi.mock("@store/map", () => ({
+    useMapStore: () => ({
+        map: {
+            getSource: (id: string) => fakeSources.get(id),
+            getLayer: () => undefined,
+            isStyleLoaded: () => true,
+            on: () => {},
+            off: () => {},
+        },
+        addMapDataSource,
+        addMapLayer,
+        addCompanionLayer,
+    }),
+}));
+
+import { useCollabSessionStore, type CollabSceneObject, type CollabTrackingObjectState } from "./stores/collabSession";
+import { applyTrackingEvent, useCollabTrackingRenderStore } from "./stores/collabTrackingRender";
+import {
+    TrackingFeedNormalizer,
+    type TrackingMarkerFeatureCollection,
+} from "./stores/collabTracking";
+import { draftFromStoredCalibration } from "./stores/collabBuildingCalibration";
+
+/**
+ * D1 on the frontend: a building whose heading nobody has ever verified must be visibly different
+ * from one that has been measured.
+ *
+ * Python registers a building by recording whatever heading its block happened to be lying at,
+ * and until 2026-09-04 the whole system then treated that as the building's true-north
+ * orientation without saying so anywhere. The arithmetic downstream is exact -- which is what made
+ * it invisible -- so the only defence is that the unverified state travels all the way from
+ * Python's `alignment_verified` to something the operator can see on the table.
+ *
+ * The chain under test, end to end: wire property -> tracking event -> session slice -> broadcast
+ * footprint feature -> the paint expression's input.
+ */
+
+function squareFootprint(lng: number, lat: number): Polygon {
+    const size = 0.0001;
+    return {
+        type: "Polygon",
+        coordinates: [
+            [
+                [lng - size, lat - size],
+                [lng + size, lat - size],
+                [lng + size, lat + size],
+                [lng - size, lat + size],
+                [lng - size, lat - size],
+            ],
+        ],
+    };
+}
+
+function snapshotFeature(markerId: number, alignmentVerified?: boolean) {
+    return {
+        type: "Feature" as const,
+        geometry: { type: "Point" as const, coordinates: [9.99, 53.55] },
+        properties: {
+            marker_id: markerId,
+            rotation: 0,
+            building_id: `B-${markerId - 200}`,
+            ...(alignmentVerified === undefined ? {} : { alignment_verified: alignmentVerified }),
+        },
+    };
+}
+
+function snapshot(...features: ReturnType<typeof snapshotFeature>[]): TrackingMarkerFeatureCollection {
+    return { type: "FeatureCollection", features };
+}
+
+describe("alignment_verified crosses the Python boundary", () => {
+    test("the normalizer carries it onto the tracking event", () => {
+        const normalizer = new TrackingFeedNormalizer(new Map([[200, "B-0"]]));
+
+        const [event] = normalizer.applySnapshot(snapshot(snapshotFeature(200, false)), 0);
+
+        expect(event.alignmentVerified).toBe(false);
+    });
+
+    test("a verified building says so rather than saying nothing", () => {
+        const normalizer = new TrackingFeedNormalizer(new Map([[200, "B-0"]]));
+
+        const [event] = normalizer.applySnapshot(snapshot(snapshotFeature(200, true)), 0);
+
+        expect(event.alignmentVerified).toBe(true);
+    });
+
+    test("an older server that sends no such property is not reported as unverified", () => {
+        // Upgrading the frontend alone must not turn a working table red; `undefined` is
+        // "not stated", which is a different thing from `false`.
+        const normalizer = new TrackingFeedNormalizer(new Map([[200, "B-0"]]));
+
+        const [event] = normalizer.applySnapshot(snapshot(snapshotFeature(200)), 0);
+
+        expect(event.alignmentVerified).toBeUndefined();
+    });
+
+    test("applyTrackingEvent keeps it on the session slice", () => {
+        const tracking: Record<string, CollabTrackingObjectState> = {};
+
+        applyTrackingEvent(tracking, {
+            type: "appeared",
+            objectId: "B-0",
+            pose: { lng: 9.99, lat: 53.55, rotation: 0 },
+            confidence: 1,
+            timestamp: 0,
+            alignmentVerified: false,
+        });
+
+        expect(tracking["B-0"]?.alignmentVerified).toBe(false);
+    });
+});
+
+describe("an unverified building is marked on the render products", () => {
+    async function renderedProducts(alignmentVerified: boolean | undefined) {
+        localStorage.clear();
+        setActivePinia(createPinia());
+        const session = useCollabSessionStore();
+        const objects: CollabSceneObject[] = [
+            { id: "B-0", geometry: squareFootprint(9.99, 53.55), properties: { marker_id: 200 } },
+        ];
+        session.base.objects = objects;
+        session.tracking["B-0"] = {
+            pose: { lng: 9.99, lat: 53.55, rotation: 0 },
+            confidence: 1,
+            lastSeen: 0,
+            alignmentVerified,
+        };
+        useCollabTrackingRenderStore().startRendering("control");
+        for (let i = 0; i < 30; i++) {
+            await Promise.resolve();
+        }
+        return session.trackedBuildings;
+    }
+
+    test("the broadcast footprint carries the flag, so Table sees it too", async () => {
+        // Table renders Control's broadcast collection and has no tracking slice of its own, so a
+        // flag left off the feature would leave the projected surface -- the thing the operator is
+        // actually looking at -- as the one place an unverified building still looked verified.
+        const products = await renderedProducts(false);
+
+        const [footprint] = products.footprints.features as Feature[];
+        expect(footprint.properties?.alignment_verified).toBe(false);
+    });
+
+    test("a verified building's footprint is not flagged", async () => {
+        const products = await renderedProducts(true);
+
+        const [footprint] = products.footprints.features as Feature[];
+        expect(footprint.properties?.alignment_verified).toBe(true);
+    });
+
+    test("the id label says which building is still a guess", async () => {
+        const products = await renderedProducts(false);
+
+        const [id] = products.ids.features as Feature[];
+        expect(id.properties?.label).toContain("B-0");
+        expect(id.properties?.label).not.toBe("B-0");
+    });
+
+    test("a verified building's label is just its id", async () => {
+        const products = await renderedProducts(true);
+
+        const [id] = products.ids.features as Feature[];
+        expect(id.properties?.label).toBe("B-0");
+    });
+
+    test("an older server's silence leaves the label and footprint alone", async () => {
+        const products = await renderedProducts(undefined);
+
+        const [id] = products.ids.features as Feature[];
+        const [footprint] = products.footprints.features as Feature[];
+        expect(id.properties?.label).toBe("B-0");
+        expect(footprint.properties?.alignment_verified).toBeUndefined();
+    });
+});
+
+describe("the panel's draft survives an unmeasured rotation offset", () => {
+    test("a null rotation offset opens the draft at neutral, not at NaN", () => {
+        // The panel always sends all four fields, so the operator's first save is by construction
+        // the measurement that makes the building aligned. What must not happen is the *catalog*
+        // holding a zero nobody measured -- and that is Python's `None`, not this draft.
+        const draft = draftFromStoredCalibration({
+            rotation_offset_deg: null,
+            offset_east_mm: 0.7,
+            offset_north_mm: -0.24,
+            scale_residual: 1.01,
+        });
+
+        expect(draft.rotationOffsetDeg).toBe(0);
+        expect(draft.offsetEastMm).toBe(0.7);
+        expect(draft.scaleResidual).toBe(1.01);
+    });
+
+    test("a measured zero is still a measured zero", () => {
+        const draft = draftFromStoredCalibration({
+            rotation_offset_deg: 0,
+            offset_east_mm: 0,
+            offset_north_mm: 0,
+            scale_residual: 1,
+        });
+
+        expect(draft.rotationOffsetDeg).toBe(0);
+    });
+});

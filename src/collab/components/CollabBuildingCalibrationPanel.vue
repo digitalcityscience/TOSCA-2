@@ -12,7 +12,20 @@
 
         <ul v-else-if="active === null" class="flex flex-col gap-1">
             <li v-for="building in trackedBuildings" :key="building.buildingId" class="flex items-center justify-between gap-2 text-xs">
-                <span class="truncate">{{ building.buildingId }} <span class="text-muted">— {{ building.markerId }}</span></span>
+                <span class="truncate">
+                    {{ building.buildingId }} <span class="text-muted">— {{ building.markerId }}</span>
+                    <!--
+                        An unverified building looks exactly like a verified one on the table and in
+                        this list, which is how three buildings went a fortnight with a heading
+                        nobody had ever checked. The list is where the operator picks what to work
+                        on next, so it is where the gap has to be visible.
+                    -->
+                    <span
+                        v-if="building.alignmentVerified === false"
+                        class="text-error"
+                        :title="t('collab.tracking.unalignedHint')"
+                    >{{ t("collab.tracking.unaligned") }}</span>
+                </span>
                 <UButton
                     :label="t('collab.control.buildingCalibration.select')"
                     icon="i-lucide-crosshair"
@@ -37,6 +50,9 @@
         >
             <p class="text-xs font-medium">
                 {{ t("collab.control.buildingCalibration.selected", { buildingId: active.buildingId }) }}
+            </p>
+            <p v-if="activeAlignmentVerified === false" class="text-xs text-error">
+                {{ t("collab.tracking.unalignedHint") }}
             </p>
             <p class="text-xs text-muted">{{ t("collab.control.buildingCalibration.instructions") }}</p>
             <p class="text-xs text-muted">{{ t("collab.control.buildingCalibration.holdNotice") }}</p>
@@ -137,12 +153,24 @@ const active = computed(() => trackingRenderStore.buildingCalibration);
 const trackedBuildings = computed(() =>
     Object.entries(session.tracking)
         .filter(([, tracked]) => tracked.markerId !== undefined)
-        .map(([buildingId, tracked]) => ({ buildingId, markerId: tracked.markerId as number }))
+        .map(([buildingId, tracked]) => ({
+            buildingId,
+            markerId: tracked.markerId as number,
+            alignmentVerified: tracked.alignmentVerified,
+        }))
         .sort((a, b) => a.buildingId.localeCompare(b.buildingId))
 );
 
 const readout = computed(() =>
     draftReadout(active.value?.draft ?? { offsetEastMm: 0, offsetNorthMm: 0, rotationOffsetDeg: 0, scaleResidual: 1 })
+);
+
+/** Whether the building currently being seated has ever had its heading verified. */
+const activeAlignmentVerified = computed(() =>
+    active.value === null
+        ? undefined
+        : trackedBuildings.value.find((building) => building.buildingId === active.value?.buildingId)
+            ?.alignmentVerified
 );
 
 const coverage = computed(() => trackingRenderStore.buildingCalibrationCoverage());

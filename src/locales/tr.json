@@ -466,6 +466,10 @@
       "trackedConfidence": "Collab · Takip edilen güven",
       "aoi": "Collab · Seçilen ilgi alanı",
       "calibrationSelection": "Collab · Kalibre edilen bina"
+    },
+    "tracking": {
+      "unaligned": "(hizalanmamis)",
+      "unalignedHint": "Yon hic dogrulanmadi - bu taban 180 dereceye kadar donuk olabilir. Blogu gercek binanin uzerine cevirin, rotation degerini okuyun ve rotation offset olarak kaydedin."
     }
   }
 }

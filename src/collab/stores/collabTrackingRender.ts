@@ -108,6 +108,40 @@ const TRACKED_FOOTPRINT_SOURCE_ID = "collabTrackedFootprints";
 const TRACKED_FOOTPRINT_FILL_LAYER_ID = "collabTrackedFootprints-fill";
 const TRACKED_FOOTPRINT_OUTLINE_LAYER_ID = "collabTrackedFootprints-outline";
 
+/**
+ * The tracked footprint outline, in the two states a footprint can be in.
+ *
+ * A building whose heading nobody has verified is drawn in red, not hidden: Python still sends
+ * its geometry because a marked, suspect footprint is more useful on the table than an absent
+ * one, and the operator standing at the table needs to see *which* blocks are still guesses.
+ * `undefined` (an older server that says nothing either way) reads as aligned, so upgrading the
+ * frontend alone cannot turn a working table red.
+ */
+const TRACKED_FOOTPRINT_OUTLINE_COLOR = "#c2410c";
+const TRACKED_FOOTPRINT_UNALIGNED_OUTLINE_COLOR = "#dc2626";
+const TRACKED_FOOTPRINT_OUTLINE_WIDTH_PX = 1.5;
+const TRACKED_FOOTPRINT_UNALIGNED_OUTLINE_WIDTH_PX = 3;
+
+/**
+ * Paints the outline from each feature's own `alignment_verified`, rather than splitting the
+ * collection across two layers. One source, one draw order: an unaligned building must not be
+ * able to render above or below an aligned one and change what the operator sees.
+ */
+const TRACKED_FOOTPRINT_OUTLINE_PAINT: Record<string, unknown> = {
+    "line-color": [
+        "case",
+        ["==", ["get", "alignment_verified"], false],
+        TRACKED_FOOTPRINT_UNALIGNED_OUTLINE_COLOR,
+        TRACKED_FOOTPRINT_OUTLINE_COLOR,
+    ],
+    "line-width": [
+        "case",
+        ["==", ["get", "alignment_verified"], false],
+        TRACKED_FOOTPRINT_UNALIGNED_OUTLINE_WIDTH_PX,
+        TRACKED_FOOTPRINT_OUTLINE_WIDTH_PX,
+    ],
+};
+
 const TRACKED_BBOX_SOURCE_ID = "collabTrackedBbox";
 const TRACKED_BBOX_LAYER_ID = "collabTrackedBbox-line";
 
@@ -219,6 +253,7 @@ export function applyTrackingEvent(
         geometry: event.geometry,
         bbox: event.bbox,
         cityScopeId: event.cityScopeId,
+        alignmentVerified: event.alignmentVerified,
         markerId: event.markerId,
         tableXPx: event.tableXPx,
         tableYPx: event.tableYPx,
@@ -603,7 +638,17 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                 }
                 : deriveTrackedFootprint(known!, tracked.pose, previousRotation, offset);
             appliedRotationByObjectId.set(objectId, appliedRotationDeg);
-            footprints.push({ ...feature, id: objectId });
+            // Carried onto the feature, not read from `session.tracking` at paint time, because
+            // `footprints` is what Control broadcasts to Table (see `tableTrackedRenderState`):
+            // Table has no tracking slice of its own, so a flag left off the feature would make
+            // the projected surface -- the one the operator actually looks at -- the only place
+            // an unverified building still looked verified.
+            const alignmentVerified = tracked.alignmentVerified;
+            footprints.push({
+                ...feature,
+                id: objectId,
+                properties: { ...feature.properties, alignment_verified: alignmentVerified },
+            });
 
             const [minX, minY, maxX, maxY] = bbox(feature);
             bboxes.push({
@@ -635,7 +680,13 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             ids.push({
                 type: "Feature",
                 id: objectId,
-                properties: { label: objectId },
+                properties: {
+                    label:
+                        alignmentVerified === false
+                            ? objectId + " " + i18n.global.t("collab.tracking.unaligned")
+                            : objectId,
+                    alignment_verified: alignmentVerified,
+                },
                 geometry: { type: "Point", coordinates: centre },
             });
             confidences.push({
@@ -762,6 +813,10 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         mapStore.map?.getSource(sourceId)?.setData(data);
     }
 
+    /**
+     * `outlinePaint` is a whole paint object rather than a colour so the outline can be driven by
+     * the features' own properties -- see {@link TRACKED_FOOTPRINT_OUTLINE_PAINT}.
+     */
     async function ensureFillLayer(
         sourceId: string,
         fillLayerId: string,
@@ -769,7 +824,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         data: FeatureCollection,
         displayName: string,
         fillColor: string,
-        outlineColor: string
+        outlinePaint: Record<string, unknown>
     ): Promise<void> {
         const sourceExists = (): boolean => mapStore.map?.getSource(sourceId) !== undefined;
         if (!sourceExists()) {
@@ -781,7 +836,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                     id: outlineLayerId,
                     type: "line",
                     source: sourceId,
-                    paint: { "line-color": outlineColor, "line-width": 1.5 },
+                    paint: { ...outlinePaint },
                 });
             });
         }
@@ -1066,7 +1121,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                 tracked.footprints,
                 i18n.global.t("collab.layers.trackedFootprint"),
                 "#f97316",
-                "#c2410c"
+                TRACKED_FOOTPRINT_OUTLINE_PAINT
             )
         );
 

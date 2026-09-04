@@ -18,6 +18,8 @@ export interface TrackingEvent {
     geometry?: Polygon | MultiPolygon
     bbox?: [number, number, number, number]
     cityScopeId?: string
+    /** Whether this building's heading has ever been verified — see `alignment_verified`. */
+    alignmentVerified?: boolean
     /** The ArUco id Python resolved this object from — what a `building_calibration` addresses. */
     markerId?: number
     /** The calibration this object is currently drawn with — see {@link StoredBuildingCalibration}. */
@@ -116,6 +118,19 @@ export interface TrackingMarkerFeatureProperties {
     calibration?: StoredBuildingCalibration
     /** The session's global k times this building's scale residual, as actually drawn. */
     model_scale_factor?: number
+    /**
+     * Whether anyone has ever checked that this building's stored reference heading matches the
+     * direction the real building faces (Python's `alignment_is_verified`).
+     *
+     * `false` means the footprint below is drawn from the heading the block happened to be lying
+     * at when it was registered, so it may be turned by a constant of up to 180 degrees. Python
+     * still sends the geometry -- a marked, suspect footprint is more useful on the table than an
+     * absent one -- and the renderer marks it rather than presenting it as measured.
+     *
+     * Optional because an older server does not send it; absent is treated as "not stated", not
+     * as "verified".
+     */
+    alignment_verified?: boolean
 }
 
 /**
@@ -124,7 +139,13 @@ export interface TrackingMarkerFeatureProperties {
  * own. Offsets are table millimetres in the building's local frame (see `collabBuildingCalibration`).
  */
 export interface StoredBuildingCalibration {
-    rotation_offset_deg: number
+    /**
+     * `null` when the building's absolute heading has never been verified. Distinct from `0`,
+     * which means somebody measured it and it really was nil -- Python collapsed those two onto
+     * the same number until 2026-09-04, which is why every calibration looked right and then
+     * drifted (see `physical_building_catalog.UNMEASURED_ROTATION_OFFSET`).
+     */
+    rotation_offset_deg: number | null
     offset_east_mm: number
     offset_north_mm: number
     scale_residual: number
@@ -565,6 +586,7 @@ export class TrackingFeedNormalizer {
                 geometry,
                 bbox: feature.properties.bbox,
                 cityScopeId: feature.properties.city_scope_id,
+                alignmentVerified: feature.properties.alignment_verified,
                 markerId: feature.properties.marker_id,
                 tableXPx: feature.properties.table_x_px,
                 tableYPx: feature.properties.table_y_px,

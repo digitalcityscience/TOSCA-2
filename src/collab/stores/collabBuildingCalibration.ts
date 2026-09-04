@@ -224,6 +224,11 @@ export interface BuildingCalibrationMessage {
  *
  * `undefined` (an older server, or a feature without the property) means "nothing is stored", so
  * neutral is the honest answer rather than a guess.
+ *
+ * A `null` `rotation_offset_deg` means the building's heading has never been verified. The draft
+ * opens at neutral, which is not a claim: this panel always sends all four fields, so the
+ * operator's first save is by construction the measurement that makes the building aligned. What
+ * must not happen is the *catalog* holding a zero nobody measured, and that is Python's `None`.
  */
 export function draftFromStoredCalibration(
     stored: StoredBuildingCalibration | undefined
@@ -234,7 +239,8 @@ export function draftFromStoredCalibration(
     return {
         offsetEastMm: stored.offset_east_mm,
         offsetNorthMm: stored.offset_north_mm,
-        rotationOffsetDeg: stored.rotation_offset_deg,
+        rotationOffsetDeg:
+            stored.rotation_offset_deg ?? NEUTRAL_BUILDING_CALIBRATION_DRAFT.rotationOffsetDeg,
         scaleResidual: stored.scale_residual,
     }
 }

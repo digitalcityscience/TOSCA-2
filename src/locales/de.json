@@ -466,6 +466,10 @@
       "trackedConfidence": "Collab · Verfolgte Konfidenz",
       "aoi": "Collab · Ausgewähltes Interessengebiet",
       "calibrationSelection": "Collab · Gebäude in Kalibrierung"
+    },
+    "tracking": {
+      "unaligned": "(nicht ausgerichtet)",
+      "unalignedHint": "Ausrichtung nie geprueft - dieser Grundriss kann um bis zu 180 Grad verdreht sein. Block auf das reale Gebaeude drehen, Rotation ablesen und als Rotations-Offset speichern."
     }
   }
 }
