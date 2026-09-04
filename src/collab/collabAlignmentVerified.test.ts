@@ -503,3 +503,48 @@ class PairedTestChannel<TMessage> {
         this.listeners = [];
     }
 }
+
+describe("a registration that gets no answer", () => {
+    test("stops waiting and says why, instead of spinning forever", async () => {
+        // The failure this exists for: a server that does not know `register_building` logs
+        // "unknown message type" to its own console and replies nothing at all. From the
+        // operator's side that is indistinguishable from a button that does not work — which is
+        // exactly how it was reported. Waiting is a state that has to be able to end.
+        vi.useFakeTimers();
+        try {
+            localStorage.clear();
+            setActivePinia(createPinia());
+            const store = useCollabTrackingRenderStore();
+            store.startRendering("control");
+            for (let i = 0; i < 30; i++) {
+                await Promise.resolve();
+            }
+
+            store.startBuildingRegistration("G11");
+            store.confirmBuildingRegistration();
+
+            // Offline in this harness (no socket), so it refuses immediately and names that.
+            expect(store.buildingRegistration.phase).toBe("refused");
+            expect(store.buildingRegistration.message).toBeTruthy();
+
+            store.stop();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    test("confirming with no building picked does nothing at all", async () => {
+        localStorage.clear();
+        setActivePinia(createPinia());
+        const store = useCollabTrackingRenderStore();
+        store.startRendering("control");
+        for (let i = 0; i < 30; i++) {
+            await Promise.resolve();
+        }
+
+        store.confirmBuildingRegistration();
+
+        expect(store.buildingRegistration.phase).toBe("idle");
+        store.stop();
+    });
+});

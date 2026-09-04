@@ -163,6 +163,16 @@ const REGISTRATION_TARGET_SOURCE_ID = "collabRegistrationTarget";
 const REGISTRATION_TARGET_FILL_LAYER_ID = "collabRegistrationTarget-fill";
 const REGISTRATION_TARGET_OUTLINE_LAYER_ID = "collabRegistrationTarget-outline";
 const REGISTRATION_TARGET_COLOR = "#22d3ee";
+
+/**
+ * How long the panel waits for Python's verdict on a registration before saying it never came.
+ *
+ * Generous, because Python averages the marker's heading over a buffer before answering. But
+ * finite, because the failure it exists for is silence: a server that does not know
+ * `register_building` logs "unknown message type" to its own console and replies nothing, and an
+ * operator watching a spinner has no way to tell that from a broken button.
+ */
+const REGISTRATION_ANSWER_TIMEOUT_MS = 6000;
 const REGISTRATION_TARGET_OUTLINE_PAINT: Record<string, unknown> = {
     "line-color": REGISTRATION_TARGET_COLOR,
     "line-width": 3,
@@ -616,6 +626,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
 
     /** Which building is being registered, and how the attempt is going. */
     const buildingRegistration = ref<BuildingRegistrationState>({ ...IDLE_BUILDING_REGISTRATION });
+    let registrationTimeout: ReturnType<typeof setTimeout> | undefined;
 
     /**
      * The session's catalog-to-table shrink factor, as Python derived it from the accepted
@@ -1027,6 +1038,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
 
     /** Closes the panel. Nothing was sent, so nothing has to be undone anywhere. */
     function cancelBuildingRegistration(): void {
+        clearRegistrationTimeout();
         buildingRegistration.value = { ...IDLE_BUILDING_REGISTRATION };
         realSource?.setPresenceHold(false);
     }
@@ -1052,6 +1064,29 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             return;
         }
         buildingRegistration.value = { ...buildingRegistration.value, phase: "sending", message: null };
+        // A server that does not know `register_building` prints "unknown message type" to its own
+        // console and answers nothing at all, which left this panel spinning silently forever --
+        // indistinguishable, from the operator's side, from a button that does not work. Waiting
+        // is a state that has to be able to end.
+        clearRegistrationTimeout();
+        registrationTimeout = setTimeout(() => {
+            registrationTimeout = undefined;
+            if (buildingRegistration.value.phase !== "sending") {
+                return;
+            }
+            buildingRegistration.value = {
+                ...buildingRegistration.value,
+                phase: "refused",
+                message: i18n.global.t("collab.control.buildingRegistration.noAnswer"),
+            };
+        }, REGISTRATION_ANSWER_TIMEOUT_MS);
+    }
+
+    function clearRegistrationTimeout(): void {
+        if (registrationTimeout !== undefined) {
+            clearTimeout(registrationTimeout);
+            registrationTimeout = undefined;
+        }
     }
 
     /**
@@ -1566,6 +1601,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         // and a refusal changes nothing on the projection, so without this the panel would look
         // identical whether the catalog was written or the request was thrown away.
         source.onRegisterBuildingResult((result) => {
+            clearRegistrationTimeout();
             if (result.ok) {
                 buildingRegistration.value = {
                     ...buildingRegistration.value,

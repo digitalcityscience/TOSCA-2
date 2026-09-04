@@ -454,7 +454,8 @@
         "cancel": "Vazgec",
         "registered": "Marker {markerId} olarak kaydedildi, referans yon {rotation}°.",
         "refused": "Python kaydi reddetti.",
-        "offline": "Python'a baglanti yok — hicbir sey gonderilmedi."
+        "offline": "Python'a baglanti yok — hicbir sey gonderilmedi.",
+        "noAnswer": "Python cevap vermedi. Sunucu guncel surumu mu calistiriyor? register_building bilmeyen bir sunucu \"unknown message type\" yazip hic cevap vermez."
       }
     },
     "table": {

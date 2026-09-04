@@ -454,7 +454,8 @@
         "cancel": "Cancel",
         "registered": "Registered as marker {markerId}, reference heading {rotation}°.",
         "refused": "Python refused the registration.",
-        "offline": "Not connected to Python — nothing was sent."
+        "offline": "Not connected to Python — nothing was sent.",
+        "noAnswer": "Python did not answer. Is the server running the current build? A server without register_building logs \"unknown message type\" and replies nothing."
       }
     },
     "table": {
