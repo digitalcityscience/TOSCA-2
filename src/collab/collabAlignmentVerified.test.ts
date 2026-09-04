@@ -227,3 +227,94 @@ describe("the panel's draft survives an unmeasured rotation offset", () => {
         expect(draft.rotationOffsetDeg).toBe(0);
     });
 });
+
+describe("the registration target reaches the table", () => {
+    async function controlStore(sessionScale: number | null) {
+        localStorage.clear();
+        setActivePinia(createPinia());
+        const session = useCollabSessionStore();
+        session.base.objects = [
+            { id: "B-0", geometry: squareFootprint(9.99, 53.55), properties: { marker_id: 200 } },
+        ];
+        const store = useCollabTrackingRenderStore();
+        store.startRendering("control");
+        for (let i = 0; i < 30; i++) {
+            await Promise.resolve();
+        }
+        if (sessionScale !== null) {
+            store.sessionModelScaleFactor = sessionScale;
+        }
+        return { store, session };
+    }
+
+    test("picking a building draws the target without any tracking activity at all", async () => {
+        // The regression this exists for: Control's render watcher listed
+        // [base, tracking, calibration, debugOverlays] and nothing else, so picking a building
+        // changed no watched source and never redrew. Nothing else would do it either — a block
+        // sitting still emits no tracking events, so `session.tracking` stops mutating exactly
+        // when the operator has settled the block and gone looking for the target.
+        const { store, session } = await controlStore(0.5);
+
+        store.startBuildingRegistration("G11");
+        for (let i = 0; i < 30; i++) {
+            await Promise.resolve();
+        }
+
+        expect(session.trackedBuildings.registrationTarget.features).toHaveLength(1);
+    });
+
+    test("the target is the picked building, shrunk to the block's size", async () => {
+        const { store, session } = await controlStore(0.5);
+
+        store.startBuildingRegistration("G11");
+        for (let i = 0; i < 30; i++) {
+            await Promise.resolve();
+        }
+
+        const [target] = session.trackedBuildings.registrationTarget.features;
+        expect(target.id).toBe("G11");
+        expect((target.properties as { building_id?: string }).building_id).toBe("G11");
+    });
+
+    test("cancelling clears the target off the table", async () => {
+        const { store, session } = await controlStore(0.5);
+        store.startBuildingRegistration("G11");
+        for (let i = 0; i < 30; i++) {
+            await Promise.resolve();
+        }
+
+        store.cancelBuildingRegistration();
+        for (let i = 0; i < 30; i++) {
+            await Promise.resolve();
+        }
+
+        expect(session.trackedBuildings.registrationTarget.features).toEqual([]);
+    });
+
+    test("with no scale known there is no target rather than a wrongly-sized one", async () => {
+        // An operator will align a block to whatever is drawn, so a target at the wrong size
+        // produces a wrong reference with nothing on screen to say so.
+        const { store, session } = await controlStore(null);
+
+        store.startBuildingRegistration("G11");
+        for (let i = 0; i < 30; i++) {
+            await Promise.resolve();
+        }
+
+        expect(store.registrationScaleFactor()).toBeNull();
+        expect(session.trackedBuildings.registrationTarget.features).toEqual([]);
+    });
+
+    test("a tracked building's published factor answers the scale question too", async () => {
+        // Keeps the panel working against a server that predates the `session_state` message.
+        const { store, session } = await controlStore(null);
+        session.tracking["B-0"] = {
+            pose: { lng: 9.99, lat: 53.55, rotation: 0 },
+            confidence: 1,
+            lastSeen: 0,
+            modelScaleFactor: 0.5632,
+        };
+
+        expect(store.registrationScaleFactor()).toBeCloseTo(0.5632, 6);
+    });
+});

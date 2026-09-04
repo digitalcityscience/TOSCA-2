@@ -282,6 +282,7 @@ export function applyTrackingEvent(
         bbox: event.bbox,
         cityScopeId: event.cityScopeId,
         alignmentVerified: event.alignmentVerified,
+        modelScaleFactor: event.modelScaleFactor,
         markerId: event.markerId,
         tableXPx: event.tableXPx,
         tableYPx: event.tableYPx,
@@ -920,7 +921,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     function registrationTargetState(): FeatureCollection {
         const empty: FeatureCollection = { type: "FeatureCollection", features: [] };
         const buildingId = buildingRegistration.value.buildingId;
-        const scale = sessionModelScaleFactor.value;
+        const scale = registrationScaleFactor();
         if (buildingId === null || scale === null) {
             return empty;
         }
@@ -934,6 +935,27 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             type: "FeatureCollection",
             features: [{ ...registrationTargetFootprint(footprint, scale), id: buildingId } as Feature],
         };
+    }
+
+    /**
+     * The factor to draw the alignment target at, from whichever source Python has spoken through.
+     *
+     * `session_state` is the direct answer and the only one available before any building is
+     * registered. But Python publishes the same number on every tracked building's feature, so a
+     * table that already has a block on it can answer the question too -- which keeps the panel
+     * working against a server that predates the `session_state` message, and means one missing
+     * message cannot leave the operator staring at a table with no target and no explanation.
+     */
+    function registrationScaleFactor(): number | null {
+        if (sessionModelScaleFactor.value !== null) {
+            return sessionModelScaleFactor.value;
+        }
+        for (const tracked of Object.values(session.tracking)) {
+            if (typeof tracked.modelScaleFactor === "number" && tracked.modelScaleFactor > 0) {
+                return tracked.modelScaleFactor;
+            }
+        }
+        return null;
     }
 
     /** Where to point the map so the operator can see the target they are aiming at. */
@@ -1422,10 +1444,23 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         // revision behind Control's. Control must NOT watch `trackedBuildings` itself:
         // `updateLayers("control")` below writes it as a derived side effect of this very watcher, so
         // including it here would make every render tick re-trigger itself.
+        // `buildingRegistration`/`sessionModelScaleFactor` are watched because picking a building
+        // has to redraw the alignment target *by itself*. Nothing else will do it: a block sitting
+        // still on the table produces no tracking events (`applyTrackingEvent` fires on pose
+        // change), so `session.tracking` stops mutating exactly when the operator has settled the
+        // block and gone looking for the target. Neither ref is written by `updateLayers`, so
+        // neither can re-trigger this watcher.
         const renderWatchSources = (): readonly unknown[] =>
             windowKind === "table"
                 ? [session.base, session.tracking, session.calibration, session.trackedBuildings]
-                : [session.base, session.tracking, session.calibration, debugOverlaysEnabled.value];
+                : [
+                    session.base,
+                    session.tracking,
+                    session.calibration,
+                    debugOverlaysEnabled.value,
+                    buildingRegistration.value,
+                    sessionModelScaleFactor.value,
+                ];
 
         stopFns.push(
             watch(
@@ -2245,6 +2280,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         buildingCalibrationCoverage,
         buildingRegistration,
         sessionModelScaleFactor,
+        registrationScaleFactor,
         registrationTargetCentre,
         startBuildingRegistration,
         cancelBuildingRegistration,

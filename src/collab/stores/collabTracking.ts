@@ -20,6 +20,12 @@ export interface TrackingEvent {
     cityScopeId?: string
     /** Whether this building's heading has ever been verified — see `alignment_verified`. */
     alignmentVerified?: boolean
+    /**
+     * The factor Python actually drew this building's footprint at. Carried through because it is
+     * also the factor a registration target must be drawn at, and a table with a block already on
+     * it can therefore answer that question without a `session_state` message.
+     */
+    modelScaleFactor?: number
     /** The ArUco id Python resolved this object from — what a `building_calibration` addresses. */
     markerId?: number
     /** The calibration this object is currently drawn with — see {@link StoredBuildingCalibration}. */
@@ -587,6 +593,7 @@ export class TrackingFeedNormalizer {
                 bbox: feature.properties.bbox,
                 cityScopeId: feature.properties.city_scope_id,
                 alignmentVerified: feature.properties.alignment_verified,
+                modelScaleFactor: feature.properties.model_scale_factor,
                 markerId: feature.properties.marker_id,
                 tableXPx: feature.properties.table_x_px,
                 tableYPx: feature.properties.table_y_px,

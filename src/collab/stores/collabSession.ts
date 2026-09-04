@@ -38,6 +38,8 @@ export interface CollabTrackingObjectState {
      * 180 degrees; `undefined` means an older server that does not say either way.
      */
     alignmentVerified?: boolean;
+    /** The factor Python drew this footprint at — also what a registration target needs. */
+    modelScaleFactor?: number;
     /** The ArUco id this object was resolved from — what a `building_calibration` addresses. */
     markerId?: number;
     /**

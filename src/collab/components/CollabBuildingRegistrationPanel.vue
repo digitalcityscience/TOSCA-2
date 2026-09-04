@@ -119,7 +119,12 @@ const session = useCollabSessionStore();
 const query = ref("");
 
 const registration = computed(() => trackingRenderStore.buildingRegistration);
-const scaleFactor = computed(() => trackingRenderStore.sessionModelScaleFactor);
+/**
+ * From `session_state` if Python sent one, otherwise off any tracked building's published factor
+ * — see the store's `registrationScaleFactor`. Reading the derived value rather than the raw ref
+ * so the panel does not refuse to open against a server that predates `session_state`.
+ */
+const scaleFactor = computed(() => trackingRenderStore.registrationScaleFactor());
 
 /** Which buildings already have a catalog entry, so the list can say so rather than look identical. */
 const registeredIds = computed(
