@@ -62,6 +62,49 @@
                 <li>{{ t("collab.control.buildingRegistration.step3") }}</li>
             </ol>
 
+            <!--
+                Which block, named outright. Position normally answers this — the operator puts
+                the block on the outline — but that inference runs through the AOI centre, the
+                projector, the table, the camera and the stitched pixel, and when a link in that
+                chain is off the refusal is identical whatever the cause and there is nothing to
+                act on. This list is also the only place an uncatalogued marker is ever visible:
+                the tracking feed carries catalogued buildings only.
+            -->
+            <div class="flex flex-col gap-1">
+                <p class="text-xs text-muted">{{ t("collab.control.buildingRegistration.markerHint") }}</p>
+                <p v-if="markersOnTable === null" class="text-xs text-muted">
+                    {{ t("collab.control.buildingRegistration.markersUnknown") }}
+                </p>
+                <p v-else-if="markersOnTable.length === 0" class="text-xs text-warning">
+                    {{ t("collab.control.buildingRegistration.markersNone") }}
+                </p>
+                <div v-else class="flex flex-wrap gap-1">
+                    <UButton
+                        :label="t('collab.control.buildingRegistration.markerAuto')"
+                        size="xs"
+                        :variant="registration.chosenMarkerId === null ? 'solid' : 'soft'"
+                        @click="trackingRenderStore.chooseRegistrationMarker(null)"
+                    />
+                    <UButton
+                        v-for="marker in markersOnTable"
+                        :key="marker.markerId"
+                        :label="
+                            marker.buildingId === null
+                                ? String(marker.markerId)
+                                : `${marker.markerId} (${marker.buildingId})`
+                        "
+                        size="xs"
+                        :variant="registration.chosenMarkerId === marker.markerId ? 'solid' : 'soft'"
+                        :color="
+                            marker.buildingId !== null && marker.buildingId !== registration.buildingId
+                                ? 'warning'
+                                : 'primary'
+                        "
+                        @click="trackingRenderStore.chooseRegistrationMarker(marker.markerId)"
+                    />
+                </div>
+            </div>
+
             <p
                 v-if="registration.message"
                 class="text-xs"
@@ -125,6 +168,9 @@ const registration = computed(() => trackingRenderStore.buildingRegistration);
  * so the panel does not refuse to open against a server that predates `session_state`.
  */
 const scaleFactor = computed(() => trackingRenderStore.registrationScaleFactor());
+
+/** Every marker Python can see right now, or `null` while it has never said — see the store. */
+const markersOnTable = computed(() => trackingRenderStore.markersOnTable);
 
 /** Which buildings already have a catalog entry, so the list can say so rather than look identical. */
 const registeredIds = computed(

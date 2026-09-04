@@ -125,6 +125,15 @@ export interface BuildingRegistrationState {
     /** Python's word on the last attempt — the marker it chose, or why it refused. */
     message: string | null
     markerId: number | null
+    /**
+     * The marker the operator named outright, or `null` to let position decide.
+     *
+     * Distinct from `markerId`, which is Python's *answer*. This is the operator overruling the
+     * question: proximity infers which block this is through the AOI-centre → projector → table
+     * → camera → pixel chain, and when a link in it is off the refusal is identical whatever the
+     * cause and there is nothing to act on. Naming the id needs none of that chain to be right.
+     */
+    chosenMarkerId: number | null
 }
 
 export const IDLE_BUILDING_REGISTRATION: BuildingRegistrationState = {
@@ -132,4 +141,5 @@ export const IDLE_BUILDING_REGISTRATION: BuildingRegistrationState = {
     phase: "idle",
     message: null,
     markerId: null,
+    chosenMarkerId: null,
 }

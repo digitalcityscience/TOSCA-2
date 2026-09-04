@@ -71,6 +71,7 @@ import {
     RealTrackingSource,
     type MarkerObjectRegistry,
     type MarkerObjectRegistryEntry,
+    type MarkerOnTable,
     type PythonConnectionState,
     type RawMarkerReading,
     type TrackedMarkerReading,
@@ -629,6 +630,15 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     let registrationTimeout: ReturnType<typeof setTimeout> | undefined;
 
     /**
+     * Every marker Python can currently see, or `null` while it has never said.
+     *
+     * `null` rather than `[]` on purpose: "the cameras see nothing" and "the server has not
+     * spoken" produce the same empty panel and mean opposite things, and telling them apart is
+     * half of diagnosing a registration that will not go through.
+     */
+    const markersOnTable = ref<readonly MarkerOnTable[] | null>(null);
+
+    /**
      * The session's catalog-to-table shrink factor, as Python derived it from the accepted
      * homography (`session_state`).
      *
@@ -1036,6 +1046,17 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         realSource?.setPresenceHold(true);
     }
 
+    /**
+     * Names the block outright, or hands the question back to position with `null`.
+     *
+     * Deliberately does not survive `startBuildingRegistration`: carrying a previous block's id
+     * into the next building would file one block's heading as another building's true-north
+     * reference — silently, and permanently, which is the exact error this flow exists to end.
+     */
+    function chooseRegistrationMarker(markerId: number | null): void {
+        buildingRegistration.value = { ...buildingRegistration.value, chosenMarkerId: markerId };
+    }
+
     /** Closes the panel. Nothing was sent, so nothing has to be undone anywhere. */
     function cancelBuildingRegistration(): void {
         clearRegistrationTimeout();
@@ -1060,7 +1081,8 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             realSource === undefined ||
             !realSource.sendRegisterBuilding(
                 buildingId,
-                centre === null ? undefined : [centre[0], centre[1]]
+                centre === null ? undefined : [centre[0], centre[1]],
+                buildingRegistration.value.chosenMarkerId ?? undefined
             )
         ) {
             buildingRegistration.value = {
@@ -1603,6 +1625,13 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             sessionModelScaleFactor.value = Number.isFinite(state.modelScaleFactor)
                 ? state.modelScaleFactor
                 : null;
+        });
+        // The only channel that carries *uncatalogued* markers. The tracking feed publishes
+        // catalogued buildings, so the block a first registration is about is exactly the thing
+        // it omits -- which left the panel with no id to offer and no way to tell an unseen block
+        // from a mis-aimed target.
+        source.onMarkersOnTable((markers) => {
+            markersOnTable.value = markers;
         });
         // A registration can be *refused* -- two unclaimed blocks, a block still being moved --
         // and a refusal changes nothing on the projection, so without this the panel would look
@@ -2379,6 +2408,8 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         sessionModelScaleFactor,
         registrationScaleFactor,
         registrationTargetCentre,
+        markersOnTable,
+        chooseRegistrationMarker,
         startBuildingRegistration,
         cancelBuildingRegistration,
         confirmBuildingRegistration,

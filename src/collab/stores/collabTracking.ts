@@ -920,6 +920,45 @@ export interface RegisterBuildingResult {
     error?: string
 }
 
+/**
+ * One marker the cameras can see right now, and the building it already speaks for.
+ *
+ * `buildingId` is `null` when no building claims it — which is what an unregistered block looks
+ * like, and the only thing the tracking feed can never show: that feed carries catalogued
+ * markers only, so the one marker a registration is *about* is the one it omits.
+ */
+export interface MarkerOnTable {
+    markerId: number
+    buildingId: string | null
+}
+
+function isMarkersOnTable(data: unknown): data is { markers?: unknown } {
+    return (
+        typeof data === "object" &&
+        data !== null &&
+        (data as { type?: unknown }).type === "markers_on_table"
+    )
+}
+
+function parseMarkersOnTable(raw: unknown): MarkerOnTable[] {
+    if (!Array.isArray(raw)) {
+        return []
+    }
+    const markers: MarkerOnTable[] = []
+    for (const entry of raw) {
+        if (typeof entry !== "object" || entry === null) {
+            continue
+        }
+        const markerId = Number((entry as { marker_id?: unknown }).marker_id)
+        if (!Number.isFinite(markerId)) {
+            continue
+        }
+        const buildingId = (entry as { building_id?: unknown }).building_id
+        markers.push({ markerId, buildingId: typeof buildingId === "string" ? buildingId : null })
+    }
+    return markers
+}
+
 function isSessionState(data: unknown): data is Record<string, unknown> {
     return typeof data === "object" && data !== null && (data as { type?: unknown }).type === "session_state"
 }
@@ -980,6 +1019,7 @@ export class RealTrackingSource implements TrackingSource {
     private readonly calibrationAckListeners: Array<() => void> = []
     private readonly sessionStateListeners: Array<(state: SessionState) => void> = []
     private readonly registerBuildingListeners: Array<(result: RegisterBuildingResult) => void> = []
+    private readonly markersOnTableListeners: Array<(markers: readonly MarkerOnTable[]) => void> = []
     private socket: TrackingWebSocket | undefined
     /** True only between `onopen` and the socket closing/erroring — {@link sendMapCalibration} refuses to send onto a socket that isn't actually open yet. */
     private socketOpen = false
@@ -1105,16 +1145,30 @@ export class RealTrackingSource implements TrackingSource {
         this.registerBuildingListeners.push(cb)
     }
 
+    /** Fires every cycle with the markers Python can currently see — see {@link MarkerOnTable}. */
+    onMarkersOnTable(cb: (markers: readonly MarkerOnTable[]) => void): void {
+        this.markersOnTableListeners.push(cb)
+    }
+
     /**
      * Asks Python to register the block on the table as `buildingId`.
      *
-     * Sends no marker id, deliberately: a building being registered for the first time has no
-     * catalog entry, so the frontend has none to send. Python resolves it by elimination.
+     * `markerId` is the operator naming the block outright, from the {@link MarkerOnTable} list.
+     * It is optional because it is the *fallback*, not the default: normally the operator answers
+     * "which block?" physically by putting it on the outline and `target` carries that answer.
+     * But that inference runs through the AOI-centre → projector → table → camera → pixel chain,
+     * and when any link is off the refusal is identical and there is nothing to act on. Naming
+     * the id needs none of that chain to be right, so it is the way out of a stuck table — and
+     * the way to re-register a block whose catalogued reference is wrong.
      *
      * Only send this once the operator has turned the block *parallel* to the projected target —
      * that alignment is the entire measurement, and Python has no way to check it was done.
      */
-    sendRegisterBuilding(buildingId: string, target?: readonly [number, number]): boolean {
+    sendRegisterBuilding(
+        buildingId: string,
+        target?: readonly [number, number],
+        markerId?: number
+    ): boolean {
         if (!this.socketOpen || this.socket === undefined) {
             return false
         }
@@ -1128,6 +1182,8 @@ export class RealTrackingSource implements TrackingSource {
                 // other object on the table -- and every spurious ArUco read from a noisy frame --
                 // a reason to refuse.
                 ...(target === undefined ? {} : { target: [target[0], target[1]] }),
+                // Named outright, which overrides the positional guess on Python's side.
+                ...(markerId === undefined ? {} : { marker_id: markerId }),
             })
         )
         return true
@@ -1266,6 +1322,13 @@ export class RealTrackingSource implements TrackingSource {
                 sampleCount: typeof data.sample_count === "number" ? data.sample_count : undefined,
                 error: typeof data.error === "string" ? data.error : undefined,
             })
+            return
+        }
+        if (isMarkersOnTable(data)) {
+            const markers = parseMarkersOnTable(data.markers)
+            for (const listener of this.markersOnTableListeners) {
+                listener(markers)
+            }
             return
         }
         if (isCalibrationAck(data)) {

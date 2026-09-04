@@ -548,3 +548,47 @@ describe("a registration that gets no answer", () => {
         store.stop();
     });
 });
+
+describe("naming the block instead of aiming at it", () => {
+    // The 2026-09-04 rig failure: the block sat dead centre on the turquoise and Python still
+    // said "the nearest (marker 182) is 37.4 cm away". Proximity runs through the AOI-centre ->
+    // projector -> table -> camera -> pixel chain, and when any link is off the refusal is
+    // identical and unactionable. Naming the id is the way out of a stuck table.
+    test("markers_on_table starts unheard, so an empty list can mean an empty table", async () => {
+        localStorage.clear();
+        setActivePinia(createPinia());
+        const store = useCollabTrackingRenderStore();
+        store.startRendering("control");
+        for (let i = 0; i < 30; i++) {
+            await Promise.resolve();
+        }
+
+        expect(store.markersOnTable).toBeNull();
+
+        store.stop();
+    });
+
+    test("the chosen marker survives being picked, and clears with the panel", async () => {
+        localStorage.clear();
+        setActivePinia(createPinia());
+        const store = useCollabTrackingRenderStore();
+        store.startRendering("control");
+        for (let i = 0; i < 30; i++) {
+            await Promise.resolve();
+        }
+
+        store.startBuildingRegistration("G11");
+        store.chooseRegistrationMarker(18);
+        expect(store.buildingRegistration.chosenMarkerId).toBe(18);
+
+        // Re-opening on another building must not carry the previous block's id across: that
+        // would file one block's heading as a different building's true-north reference.
+        store.startBuildingRegistration("G07");
+        expect(store.buildingRegistration.chosenMarkerId).toBeNull();
+
+        store.cancelBuildingRegistration();
+        expect(store.buildingRegistration.chosenMarkerId).toBeNull();
+
+        store.stop();
+    });
+});

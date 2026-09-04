@@ -1205,3 +1205,70 @@ describe("register_building over the wire", () => {
         source.stop();
     });
 });
+
+describe("markers_on_table", () => {
+    // Registration's one blind spot: the building feed carries only *catalogued* markers, so the
+    // marker registration is actually about — the unclaimed block in the operator's hand — is
+    // precisely the one the frontend never hears about. Without this message the panel cannot
+    // offer an id to name, and cannot tell an unseen block from a mis-aimed target.
+    test("what the cameras can see now is relayed, with whichever building already owns it", () => {
+        const socket = new FakeSocket();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, createSocket: () => socket });
+        const seen: unknown[] = [];
+        source.onMarkersOnTable((markers) => seen.push(markers));
+        source.start();
+        socket.emitOpen();
+
+        socket.emitMessage({
+            type: "markers_on_table",
+            markers: [
+                { marker_id: 18, building_id: "G11" },
+                { marker_id: 91, building_id: null },
+            ],
+        });
+
+        expect(seen).toEqual([
+            [
+                { markerId: 18, buildingId: "G11" },
+                { markerId: 91, buildingId: null },
+            ],
+        ]);
+        source.stop();
+    });
+
+    test("an empty table is relayed as an empty list, not as silence", () => {
+        // "No markers" and "no message yet" have to look different, or a panel showing nothing
+        // cannot say whether the cameras see an empty table or the server never spoke.
+        const socket = new FakeSocket();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, createSocket: () => socket });
+        const seen: unknown[] = [];
+        source.onMarkersOnTable((markers) => seen.push(markers));
+        source.start();
+        socket.emitOpen();
+
+        socket.emitMessage({ type: "markers_on_table", markers: [] });
+
+        expect(seen).toEqual([[]]);
+        source.stop();
+    });
+
+    test("a named marker id is sent instead of leaving Python to infer it from position", () => {
+        // The deterministic path. Proximity depends on the AOI-centre -> projector -> table ->
+        // camera -> pixel chain agreeing, and when it does not the refusal is identical and
+        // unactionable. Naming the id needs none of that chain to be right.
+        const socket = new FakeSocket();
+        const source = new RealTrackingSource({ url: "ws://table-host:8053", registry, createSocket: () => socket });
+        source.start();
+        socket.emitOpen();
+
+        source.sendRegisterBuilding("G11", [10.0107, 53.5737], 18);
+
+        expect(JSON.parse(socket.sent[0])).toEqual({
+            type: "register_building",
+            building_id: "G11",
+            target: [10.0107, 53.5737],
+            marker_id: 18,
+        });
+        source.stop();
+    });
+});
