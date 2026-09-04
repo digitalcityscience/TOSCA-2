@@ -23,6 +23,7 @@ import { toFeature, useCollabScenarioStore, type CollabBuildingObject } from "./
 import { useCollabSyncStore } from "./collabSync";
 import {
     METERS_PER_DEGREE_LATITUDE,
+    aoiBoundingBox,
     aoiChecksum,
     calibrationMarkerSizePx,
     deriveGroundScale,
@@ -51,6 +52,7 @@ import {
 import {
     IDLE_BUILDING_REGISTRATION,
     footprintCentre,
+    placedAtCentre,
     registrationTargetFootprint,
     type BuildingRegistrationState,
 } from "./collabBuildingRegistration";
@@ -928,13 +930,51 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         const footprint = collabBuildingDataset().footprints.features.find(
             (feature) => feature.properties.building_id === buildingId
         );
-        if (footprint === undefined) {
+        const centre = targetCentre();
+        if (footprint === undefined || centre === null) {
             return empty;
         }
+        // Placed at the middle of the calibrated AOI, NOT at the building's real coordinates.
+        // Only the heading is being measured, so the target's position carries no information --
+        // but drawing it at the true location does carry a bug: the rig's AOI sits kilometres
+        // from these footprints, so the target rendered perfectly and entirely off the table.
+        const target = placedAtCentre(registrationTargetFootprint(footprint, scale), centre);
         return {
             type: "FeatureCollection",
-            features: [{ ...registrationTargetFootprint(footprint, scale), id: buildingId } as Feature],
+            features: [{ ...target, id: buildingId } as Feature],
         };
+    }
+
+    /**
+     * Where to draw the alignment target so the operator can actually see it.
+     *
+     * The middle of the calibrated AOI, or failing that wherever a block is currently being
+     * tracked. The fallback is not decoration: a target that renders correctly somewhere the
+     * operator is not looking is indistinguishable from one that never rendered at all, and this
+     * has already cost a rig session once. If a block is on the table, that block's position is
+     * guaranteed to be on the table.
+     */
+    function targetCentre(): Position | null {
+        const centre = aoiCentre();
+        if (centre !== null) {
+            return centre;
+        }
+        for (const tracked of Object.values(session.tracking)) {
+            if (Number.isFinite(tracked.pose?.lng) && Number.isFinite(tracked.pose?.lat)) {
+                return [tracked.pose.lng, tracked.pose.lat];
+            }
+        }
+        return null;
+    }
+
+    /** The middle of the calibrated AOI — where a target is guaranteed to be on the table. */
+    function aoiCentre(): Position | null {
+        const aoi = session.calibration.aoi;
+        if (aoi === null) {
+            return null;
+        }
+        const [minX, minY, maxX, maxY] = aoiBoundingBox(aoi);
+        return [(minX + maxX) / 2, (minY + maxY) / 2];
     }
 
     /**
@@ -1477,7 +1517,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         if (windowKind === "control") {
             stopFns.push(
                 watch(
-                    () => [buildingRegistration.value, registrationScaleFactor()],
+                    () => [buildingRegistration.value, registrationScaleFactor(), targetCentre()],
                     () => {
                         publishRegistrationTarget();
                     },

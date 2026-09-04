@@ -4,6 +4,7 @@ import type { Feature, MultiPolygon, Polygon } from "geojson"
 
 import {
     footprintCentre,
+    placedAtCentre,
     registrationTargetFootprint,
 } from "./collabBuildingRegistration"
 
@@ -153,4 +154,50 @@ describe("registrationTargetFootprint", () => {
         expect(() => registrationTargetFootprint(trapezoid(), 0)).toThrow(/positive/)
         expect(() => registrationTargetFootprint(trapezoid(), -0.5)).toThrow(/positive/)
     })
+})
+
+describe("placedAtCentre", () => {
+    test("moves the footprint onto the given centre", () => {
+        const moved = placedAtCentre(trapezoid(), [10.5, 53.9]);
+
+        expect(footprintCentre(moved)[0]).toBeCloseTo(10.5, 9);
+        expect(footprintCentre(moved)[1]).toBeCloseTo(53.9, 9);
+    });
+
+    test("keeps every edge's heading, which is the only thing being aligned to", () => {
+        const original = trapezoid();
+
+        const moved = placedAtCentre(original, [10.5, 53.9]);
+
+        expect(edgeBearings(moved)).toEqual(
+            edgeBearings(original).map((bearing) => expect.closeTo(bearing, 9))
+        );
+    });
+
+    test("keeps the shape and size", () => {
+        const original = trapezoid();
+
+        const moved = placedAtCentre(original, [9.0, 52.0]);
+
+        const originalLengths = edgeLengths(original);
+        edgeLengths(moved).forEach((length, index) => {
+            expect(length).toBeCloseTo(originalLengths[index], 12);
+        });
+    });
+
+    test("a target for a building kilometres away still lands inside the AOI", () => {
+        // The bug this exists for. G11's real footprint sits ~4.4 km south of the rig's calibrated
+        // AOI, so a target drawn at the building's true coordinates rendered perfectly and
+        // entirely off the table — the pipeline was working and the table looked broken.
+        const realG11: Feature<Polygon> = square(10.010128, 53.533889, 0.0002);
+        const aoiCentre: [number, number] = [10.0107, 53.5737];
+
+        const target = placedAtCentre(registrationTargetFootprint(realG11, 0.5632), aoiCentre);
+
+        const [minX, minY, maxX, maxY] = bbox(target);
+        expect(minY).toBeGreaterThan(53.573);
+        expect(maxY).toBeLessThan(53.575);
+        expect(minX).toBeGreaterThan(10.010);
+        expect(maxX).toBeLessThan(10.012);
+    });
 })

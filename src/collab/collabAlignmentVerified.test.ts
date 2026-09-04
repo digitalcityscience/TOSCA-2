@@ -242,8 +242,21 @@ describe("the registration target reaches the table", () => {
         for (let i = 0; i < 30; i++) {
             await Promise.resolve();
         }
+        // Set after `startRendering`, which resets the calibration slice -- and that is the real
+        // order too: a calibration is accepted while the window is already rendering.
+        session.calibration.aoi = {
+            corners: [
+                [10.0095, 53.573],
+                [10.012, 53.573],
+                [10.012, 53.5744],
+                [10.0095, 53.5744],
+            ],
+        };
         if (sessionScale !== null) {
             store.sessionModelScaleFactor = sessionScale;
+        }
+        for (let i = 0; i < 30; i++) {
+            await Promise.resolve();
         }
         return { store, session };
     }
@@ -275,6 +288,62 @@ describe("the registration target reaches the table", () => {
         const [target] = session.trackedBuildings.registrationTarget.features;
         expect(target.id).toBe("G11");
         expect((target.properties as { building_id?: string }).building_id).toBe("G11");
+    });
+
+    test("the target lands inside the AOI, not at the building's real coordinates", async () => {
+        // G11 really sits at lat 53.5339; the rig's AOI is at 53.5737, 4.4 km north. Drawn at its
+        // true location the target rendered perfectly and entirely off the table, which is exactly
+        // what "the turquoise outline never appears" looked like at the rig.
+        const { store, session } = await controlStore(0.5);
+
+        store.startBuildingRegistration("G11");
+        for (let i = 0; i < 30; i++) {
+            await Promise.resolve();
+        }
+
+        const [target] = session.trackedBuildings.registrationTarget.features;
+        const ring = (target.geometry as { coordinates: number[][][] }).coordinates[0];
+        for (const [lng, lat] of ring) {
+            expect(lat).toBeGreaterThan(53.573);
+            expect(lat).toBeLessThan(53.575);
+            expect(lng).toBeGreaterThan(10.009);
+            expect(lng).toBeLessThan(10.013);
+        }
+    });
+
+    test("with no AOI the target falls back to where a block is actually being tracked", async () => {
+        // A target that renders correctly somewhere the operator is not looking is
+        // indistinguishable from one that never rendered. If a block is on the table, that
+        // block's position is guaranteed to be on the table.
+        const { store, session } = await controlStore(0.5);
+        session.calibration.aoi = null;
+        session.tracking["B-0"] = {
+            pose: { lng: 10.0107, lat: 53.5737, rotation: 0 },
+            confidence: 1,
+            lastSeen: 0,
+        };
+        store.startBuildingRegistration("G11");
+        for (let i = 0; i < 30; i++) {
+            await Promise.resolve();
+        }
+
+        const [target] = session.trackedBuildings.registrationTarget.features;
+        const ring = (target.geometry as { coordinates: number[][][] }).coordinates[0];
+        for (const [, lat] of ring) {
+            expect(lat).toBeGreaterThan(53.573);
+            expect(lat).toBeLessThan(53.575);
+        }
+    });
+
+    test("with neither an AOI nor a tracked block there is simply no target", async () => {
+        const { store, session } = await controlStore(0.5);
+        session.calibration.aoi = null;
+        store.startBuildingRegistration("G11");
+        for (let i = 0; i < 30; i++) {
+            await Promise.resolve();
+        }
+
+        expect(session.trackedBuildings.registrationTarget.features).toEqual([]);
     });
 
     test("cancelling clears the target off the table", async () => {
