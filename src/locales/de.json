@@ -482,6 +482,7 @@
       "aoiViewfinder": "Auswahlrahmen (Interessengebiet)",
       "trackedFootprint": "Verfolgte Gebäude (Python)",
       "trackedCentre": "Verfolgte Gebäudemittelpunkte",
+      "calibrationSelection": "Gebäude in Kalibrierung",
       "trackedBbox": "Verfolgte Bounding-Box",
       "trackedOrientation": "Verfolgte Ausrichtung",
       "aoi": "Ausgewähltes Interessengebiet",

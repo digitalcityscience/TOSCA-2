@@ -482,6 +482,7 @@
       "aoiViewfinder": "AOI selection frame",
       "trackedFootprint": "Tracked buildings (Python)",
       "trackedCentre": "Tracked building centres",
+      "calibrationSelection": "Building being calibrated",
       "trackedBbox": "Tracked bbox",
       "trackedOrientation": "Tracked orientation",
       "aoi": "Selected AOI",

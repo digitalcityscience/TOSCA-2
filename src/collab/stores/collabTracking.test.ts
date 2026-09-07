@@ -95,24 +95,37 @@ describe("createMarkerObjectRegistry", () => {
 });
 
 describe("reserved marker id registry (ticket 08)", () => {
-    test("MAP_CALIBRATION_MARKERS are an eleven-point grid, none of them on the seam line", () => {
+    test("MAP_CALIBRATION_MARKERS are a ten-point grid, none of them on the seam line", () => {
         expect([...MAP_CALIBRATION_MARKER_IDS].sort((a, b) => a - b)).toEqual([
-            200, 201, 202, 203, 206, 207, 209, 210, 211, 212, 213,
+            200, 201, 202, 203, 206, 207, 209, 210, 211, 212,
         ]);
         const bands = MAP_CALIBRATION_MARKERS.map((marker) => `${marker.column}/${marker.row}`);
-        expect(new Set(bands).size).toBe(11);
+        expect(new Set(bands).size).toBe(10);
         // The seam runs down the exact horizontal centre (`column: "mid"`) on a two-desk table —
         // no marker may sit there, only `midLeft`/`midRight` either side of it.
         expect(MAP_CALIBRATION_MARKERS.some((marker) => marker.column === "mid")).toBe(false);
-        // `row: "mid"` is the table's vertical centre, where the live rig's ceiling beamer is
-        // brightest — `214` (midRight/mid) was retired 2026-09-07 after never registering a read
-        // there. `213` (midLeft/mid) reads fine, so exactly one midLeft/midRight marker may still
-        // sit on that row — never two.
-        expect(
-            MAP_CALIBRATION_MARKERS.filter(
-                (marker) => (marker.column === "midLeft" || marker.column === "midRight") && marker.row === "mid"
-            )
-        ).toEqual([{ id: 213, column: "midLeft", row: "mid", required: false, place: "centre_left_of_seam" }]);
+    });
+
+    /**
+     * The regression test for "yamuk binalar" (2026-09-07, second rig session).
+     *
+     * `buildMapCalibrationFromMarkerReadings` feeds Python *every* decoded marker, not just the
+     * four corners, and Python solves the homography by least squares over all of them. An
+     * unbalanced point cloud therefore does not let per-marker reading error cancel — it biases
+     * the solve, and a biased homography fails as a shear: every building on the table drawn
+     * crooked, uniformly. Retiring `214` (beamer hotspot) while keeping its partner `213` left the
+     * centre row with two points on the left half and one on the right, which is exactly that.
+     *
+     * Asserted on the bands rather than the ids so it holds for whatever grid comes next: a future
+     * `midLeft` marker added without its `midRight` partner fails here rather than on the rig.
+     */
+    test("the grid is left-right symmetric about the seam, so no reading error can shear the homography", () => {
+        const mirrored: Record<string, string> = { min: "max", max: "min", midLeft: "midRight", midRight: "midLeft" };
+        const bands = new Set(MAP_CALIBRATION_MARKERS.map((marker) => `${marker.column}/${marker.row}`));
+        for (const marker of MAP_CALIBRATION_MARKERS) {
+            const partner = `${mirrored[marker.column]}/${marker.row}`;
+            expect(bands.has(partner), `${marker.id} (${marker.column}/${marker.row}) has no mirror partner at ${partner}`).toBe(true);
+        }
     });
 
     test("200-203 keep exactly their original corners, because that mapping is a physical contract", () => {

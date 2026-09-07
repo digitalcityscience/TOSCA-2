@@ -223,7 +223,7 @@ export interface MapCalibrationMarkerConfig {
  *
  * Ids 200-203 keep their existing corners exactly, because that mapping is a physical contract
  * shared with Python (`calibration_contract.py`) and the Vanilla reference app. 206/207 and
- * 209-213 are new and additive.
+ * 209-212 are new and additive.
  *
  * The grid is *not* a plain 3x3: the original centre-line markers (`204` top-mid, `205`
  * bottom-mid, `208` dead centre) sat at exactly `column: "mid"`, the table's geometric horizontal
@@ -233,14 +233,23 @@ export interface MapCalibrationMarkerConfig {
  * replaced by a `midLeft`/`midRight` pair (209/210, 211/212, 213/214) straddling the seam from a
  * safe distance ({@link seamClearanceRatio}) instead of sitting on it.
  *
- * `214` (`208`'s midRight half) was retired the same day, before ever shipping: on the live rig
- * that spot additionally sits under the ceiling beamer's own projection, brightest exactly on the
- * vertical centre line, and a marker there is overexposed and undecodable regardless of seam
- * clearance (2026-09-07 rig session). `213`, the midLeft half of the same pair, reads fine — the
- * beamer's hotspot is not centred on the seam itself, only on one side of it — so it stays. The
- * centre row is asymmetric as a result: one marker (`213`), not a pair.
+ * `208`'s pair (`213`/`214`) is gone again, and this list is deliberately **left-right symmetric
+ * about the seam** as a result. `214` was retired first: that spot sits under the ceiling beamer's
+ * own projection, brightest exactly on the vertical centre line, so a marker there is overexposed
+ * and undecodable regardless of seam clearance (2026-09-07 rig session). `213` read fine and was
+ * kept — which left the centre row with two points on the left half (`206`, `213`) and one on the
+ * right (`207`).
  *
- * Only the four corners are `required`. Demanding all eleven would make calibration *more*
+ * That asymmetry is what `213` was then dropped for (2026-09-07, second rig session: "yamuk
+ * binalar"). Python fits the homography over *every* correspondence this list produces, not just
+ * the four corners, so an unbalanced point cloud does not let per-marker reading error cancel —
+ * it biases the solve, and a biased homography fails as a **shear**: every building on the table
+ * drawn crooked, uniformly. Before the seam work the decodable set happened to be symmetric (the
+ * four corners plus `206`/`207`, since `204`/`205`/`208` sat on the seam and never decoded), which
+ * is why this only appeared once `209-213` started reading. Keep any future addition here paired:
+ * a `midLeft` marker without its `midRight` partner reintroduces exactly this bug.
+ *
+ * Only the four corners are `required`. Demanding all ten would make calibration *more*
  * fragile than before — one marker landing in a camera's weak corner would block the whole
  * session — while the corners alone still give exactly the fit that worked before. Every extra
  * marker that is decoded is used; every one that is not is simply absent from the solve. See
@@ -262,7 +271,6 @@ export const MAP_CALIBRATION_MARKERS: readonly MapCalibrationMarkerConfig[] = [
     { id: 210, column: "midRight", row: "min", required: false, place: "top_right_of_seam" },
     { id: 211, column: "midLeft", row: "max", required: false, place: "bottom_left_of_seam" },
     { id: 212, column: "midRight", row: "max", required: false, place: "bottom_right_of_seam" },
-    { id: 213, column: "midLeft", row: "mid", required: false, place: "centre_left_of_seam" },
 ]
 
 /** The four markers a calibration cannot be built without — see {@link MAP_CALIBRATION_MARKERS}. */
@@ -446,11 +454,13 @@ export const MAP_CALIBRATION_MARKER_READY_TIMEOUT_MS = 20_000
  * bar the operator wants a denser fit to clear quickly, rather than settling for the bare four
  * corners on every calibration. Read from `VITE_COLLAB_CALIBRATION_MARKER_READY_COUNT` (B6: a
  * physically-tuned number is never hardcoded in the routine itself); unset/unparsable falls back
- * to `10` of the eleven total ids, i.e. tolerating exactly one straggler.
+ * to `9` of the ten total ids, i.e. tolerating exactly one straggler. Moved down from `10` when
+ * `213` was dropped: left at `10` it would have demanded *every* marker, so a single straggler
+ * would have made the operator wait out the full timeout on every calibration.
  */
 export function mapCalibrationMarkerReadyCount(): number {
     const raw = Number(import.meta.env.VITE_COLLAB_CALIBRATION_MARKER_READY_COUNT ?? "")
-    return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 10
+    return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 9
 }
 
 /**

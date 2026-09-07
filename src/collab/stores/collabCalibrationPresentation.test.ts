@@ -141,7 +141,7 @@ describe("calibration presentation mode on Table (ticket 11)", () => {
 
         expect(session.calibration.phase).toBe("presenting");
         expect([...createdMarkers.keys()].sort()).toEqual([
-            "200", "201", "202", "203", "206", "207", "209", "210", "211", "212", "213",
+            "200", "201", "202", "203", "206", "207", "209", "210", "211", "212",
         ]);
         // 5% of the AOI's 0.02° width in from each vertical edge, and the same distance (10% of
         // its 0.02° height, the table being 2:1) in from each horizontal one.

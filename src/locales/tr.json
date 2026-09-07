@@ -482,6 +482,7 @@
       "aoiViewfinder": "İlgi alanı seçim çerçevesi",
       "trackedFootprint": "Takip edilen binalar (Python)",
       "trackedCentre": "Takip edilen bina orta noktaları",
+      "calibrationSelection": "Kalibre edilen bina",
       "trackedBbox": "Takip edilen sınır kutusu",
       "trackedOrientation": "Takip edilen yönelim",
       "aoi": "Seçilen ilgi alanı",

@@ -10,9 +10,9 @@ Copied here (served as static assets, not bundled) so the Collab runtime owns it
 assets and never reads them from the Vanilla application — same rationale as
 `src/collab/data/README.md`'s building-dataset copy.
 
-## The extra grid markers (206, 207, 209-213)
+## The extra grid markers (206, 207, 209-212)
 
-`4x4_1000-206.svg`, `4x4_1000-207.svg`, and `4x4_1000-209.svg`..`4x4_1000-213.svg` have no Vanilla
+`4x4_1000-206.svg`, `4x4_1000-207.svg`, and `4x4_1000-209.svg`..`4x4_1000-212.svg` have no Vanilla
 counterpart — generated with `generate_markers.py` in this directory, i.e.
 `cv2.aruco.generateImageMarker(dictionary, id, 6)` against OpenCV's `DICT_4X4_250`, in exactly the
 format the four copied files use: a 6x6 `viewBox`, one black backing rect, one white rect per light
@@ -26,7 +26,7 @@ included, and every part of the table it did not sample is extrapolation off a f
 measure its own error. More points make the solve least-squares instead. Only 200-203 are required,
 so a marker landing on a stitching seam costs a correspondence rather than the session.
 
-### Why 209-213 exist and 204/205/208/214 no longer do (2026-09-07)
+### Why 209-212 exist and 204/205/208/213/214 no longer do (2026-09-07)
 
 The original nine-marker grid put `204` (top-mid), `205` (bottom-mid), and `208` (dead centre) at
 exactly `u = 0.5` — the geometric horizontal centre of the AOI/table. On a physical table built
@@ -43,14 +43,28 @@ hardware.
 | 205 (bottom, mid)  | 211 (bottom, midLeft) / 212 (bottom, midRight) | bottom edge, same idea |
 
 `208` (centre, mid) got the same treatment first — `213`/`214`, a midLeft/midRight pair on the
-vertical middle row. `214` (the midRight half) was retired the same day, before it ever shipped:
-`row: "mid"` is not just the seam's line horizontally, it is also the table's vertical centre, and
-on the live rig that spot specifically is where the ceiling beamer's own projection is brightest. A
-marker placed there is overexposed and cannot be decoded no matter how far it is offset from the
-seam — clearing the seam does nothing about the beamer sitting on top of it. Table 104's
-freshly-projected 213/214 pair confirmed this: `214` never registered a single read. `213`, offset
-to the *other* side of the seam, reads fine — the beamer's hotspot is not centred on the seam
-itself — so it stays; the centre row is one marker, not a pair.
+vertical middle row — and then lost **both** halves the same day.
+
+`214` (the midRight half) went first, before it ever shipped: `row: "mid"` is not just the seam's
+line horizontally, it is also the table's vertical centre, and on the live rig that spot
+specifically is where the ceiling beamer's own projection is brightest. A marker placed there is
+overexposed and cannot be decoded no matter how far it is offset from the seam — clearing the seam
+does nothing about the beamer sitting on top of it. Table 104's freshly-projected 213/214 pair
+confirmed this: `214` never registered a single read. `213`, offset to the *other* side of the
+seam, reads fine, so it was kept.
+
+`213` went a session later, for a different reason: **balance**. Keeping it alone left the centre
+row with two points on the left half (`206`, `213`) and one on the right (`207`). Python solves the
+homography by least squares over *every* correspondence TOSCA sends, not just the four corners, so
+an unbalanced point cloud does not let per-marker detection error cancel — it biases the solve, and
+a biased homography fails as a **shear**: every building on the table drawn crooked, uniformly.
+That is what the rig showed ("yamuk binalar"), and it only appeared once `209`-`213` started
+reading — before the seam work the decodable set was accidentally symmetric, because `204`/`205`/
+`208` sat on the seam and never decoded at all.
+
+So the grid is now deliberately **left-right symmetric about the seam**, and must stay that way.
+`collabTracking.test.ts` asserts it: every marker must have a mirror partner in the opposite
+column band. Adding a `midLeft` marker without its `midRight` partner reintroduces this bug.
 
 `206` (left, mid) and `207` (right, mid) are untouched — their `column` is `min`/`max`, not `mid`,
 so they were never on the seam or under the beamer's hotspot.

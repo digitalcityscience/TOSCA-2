@@ -548,6 +548,13 @@ function zoomToLayer(): void {
         // overlays) — derive the bounds from the layer's own GeoJSON instead.
         if (props.layer.layerData === undefined) return;
         const [minX, minY, maxX, maxY] = bbox(props.layer.layerData);
+        // A featureless collection is a normal state for these layers, not a fault: Collab's
+        // "Registration target" and "Building being calibrated" both hold an empty collection
+        // whenever nothing is selected, deliberately, so the layer stays on the map instead of
+        // being torn down and rebuilt. turf's `bbox` answers that with
+        // [Infinity, Infinity, -Infinity, -Infinity], which `fitBounds` then rejects with
+        // "Invalid LngLat latitude value". Nothing to frame, so leave the view alone.
+        if (![minX, minY, maxX, maxY].every(Number.isFinite)) return;
         mapStore.map.fitBounds([[minX, minY], [maxX, maxY]], { padding: 20 });
         return;
     }

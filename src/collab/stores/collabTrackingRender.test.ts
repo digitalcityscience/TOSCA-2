@@ -528,7 +528,6 @@ describe("collabTrackingRender store", () => {
                 { id: 210, x: 900, y: 20 },
                 { id: 211, x: 700, y: 780 },
                 { id: 212, x: 900, y: 780 },
-                { id: 213, x: 700, y: 400 },
             ]) {
                 if (sent >= readyCount) {
                     break;

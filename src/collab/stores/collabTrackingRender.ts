@@ -181,8 +181,121 @@ const REGISTRATION_TARGET_OUTLINE_PAINT: Record<string, unknown> = {
     "line-width": 3,
 };
 
+/**
+ * How far a tracked building's projected centre must move, in screen pixels on the Table's own
+ * surface, before the Table treats it as the operator having moved the block rather than the
+ * cameras disagreeing with themselves.
+ *
+ * Screen pixels, deliberately, and measured with `map.project` rather than converted from metres.
+ * A block sitting motionless still reports a slightly different coordinate on every frame, so some
+ * threshold is unavoidable — but two earlier attempts at this expressed it in real-world metres
+ * and had to multiply through `deriveGroundScale` (~500:1 on the rig) to get back to what the
+ * operator sees. That multiplication is what went wrong, twice: a threshold that looked tiny in
+ * metres was either invisible or enormous once scaled. `map.project` already knows the AOI, the
+ * zoom and the surface size, so asking it removes the conversion entirely.
+ *
+ * 4px is below what anyone can see move on the projection and far above the sub-pixel noise the
+ * rig produces at rest. Override per-rig with `VITE_COLLAB_TABLE_FOOTPRINT_MOVEMENT_THRESHOLD_PX`
+ * if the cameras there are noisier — raise it if the layer never hides, lower it if real nudges
+ * fail to bring it back.
+ */
+const TABLE_FOOTPRINT_MOVEMENT_THRESHOLD_PX_DEFAULT = 4;
+
+/** Fallback for `VITE_COLLAB_TABLE_FOOTPRINT_VISIBLE_SECONDS` when it is unset or unparseable. */
+const TABLE_FOOTPRINT_VISIBLE_SECONDS_DEFAULT = 5;
+
+/** Whether Table keeps the tracked-footprint layer permanently on instead of flashing it per placement change. */
+function tableFootprintAlwaysVisible(): boolean {
+    return (import.meta.env.VITE_COLLAB_TABLE_FOOTPRINT_ALWAYS_VISIBLE ?? "").trim().toLowerCase() === "true";
+}
+
+/** How long the layer stays up after a placement change, in ms. Only consulted while not always-visible. */
+function tableFootprintVisibleDurationMs(): number {
+    const raw = Number(import.meta.env.VITE_COLLAB_TABLE_FOOTPRINT_VISIBLE_SECONDS ?? "");
+    const seconds = Number.isFinite(raw) && raw > 0 ? raw : TABLE_FOOTPRINT_VISIBLE_SECONDS_DEFAULT;
+    return seconds * 1000;
+}
+
+/** See {@link TABLE_FOOTPRINT_MOVEMENT_THRESHOLD_PX_DEFAULT}. */
+function tableFootprintMovementThresholdPx(): number {
+    const raw = Number(import.meta.env.VITE_COLLAB_TABLE_FOOTPRINT_MOVEMENT_THRESHOLD_PX ?? "");
+    return Number.isFinite(raw) && raw > 0 ? raw : TABLE_FOOTPRINT_MOVEMENT_THRESHOLD_PX_DEFAULT;
+}
+
+/** Where each tracked building's footprint sits on the Table's projected surface, in screen pixels. */
+export type FootprintScreenPlacements = ReadonlyMap<string, { x: number; y: number }>;
+
+/**
+ * Projects each footprint's bbox centre onto the Table's surface.
+ *
+ * The bbox centre rather than a true centroid: it is what the operator perceives as "where the
+ * block is", it costs one `project` call per building, and it cannot swing on a footprint whose
+ * outline Python re-orders between frames.
+ */
+export function projectedFootprintCentres(
+    collection: FeatureCollection,
+    project: (position: Position) => { x: number; y: number }
+): FootprintScreenPlacements {
+    const placements = new Map<string, { x: number; y: number }>();
+    for (const feature of collection.features) {
+        const id = String(feature.id ?? feature.properties?.building_id ?? "");
+        if (id === "") {
+            continue;
+        }
+        const [minX, minY, maxX, maxY] = bbox(feature);
+        placements.set(id, project([(minX + maxX) / 2, (minY + maxY) / 2]));
+    }
+    return placements;
+}
+
+/**
+ * Whether what the Table is now showing differs from `previous` by enough to be worth flashing:
+ * a building appeared or disappeared, or one of them moved at least `thresholdPx` on screen.
+ *
+ * `previous` is deliberately the placement at the *last flash*, not at the last frame. Comparing
+ * against the last frame would make slow, genuine movement invisible — every individual frame of a
+ * block being slid across the table is under the threshold, so the layer would sit hidden while
+ * the operator watched it move. Ratcheting against the last accepted placement lets that drift
+ * accumulate until it crosses, while true noise oscillates around a point and never does.
+ */
+export function significantPlacementChange(
+    previous: FootprintScreenPlacements,
+    current: FootprintScreenPlacements,
+    thresholdPx: number
+): boolean {
+    if (previous.size !== current.size) {
+        return true;
+    }
+    for (const [id, place] of current) {
+        const before = previous.get(id);
+        if (before === undefined) {
+            return true;
+        }
+        if (Math.hypot(place.x - before.x, place.y - before.y) >= thresholdPx) {
+            return true;
+        }
+    }
+    return false;
+}
+
 const TRACKED_BBOX_SOURCE_ID = "collabTrackedBbox";
 const TRACKED_BBOX_LAYER_ID = "collabTrackedBbox-line";
+
+/**
+ * The bounding box of the building currently being calibrated, drawn in its own colour on its own
+ * layer (workflow step 4: "seçili binanın bbox'ı farklı renkte"). A separate source/layer rather
+ * than a paint expression on the debug bbox layer, because the two are independent: the debug
+ * overlay is a switch the operator may have off, and the selection highlight must show regardless.
+ *
+ * Dropped by mistake on 2026-09-07 in "clean up Control's layer panel and drop three debug
+ * overlays" — it went out with "Tracked id" and "Tracked confidence", which really were debug
+ * overlays. This one is not: without it the operator calibrating a building has no way to tell
+ * which of several near-identical orange footprints their arrow keys are moving.
+ */
+const CALIBRATION_SELECTION_SOURCE_ID = "collabCalibrationSelection";
+const CALIBRATION_SELECTION_LAYER_ID = "collabCalibrationSelection-line";
+const CALIBRATION_SELECTION_COLOR = "#f59e0b";
+const CALIBRATION_SELECTION_WIDTH_PX = 3;
 
 const TRACKED_ORIENTATION_SOURCE_ID = "collabTrackedOrientation";
 const TRACKED_ORIENTATION_LAYER_ID = "collabTrackedOrientation-line";
@@ -641,6 +754,23 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
 
     /** Detaches the Control-map drag handlers installed while a building is being calibrated. */
     let detachCalibrationDrag: (() => void) | undefined;
+
+    /**
+     * The Table's tracked-footprint flash, in three variables — Table-only state, never read on
+     * Control.
+     *
+     * The decision is made here, from the footprint collection Table already receives, and
+     * explicitly NOT from `session.trackedBuildings.revision`. That counter is bumped by Control's
+     * `structurallyChanged` JSON diff, which is true on literally every tick: `poseEquals`
+     * (collabTracking) compares raw floats, and `deriveTrackedFootprint` (collabCalibration)
+     * smooths only rotation — "translation always applies on every call". So a block sitting
+     * untouched on the table still climbs the revision every frame, and a hide-timer reset by it
+     * could never fire. That is the whole of the 2026-09-07 rig bug: with ALWAYS_VISIBLE="false"
+     * the Table behaved exactly as if it were "true".
+     */
+    let footprintFlashPlacements: FootprintScreenPlacements = new Map();
+    let footprintHideTimer: ReturnType<typeof setTimeout> | undefined;
+    let footprintLayerVisible = true;
     /** Layer ids {@link syncCalibrationPresentation} hid — restored verbatim once presentation mode ends. */
     let hiddenLayerIds: string[] = [];
 
@@ -1157,6 +1287,47 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     }
 
     /**
+     * The bounding rectangle of the building currently being calibrated, or an empty collection.
+     *
+     * Empty rather than absent when nothing is selected, so the layer stays on the map with no
+     * features instead of being torn down and rebuilt every time the operator picks a different
+     * building -- a rebuild would flash the outline off and back on mid-adjustment.
+     */
+    function selectedCalibrationBbox(footprints: FeatureCollection): FeatureCollection {
+        const selected = buildingCalibration.value;
+        if (selected === null) {
+            return { type: "FeatureCollection", features: [] };
+        }
+        const footprint = footprints.features.find((feature) => feature.id === selected.buildingId);
+        if (footprint === undefined) {
+            return { type: "FeatureCollection", features: [] };
+        }
+        const [minX, minY, maxX, maxY] = bbox(footprint);
+        return {
+            type: "FeatureCollection",
+            features: [
+                {
+                    type: "Feature",
+                    id: selected.buildingId,
+                    properties: { building_id: selected.buildingId },
+                    geometry: {
+                        type: "Polygon",
+                        coordinates: [
+                            [
+                                [minX, minY],
+                                [maxX, minY],
+                                [maxX, maxY],
+                                [minX, maxY],
+                                [minX, minY],
+                            ],
+                        ],
+                    },
+                },
+            ],
+        };
+    }
+
+    /**
      * The Table's tracked-building centre dots. Rendered as a `circle` layer rather than reusing
      * `ensureFillLayer` because the input features are Points: a fill layer would draw nothing for
      * them, and a fixed pixel radius keeps the dot legible at every AOI zoom instead of shrinking
@@ -1177,6 +1348,75 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                 "circle-stroke-width": 1.5,
             },
         });
+    }
+
+    /** Applies the flash decision to both halves of the tracked-footprint layer, or neither. */
+    function setFootprintLayerVisible(visible: boolean): void {
+        footprintLayerVisible = visible;
+        const value = visible ? "visible" : "none";
+        for (const id of [TRACKED_FOOTPRINT_FILL_LAYER_ID, TRACKED_FOOTPRINT_OUTLINE_LAYER_ID]) {
+            // The outline is a companion layer, so it has to be driven too: hiding only the fill
+            // would leave the orange outline drawn, which on the projection is indistinguishable
+            // from not hiding anything.
+            if (mapStore.map?.getLayer(id) !== undefined) {
+                mapStore.map.setLayoutProperty(id, "visibility", value);
+            }
+        }
+    }
+
+    /**
+     * Decides whether the Table shows its tracked-footprint layer this tick (ticket: table
+     * footprint flash). Called only for `windowKind === "table"`, only after the layer exists.
+     *
+     * Users asked to keep seeing buildings move, so movement — not merely appearance — restarts
+     * the window; {@link significantPlacementChange} is what separates that from camera noise.
+     */
+    function syncTableFootprintVisibility(footprints: FeatureCollection): void {
+        if (tableFootprintAlwaysVisible()) {
+            if (footprintHideTimer !== undefined) {
+                clearTimeout(footprintHideTimer);
+                footprintHideTimer = undefined;
+            }
+            // Asked of the map, not of `footprintLayerVisible`: that flag starts life `true` and
+            // nothing in this branch ever clears it, so trusting it meant `setFootprintLayerVisible`
+            // was never actually called here. Anything else that hid the layer —
+            // `hideNonCalibrationLayers` on the way into calibration presentation, whose
+            // `restoreHiddenLayers` skips ids whose layer no longer exists on the way out — left it
+            // hidden for good, with the config saying it should be permanently on.
+            if (mapStore.map?.getLayoutProperty(TRACKED_FOOTPRINT_FILL_LAYER_ID, "visibility") !== "visible") {
+                setFootprintLayerVisible(true);
+            }
+            return;
+        }
+
+        const project = mapStore.map?.project?.bind(mapStore.map);
+        if (project === undefined) {
+            // No projection yet (style still settling): leave the layer as it is rather than
+            // guessing. The next render tick, a few milliseconds away, will have one.
+            return;
+        }
+
+        const placements = projectedFootprintCentres(footprints, (position) => project(position as [number, number]));
+        if (!significantPlacementChange(footprintFlashPlacements, placements, tableFootprintMovementThresholdPx())) {
+            // Re-assert rather than just returning: `restoreHiddenLayers` puts every layer it hid
+            // back to "visible" when calibration presentation ends, which would otherwise leave a
+            // footprint layer that is supposed to be hidden drawn on the table until the next time
+            // somebody moved a block.
+            if (!footprintLayerVisible && mapStore.map?.getLayoutProperty(TRACKED_FOOTPRINT_FILL_LAYER_ID, "visibility") === "visible") {
+                setFootprintLayerVisible(false);
+            }
+            return;
+        }
+        footprintFlashPlacements = placements;
+
+        setFootprintLayerVisible(true);
+        if (footprintHideTimer !== undefined) {
+            clearTimeout(footprintHideTimer);
+        }
+        footprintHideTimer = setTimeout(() => {
+            footprintHideTimer = undefined;
+            setFootprintLayerVisible(false);
+        }, tableFootprintVisibleDurationMs());
     }
 
     /**
@@ -1367,6 +1607,13 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             )
         );
 
+        // Table only, and after the layer exists so there is something to set `visibility` on.
+        // Control shows tracked bboxes unconditionally and must keep doing so — the operator at the
+        // panel is diagnosing the tracking, not looking at a presentation.
+        if (windowKind === "table") {
+            syncTableFootprintVisibility(tracked.footprints);
+        }
+
         // The alignment target, on both windows: Control so the operator can pick and see it, and
         // Table because that is the projection they physically lay the block against.
         await safelyEnsure("registrationTarget", () =>
@@ -1396,6 +1643,23 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                     tracked.ids,
                     i18n.global.t("collab.layers.trackedCentre"),
                     "#f97316"
+                )
+            );
+        }
+
+        // The building being seated, outlined in its own colour so the operator can tell which of
+        // three near-identical orange footprints their arrow keys are moving. Control-only, and
+        // independent of the debug switch: the highlight must be visible whether or not the
+        // operator happens to have the debug overlays on.
+        if (windowKind === "control") {
+            await safelyEnsure("calibrationSelection", () =>
+                ensureLineLayer(
+                    CALIBRATION_SELECTION_SOURCE_ID,
+                    CALIBRATION_SELECTION_LAYER_ID,
+                    selectedCalibrationBbox(tracked.footprints),
+                    i18n.global.t("collab.layers.calibrationSelection"),
+                    CALIBRATION_SELECTION_COLOR,
+                    CALIBRATION_SELECTION_WIDTH_PX
                 )
             );
         }
@@ -1539,6 +1803,14 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             for (const stopFn of stopFns) {
                 stopFn();
             }
+            // A pending hide would otherwise fire against a torn-down (or re-created) map and, on a
+            // restart, hide a layer whose flash had just been reset.
+            if (footprintHideTimer !== undefined) {
+                clearTimeout(footprintHideTimer);
+                footprintHideTimer = undefined;
+            }
+            footprintFlashPlacements = new Map();
+            footprintLayerVisible = true;
         };
     }
 
