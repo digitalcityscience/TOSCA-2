@@ -184,25 +184,8 @@ const REGISTRATION_TARGET_OUTLINE_PAINT: Record<string, unknown> = {
 const TRACKED_BBOX_SOURCE_ID = "collabTrackedBbox";
 const TRACKED_BBOX_LAYER_ID = "collabTrackedBbox-line";
 
-/**
- * The bounding box of the building currently being calibrated, drawn in its own colour on its own
- * layer (workflow step 4: "seçili binanın bbox'ı farklı renkte"). A separate source/layer rather
- * than a paint expression on the debug bbox layer, because the two are independent: the debug
- * overlay is a switch the operator may have off, and the selection highlight must show regardless.
- */
-const CALIBRATION_SELECTION_SOURCE_ID = "collabCalibrationSelection";
-const CALIBRATION_SELECTION_LAYER_ID = "collabCalibrationSelection-line";
-const CALIBRATION_SELECTION_COLOR = "#f59e0b";
-const CALIBRATION_SELECTION_WIDTH_PX = 3;
-
 const TRACKED_ORIENTATION_SOURCE_ID = "collabTrackedOrientation";
 const TRACKED_ORIENTATION_LAYER_ID = "collabTrackedOrientation-line";
-
-const TRACKED_ID_SOURCE_ID = "collabTrackedId";
-const TRACKED_ID_LAYER_ID = "collabTrackedId-symbol";
-
-const TRACKED_CONFIDENCE_SOURCE_ID = "collabTrackedConfidence";
-const TRACKED_CONFIDENCE_LAYER_ID = "collabTrackedConfidence-symbol";
 
 const TRACKED_CENTRE_SOURCE_ID = "collabTrackedCentres";
 const TRACKED_CENTRE_LAYER_ID = "collabTrackedCentres-circle";
@@ -213,7 +196,7 @@ const TRACKED_CENTRE_RADIUS_PX = 5;
 /**
  * Every Collab-managed layer id that can exist on the Table window (ticket 11, fix-tickets) — the
  * ones {@link syncCalibrationPresentation} hides while presenting, alongside the basemap. Control-
- * only debug-overlay layer ids (bbox/orientation/id/confidence) are deliberately excluded: they
+ * only debug-overlay layer ids (bbox/orientation) are deliberately excluded: they
  * are never created on Table in the first place (see `updateLayers`'s `windowKind === "control"`
  * gate below), and only exist on Control at all while the debug switch is on.
  */
@@ -491,7 +474,7 @@ function logCalibrationMarkerGeometry(
  *
  * - `startRendering(windowKind)` watches session state and renders "Tracked buildings (Python)" —
  *   the one Collab layer both Control and Table always show — plus, on Control only and only
- *   while {@link debugOverlaysEnabled}, the bbox/orientation/id/confidence debug overlays.
+ *   while {@link debugOverlaysEnabled}, the bbox/orientation debug overlays.
  *
  * Pose→geometry derivation (translate/rotate + 5° jitter threshold + table→AOI rotation offset)
  * is delegated to `collabCalibration.deriveTrackedFootprint` — this store only wires events,
@@ -506,12 +489,13 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
 
     const trackingAvailability = ref<TrackingAvailability>("live");
     /**
-     * Whether Control's debug overlays (tracked bbox/orientation/id/confidence) are being rendered
-     * (ticket 15) — off by default, off the normal layer panel entirely, and Control-only: Table
-     * never has a debug switch. Toggling it off removes whatever debug layers are currently on the
-     * map rather than merely hiding them, since `ensure*Layer` only ever adds/updates a layer.
+     * Whether Control's debug overlays (tracked bbox/orientation) are being rendered
+     * (ticket 15) — on by default so the operator sees the tracked bbox without hunting for the
+     * switch; still off the normal layer panel entirely, and Control-only: Table never has a debug
+     * switch. Toggling it off removes whatever debug layers are currently on the map rather than
+     * merely hiding them, since `ensure*Layer` only ever adds/updates a layer.
      */
-    const debugOverlaysEnabled = ref(false);
+    const debugOverlaysEnabled = ref(true);
     /** Transport state to Python's `:8053` socket (marker-health-plan §1) — independent of `trackingAvailability`. `"mock"` while `MockTrackingSource` is active. */
     const pythonConnectionState = ref<CollabPythonConnectionState>("mock");
     /**
@@ -671,7 +655,6 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         bboxes: FeatureCollection;
         orientations: FeatureCollection;
         ids: FeatureCollection;
-        confidences: FeatureCollection;
     }
 
     /**
@@ -703,7 +686,6 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         const bboxes: Feature[] = [];
         const orientations: Feature[] = [];
         const ids: Feature[] = [];
-        const confidences: Feature[] = [];
 
         // Whichever building has a target projected for it right now. It is deliberately not
         // *also* drawn from live tracking: that would put two of the same building on the table
@@ -787,12 +769,6 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                 },
                 geometry: { type: "Point", coordinates: centre },
             });
-            confidences.push({
-                type: "Feature",
-                id: objectId,
-                properties: { label: tracked.confidence.toFixed(2) },
-                geometry: { type: "Point", coordinates: centre },
-            });
         }
 
         const footprintCollection: FeatureCollection = { type: "FeatureCollection", features: footprints };
@@ -819,7 +795,6 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             bboxes: { type: "FeatureCollection", features: bboxes },
             orientations: { type: "FeatureCollection", features: orientations },
             ids: idCollection,
-            confidences: { type: "FeatureCollection", features: confidences },
         };
     }
 
@@ -827,8 +802,8 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
      * Table's counterpart to {@link trackedRenderState} (ticket 13): reads the tracked-building
      * collection Control already derived and broadcast via `session.trackedBuildings`, instead of
      * calling `deriveTrackedFootprint` again locally. Table has no debug overlays to render, so
-     * `bboxes`/`orientations`/`confidences` are empty — `updateLayers` never reads them for
-     * `windowKind === "table"`.
+     * `bboxes`/`orientations` are empty — `updateLayers` never reads them for `windowKind ===
+     * "table"`.
      */
     function tableTrackedRenderState(): TrackedRenderProducts {
         const empty: FeatureCollection = { type: "FeatureCollection", features: [] };
@@ -837,7 +812,6 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             ids: session.trackedBuildings.ids,
             bboxes: empty,
             orientations: empty,
-            confidences: empty,
         };
     }
 
@@ -1183,47 +1157,6 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     }
 
     /**
-     * The bounding rectangle of the building currently being calibrated, or an empty collection.
-     *
-     * Empty rather than absent when nothing is selected, so the layer stays on the map with no
-     * features instead of being torn down and rebuilt every time the operator picks a different
-     * building -- a rebuild would flash the outline off and back on mid-adjustment.
-     */
-    function selectedCalibrationBbox(footprints: FeatureCollection): FeatureCollection {
-        const selected = buildingCalibration.value;
-        if (selected === null) {
-            return { type: "FeatureCollection", features: [] };
-        }
-        const footprint = footprints.features.find((feature) => feature.id === selected.buildingId);
-        if (footprint === undefined) {
-            return { type: "FeatureCollection", features: [] };
-        }
-        const [minX, minY, maxX, maxY] = bbox(footprint);
-        return {
-            type: "FeatureCollection",
-            features: [
-                {
-                    type: "Feature",
-                    id: selected.buildingId,
-                    properties: { building_id: selected.buildingId },
-                    geometry: {
-                        type: "Polygon",
-                        coordinates: [
-                            [
-                                [minX, minY],
-                                [maxX, minY],
-                                [maxX, maxY],
-                                [minX, maxY],
-                                [minX, minY],
-                            ],
-                        ],
-                    },
-                },
-            ],
-        };
-    }
-
-    /**
      * The Table's tracked-building centre dots. Rendered as a `circle` layer rather than reusing
      * `ensureFillLayer` because the input features are Points: a fill layer would draw nothing for
      * them, and a fixed pixel radius keeps the dot legible at every AOI zoom instead of shrinking
@@ -1243,23 +1176,6 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                 "circle-stroke-color": "#ffffff",
                 "circle-stroke-width": 1.5,
             },
-        });
-    }
-
-    async function ensureSymbolLayer(
-        sourceId: string,
-        layerId: string,
-        data: FeatureCollection,
-        displayName: string,
-        textOffsetY: number
-    ): Promise<void> {
-        await ensureGeojsonLayer(sourceId, layerId, "symbol", data, displayName, {
-            layout: {
-                "text-field": ["get", "label"],
-                "text-size": 12,
-                "text-offset": [0, textOffsetY],
-            },
-            paint: { "text-color": "#111827", "text-halo-color": "#ffffff", "text-halo-width": 1 },
         });
     }
 
@@ -1388,12 +1304,12 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         if (map === undefined) {
             return;
         }
-        for (const layerId of [TRACKED_BBOX_LAYER_ID, TRACKED_ORIENTATION_LAYER_ID, TRACKED_ID_LAYER_ID, TRACKED_CONFIDENCE_LAYER_ID]) {
+        for (const layerId of [TRACKED_BBOX_LAYER_ID, TRACKED_ORIENTATION_LAYER_ID]) {
             if (map.getLayer(layerId) !== undefined) {
                 await mapStore.deleteMapLayer(layerId);
             }
         }
-        for (const sourceId of [TRACKED_BBOX_SOURCE_ID, TRACKED_ORIENTATION_SOURCE_ID, TRACKED_ID_SOURCE_ID, TRACKED_CONFIDENCE_SOURCE_ID]) {
+        for (const sourceId of [TRACKED_BBOX_SOURCE_ID, TRACKED_ORIENTATION_SOURCE_ID]) {
             if (map.getSource(sourceId) !== undefined) {
                 mapStore.deleteMapDataSource(sourceId);
             }
@@ -1484,23 +1400,6 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
             );
         }
 
-        // The building being seated, outlined in its own colour so the operator can tell which of
-        // three near-identical orange footprints their arrow keys are moving. Control-only, and
-        // independent of the debug switch: the highlight must be visible whether or not the
-        // operator happens to have the debug overlays on.
-        if (windowKind === "control") {
-            await safelyEnsure("calibrationSelection", () =>
-                ensureLineLayer(
-                    CALIBRATION_SELECTION_SOURCE_ID,
-                    CALIBRATION_SELECTION_LAYER_ID,
-                    selectedCalibrationBbox(tracked.footprints),
-                    i18n.global.t("collab.layers.calibrationSelection"),
-                    CALIBRATION_SELECTION_COLOR,
-                    CALIBRATION_SELECTION_WIDTH_PX
-                )
-            );
-        }
-
         if (windowKind === "control" && debugOverlaysEnabled.value) {
             await safelyEnsure("trackedBbox", () =>
                 ensureLineLayer(
@@ -1518,24 +1417,6 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                     tracked.orientations,
                     i18n.global.t("collab.layers.trackedOrientation"),
                     "#7c3aed"
-                )
-            );
-            await safelyEnsure("trackedId", () =>
-                ensureSymbolLayer(
-                    TRACKED_ID_SOURCE_ID,
-                    TRACKED_ID_LAYER_ID,
-                    tracked.ids,
-                    i18n.global.t("collab.layers.trackedId"),
-                    -1.2
-                )
-            );
-            await safelyEnsure("trackedConfidence", () =>
-                ensureSymbolLayer(
-                    TRACKED_CONFIDENCE_SOURCE_ID,
-                    TRACKED_CONFIDENCE_LAYER_ID,
-                    tracked.confidences,
-                    i18n.global.t("collab.layers.trackedConfidence"),
-                    0.6
                 )
             );
         }

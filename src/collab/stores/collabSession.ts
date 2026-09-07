@@ -131,7 +131,7 @@ export interface CollabCalibrationState {
  * tracked object's known footprint, translated/rotated onto its detected pose, plus its centre
  * point — computed exactly once, in Control's tracking adapter (`collabTrackingRender.ts`'s
  * `trackedRenderState`), and broadcast here. Table reads `footprints`/`ids` straight off this
- * slice to render `trackedFootprint`/`trackedId`; it never calls `deriveTrackedFootprint` itself.
+ * slice to render `trackedFootprint`/`trackedCentre`; it never calls `deriveTrackedFootprint` itself.
  * `revision` is bumped on every Control-side (re)derivation, like `CollabCalibrationState.revision`
  * — a simple presence check ("has `revision` changed since I last rendered?") is cheap for either
  * window even though `footprints`/`ids` are also deep-equatable.

@@ -417,9 +417,7 @@ export const useMapStore = defineStore("map", () => {
                     filterLayer: params.isFilterLayer,
                 }
                 : {}),
-            ...(sourceType === "geojson" &&
-      (params.isFilterLayer ||
-        (params.isDrawnLayer !== undefined && params.isDrawnLayer))
+            ...(sourceType === "geojson"
                 ? {
                     layerData: params.geoJSONSrc,
                 }

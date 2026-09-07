@@ -368,7 +368,7 @@
       },
       "debug": {
         "title": "Hata ayıklama katmanları",
-        "description": "Donanım hata ayıklaması için takip edilen sınır kutularını, yönelimi, işaretçi kimliklerini ve güveni gösterir."
+        "description": "Donanım hata ayıklaması için takip edilen sınır kutularını ve yönelimi gösterir."
       },
       "python": {
         "title": "Python takip sunucusu",
@@ -479,16 +479,13 @@
       }
     },
     "layers": {
-      "aoiViewfinder": "Collab · İlgi alanı seçim çerçevesi",
-      "trackedFootprint": "Collab · Takip edilen binalar (Python)",
-      "trackedCentre": "Collab · Takip edilen bina orta noktaları",
-      "trackedBbox": "Collab · Takip edilen sınır kutusu",
-      "trackedOrientation": "Collab · Takip edilen yönelim",
-      "trackedId": "Collab · Takip edilen kimlik",
-      "trackedConfidence": "Collab · Takip edilen güven",
-      "aoi": "Collab · Seçilen ilgi alanı",
-      "calibrationSelection": "Collab · Kalibre edilen bina",
-      "registrationTarget": "Collab · Kayit hedefi"
+      "aoiViewfinder": "İlgi alanı seçim çerçevesi",
+      "trackedFootprint": "Takip edilen binalar (Python)",
+      "trackedCentre": "Takip edilen bina orta noktaları",
+      "trackedBbox": "Takip edilen sınır kutusu",
+      "trackedOrientation": "Takip edilen yönelim",
+      "aoi": "Seçilen ilgi alanı",
+      "registrationTarget": "Kayit hedefi"
     },
     "tracking": {
       "unaligned": "(hizalanmamis)",

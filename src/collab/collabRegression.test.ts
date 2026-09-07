@@ -41,7 +41,7 @@ vi.mock("@helpers/toast", () => ({
  *   17 concurrent MapLibre layer/source initialization ....... this file, "concurrent layer init"
  */
 
-const { addMapDataSource, addMapLayer, addCompanionLayer, fakeSources } = vi.hoisted(() => {
+const { addMapDataSource, addMapLayer, addCompanionLayer, deleteMapDataSource, deleteMapLayer, fakeSources } = vi.hoisted(() => {
     const sources = new Map<string, { setData: ReturnType<typeof vi.fn> }>();
     return {
         fakeSources: sources,
@@ -54,6 +54,14 @@ const { addMapDataSource, addMapLayer, addCompanionLayer, fakeSources } = vi.hoi
             await Promise.resolve();
         }),
         addCompanionLayer: vi.fn(),
+        // Debug overlays turning off (default-on, ticket 15) tears its layers/sources back down —
+        // these mirror the real store's deletion API just enough for `removeDebugOverlayLayers` to work.
+        deleteMapDataSource: vi.fn((identifier: string) => {
+            sources.delete(identifier);
+        }),
+        deleteMapLayer: vi.fn(async () => {
+            await Promise.resolve();
+        }),
     };
 });
 
@@ -69,6 +77,8 @@ vi.mock("@store/map", () => ({
         addMapDataSource,
         addMapLayer,
         addCompanionLayer,
+        deleteMapDataSource,
+        deleteMapLayer,
     }),
 }));
 
@@ -353,35 +363,34 @@ describe("Phase 4 (ticket 13): tracked buildings computed once in Control, broad
     });
 });
 
-describe("6/7 layer management (ticket 15): Table gets the tracked footprints + their centres, Control debug overlays are opt-in", () => {
-    test("Control's debug overlays are off until the debug switch is enabled, and are never created on Table", async () => {
+describe("6/7 layer management (ticket 15): Table gets the tracked footprints + their centres, Control debug overlays are opt-out", () => {
+    test("Control's debug overlays are on by default and are torn down when the debug switch is disabled, and are never created on Table", async () => {
         const session = useCollabSessionStore();
         session.base.objects = makeBuildings();
         session.tracking["B-0"] = { pose: { lng: 9.99, lat: 53.55, rotation: 0 }, confidence: 1, lastSeen: 0 };
 
         const trackingRender = useCollabTrackingRenderStore();
-        expect(trackingRender.debugOverlaysEnabled).toBe(false);
+        expect(trackingRender.debugOverlaysEnabled).toBe(true);
         trackingRender.startRendering("control");
 
-        for (let i = 0; i < 30; i++) {
+        // All-on-by-default now creates every debug overlay alongside the always-on footprint
+        // layer in one pass (vs. only the footprint layer previously) — more concurrent
+        // create-source-and-layer chains to drain before they're all settled.
+        for (let i = 0; i < 200; i++) {
             await Promise.resolve();
         }
 
         expect(fakeSources.has("collabTrackedFootprints")).toBe(true);
-        expect(fakeSources.has("collabTrackedBbox")).toBe(false);
-        expect(fakeSources.has("collabTrackedOrientation")).toBe(false);
-        expect(fakeSources.has("collabTrackedId")).toBe(false);
-        expect(fakeSources.has("collabTrackedConfidence")).toBe(false);
+        expect(fakeSources.has("collabTrackedBbox")).toBe(true);
+        expect(fakeSources.has("collabTrackedOrientation")).toBe(true);
 
-        trackingRender.setDebugOverlaysEnabled(true);
+        trackingRender.setDebugOverlaysEnabled(false);
         for (let i = 0; i < 60; i++) {
             await Promise.resolve();
         }
 
-        expect(fakeSources.has("collabTrackedBbox")).toBe(true);
-        expect(fakeSources.has("collabTrackedOrientation")).toBe(true);
-        expect(fakeSources.has("collabTrackedId")).toBe(true);
-        expect(fakeSources.has("collabTrackedConfidence")).toBe(true);
+        expect(fakeSources.has("collabTrackedBbox")).toBe(false);
+        expect(fakeSources.has("collabTrackedOrientation")).toBe(false);
 
         trackingRender.stop();
     });
@@ -412,8 +421,6 @@ describe("6/7 layer management (ticket 15): Table gets the tracked footprints + 
         // Table must never pick up Control-only debug layers, even with the switch conceptually on.
         expect(fakeSources.has("collabTrackedBbox")).toBe(false);
         expect(fakeSources.has("collabTrackedOrientation")).toBe(false);
-        expect(fakeSources.has("collabTrackedId")).toBe(false);
-        expect(fakeSources.has("collabTrackedConfidence")).toBe(false);
 
         trackingRender.stop();
     });

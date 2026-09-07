@@ -368,7 +368,7 @@
       },
       "debug": {
         "title": "Debug-Overlays",
-        "description": "Zeigt verfolgte Bounding-Boxen, Ausrichtung, Marker-IDs und Konfidenz zur Hardware-Fehlersuche an."
+        "description": "Zeigt verfolgte Bounding-Boxen und Ausrichtung zur Hardware-Fehlersuche an."
       },
       "python": {
         "title": "Python-Tracking-Server",
@@ -479,16 +479,13 @@
       }
     },
     "layers": {
-      "aoiViewfinder": "Collab · Auswahlrahmen (Interessengebiet)",
-      "trackedFootprint": "Collab · Verfolgte Gebäude (Python)",
-      "trackedCentre": "Collab · Verfolgte Gebäudemittelpunkte",
-      "trackedBbox": "Collab · Verfolgte Bounding-Box",
-      "trackedOrientation": "Collab · Verfolgte Ausrichtung",
-      "trackedId": "Collab · Verfolgte ID",
-      "trackedConfidence": "Collab · Verfolgte Konfidenz",
-      "aoi": "Collab · Ausgewähltes Interessengebiet",
-      "calibrationSelection": "Collab · Gebäude in Kalibrierung",
-      "registrationTarget": "Collab · Registrierungsziel"
+      "aoiViewfinder": "Auswahlrahmen (Interessengebiet)",
+      "trackedFootprint": "Verfolgte Gebäude (Python)",
+      "trackedCentre": "Verfolgte Gebäudemittelpunkte",
+      "trackedBbox": "Verfolgte Bounding-Box",
+      "trackedOrientation": "Verfolgte Ausrichtung",
+      "aoi": "Ausgewähltes Interessengebiet",
+      "registrationTarget": "Registrierungsziel"
     },
     "tracking": {
       "unaligned": "(nicht ausgerichtet)",

@@ -144,6 +144,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import bbox from "@turf/bbox";
 import { type LayerObjectWithAttributes, type MapLibreLayerTypes, useMapStore } from "@store/map"
 import { useToast } from "@helpers/toast";
 import { isNullOrEmpty } from "@helpers/functions";
@@ -542,12 +543,20 @@ function zoomToLayer(): void {
         }
         return
     }
+    if (props.layer.sourceType === "geojson") {
+        // No GeoServer `details` for a client-side layer (e.g. Collab's AOI/tracked-building
+        // overlays) — derive the bounds from the layer's own GeoJSON instead.
+        if (props.layer.layerData === undefined) return;
+        const [minX, minY, maxX, maxY] = bbox(props.layer.layerData);
+        mapStore.map.fitBounds([[minX, minY], [maxX, maxY]], { padding: 20 });
+        return;
+    }
     if (props.layer.type === "raster") {
-        const bbox = (props.layer.details as GeoserverRasterTypeLayerDetail).coverage.latLonBoundingBox;
-        mapStore.map.fitBounds([[bbox.minx, bbox.miny], [bbox.maxx, bbox.maxy]], { padding: 20 });
+        const box = (props.layer.details as GeoserverRasterTypeLayerDetail).coverage.latLonBoundingBox;
+        mapStore.map.fitBounds([[box.minx, box.miny], [box.maxx, box.maxy]], { padding: 20 });
     } else {
-        const bbox = (props.layer.details as GeoServerVectorTypeLayerDetail).featureType.latLonBoundingBox;
-        mapStore.map.fitBounds([[bbox.minx, bbox.miny], [bbox.maxx, bbox.maxy]], { padding: 20 });
+        const box = (props.layer.details as GeoServerVectorTypeLayerDetail).featureType.latLonBoundingBox;
+        mapStore.map.fitBounds([[box.minx, box.miny], [box.maxx, box.maxy]], { padding: 20 });
     }
 }
 

@@ -368,7 +368,7 @@
       },
       "debug": {
         "title": "Debug overlays",
-        "description": "Show tracked bounding boxes, orientation, marker IDs and confidence for hardware debugging."
+        "description": "Show tracked bounding boxes and orientation for hardware debugging."
       },
       "python": {
         "title": "Python tracking server",
@@ -479,16 +479,13 @@
       }
     },
     "layers": {
-      "aoiViewfinder": "Collab · AOI selection frame",
-      "trackedFootprint": "Collab · Tracked buildings (Python)",
-      "trackedCentre": "Collab · Tracked building centres",
-      "trackedBbox": "Collab · Tracked bbox",
-      "trackedOrientation": "Collab · Tracked orientation",
-      "trackedId": "Collab · Tracked id",
-      "trackedConfidence": "Collab · Tracked confidence",
-      "aoi": "Collab · Selected AOI",
-      "calibrationSelection": "Collab · Building being calibrated",
-      "registrationTarget": "Collab · Registration target"
+      "aoiViewfinder": "AOI selection frame",
+      "trackedFootprint": "Tracked buildings (Python)",
+      "trackedCentre": "Tracked building centres",
+      "trackedBbox": "Tracked bbox",
+      "trackedOrientation": "Tracked orientation",
+      "aoi": "Selected AOI",
+      "registrationTarget": "Registration target"
     },
     "tracking": {
       "unaligned": "(unaligned)",
