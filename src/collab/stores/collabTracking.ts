@@ -194,7 +194,7 @@ export type MapCalibrationMarkerBand = "min" | "mid" | "max" | "midLeft" | "midR
  * AOI, read back out of Python's raw pre-calibration marker dictionary to pair a table pixel with
  * a geographic position.
  *
- * `required` splits the twelve into the four the calibration cannot proceed without and the eight
+ * `required` splits the eleven into the four the calibration cannot proceed without and the seven
  * that only improve it — see {@link MAP_CALIBRATION_MARKERS}.
  */
 export interface MapCalibrationMarkerConfig {
@@ -209,7 +209,7 @@ export interface MapCalibrationMarkerConfig {
 }
 
 /**
- * The twelve map-calibration markers (workflow step 5): a grid over the projectable area,
+ * The eleven map-calibration markers (workflow step 5): a grid over the projectable area,
  * projected by the Table window and read back out of `RealTrackingSource`'s raw pre-calibration
  * snapshots (see {@link RawMarkerReading}) with no dedicated Python message.
  *
@@ -223,21 +223,30 @@ export interface MapCalibrationMarkerConfig {
  *
  * Ids 200-203 keep their existing corners exactly, because that mapping is a physical contract
  * shared with Python (`calibration_contract.py`) and the Vanilla reference app. 206/207 and
- * 209-214 are new and additive.
+ * 209-213 are new and additive.
  *
  * The grid is *not* a plain 3x3: the original centre-line markers (`204` top-mid, `205`
  * bottom-mid, `208` dead centre) sat at exactly `column: "mid"`, the table's geometric horizontal
  * centre — which, on a table built from two desks pushed together, is exactly where the
  * camera-stitch seam runs. A marker straddling that seam is not merely noisy, it is undecodable
- * (`public/collab/calibration-markers/README.md`, 2026-09-07). Each of those three ids is replaced
- * by a `midLeft`/`midRight` pair (209/210, 211/212, 213/214) straddling the seam from a safe
- * distance ({@link seamClearanceRatio}) instead of sitting on it — twelve markers total, more
- * densely sampled near the seam specifically, and none of them able to land on it.
+ * (`public/collab/calibration-markers/README.md`, 2026-09-07). `204`/`205`/`208` were each
+ * replaced by a `midLeft`/`midRight` pair (209/210, 211/212, 213/214) straddling the seam from a
+ * safe distance ({@link seamClearanceRatio}) instead of sitting on it.
  *
- * Only the four corners are `required`. Demanding all twelve would make calibration *more*
+ * `214` (`208`'s midRight half) was retired the same day, before ever shipping: on the live rig
+ * that spot additionally sits under the ceiling beamer's own projection, brightest exactly on the
+ * vertical centre line, and a marker there is overexposed and undecodable regardless of seam
+ * clearance (2026-09-07 rig session). `213`, the midLeft half of the same pair, reads fine — the
+ * beamer's hotspot is not centred on the seam itself, only on one side of it — so it stays. The
+ * centre row is asymmetric as a result: one marker (`213`), not a pair.
+ *
+ * Only the four corners are `required`. Demanding all eleven would make calibration *more*
  * fragile than before — one marker landing in a camera's weak corner would block the whole
  * session — while the corners alone still give exactly the fit that worked before. Every extra
- * marker that is decoded is used; every one that is not is simply absent from the solve.
+ * marker that is decoded is used; every one that is not is simply absent from the solve. See
+ * {@link isMapCalibrationMarkerHealthReady} for the "prefer a denser read, but never wait past
+ * {@link MAP_CALIBRATION_MARKER_READY_TIMEOUT_MS}" gate `canCalibrateFromMarkers` actually applies
+ * on top of this list.
  *
  * Distinct from {@link REFERENCE_MARKERS} (per-camera stitching calibration, Python-side) and from
  * {@link RESERVED_BUILDING_MARKER_IDS} (a reserved *range* for buildings, not real markers).
@@ -254,7 +263,6 @@ export const MAP_CALIBRATION_MARKERS: readonly MapCalibrationMarkerConfig[] = [
     { id: 211, column: "midLeft", row: "max", required: false, place: "bottom_left_of_seam" },
     { id: 212, column: "midRight", row: "max", required: false, place: "bottom_right_of_seam" },
     { id: 213, column: "midLeft", row: "mid", required: false, place: "centre_left_of_seam" },
-    { id: 214, column: "midRight", row: "mid", required: false, place: "centre_right_of_seam" },
 ]
 
 /** The four markers a calibration cannot be built without — see {@link MAP_CALIBRATION_MARKERS}. */
@@ -417,6 +425,58 @@ export function pixelReadingsWithinTolerance(
     tolerancePx = MAP_CALIBRATION_MARKER_PIXEL_TOLERANCE
 ): boolean {
     return Math.hypot(a.pixelX - b.pixelX, a.pixelY - b.pixelY) <= tolerancePx
+}
+
+/**
+ * How long `canCalibrateFromMarkers` (`collabTrackingRender.ts`) waits, from the moment
+ * calibration presentation starts, before it stops holding out for {@link mapCalibrationMarkerReadyCount}
+ * distinct markers and falls back to just the four required corners (2026-09-07). Without a cap,
+ * preferring a denser read would risk exactly what dropping 213/214 was for: one marker in a
+ * camera's weak spot or under the beamer's hotspot could block calibration indefinitely, even
+ * though the four corners alone already give a usable (if noisier) fit. 20s is comfortably longer
+ * than the ~2s (`MAP_CALIBRATION_MARKER_STABLE_READINGS` x a Python snapshot interval) a marker
+ * that *can* be read normally takes to stabilise, so it never cuts a healthy read short.
+ */
+export const MAP_CALIBRATION_MARKER_READY_TIMEOUT_MS = 20_000
+
+/**
+ * How many distinct {@link MAP_CALIBRATION_MARKERS} ids must be stable-detected (present in
+ * `mapCalibrationMarkerHealth`) before {@link isMapCalibrationMarkerHealthReady} is satisfied
+ * without waiting out {@link MAP_CALIBRATION_MARKER_READY_TIMEOUT_MS} — the "good enough" quality
+ * bar the operator wants a denser fit to clear quickly, rather than settling for the bare four
+ * corners on every calibration. Read from `VITE_COLLAB_CALIBRATION_MARKER_READY_COUNT` (B6: a
+ * physically-tuned number is never hardcoded in the routine itself); unset/unparsable falls back
+ * to `10` of the eleven total ids, i.e. tolerating exactly one straggler.
+ */
+export function mapCalibrationMarkerReadyCount(): number {
+    const raw = Number(import.meta.env.VITE_COLLAB_CALIBRATION_MARKER_READY_COUNT ?? "")
+    return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 10
+}
+
+/**
+ * Whether {@link MAP_CALIBRATION_MARKERS}' health is good enough to calibrate from (2026-09-07).
+ * The four {@link REQUIRED_MAP_CALIBRATION_MARKERS} corners are an unconditional precondition —
+ * they anchor the homography quad `buildMapCalibrationFromMarkerReadings` builds, so nothing here
+ * ever waives them — and beyond that the operator gets a choice of *when*: as soon as
+ * {@link mapCalibrationMarkerReadyCount} distinct ids total have been read (a denser, less noisy
+ * fit), or, once {@link MAP_CALIBRATION_MARKER_READY_TIMEOUT_MS} has passed since
+ * `presentationStartedAt` without reaching that count, the corners alone — the same bar this gate
+ * used before this threshold existed, so a straggler marker (a weak corner, a beamer hotspot)
+ * still cannot block calibration forever, only delay it by the timeout. Pure so both the store's
+ * gate and its tests can evaluate it off plain inputs instead of real timers.
+ */
+export function isMapCalibrationMarkerHealthReady(
+    health: ReadonlyMap<number, RawMarkerReading>,
+    presentationStartedAt: number | undefined,
+    now: number
+): boolean {
+    if (!REQUIRED_MAP_CALIBRATION_MARKERS.every((marker) => health.has(marker.id))) {
+        return false
+    }
+    if (health.size >= mapCalibrationMarkerReadyCount()) {
+        return true
+    }
+    return presentationStartedAt !== undefined && now - presentationStartedAt >= MAP_CALIBRATION_MARKER_READY_TIMEOUT_MS
 }
 
 /**

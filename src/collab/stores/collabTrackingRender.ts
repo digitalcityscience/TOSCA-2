@@ -63,13 +63,13 @@ import {
     buildMapCalibrationFromMarkerReadings,
     calibrationMarkerImageUrl,
     createMarkerObjectRegistry,
+    isMapCalibrationMarkerHealthReady,
     isMarkerReadingStable,
     MAP_CALIBRATION_MARKER_IDS,
     MAP_CALIBRATION_MARKER_TTL_MS,
     MAP_CALIBRATION_MARKERS,
     pixelReadingsWithinTolerance,
     REFERENCE_MARKERS,
-    REQUIRED_MAP_CALIBRATION_MARKERS,
     RealTrackingSource,
     type MarkerObjectRegistry,
     type MarkerObjectRegistryEntry,
@@ -552,6 +552,13 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     /** Ids behind {@link buildingMarkerHealth}'s stickiness — statuses are re-derived from this each snapshot. */
     const seenBuildingMarkerIds = new Set<number>();
     const pendingMarkerReadings = new Map<number, TrackedMarkerReading>();
+    /**
+     * When the current calibration-presentation attempt began (`enterCalibrationPresentation`),
+     * for {@link isMapCalibrationMarkerHealthReady}'s 20s fallback-readiness window (2026-09-07).
+     * `undefined` before presentation has ever started this session; reset on every fresh attempt
+     * so a stale timestamp from an earlier AOI can never satisfy the timeout early.
+     */
+    let calibrationPresentationStartedAt: number | undefined;
     /**
      * Control-local view of Table's drag-override status (grilling doc Q1) — populated from the
      * `tableStatus` message Table publishes over `collabSync`'s channel. Never written into
@@ -1861,6 +1868,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         detectedReferenceMarkerIds.value = new Set();
         mapCalibrationMarkerHealth.value = new Map();
         pendingMarkerReadings.clear();
+        calibrationPresentationStartedAt = undefined;
         seenBuildingMarkerIds.clear();
         buildingMarkerHealth.value = [];
         session.calibration.mapCalibrationMarkerIdsSeen = [];
@@ -1884,6 +1892,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     function enterCalibrationPresentation(): void {
         mapCalibrationMarkerHealth.value = new Map();
         pendingMarkerReadings.clear();
+        calibrationPresentationStartedAt = Date.now();
         session.calibration.mapCalibrationMarkerIdsSeen = [];
         session.calibration.phase = "presenting";
         session.calibration.revision += 1;
@@ -2021,6 +2030,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
         scenarioStore.lastMeasuredCalibrationAoiHash = null;
         mapCalibrationMarkerHealth.value = new Map();
         pendingMarkerReadings.clear();
+        calibrationPresentationStartedAt = undefined;
         session.calibration.mapCalibrationMarkerIdsSeen = [];
         // Drop every tracked object's last-known pose (live-rig diagnosis, 2026-08-31): these were
         // georeferenced against whatever AOI/homography was active when they last arrived, and
@@ -2106,14 +2116,18 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
     }
 
     /**
-     * Whether all four {@link MAP_CALIBRATION_MARKERS} ids have a reading yet (ticket 12) — gates
-     * the operator's "Calibrate" action; sending a partial correspondence set to Python would be
-     * worse than refusing to send at all.
+     * Whether marker health is good enough to gate the operator's "Calibrate" action (ticket 12,
+     * 2026-09-07): the four required corners always, plus either a denser read
+     * ({@link mapCalibrationMarkerReadyCount} distinct ids) or, once
+     * {@link MAP_CALIBRATION_MARKER_READY_TIMEOUT_MS} has passed since presentation started, the
+     * corners on their own — see {@link isMapCalibrationMarkerHealthReady}. Sending a partial
+     * correspondence set to Python would be worse than refusing to send at all, but demanding every
+     * one of {@link MAP_CALIBRATION_MARKERS} forever would let a single stubborn marker (a weak
+     * corner, a beamer hotspot) block the whole session — this button waits for quality up to a
+     * point, never past it.
      */
     function canCalibrateFromMarkers(): boolean {
-        // The four corners, not all nine: the extra grid markers sharpen the fit but must never be
-        // able to block a calibration that would otherwise have worked (workflow step 5).
-        return REQUIRED_MAP_CALIBRATION_MARKERS.every((marker) => mapCalibrationMarkerHealth.value.has(marker.id));
+        return isMapCalibrationMarkerHealthReady(mapCalibrationMarkerHealth.value, calibrationPresentationStartedAt, Date.now());
     }
 
     /**

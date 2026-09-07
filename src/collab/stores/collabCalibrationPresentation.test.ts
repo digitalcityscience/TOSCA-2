@@ -129,7 +129,7 @@ describe("calibration presentation mode on Table (ticket 11)", () => {
         vi.unstubAllEnvs();
     });
 
-    test("entering presentation mode renders exactly the 9 calibration markers inset from the AOI corners (Vanilla's MARKER_INSET_RATIO — an AOI corner is a physical table corner, so a centre-anchored marker on one hangs half off the table), using the Vanilla 200/201/202/203 corner mapping", async () => {
+    test("entering presentation mode renders exactly the 11 calibration markers inset from the AOI corners (Vanilla's MARKER_INSET_RATIO — an AOI corner is a physical table corner, so a centre-anchored marker on one hangs half off the table), using the Vanilla 200/201/202/203 corner mapping", async () => {
         const session = useCollabSessionStore();
         session.calibration.aoi = hamburgAoi;
         const trackingRender = useCollabTrackingRenderStore();
@@ -141,7 +141,7 @@ describe("calibration presentation mode on Table (ticket 11)", () => {
 
         expect(session.calibration.phase).toBe("presenting");
         expect([...createdMarkers.keys()].sort()).toEqual([
-            "200", "201", "202", "203", "206", "207", "209", "210", "211", "212", "213", "214",
+            "200", "201", "202", "203", "206", "207", "209", "210", "211", "212", "213",
         ]);
         // 5% of the AOI's 0.02° width in from each vertical edge, and the same distance (10% of
         // its 0.02° height, the table being 2:1) in from each horizontal one.

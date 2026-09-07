@@ -95,15 +95,24 @@ describe("createMarkerObjectRegistry", () => {
 });
 
 describe("reserved marker id registry (ticket 08)", () => {
-    test("MAP_CALIBRATION_MARKERS are a twelve-point grid, none of them on the seam line", () => {
+    test("MAP_CALIBRATION_MARKERS are an eleven-point grid, none of them on the seam line", () => {
         expect([...MAP_CALIBRATION_MARKER_IDS].sort((a, b) => a - b)).toEqual([
-            200, 201, 202, 203, 206, 207, 209, 210, 211, 212, 213, 214,
+            200, 201, 202, 203, 206, 207, 209, 210, 211, 212, 213,
         ]);
         const bands = MAP_CALIBRATION_MARKERS.map((marker) => `${marker.column}/${marker.row}`);
-        expect(new Set(bands).size).toBe(12);
+        expect(new Set(bands).size).toBe(11);
         // The seam runs down the exact horizontal centre (`column: "mid"`) on a two-desk table —
         // no marker may sit there, only `midLeft`/`midRight` either side of it.
         expect(MAP_CALIBRATION_MARKERS.some((marker) => marker.column === "mid")).toBe(false);
+        // `row: "mid"` is the table's vertical centre, where the live rig's ceiling beamer is
+        // brightest — `214` (midRight/mid) was retired 2026-09-07 after never registering a read
+        // there. `213` (midLeft/mid) reads fine, so exactly one midLeft/midRight marker may still
+        // sit on that row — never two.
+        expect(
+            MAP_CALIBRATION_MARKERS.filter(
+                (marker) => (marker.column === "midLeft" || marker.column === "midRight") && marker.row === "mid"
+            )
+        ).toEqual([{ id: 213, column: "midLeft", row: "mid", required: false, place: "centre_left_of_seam" }]);
     });
 
     test("200-203 keep exactly their original corners, because that mapping is a physical contract", () => {
@@ -211,7 +220,7 @@ describe("buildMapCalibrationFromMarkerReadings (ticket 12)", () => {
         });
     });
 
-    test("every marker position sits strictly inside the AOI, on both axes, for all nine markers", () => {
+    test("every marker position sits strictly inside the AOI, on both axes, for all eleven markers", () => {
         for (const marker of MAP_CALIBRATION_MARKERS) {
             const [lng, lat] = aoiCalibrationMarkerPosition(aoi, marker);
             expect(lng).toBeGreaterThan(9.98);
@@ -229,7 +238,7 @@ describe("buildMapCalibrationFromMarkerReadings (ticket 12)", () => {
                 [201, [1590, 20]],
                 [202, [10, 780]],
                 [203, [1590, 780]],
-                [213, [780, 400]], // centre-left-of-seam — the closest a marker gets to the centre four corners never constrain
+                [211, [780, 400]], // bottom_left_of_seam — an extra grid marker, not one of the four corners
             ])
         );
 
@@ -238,7 +247,7 @@ describe("buildMapCalibrationFromMarkerReadings (ticket 12)", () => {
     });
 
     test("a missing extra marker costs a correspondence, never the calibration", () => {
-        // Requiring all nine would make calibration more fragile than the four-marker version it
+        // Requiring all eleven would make calibration more fragile than the four-marker version it
         // replaces: one marker on a stitching seam would block the whole session.
         const message = buildMapCalibrationFromMarkerReadings(
             aoi,

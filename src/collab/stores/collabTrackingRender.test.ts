@@ -14,6 +14,7 @@ import { useCollabScenarioStore } from "./collabScenario";
 import type { AOIExtent } from "./collabCalibration";
 import { tableToAoiRotationOffsetDeg } from "./collabCalibration";
 import type { TrackingEvent } from "./collabTracking";
+import { MAP_CALIBRATION_MARKER_READY_TIMEOUT_MS, mapCalibrationMarkerReadyCount } from "./collabTracking";
 import { applyTrackingEvent, buildMarkerRegistryFromBase, useCollabTrackingRenderStore } from "./collabTrackingRender";
 
 describe("buildMarkerRegistryFromBase", () => {
@@ -469,7 +470,11 @@ describe("collabTrackingRender store", () => {
             socket.onmessage?.(message);
         }
 
-        test("canCalibrateFromMarkers is false until all four ids (200-203) have a reading, true once they all do", () => {
+        test("canCalibrateFromMarkers is false until all four corners (200-203) have a reading, even once they all do", () => {
+            // Corners alone are no longer immediately sufficient (2026-09-07 threshold): they are
+            // still an unconditional precondition (checked here), but the gate now also wants
+            // `mapCalibrationMarkerReadyCount()` markers total or the 20s timeout — see the next
+            // two tests for those paths.
             vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
             const sockets = stubRealSocket();
 
@@ -487,11 +492,92 @@ describe("collabTrackingRender store", () => {
             sendRawMarkerReading(sockets[0]!, 202, 10, 780);
             expect(trackingRender.canCalibrateFromMarkers()).toBe(false);
             sendRawMarkerReading(sockets[0]!, 203, 1590, 780);
+            // All four corners in, but `session.calibration.phase` was set directly above rather
+            // than through `enterCalibrationPresentation()`, so no presentation-start timestamp was
+            // ever recorded — the 20s fallback has nothing to count from, and `mapCalibrationMarkerReadyCount()`
+            // markers were never reached either (only the four corners were sent).
+            expect(trackingRender.canCalibrateFromMarkers()).toBe(false);
+
+            trackingRender.stop();
+            vi.unstubAllEnvs();
+            vi.unstubAllGlobals();
+        });
+
+        test("canCalibrateFromMarkers becomes true once a denser read reaches the ready count, without waiting 20s", () => {
+            vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
+            const sockets = stubRealSocket();
+
+            const scenarioStore = useCollabScenarioStore();
+            scenarioStore.aoi = aoi;
+
+            const trackingRender = useCollabTrackingRenderStore();
+            trackingRender.startRendering("control");
+            trackingRender.startCalibration(); // enterCalibrationPresentation() — records the start time
+            sockets[0]?.onopen?.();
+
+            const readyCount = mapCalibrationMarkerReadyCount(); // 10 by default: the four corners plus six extras
+            let sent = 0;
+            for (const marker of [
+                { id: 200, x: 10, y: 20 },
+                { id: 201, x: 1590, y: 20 },
+                { id: 202, x: 10, y: 780 },
+                { id: 203, x: 1590, y: 780 },
+                { id: 206, x: 10, y: 400 },
+                { id: 207, x: 1590, y: 400 },
+                { id: 209, x: 700, y: 20 },
+                { id: 210, x: 900, y: 20 },
+                { id: 211, x: 700, y: 780 },
+                { id: 212, x: 900, y: 780 },
+                { id: 213, x: 700, y: 400 },
+            ]) {
+                if (sent >= readyCount) {
+                    break;
+                }
+                sendRawMarkerReading(sockets[0]!, marker.id, marker.x, marker.y);
+                sent += 1;
+                if (sent < readyCount) {
+                    expect(trackingRender.canCalibrateFromMarkers()).toBe(false);
+                }
+            }
+
+            expect(sent).toBe(readyCount);
             expect(trackingRender.canCalibrateFromMarkers()).toBe(true);
 
             trackingRender.stop();
             vi.unstubAllEnvs();
             vi.unstubAllGlobals();
+        });
+
+        test("canCalibrateFromMarkers falls back to the four corners alone once the 20s ready-timeout elapses", () => {
+            vi.useFakeTimers();
+            vi.stubEnv("VITE_COLLAB_TRACKING_WS_URL", "ws://table-host:8053");
+            const sockets = stubRealSocket();
+
+            const scenarioStore = useCollabScenarioStore();
+            scenarioStore.aoi = aoi;
+
+            const trackingRender = useCollabTrackingRenderStore();
+            trackingRender.startRendering("control");
+            trackingRender.startCalibration();
+            sockets[0]?.onopen?.();
+
+            sendRawMarkerReading(sockets[0]!, 200, 10, 20);
+            sendRawMarkerReading(sockets[0]!, 201, 1590, 20);
+            sendRawMarkerReading(sockets[0]!, 202, 10, 780);
+            sendRawMarkerReading(sockets[0]!, 203, 1590, 780);
+            // Only the four corners — well under the ready count, and no time has passed yet.
+            expect(trackingRender.canCalibrateFromMarkers()).toBe(false);
+
+            vi.advanceTimersByTime(MAP_CALIBRATION_MARKER_READY_TIMEOUT_MS - 1);
+            expect(trackingRender.canCalibrateFromMarkers()).toBe(false);
+
+            vi.advanceTimersByTime(1);
+            expect(trackingRender.canCalibrateFromMarkers()).toBe(true);
+
+            trackingRender.stop();
+            vi.unstubAllEnvs();
+            vi.unstubAllGlobals();
+            vi.useRealTimers();
         });
 
         test("sends map_calibration built from the real marker readings, then waits for Python's feed to switch before calling itself calibrated", () => {
