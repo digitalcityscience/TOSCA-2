@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import {
     inHouseTerrainExample,
     mapConfiguration,
@@ -110,14 +110,62 @@ describe("map configuration", () => {
         expect(resolved.terrain.hillshadeSource.tiles).toBeUndefined();
     });
 
-    test("reports missing environment-backed basemap resources", () => {
-        expect(() => resolveMapConfiguration(
+    test("skips a basemap whose provider is missing a required environment value", () => {
+        vi.spyOn(console, "error").mockImplementation(() => {});
+
+        const resolved = resolveMapConfiguration(
             mapConfiguration,
             {
                 VITE_MAPTILER_API_KEY: "key",
                 VITE_INHOUSE_MAP_BASE_URL: "https://maps.example.test",
+                // VITE_INHOUSE_MAP_API_KEY intentionally omitted
             },
             (key) => key
-        )).toThrow("Missing basemap environment variable \"VITE_INHOUSE_MAP_API_KEY\"");
+        );
+
+        expect(resolved.basemaps.find(({ id }) => id === "inHouse")).toBeUndefined();
+        expect(resolved.basemaps.find(({ id }) => id === "dataviz")).toBeDefined();
+    });
+
+    test("skips a basemap whose provider baseUrl is missing entirely", () => {
+        vi.spyOn(console, "error").mockImplementation(() => {});
+
+        const resolved = resolveMapConfiguration(
+            mapConfiguration,
+            {
+                VITE_MAPTILER_API_KEY: "key",
+                // VITE_INHOUSE_MAP_BASE_URL and VITE_INHOUSE_MAP_API_KEY both omitted
+            },
+            (key) => key
+        );
+
+        expect(resolved.basemaps.find(({ id }) => id === "inHouse")).toBeUndefined();
+        expect(resolved.basemaps).toHaveLength(mapConfiguration.basemaps.length - 1);
+    });
+
+    test("falls back to the first available basemap when the initial one was skipped", () => {
+        vi.spyOn(console, "error").mockImplementation(() => {});
+
+        const configurationWithInHouseInitial: MapConfiguration = {
+            ...mapConfiguration,
+            initialBasemapId: "inHouse",
+        };
+
+        const resolved = resolveMapConfiguration(
+            configurationWithInHouseInitial,
+            { VITE_MAPTILER_API_KEY: "key" },
+            (key) => key
+        );
+
+        expect(resolved.initialBasemapId).toBe(resolved.basemaps[0].id);
+        expect(resolved.initialBasemapId).not.toBe("inHouse");
+    });
+
+    test("throws only when every basemap fails to resolve", () => {
+        expect(() => resolveMapConfiguration(
+            mapConfiguration,
+            {},
+            (key) => key
+        )).toThrow("No basemaps could be configured");
     });
 });

@@ -1,4 +1,5 @@
 import type { BasemapOption } from "@helpers/baseMapControl";
+import { reportDeveloperError } from "@helpers/userFacingError";
 import type {
     RasterDEMSourceSpecification,
     RasterSourceSpecification,
@@ -205,51 +206,34 @@ export function resolveMapConfiguration(
     environment: Record<string, string | undefined>,
     translate: Translate
 ): ResolvedMapConfiguration {
-    const basemaps = configuration.basemaps.map((definition): BasemapOption => {
-        const base = {
-            id: definition.id,
-            title: translate(definition.titleKey),
-            thumbnailUrl: resolveBasemapUrl(
-                definition.thumbnailUrl,
-                configuration.providers,
-                environment
-            ),
-        };
-
-        if (definition.kind === "vector") {
-            return {
-                ...base,
-                kind: "vector",
-                styleUrl: resolveBasemapUrl(
-                    definition.styleUrl,
-                    configuration.providers,
-                    environment
-                ),
-                fontStackOverride: definition.fontStackOverride,
-            };
+    // A basemap whose provider is missing a required baseUrl/apiKey (e.g. an
+    // in-house deployment env var left unset) is dropped from the list
+    // instead of failing map setup for every basemap.
+    const basemaps = configuration.basemaps.flatMap((definition): BasemapOption[] => {
+        try {
+            return [resolveBasemapDefinition(definition, configuration.providers, environment, translate)];
+        } catch (err) {
+            reportDeveloperError(`Skipping basemap "${definition.id}"`, err);
+            return [];
         }
-
-        return {
-            ...base,
-            kind: "raster",
-            source: {
-                type: "raster",
-                tiles: definition.tiles.map((url) => resolveBasemapUrl(
-                    url,
-                    configuration.providers,
-                    environment
-                )),
-                tileSize: definition.tileSize,
-            },
-        };
     });
 
-    if (!basemaps.some(({ id }) => id === configuration.initialBasemapId)) {
-        throw new Error(`Initial basemap "${configuration.initialBasemapId}" is not configured`);
+    if (basemaps.length === 0) {
+        throw new Error("No basemaps could be configured");
+    }
+
+    const initialBasemapId = basemaps.some(({ id }) => id === configuration.initialBasemapId)
+        ? configuration.initialBasemapId
+        : basemaps[0].id;
+    if (initialBasemapId !== configuration.initialBasemapId) {
+        reportDeveloperError(
+            `Falling back to basemap "${initialBasemapId}"`,
+            new Error(`Initial basemap "${configuration.initialBasemapId}" is not configured`)
+        );
     }
 
     return {
-        initialBasemapId: configuration.initialBasemapId,
+        initialBasemapId,
         basemaps,
         terrain: {
             exaggeration: configuration.terrain.exaggeration ?? 1,
@@ -264,6 +248,38 @@ export function resolveMapConfiguration(
                 type: "raster",
                 ...resolveTerrainSource(configuration.terrain.hillshade, configuration, environment),
             },
+        },
+    };
+}
+
+function resolveBasemapDefinition(
+    definition: BasemapDefinition,
+    providers: Record<string, BasemapProviderDefinition>,
+    environment: Record<string, string | undefined>,
+    translate: Translate
+): BasemapOption {
+    const base = {
+        id: definition.id,
+        title: translate(definition.titleKey),
+        thumbnailUrl: resolveBasemapUrl(definition.thumbnailUrl, providers, environment),
+    };
+
+    if (definition.kind === "vector") {
+        return {
+            ...base,
+            kind: "vector",
+            styleUrl: resolveBasemapUrl(definition.styleUrl, providers, environment),
+            fontStackOverride: definition.fontStackOverride,
+        };
+    }
+
+    return {
+        ...base,
+        kind: "raster",
+        source: {
+            type: "raster",
+            tiles: definition.tiles.map((url) => resolveBasemapUrl(url, providers, environment)),
+            tileSize: definition.tileSize,
         },
     };
 }
