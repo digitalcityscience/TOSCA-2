@@ -115,21 +115,19 @@ onMounted(() => {
     const options: BaseMapControlOptions = {
         maps:[
             {
-                id:"streets-v2",
+                id:"liberty",
                 title: t("map.basemap.streets"),
-                tiles: [
-                    `https://api.maptiler.com/maps/${import.meta.env.VITE_MAPTILER_API_MAP_ID}/{z}/{x}/{y}.png?key=${import.meta.env.VITE_MAPTILER_API_KEY}`
-                ]
+                vectorStyleUrl: "https://tiles.openfreemap.org/styles/liberty"
             },
             {
                 id:"satellite",
                 title: t("map.basemap.satellite"),
                 tiles: [
-                    `https://api.maptiler.com/maps/satellite/{z}/{x}/{y}.jpg?key=${import.meta.env.VITE_MAPTILER_API_KEY}`
+                    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
                 ]
             }
         ],
-        initialBasemap: "streets-v2"
+        initialBasemap: "liberty"
     }
     mapStore.map.addControl(new BaseMapControl(options), "bottom-left");
 })
