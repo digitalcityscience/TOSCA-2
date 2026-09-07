@@ -36,7 +36,7 @@ import type { AOIExtent } from "./collabCalibration";
  * These bytes predate the 3x3 calibration grid (workflow step 5), so they carry only the four
  * corner markers. That is exactly the case the grid is designed to survive: the four required
  * markers alone still calibrate, and the five extra ones are used whenever they are decoded.
- * Assertions below therefore walk `REQUIRED_MAP_CALIBRATION_MARKERS`, not all nine.
+ * Assertions below therefore walk `REQUIRED_MAP_CALIBRATION_MARKERS`, not all twelve.
  */
 const CAPTURED_BACKEND_SNAPSHOT: Record<string, [number, number, number, string]> = {
     "12": [700, 400, 12.5, "000"],

@@ -10,18 +10,50 @@ Copied here (served as static assets, not bundled) so the Collab runtime owns it
 assets and never reads them from the Vanilla application — same rationale as
 `src/collab/data/README.md`'s building-dataset copy.
 
-## The five extra grid markers (204-208)
+## The extra grid markers (206, 207, 209-214)
 
-`4x4_1000-204.svg`..`4x4_1000-208.svg` have no Vanilla counterpart — they are generated from
-OpenCV's `DICT_4X4_250` (`cv2.aruco.generateImageMarker(dictionary, id, 6)`) in exactly the format
-the four copied files use: a 6x6 `viewBox`, one black backing rect, one white rect per light
-module, `shape-rendering="crispEdges"`, `20mm` square. Ids 200-208 are bit-identical under
-`DICT_4X4_250` and `4x4_1000`, since OpenCV's 4x4 dictionaries are nested — the filenames follow
-the existing convention rather than claiming a different dictionary.
+`4x4_1000-206.svg`, `4x4_1000-207.svg`, and `4x4_1000-209.svg`..`4x4_1000-214.svg` have no Vanilla
+counterpart — generated with `generate_markers.py` in this directory, i.e.
+`cv2.aruco.generateImageMarker(dictionary, id, 6)` against OpenCV's `DICT_4X4_250`, in exactly the
+format the four copied files use: a 6x6 `viewBox`, one black backing rect, one white rect per light
+module, `shape-rendering="crispEdges"`, `20mm` square. All ids in this range are bit-identical
+under `DICT_4X4_250` and `4x4_1000`, since OpenCV's 4x4 dictionaries are nested — the filenames
+follow the existing convention rather than claiming a different dictionary.
 
-They are the edge midpoints and centre of the 3x3 grid `collabTracking.ts::MAP_CALIBRATION_MARKERS`
-projects (workflow step 5). Four correspondences leave `cv2.findHomography` no freedom: it passes
-through all four exactly, noise included, and every part of the table it did not sample is
-extrapolation off a fit that cannot even measure its own error. More points make the solve
-least-squares instead. Only 200-203 are required, so a marker landing on a stitching seam costs a
-correspondence rather than the session.
+They are `collabTracking.ts::MAP_CALIBRATION_MARKERS`' non-corner grid (workflow step 5). Four
+correspondences leave `cv2.findHomography` no freedom: it passes through all four exactly, noise
+included, and every part of the table it did not sample is extrapolation off a fit that cannot even
+measure its own error. More points make the solve least-squares instead. Only 200-203 are required,
+so a marker landing on a stitching seam costs a correspondence rather than the session.
+
+### Why 209-214 exist and 204/205/208 no longer do (2026-09-07)
+
+The original nine-marker grid put `204` (top-mid), `205` (bottom-mid), and `208` (dead centre) at
+exactly `u = 0.5` — the geometric horizontal centre of the AOI/table. On a physical table built
+from two desks pushed together (the live rig: two 80x80 cm desks forming one ~160x80 cm surface),
+that centre line **is** the seam between them: a marker projected there straddles the join and the
+camera cannot decode it at all, so those three correspondences were never actually usable on that
+hardware.
+
+`204`/`205`/`208` are replaced by three *pairs*, one either side of the seam rather than on it:
+
+| old id (removed) | replaced by                        | placement                                  |
+| ----------------- | ----------------------------------- | ------------------------------------------- |
+| 204 (top, mid)     | 209 (top, midLeft) / 210 (top, midRight)       | top edge, straddling the seam from a safe distance |
+| 205 (bottom, mid)  | 211 (bottom, midLeft) / 212 (bottom, midRight) | bottom edge, same idea |
+| 208 (centre, mid)  | 213 (centre, midLeft) / 214 (centre, midRight) | vertical middle, same idea |
+
+`206` (left, mid) and `207` (right, mid) are untouched — their `column` is `min`/`max`, not `mid`,
+so they were never on the seam.
+
+The `midLeft`/`midRight` bands (`collabTracking.ts::MapCalibrationMarkerBand`) sit
+`seamClearanceRatio()` (`collabCalibration.ts`, env `VITE_COLLAB_CALIBRATION_SEAM_CLEARANCE_RATIO`,
+default `0.1`) either side of the exact centre — far enough that a marker's own footprint clears the
+seam on the reference two-desk rig, close enough that all twelve markers still sample the full
+table. This gives `cv2.findHomography` *more* correspondences than the nine-marker grid did (12 vs.
+9), concentrated near the seam specifically because that is where the stitched image is most likely
+to disagree with a single global perspective transform — while guaranteeing none of them can ever
+land on the seam itself, regardless of table width.
+
+Regenerate any of these files with `python generate_markers.py <id> [<id> ...]` from this directory
+(requires `opencv-python`) — it reproduces the exact byte-for-byte format used here.

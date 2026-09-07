@@ -95,10 +95,15 @@ describe("createMarkerObjectRegistry", () => {
 });
 
 describe("reserved marker id registry (ticket 08)", () => {
-    test("MAP_CALIBRATION_MARKERS are a 3x3 grid over ids 200-208", () => {
-        expect([...MAP_CALIBRATION_MARKER_IDS].sort()).toEqual([200, 201, 202, 203, 204, 205, 206, 207, 208]);
+    test("MAP_CALIBRATION_MARKERS are a twelve-point grid, none of them on the seam line", () => {
+        expect([...MAP_CALIBRATION_MARKER_IDS].sort((a, b) => a - b)).toEqual([
+            200, 201, 202, 203, 206, 207, 209, 210, 211, 212, 213, 214,
+        ]);
         const bands = MAP_CALIBRATION_MARKERS.map((marker) => `${marker.column}/${marker.row}`);
-        expect(new Set(bands).size).toBe(9);
+        expect(new Set(bands).size).toBe(12);
+        // The seam runs down the exact horizontal centre (`column: "mid"`) on a two-desk table —
+        // no marker may sit there, only `midLeft`/`midRight` either side of it.
+        expect(MAP_CALIBRATION_MARKERS.some((marker) => marker.column === "mid")).toBe(false);
     });
 
     test("200-203 keep exactly their original corners, because that mapping is a physical contract", () => {
@@ -224,12 +229,12 @@ describe("buildMapCalibrationFromMarkerReadings (ticket 12)", () => {
                 [201, [1590, 20]],
                 [202, [10, 780]],
                 [203, [1590, 780]],
-                [208, [800, 400]], // the centre marker — the one place four corners never constrain
+                [213, [780, 400]], // centre-left-of-seam — the closest a marker gets to the centre four corners never constrain
             ])
         );
 
         expect(message?.points).toHaveLength(5);
-        expect(message?.points[4]?.pixel_position).toEqual([800, 400]);
+        expect(message?.points[4]?.pixel_position).toEqual([780, 400]);
     });
 
     test("a missing extra marker costs a correspondence, never the calibration", () => {

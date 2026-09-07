@@ -128,6 +128,32 @@ export function calibrationMarkerInsetRatio(): number {
 }
 
 /**
+ * How far a `midLeft`/`midRight` map-calibration marker (`collabTracking.ts::MapCalibrationMarkerBand`)
+ * sits from the AOI/table's exact horizontal centre, as a fraction of the (inset) rectangle's
+ * width — the seam-avoidance counterpart to {@link calibrationMarkerInsetRatio}.
+ *
+ * Exists because a physical table assembled from two desks pushed together has its camera-stitch
+ * seam running down exactly `u = 0.5`: a marker placed dead-centre (the original `204`/`205`/`208`
+ * grid ids) straddles that seam and cannot be decoded at all (live rig, two 80x80 cm desks forming
+ * one ~160x80 cm table, 2026-09-07). Splitting each centre-line marker into a `midLeft`/`midRight`
+ * pair this far either side of centre keeps every marker fully on one physical desk regardless of
+ * where exactly the seam falls.
+ *
+ * Read from `VITE_COLLAB_CALIBRATION_SEAM_CLEARANCE_RATIO` (B6: never hardcode a physically-tuned
+ * number in the routine itself); unset/unparsable falls back to `0.1` — comfortably wider than
+ * {@link calibrationMarkerSizePx}'s footprint relative to the AOI on the reference two-desk rig,
+ * while still sampling close to the seam rather than the corners it duplicates.
+ */
+export function seamClearanceRatio(): number {
+    const raw = String(import.meta.env.VITE_COLLAB_CALIBRATION_SEAM_CLEARANCE_RATIO ?? "").trim()
+    if (raw === "") {
+        return 0.1
+    }
+    const parsed = Number(raw)
+    return Number.isFinite(parsed) && parsed > 0 && parsed < 0.5 ? parsed : 0.1
+}
+
+/**
  * {@link calibrationMarkerInsetRatio} expressed as a fraction of each axis of the AOI/table
  * rectangle, so the inset is the same *physical distance* on all four edges rather than the same
  * fraction (Vanilla insets by `MARKER_INSET_M` metres on both axes, not by 5% of each side): the

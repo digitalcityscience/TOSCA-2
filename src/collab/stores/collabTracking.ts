@@ -1,6 +1,6 @@
 import type { Feature, FeatureCollection, MultiPolygon, Point, Polygon, Position } from "geojson"
 import { reportDeveloperError } from "@helpers/userFacingError"
-import { DEFAULT_COLLAB_TABLE_CONFIG, calibrationMarkerUvs, quadPointAt } from "./collabCalibration"
+import { DEFAULT_COLLAB_TABLE_CONFIG, calibrationMarkerUvs, quadPointAt, seamClearanceRatio } from "./collabCalibration"
 import type { AOIExtent, CollabTableConfig, MapCalibrationMessage, MapCalibrationPoint } from "./collabCalibration"
 
 /**
@@ -179,15 +179,22 @@ export type MapCalibrationMarkerCorner = "top_left" | "top_right" | "bottom_left
  * One band of the projectable rectangle a calibration marker sits in, on either axis: `min` is
  * inset from the low edge, `mid` is halfway across, `max` is inset from the high edge. The insets
  * are {@link calibrationMarkerInsetFractions}', so a marker never straddles the table's edge.
+ *
+ * `midLeft`/`midRight` sit {@link seamClearanceRatio} either side of `mid` instead of on it — for
+ * a table assembled from two desks pushed together, the camera-stitch seam runs down exactly the
+ * `mid` line, and a marker placed there straddles it and cannot be decoded (see
+ * `public/collab/calibration-markers/README.md`, 2026-09-07). Column-only in
+ * {@link MAP_CALIBRATION_MARKERS}: the seam this codebase's reference rig has is vertical, so only
+ * `column` ever uses them, but the band itself is axis-agnostic like the other three.
  */
-export type MapCalibrationMarkerBand = "min" | "mid" | "max"
+export type MapCalibrationMarkerBand = "min" | "mid" | "max" | "midLeft" | "midRight"
 
 /**
  * One map-calibration marker (ticket 08/12): a fixed ArUco id projected at a known place in the
  * AOI, read back out of Python's raw pre-calibration marker dictionary to pair a table pixel with
  * a geographic position.
  *
- * `required` splits the nine into the four the calibration cannot proceed without and the five
+ * `required` splits the twelve into the four the calibration cannot proceed without and the eight
  * that only improve it — see {@link MAP_CALIBRATION_MARKERS}.
  */
 export interface MapCalibrationMarkerConfig {
@@ -202,24 +209,33 @@ export interface MapCalibrationMarkerConfig {
 }
 
 /**
- * The nine map-calibration markers (workflow step 5): a 3x3 grid over the projectable area,
+ * The twelve map-calibration markers (workflow step 5): a grid over the projectable area,
  * projected by the Table window and read back out of `RealTrackingSource`'s raw pre-calibration
  * snapshots (see {@link RawMarkerReading}) with no dedicated Python message.
  *
- * Why nine and not the original four. `cv2.findHomography` with exactly four correspondences has
+ * Why more than the original four. `cv2.findHomography` with exactly four correspondences has
  * no freedom left: it passes through all four exactly and dumps every bit of detection noise into
  * the map *everywhere else*. On the 2026-08-31 rig those four pixels spanned only the middle
  * two-thirds of the stitched image — `(288,658) (1347,663) (298,153) (1350,150)` out of 1600x800 —
  * so the whole outer third of the table was extrapolation off a fit that could not even measure
- * its own error. With nine, the solve is least-squares: the noise averages out instead of being
+ * its own error. With more, the solve is least-squares: the noise averages out instead of being
  * absorbed exactly, and there is a residual per point to look at.
  *
  * Ids 200-203 keep their existing corners exactly, because that mapping is a physical contract
- * shared with Python (`calibration_contract.py`) and the Vanilla reference app. 204-208 are new
- * and additive.
+ * shared with Python (`calibration_contract.py`) and the Vanilla reference app. 206/207 and
+ * 209-214 are new and additive.
  *
- * Only the four corners are `required`. Demanding all nine would make calibration *more* fragile
- * than before — one marker landing on a seam or in a camera's weak corner would block the whole
+ * The grid is *not* a plain 3x3: the original centre-line markers (`204` top-mid, `205`
+ * bottom-mid, `208` dead centre) sat at exactly `column: "mid"`, the table's geometric horizontal
+ * centre — which, on a table built from two desks pushed together, is exactly where the
+ * camera-stitch seam runs. A marker straddling that seam is not merely noisy, it is undecodable
+ * (`public/collab/calibration-markers/README.md`, 2026-09-07). Each of those three ids is replaced
+ * by a `midLeft`/`midRight` pair (209/210, 211/212, 213/214) straddling the seam from a safe
+ * distance ({@link seamClearanceRatio}) instead of sitting on it — twelve markers total, more
+ * densely sampled near the seam specifically, and none of them able to land on it.
+ *
+ * Only the four corners are `required`. Demanding all twelve would make calibration *more*
+ * fragile than before — one marker landing in a camera's weak corner would block the whole
  * session — while the corners alone still give exactly the fit that worked before. Every extra
  * marker that is decoded is used; every one that is not is simply absent from the solve.
  *
@@ -231,11 +247,14 @@ export const MAP_CALIBRATION_MARKERS: readonly MapCalibrationMarkerConfig[] = [
     { id: 201, column: "max", row: "min", required: true, place: "top_right", corner: "top_right" },
     { id: 202, column: "min", row: "max", required: true, place: "bottom_left", corner: "bottom_left" },
     { id: 203, column: "max", row: "max", required: true, place: "bottom_right", corner: "bottom_right" },
-    { id: 204, column: "mid", row: "min", required: false, place: "top" },
-    { id: 205, column: "mid", row: "max", required: false, place: "bottom" },
     { id: 206, column: "min", row: "mid", required: false, place: "left" },
     { id: 207, column: "max", row: "mid", required: false, place: "right" },
-    { id: 208, column: "mid", row: "mid", required: false, place: "centre" },
+    { id: 209, column: "midLeft", row: "min", required: false, place: "top_left_of_seam" },
+    { id: 210, column: "midRight", row: "min", required: false, place: "top_right_of_seam" },
+    { id: 211, column: "midLeft", row: "max", required: false, place: "bottom_left_of_seam" },
+    { id: 212, column: "midRight", row: "max", required: false, place: "bottom_right_of_seam" },
+    { id: 213, column: "midLeft", row: "mid", required: false, place: "centre_left_of_seam" },
+    { id: 214, column: "midRight", row: "mid", required: false, place: "centre_right_of_seam" },
 ]
 
 /** The four markers a calibration cannot be built without — see {@link MAP_CALIBRATION_MARKERS}. */
@@ -291,15 +310,31 @@ export function aoiCalibrationMarkerPosition(
  * `min`/`max` land on the inset corners {@link calibrationMarkerUvs} already defines, so the four
  * original markers keep their exact previous positions; `mid` is the midpoint of the *inset*
  * rectangle rather than of the table, so the grid stays regular and every marker is equally clear
- * of the edge.
+ * of the edge. `midLeft`/`midRight` sit {@link seamClearanceRatio} either side of that same
+ * midpoint — see {@link MapCalibrationMarkerBand} for why `mid` itself is unsafe on a two-desk
+ * table.
  */
 export function mapCalibrationMarkerUv(
     marker: MapCalibrationMarkerConfig,
     config: CollabTableConfig = DEFAULT_COLLAB_TABLE_CONFIG
 ): [number, number] {
     const [[minU, minV], , [maxU, maxV]] = calibrationMarkerUvs(config)
-    const band = (which: MapCalibrationMarkerBand, low: number, high: number): number =>
-        which === "min" ? low : which === "max" ? high : (low + high) / 2
+    const clearance = seamClearanceRatio()
+    const band = (which: MapCalibrationMarkerBand, low: number, high: number): number => {
+        const mid = (low + high) / 2
+        switch (which) {
+            case "min":
+                return low
+            case "max":
+                return high
+            case "midLeft":
+                return mid - clearance * (high - low)
+            case "midRight":
+                return mid + clearance * (high - low)
+            case "mid":
+                return mid
+        }
+    }
     return [band(marker.column, minU, maxU), band(marker.row, minV, maxV)]
 }
 
