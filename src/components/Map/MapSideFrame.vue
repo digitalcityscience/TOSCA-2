@@ -46,18 +46,6 @@ const leftItems = computed<FrameItem[]>(() => [
         action: () => toggleSlideoverSidebar("workspaceListing"),
     },
     {
-        id: "floodScenarios",
-        label: t("map.sideFrame.floodScenarios"),
-        icon: "i-lucide-waves",
-        action: () => toggleSlideoverSidebar("floodScenarios"),
-    },
-    {
-        id: "gq-geostory-sidebar",
-        label: t("map.sideFrame.airQualityScenarios"),
-        icon: "i-lucide-shield-plus",
-        action: () => toggleSlideoverSidebar("gq-geostory-sidebar"),
-    },
-    {
         id: "participation",
         label: t("map.sideFrame.participation"),
         icon: "i-lucide-chart-column",

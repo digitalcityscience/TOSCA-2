@@ -6,8 +6,6 @@
         </div>
         <MapSideFrame side="right"></MapSideFrame>
         <WorkspaceListing :workspaces="geoserverStore.workspaceList"></WorkspaceListing>
-        <FloodSidebar></FloodSidebar>
-        <GQGeostory></GQGeostory>
         <MapLayerListing></MapLayerListing>
         <ToolboxSidebar></ToolboxSidebar>
     </div>
@@ -23,8 +21,6 @@ import { reportDeveloperError } from "@helpers/userFacingError";
 const WorkspaceListing = defineAsyncComponent(async () => await import("@components/Data/Workspace/WorkspaceListing.vue"));
 const MapLayerListing = defineAsyncComponent(async () => await import("@components/Map/Layer/MapLayerListing.vue"));
 const ToolboxSidebar = defineAsyncComponent(async () => await import("@components/Map/ToolboxSidebar.vue"))
-const FloodSidebar = defineAsyncComponent(async () => await import("@components/Geostories/FloodSidebar.vue"))
-const GQGeostory = defineAsyncComponent(async () => await import("@components/Geostories/GQGeostory.vue"))
 const geoserverStore = useGeoserverStore()
 onMounted(()=>{
     geoserverStore.getWorkspaceList().catch((error) => {
