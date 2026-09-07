@@ -102,8 +102,11 @@ onBeforeUnmount(() => {
     height: 100%;
 }
 /* ticket 11: clean, high-contrast backdrop once the basemap/scenario layers are hidden for
-   calibration presentation — the cameras need to read the marker images reliably. */
-.collab-table--presenting .collab-table-map,
+   calibration presentation — mid-gray (not black) maximizes contrast against both the light and
+   dark modules of the calibration marker images, so the cameras read corners reliably. */
+.collab-table--presenting .collab-table-map {
+    background: #808080;
+}
 .collab-table--blacked-out .collab-table-map {
     background: #050505;
 }

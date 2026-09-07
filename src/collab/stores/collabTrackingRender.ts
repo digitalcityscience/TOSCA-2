@@ -327,8 +327,9 @@ export function orientationArrowTip(centre: Position, appliedRotationDeg: number
 }
 
 /**
- * Hides every currently-visible raster (basemap) layer plus every already-created
- * {@link TABLE_MANAGED_LAYER_IDS} layer, and returns the ids it actually changed (ticket 11,
+ * Hides every layer the current basemap style defines (all types, not just raster — a vector
+ * style's water/landuse/road/label fills are just as visible as a raster tile) plus every already-
+ * created {@link TABLE_MANAGED_LAYER_IDS} layer, and returns the ids it actually changed (ticket 11,
  * fix-tickets) — so `syncCalibrationPresentation` can restore exactly those, and only those, once
  * presentation mode ends. Idempotent: a layer already hidden (by this or anything else) is left
  * alone and not included in the returned list.
@@ -336,10 +337,7 @@ export function orientationArrowTip(centre: Position, appliedRotationDeg: number
 export function hideNonCalibrationLayers(map: MapLibreMap): string[] {
     const hidden: string[] = [];
     const styleLayers = map.getStyle()?.layers ?? [];
-    const candidateIds = [
-        ...styleLayers.filter((layer) => layer.type === "raster").map((layer) => layer.id),
-        ...TABLE_MANAGED_LAYER_IDS,
-    ];
+    const candidateIds = [...styleLayers.map((layer) => layer.id), ...TABLE_MANAGED_LAYER_IDS];
     for (const id of candidateIds) {
         if (map.getLayer(id) === undefined) {
             continue;
