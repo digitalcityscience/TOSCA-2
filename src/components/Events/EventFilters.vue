@@ -4,23 +4,18 @@
         :ui="{ body: 'p-3 sm:p-3' }"
     >
         <div class="grid gap-3">
-            <div class="flex items-center justify-between gap-3">
-                <UCheckbox
-                    v-model="includePast"
-                    label="Include past events"
-                    description="Show events that have already started."
-                />
-                <UBadge v-if="hasActiveFilters" color="primary" variant="subtle">
+            <div v-if="hasActiveFilters" class="flex justify-end">
+                <UBadge color="primary" variant="subtle">
                     Filtered
                 </UBadge>
             </div>
 
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <UFormField label="Start after">
-                    <UInput v-model="startAfter" type="datetime-local" class="w-full" />
+                    <UInput v-model="startAfter" type="datetime-local" class="w-full" :min="minDateTime" />
                 </UFormField>
                 <UFormField label="Start before">
-                    <UInput v-model="startBefore" type="datetime-local" class="w-full" />
+                    <UInput v-model="startBefore" type="datetime-local" class="w-full" :min="minDateTime" />
                 </UFormField>
             </div>
 
@@ -105,7 +100,7 @@ const events = useEventsStore();
 const mapStore = useMapStore();
 const toast = useToast();
 
-const includePast = ref(Boolean(events.filters.include_past));
+const minDateTime = toDatetimeLocal(new Date().toISOString());
 const startAfter = ref(toDatetimeLocal(events.filters.start_after));
 const startBefore = ref(toDatetimeLocal(events.filters.start_before));
 const eventTypeId = ref(events.filters.event_type_id ?? "");
@@ -145,8 +140,7 @@ const termItems = computed(() => [
     })),
 ]);
 const hasActiveFilters = computed(() => {
-    return includePast.value ||
-        startAfter.value !== "" ||
+    return startAfter.value !== "" ||
         startBefore.value !== "" ||
         eventTypeId.value !== "" ||
         dimensionCode.value !== "" ||
@@ -173,7 +167,6 @@ watch(dimensionCode, () => {
 
 async function applyFilters(): Promise<void> {
     const filters: EventFilters = {
-        include_past: includePast.value,
         event_type_id: emptyToUndefined(eventTypeId.value),
         profile_key: emptyToUndefined(profileKey.value),
         dimension_code: emptyToUndefined(dimensionCode.value),
@@ -194,14 +187,13 @@ async function applyFilters(): Promise<void> {
 }
 
 async function resetFilters(): Promise<void> {
-    includePast.value = false;
     startAfter.value = "";
     startBefore.value = "";
     eventTypeId.value = "";
     profileKey.value = "";
     dimensionCode.value = "";
     termCode.value = "";
-    events.setFilters({ include_past: false });
+    events.setFilters({});
     try {
         await Promise.all([
             events.loadEvents(),

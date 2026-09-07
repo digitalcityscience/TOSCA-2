@@ -6,6 +6,7 @@
                 color="neutral"
                 variant="ghost"
                 square
+                :disabled="isAtEarliestMonth"
                 aria-label="Previous month"
                 @click="goToPreviousMonth"
             />
@@ -15,6 +16,7 @@
                 color="neutral"
                 variant="ghost"
                 square
+                :loading="navigatingForward"
                 aria-label="Next month"
                 @click="goToNextMonth"
             />
@@ -110,7 +112,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { type EventListItem, type EventLocationMode } from "@store/events";
+import { type EventListItem, type EventLocationMode, useEventsStore } from "@store/events";
 import {
     eventLocationColor,
     eventLocationIcon,
@@ -122,7 +124,13 @@ const props = defineProps<{
     events: EventListItem[]
 }>();
 
+const eventsStore = useEventsStore();
 const visibleMonth = ref(startOfMonth(firstRelevantDate(props.events)));
+const navigatingForward = ref(false);
+
+const isAtEarliestMonth = computed(() => {
+    return visibleMonth.value.getTime() <= startOfMonth(new Date()).getTime();
+});
 
 const visibleLocationModes = computed(() => {
     const preferredOrder: EventLocationMode[] = [
@@ -193,11 +201,25 @@ function formatEventPreviewDate(value: string): string {
 }
 
 function goToPreviousMonth(): void {
+    if (isAtEarliestMonth.value) {
+        return;
+    }
     visibleMonth.value = new Date(visibleMonth.value.getFullYear(), visibleMonth.value.getMonth() - 1, 1);
 }
 
-function goToNextMonth(): void {
-    visibleMonth.value = new Date(visibleMonth.value.getFullYear(), visibleMonth.value.getMonth() + 1, 1);
+async function goToNextMonth(): Promise<void> {
+    const nextMonth = new Date(visibleMonth.value.getFullYear(), visibleMonth.value.getMonth() + 1, 1);
+    const loadedThrough = new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 1);
+
+    navigatingForward.value = true;
+    try {
+        await eventsStore.ensureEventsThrough(loadedThrough);
+        visibleMonth.value = nextMonth;
+    } catch {
+        // The store logs technical details and exposes user-safe alert copy.
+    } finally {
+        navigatingForward.value = false;
+    }
 }
 
 function firstRelevantDate(events: EventListItem[]): Date {

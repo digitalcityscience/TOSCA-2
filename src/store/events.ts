@@ -1,5 +1,5 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { type FeatureCollection, type Point } from "@helpers/geojson";
 import {
     fetchBackendJson,
@@ -46,9 +46,24 @@ export interface EventFilters {
     term_code?: string;
     dimension_id?: string;
     term_id?: string;
-    include_past?: boolean;
     start_after?: string;
     start_before?: string;
+}
+
+// Events are only ever browsed forward from now. With no explicit
+// start_before filter, a list refresh loads this many months ahead;
+// further months are fetched on demand (calendar month navigation, the
+// list view's "load more") rather than paginating through everything.
+const DEFAULT_WINDOW_MONTHS = 2;
+
+function addMonths(date: Date, months: number): Date {
+    const result = new Date(date);
+    result.setMonth(result.getMonth() + months);
+    return result;
+}
+
+function startOfMonth(date: Date): Date {
+    return new Date(date.getFullYear(), date.getMonth(), 1);
 }
 
 export interface EventTypeRegistryItem {
@@ -307,9 +322,6 @@ function appendEventFilters(url: URL, filters: EventFilters): void {
         if (value === undefined || value === null || value === "") {
             return;
         }
-        if (key === "include_past" && value === false) {
-            return;
-        }
         url.searchParams.set(key, String(value));
     });
 }
@@ -323,8 +335,6 @@ export function getEventFeatureId(
 
 export const useEventsStore = defineStore("events", () => {
     const events = ref<EventListItem[]>([]);
-    const next = ref<string | null>(null);
-    const previous = ref<string | null>(null);
     const spatialEvents = ref<EventSpatialFeatureCollection>({
         type: "FeatureCollection",
         features: [],
@@ -334,22 +344,29 @@ export const useEventsStore = defineStore("events", () => {
     const eventTypes = ref<EventTypeRegistryItem[]>([]);
     const taxonomyRegistriesByProfile = ref<Record<string, EventTaxonomyRegistry>>({});
     const loadingList = ref(false);
+    const loadingMore = ref(false);
     const loadingMap = ref(false);
     const loadingDetail = ref(false);
     const loadingRegistries = ref(false);
     const loadedMapRequestKey = ref("");
     const error = ref("");
-    const filters = ref<EventFilters>({
-        include_past: false,
-    });
+    const filters = ref<EventFilters>({});
     let activeMapRequest: Promise<void> | undefined;
     let activeMapRequestKey = "";
 
+    // Tracks how far ahead events have been loaded so calendar navigation
+    // and "load more" can fetch just the next slice instead of refetching
+    // everything. windowCap mirrors an explicit start_before filter: once
+    // the user asks for a bounded range, that range is loaded in full and
+    // there is nothing further to fetch on demand.
+    const windowStart = ref<Date | null>(null);
+    const windowCap = ref<Date | null>(null);
+    const loadedRangeEnd = ref<Date | null>(null);
+    const canLoadMore = computed(() => windowCap.value === null);
+    let activeExtension: Promise<void> | undefined;
+
     function setFilters(nextFilters: EventFilters): void {
-        filters.value = {
-            include_past: false,
-            ...nextFilters,
-        };
+        filters.value = { ...nextFilters };
     }
 
     async function loadEventTypes(): Promise<void> {
@@ -388,27 +405,52 @@ export const useEventsStore = defineStore("events", () => {
         }
     }
 
+    async function fetchAllPages(requestFilters: EventFilters): Promise<EventListItem[]> {
+        const results: EventListItem[] = [];
+        let pageUrl: URL | null = buildEventListUrl(requestFilters);
+
+        while (pageUrl !== null) {
+            const response: EventListResponse = await fetchBackendJson<EventListResponse>(
+                pageUrl,
+                "Event"
+            );
+            results.push(...response.results);
+            pageUrl = response.next === null ? null : resolveBackendUrl(response.next);
+        }
+
+        return results;
+    }
+
+    async function mergeEventsRange(rangeStart: Date, rangeEnd: Date): Promise<void> {
+        const requestFilters: EventFilters = {
+            ...filters.value,
+            start_after: rangeStart.toISOString(),
+            start_before: rangeEnd.toISOString(),
+        };
+        const fetched = await fetchAllPages(requestFilters);
+        events.value = [...events.value, ...fetched];
+        loadedRangeEnd.value = rangeEnd;
+    }
+
     async function loadEvents(): Promise<void> {
         loadingList.value = true;
         error.value = "";
         try {
-            const allEvents: EventListItem[] = [];
-            let pageUrl: URL | null = buildEventListUrl(filters.value);
-            let lastPrevious: string | null = null;
+            events.value = [];
+            const start = filters.value.start_after !== undefined
+                ? new Date(filters.value.start_after)
+                : new Date();
+            const cap = filters.value.start_before !== undefined
+                ? new Date(filters.value.start_before)
+                : null;
+            windowStart.value = start;
+            windowCap.value = cap;
+            loadedRangeEnd.value = start;
 
-            while (pageUrl !== null) {
-                const response: EventListResponse = await fetchBackendJson<EventListResponse>(
-                    pageUrl,
-                    "Event"
-                );
-                allEvents.push(...response.results);
-                lastPrevious = response.previous;
-                pageUrl = response.next === null ? null : resolveBackendUrl(response.next);
-            }
-
-            events.value = allEvents;
-            next.value = null;
-            previous.value = lastPrevious;
+            // Aligned to calendar months, not "N months from today": e.g.
+            // on Sep 7 this loads through Oct 31, not through Nov 7.
+            const initialTarget = cap ?? startOfMonth(addMonths(startOfMonth(start), DEFAULT_WINDOW_MONTHS));
+            await mergeEventsRange(start, initialTarget);
         } catch (err) {
             error.value = serviceUnavailableMessage("event");
             reportDeveloperError("Loading events", err);
@@ -416,6 +458,43 @@ export const useEventsStore = defineStore("events", () => {
         } finally {
             loadingList.value = false;
         }
+    }
+
+    // Extends the loaded window forward to cover `target`, fetching only
+    // the missing slice. No-ops if `target` is already covered, or clamps
+    // to windowCap when the user has an explicit start_before filter set.
+    async function ensureEventsThrough(target: Date): Promise<void> {
+        if (activeExtension !== undefined) {
+            await activeExtension.catch(() => undefined);
+        }
+
+        const cappedTarget = windowCap.value !== null && target.getTime() > windowCap.value.getTime()
+            ? windowCap.value
+            : target;
+        if (loadedRangeEnd.value !== null && cappedTarget.getTime() <= loadedRangeEnd.value.getTime()) {
+            return;
+        }
+
+        loadingMore.value = true;
+        error.value = "";
+        const rangeStart = loadedRangeEnd.value ?? windowStart.value ?? new Date();
+        const request = mergeEventsRange(rangeStart, cappedTarget);
+        activeExtension = request;
+        try {
+            await request;
+        } catch (err) {
+            error.value = serviceUnavailableMessage("event");
+            reportDeveloperError("Loading more events", err);
+            throw err;
+        } finally {
+            loadingMore.value = false;
+            activeExtension = undefined;
+        }
+    }
+
+    async function loadMoreEvents(): Promise<void> {
+        const base = loadedRangeEnd.value ?? windowStart.value ?? new Date();
+        await ensureEventsThrough(startOfMonth(addMonths(base, 1)));
     }
 
     async function loadEventMap(): Promise<void> {
@@ -484,23 +563,25 @@ export const useEventsStore = defineStore("events", () => {
 
     return {
         events,
-        next,
-        previous,
         spatialEvents,
         onlineEvents,
         selectedEvent,
         eventTypes,
         taxonomyRegistriesByProfile,
         loadingList,
+        loadingMore,
         loadingMap,
         loadingDetail,
         loadingRegistries,
+        canLoadMore,
         error,
         filters,
         setFilters,
         loadEventTypes,
         loadEventTaxonomy,
         loadEvents,
+        ensureEventsThrough,
+        loadMoreEvents,
         loadEventMap,
         getEventDetail,
         getSeriesDetail,

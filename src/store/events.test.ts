@@ -1,5 +1,5 @@
 import { createPinia, setActivePinia } from "pinia";
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
     buildEventDetailUrl,
     buildEventListUrl,
@@ -28,8 +28,16 @@ describe("events store", () => {
     beforeEach(() => {
         setActivePinia(createPinia());
         vi.stubEnv("VITE_BACKEND_ROOT_URL", "http://localhost:8000");
+        // Pin the timezone so month-window math (which uses local wall-clock
+        // dates) doesn't shift by a DST hour depending on the host machine.
+        vi.stubEnv("TZ", "UTC");
         fetchMock = vi.fn();
         vi.stubGlobal("fetch", fetchMock);
+        vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
     });
 
     test("builds event URLs from the backend root", () => {
@@ -55,7 +63,6 @@ describe("events store", () => {
 
     test("shares filters between list and map requests while keeping bbox map-only", () => {
         const filters = {
-            include_past: false,
             campaign_id: "campaign-1",
             profile_key: "public_health",
             dimension_code: "field_of_action",
@@ -106,7 +113,9 @@ describe("events store", () => {
         );
     });
 
-    test("loads every cursor page in a single list refresh", async () => {
+    test("loads only the next two months on initial refresh, following cursor pages within that window", async () => {
+        vi.setSystemTime(new Date("2026-01-15T00:00:00.000Z"));
+
         fetchMock
             .mockResolvedValueOnce(jsonResponse({
                 next: "/api/v1/events/?cursor=next",
@@ -123,10 +132,39 @@ describe("events store", () => {
         await events.loadEvents();
 
         expect(events.events.map((event) => event.id)).toEqual(["1", "2"]);
-        expect(events.next).toBeNull();
+        expect(fetchMock.mock.calls[0][0].toString()).toBe(
+            "http://localhost:8000/api/v1/events/?start_after=2026-01-15T00%3A00%3A00.000Z&start_before=2026-03-01T00%3A00%3A00.000Z"
+        );
         expect(fetchMock.mock.calls[1][0].toString()).toBe(
             "http://localhost:8000/api/v1/events/?cursor=next"
         );
+    });
+
+    test("loadMoreEvents fetches only the next month and appends onto the loaded events", async () => {
+        vi.setSystemTime(new Date("2026-01-15T00:00:00.000Z"));
+
+        fetchMock
+            .mockResolvedValueOnce(jsonResponse({ next: null, previous: null, results: [{ id: "1" }] }))
+            .mockResolvedValueOnce(jsonResponse({ next: null, previous: null, results: [{ id: "2" }] }));
+
+        const events = useEventsStore();
+        await events.loadEvents();
+        await events.loadMoreEvents();
+
+        expect(events.events.map((event) => event.id)).toEqual(["1", "2"]);
+        expect(fetchMock.mock.calls[1][0].toString()).toBe(
+            "http://localhost:8000/api/v1/events/?start_after=2026-03-01T00%3A00%3A00.000Z&start_before=2026-04-01T00%3A00%3A00.000Z"
+        );
+    });
+
+    test("stops offering more once an explicit start_before filter caps the window", async () => {
+        fetchMock.mockResolvedValueOnce(jsonResponse({ next: null, previous: null, results: [] }));
+
+        const events = useEventsStore();
+        events.setFilters({ start_before: "2026-02-01T00:00:00.000Z" });
+        await events.loadEvents();
+
+        expect(events.canLoadMore).toBe(false);
     });
 
     test("loads map buckets and event details", async () => {
@@ -183,12 +221,12 @@ describe("events store", () => {
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
 
-        events.setFilters({ include_past: true });
+        events.setFilters({ campaign_id: "campaign-2" });
         await events.loadEventMap();
 
         expect(fetchMock).toHaveBeenCalledTimes(2);
         expect(fetchMock.mock.calls[1][0].toString()).toBe(
-            `http://localhost:8000/api/v1/events/map/?include_past=true&bbox=${HAMBURG_EVENT_BBOX.join("%2C")}`
+            `http://localhost:8000/api/v1/events/map/?campaign_id=campaign-2&bbox=${HAMBURG_EVENT_BBOX.join("%2C")}`
         );
     });
 

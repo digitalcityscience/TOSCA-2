@@ -57,6 +57,17 @@
                     :key="event.id"
                     :event="event"
                 />
+                <div v-if="events.canLoadMore" class="flex justify-center pt-1">
+                    <UButton
+                        label="Load next month"
+                        icon="i-lucide-calendar-plus"
+                        color="neutral"
+                        variant="outline"
+                        size="sm"
+                        :loading="events.loadingMore"
+                        @click="loadMoreEvents"
+                    />
+                </div>
             </div>
             <EventCalendarView v-else :events="events.events" />
         </div>
@@ -85,6 +96,12 @@ onMounted(() => {
 
 function loadEvents(): void {
     events.loadEvents().catch(() => {
+        // The store logs technical details and exposes user-safe alert copy.
+    });
+}
+
+function loadMoreEvents(): void {
+    events.loadMoreEvents().catch(() => {
         // The store logs technical details and exposes user-safe alert copy.
     });
 }
