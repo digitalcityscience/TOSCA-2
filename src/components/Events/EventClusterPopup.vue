@@ -3,7 +3,7 @@
         <div class="flex items-center gap-2">
             <UIcon name="i-lucide-map-pinned" class="size-4 text-primary" />
             <h3 class="text-sm font-semibold text-highlighted">
-                {{ events.length }} events at this location
+                {{ t("events.map.clusterCount", events.length) }}
             </h3>
         </div>
         <div class="grid gap-2">
@@ -17,7 +17,7 @@
             >
                 <span class="grid min-w-0 gap-0.5">
                     <span class="truncate text-sm font-medium text-highlighted">{{ event.title }}</span>
-                    <span class="text-xs text-muted">{{ formatEventDate(event.start_datetime) }}</span>
+                    <span class="text-xs text-muted">{{ formatEventDate(event.start_datetime, locale) }}</span>
                 </span>
             </UButton>
         </div>
@@ -26,11 +26,13 @@
 
 <script setup lang="ts">
 import { type EventMapProperties } from "@store/events";
+import { useI18n } from "vue-i18n";
 import { formatEventDate } from "./eventPresentation";
 
 defineProps<{
     events: EventMapProperties[]
 }>();
+const { locale, t } = useI18n();
 
 const emit = defineEmits<{
     "open-details": [eventId: string]

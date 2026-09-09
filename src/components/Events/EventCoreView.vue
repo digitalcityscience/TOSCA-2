@@ -16,7 +16,7 @@
             <p class="text-sm leading-relaxed text-toned">{{ event.summary }}</p>
 
             <section v-if="hasAccessInformation" class="grid gap-2">
-                <h2 class="text-base font-semibold text-highlighted">Access</h2>
+                <h2 class="text-base font-semibold text-highlighted">{{ t("events.detail.access") }}</h2>
                 <div class="grid gap-1.5 text-sm text-toned">
                     <p v-if="event.venue_address !== ''" class="flex gap-2">
                         <UIcon name="i-lucide-map-pin" class="mt-0.5 size-4 shrink-0 text-muted" />
@@ -32,7 +32,7 @@
                         :href="event.online_url"
                         target="_blank"
                         rel="noreferrer"
-                        label="Open online event"
+                        :label="t('events.detail.openOnline')"
                         trailing-icon="i-lucide-external-link"
                         variant="link"
                         class="w-fit px-0"
@@ -42,10 +42,10 @@
             </section>
 
             <section v-if="contactItems.length > 0" class="grid gap-2">
-                <h2 class="text-base font-semibold text-highlighted">Provider</h2>
+                <h2 class="text-base font-semibold text-highlighted">{{ t("events.detail.provider") }}</h2>
                 <dl class="grid gap-2 text-sm">
                     <div v-if="event.provider_name !== ''">
-                        <dt class="sr-only">Provider</dt>
+                        <dt class="sr-only">{{ t("events.detail.provider") }}</dt>
                         <dd class="font-semibold text-highlighted">{{ event.provider_name }}</dd>
                     </div>
                     <div
@@ -76,7 +76,7 @@
             />
 
             <section v-if="event.taxonomy_assignments.length > 0" class="grid gap-3">
-                <h2 class="text-base font-semibold text-highlighted">Attributes</h2>
+                <h2 class="text-base font-semibold text-highlighted">{{ t("events.detail.attributes") }}</h2>
                 <div v-for="assignment in event.taxonomy_assignments" :key="assignment.dimension_id" class="grid gap-1.5">
                     <h3 class="text-sm font-medium text-toned">{{ assignment.dimension_label }}</h3>
                     <div class="flex flex-wrap gap-1.5">
@@ -93,7 +93,7 @@
             </section>
 
             <section v-if="orderedLayers.length > 0" class="grid gap-2">
-                <h2 class="text-base font-semibold text-highlighted">Map layers</h2>
+                <h2 class="text-base font-semibold text-highlighted">{{ t("events.detail.mapLayers") }}</h2>
                 <ul class="grid gap-2">
                     <li
                         v-for="item in orderedLayers"
@@ -107,7 +107,7 @@
             </section>
 
             <section v-if="event.feature_links.length > 0" class="grid gap-2">
-                <h2 class="text-base font-semibold text-highlighted">Related content</h2>
+                <h2 class="text-base font-semibold text-highlighted">{{ t("events.detail.relatedContent") }}</h2>
                 <div class="flex flex-wrap gap-1.5">
                     <UBadge
                         v-for="link in event.feature_links"
@@ -125,6 +125,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import { type EventDetail } from "@store/events";
 import EditorJsReadonly from "@components/Base/EditorJsReadonly.vue";
 import EventLocationBadge from "./EventLocationBadge.vue";
@@ -133,8 +134,9 @@ import { formatEventDate } from "./eventPresentation";
 const props = defineProps<{
     event: EventDetail
 }>();
+const { locale, t } = useI18n();
 
-const dateLabel = computed(() => formatEventDate(props.event.start_datetime));
+const dateLabel = computed(() => formatEventDate(props.event.start_datetime, locale.value));
 const eventContent = computed(() => ({
     ...props.event.content,
     blocks: props.event.content.blocks ?? [],
@@ -150,20 +152,20 @@ const hasAccessInformation = computed(() => {
 });
 const contactItems = computed(() => {
     const items = [
-        { label: "Address", value: props.event.provider_address, href: "" },
+        { label: t("events.detail.address"), value: props.event.provider_address, href: "" },
         {
-            label: "Phone",
+            label: t("events.detail.phone"),
             value: props.event.provider_phone,
             href: props.event.provider_phone === "" ? "" : `tel:${props.event.provider_phone}`,
         },
         {
-            label: "Email",
+            label: t("events.detail.email"),
             value: props.event.provider_email,
             href: props.event.provider_email === "" ? "" : `mailto:${props.event.provider_email}`,
         },
-        { label: "Social", value: props.event.provider_social, href: "" },
-        { label: "Website", value: props.event.provider_url, href: props.event.provider_url },
-        { label: "External", value: props.event.external_url, href: props.event.external_url },
+        { label: t("events.detail.social"), value: props.event.provider_social, href: "" },
+        { label: t("events.detail.website"), value: props.event.provider_url, href: props.event.provider_url },
+        { label: t("events.detail.external"), value: props.event.external_url, href: props.event.external_url },
     ];
     return items.filter((item) => item.value !== "");
 });

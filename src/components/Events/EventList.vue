@@ -12,7 +12,7 @@
                 size="sm"
             />
             <span v-if="events.events.length > 0" class="text-xs text-muted">
-                {{ events.events.length }} {{ events.events.length === 1 ? "event" : "events" }}
+                {{ t("events.list.count", events.events.length) }}
             </span>
         </div>
 
@@ -25,12 +25,12 @@
             color="error"
             variant="subtle"
             icon="i-lucide-circle-alert"
-            title="Events are unavailable right now"
+            :title="t('events.list.unavailableTitle')"
             :description="events.error"
         >
             <template #actions>
                 <UButton
-                    label="Try again"
+                    :label="t('events.tryAgain')"
                     icon="i-lucide-refresh-cw"
                     color="error"
                     variant="soft"
@@ -46,8 +46,8 @@
             color="info"
             variant="subtle"
             icon="i-lucide-calendar-x"
-            title="No events are available"
-            description="Try changing the filters or including past events."
+            :title="t('events.list.emptyTitle')"
+            :description="t('events.list.emptyDescription')"
         />
 
         <div v-if="events.events.length > 0">
@@ -59,7 +59,7 @@
                 />
                 <div v-if="events.canLoadMore" class="flex justify-center pt-1">
                     <UButton
-                        label="Load next month"
+                        :label="t('events.list.loadNextMonth')"
                         icon="i-lucide-calendar-plus"
                         color="neutral"
                         variant="outline"
@@ -75,18 +75,20 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { useEventsStore } from "@store/events";
 import EventCalendarView from "./EventCalendarView.vue";
 import EventFilters from "./EventFilters.vue";
 import EventListItem from "./EventListItem.vue";
 
 const events = useEventsStore();
+const { t } = useI18n();
 const activeView = ref<"list" | "calendar">("list");
-const viewItems = [
-    { label: "List", value: "list", icon: "i-lucide-list" },
-    { label: "Calendar", value: "calendar", icon: "i-lucide-calendar-days" },
-];
+const viewItems = computed(() => [
+    { label: t("events.list.listView"), value: "list", icon: "i-lucide-list" },
+    { label: t("events.list.calendarView"), value: "calendar", icon: "i-lucide-calendar-days" },
+]);
 
 onMounted(() => {
     if (events.events.length === 0) {

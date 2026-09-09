@@ -78,6 +78,17 @@ describe("events store", () => {
         );
     });
 
+    test("repeats taxonomy parameters for multiple category filters", () => {
+        const url = buildEventListUrl({
+            profile_key: "public_health",
+            dimension_code: ["topic", "audience"],
+            term_code: ["movement", "seniors"],
+        });
+
+        expect(url.searchParams.getAll("dimension_code")).toEqual(["topic", "audience"]);
+        expect(url.searchParams.getAll("term_code")).toEqual(["movement", "seniors"]);
+    });
+
     test("loads event type and taxonomy registries", async () => {
         fetchMock
             .mockResolvedValueOnce(jsonResponse([
@@ -154,6 +165,32 @@ describe("events store", () => {
         expect(events.events.map((event) => event.id)).toEqual(["1", "2"]);
         expect(fetchMock.mock.calls[1][0].toString()).toBe(
             "http://localhost:8000/api/v1/events/?start_after=2026-03-01T00%3A00%3A00.000Z&start_before=2026-04-01T00%3A00%3A00.000Z"
+        );
+    });
+
+    test("refreshes map data through the newly loaded month", async () => {
+        vi.setSystemTime(new Date("2026-01-15T00:00:00.000Z"));
+        const emptyMap = {
+            spatial_events: { type: "FeatureCollection", features: [] },
+            online_events: [],
+        };
+        fetchMock
+            .mockResolvedValueOnce(jsonResponse(emptyMap))
+            .mockResolvedValueOnce(jsonResponse({ next: null, previous: null, results: [{ id: "1" }] }))
+            .mockResolvedValueOnce(jsonResponse(emptyMap))
+            .mockResolvedValueOnce(jsonResponse({ next: null, previous: null, results: [{ id: "2" }] }))
+            .mockResolvedValueOnce(jsonResponse(emptyMap));
+
+        const events = useEventsStore();
+        await events.loadEventMap();
+        await events.loadEvents();
+        await events.loadMoreEvents();
+
+        expect(fetchMock.mock.calls[2][0].toString()).toContain(
+            "start_before=2026-03-01T00%3A00%3A00.000Z"
+        );
+        expect(fetchMock.mock.calls[4][0].toString()).toContain(
+            "start_before=2026-04-01T00%3A00%3A00.000Z"
         );
     });
 

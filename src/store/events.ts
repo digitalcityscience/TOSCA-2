@@ -42,8 +42,8 @@ export interface EventFilters {
     campaign_id?: string;
     event_type_id?: string;
     profile_key?: string;
-    dimension_code?: string;
-    term_code?: string;
+    dimension_code?: string | string[];
+    term_code?: string | string[];
     dimension_id?: string;
     term_id?: string;
     start_after?: string;
@@ -322,6 +322,12 @@ function appendEventFilters(url: URL, filters: EventFilters): void {
         if (value === undefined || value === null || value === "") {
             return;
         }
+        if (Array.isArray(value)) {
+            value.filter((item) => item !== "").forEach((item) => {
+                url.searchParams.append(key, item);
+            });
+            return;
+        }
         url.searchParams.set(key, String(value));
     });
 }
@@ -432,6 +438,23 @@ export const useEventsStore = defineStore("events", () => {
         loadedRangeEnd.value = rangeEnd;
     }
 
+    function loadedWindowFilters(): EventFilters {
+        return {
+            ...filters.value,
+            start_after: windowStart.value?.toISOString() ?? filters.value.start_after,
+            start_before: loadedRangeEnd.value?.toISOString() ?? filters.value.start_before,
+        };
+    }
+
+    async function syncLoadedEventMap(): Promise<void> {
+        if (activeMapRequest === undefined && loadedMapRequestKey.value === "") {
+            return;
+        }
+        // Map availability must not turn a successfully loaded event list into
+        // an error. loadEventMap logs its own failure and remains retryable.
+        await loadEventMap().catch(() => undefined);
+    }
+
     async function loadEvents(): Promise<void> {
         loadingList.value = true;
         error.value = "";
@@ -451,6 +474,7 @@ export const useEventsStore = defineStore("events", () => {
             // on Sep 7 this loads through Oct 31, not through Nov 7.
             const initialTarget = cap ?? startOfMonth(addMonths(startOfMonth(start), DEFAULT_WINDOW_MONTHS));
             await mergeEventsRange(start, initialTarget);
+            await syncLoadedEventMap();
         } catch (err) {
             error.value = serviceUnavailableMessage("event");
             reportDeveloperError("Loading events", err);
@@ -482,6 +506,7 @@ export const useEventsStore = defineStore("events", () => {
         activeExtension = request;
         try {
             await request;
+            await syncLoadedEventMap();
         } catch (err) {
             error.value = serviceUnavailableMessage("event");
             reportDeveloperError("Loading more events", err);
@@ -498,7 +523,7 @@ export const useEventsStore = defineStore("events", () => {
     }
 
     async function loadEventMap(): Promise<void> {
-        const requestUrl = buildEventMapUrl(filters.value, HAMBURG_EVENT_BBOX);
+        const requestUrl = buildEventMapUrl(loadedWindowFilters(), HAMBURG_EVENT_BBOX);
         const requestKey = requestUrl.toString();
         if (loadedMapRequestKey.value === requestKey) {
             return;
