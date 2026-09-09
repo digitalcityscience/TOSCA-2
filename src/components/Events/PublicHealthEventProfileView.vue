@@ -1,6 +1,6 @@
 <template>
     <section v-if="profile !== null" class="grid gap-3">
-        <h2 class="text-base font-semibold text-highlighted">More details</h2>
+        <h2 class="text-base font-semibold text-highlighted">{{ t("events.profile.moreDetails") }}</h2>
         <dl class="divide-y divide-muted">
             <div
                 v-for="item in visibleItems"
@@ -16,11 +16,13 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import { type PublicHealthProfile } from "@store/events";
 
 const props = defineProps<{
     profile: PublicHealthProfile | null
 }>();
+const { locale, t } = useI18n();
 
 const visibleItems = computed(() => {
     if (props.profile === null) {
@@ -28,31 +30,31 @@ const visibleItems = computed(() => {
     }
 
     const registrationLabels: Record<string, string> = {
-        required: "Required",
-        not_required: "Not required",
-        by_arrangement: "By arrangement",
+        required: t("events.profile.required"),
+        not_required: t("events.profile.notRequired"),
+        by_arrangement: t("events.profile.byArrangement"),
     };
     const items = [
-        { label: "Target age", value: props.profile.target_age_note },
+        { label: t("events.profile.targetAge"), value: props.profile.target_age_note },
         {
-            label: "Registration",
+            label: t("events.profile.registration"),
             value: registrationLabels[props.profile.registration] ?? props.profile.registration,
         },
         {
-            label: "Short notice",
-            value: props.profile.short_notice_possible ? "Possible" : "Not available",
+            label: t("events.profile.shortNotice"),
+            value: props.profile.short_notice_possible ? t("events.profile.possible") : t("events.profile.notAvailable"),
         },
-        { label: "Cost", value: formatMoney(props.profile.cost_amount_eur) },
-        { label: "Reduced cost", value: formatMoney(props.profile.reduced_amount_eur) },
-        { label: "Subsidy", value: props.profile.subsidy_program },
-        { label: "Transit", value: props.profile.transit_note },
+        { label: t("events.profile.cost"), value: formatMoney(props.profile.cost_amount_eur) },
+        { label: t("events.profile.reducedCost"), value: formatMoney(props.profile.reduced_amount_eur) },
+        { label: t("events.profile.subsidy"), value: props.profile.subsidy_program },
+        { label: t("events.profile.transit"), value: props.profile.transit_note },
         {
-            label: "Insurance eligible",
-            value: props.profile.insurance_eligible ? "Yes" : "No",
+            label: t("events.profile.insuranceEligible"),
+            value: props.profile.insurance_eligible ? t("events.yes") : t("events.no"),
         },
         {
-            label: "Referral required",
-            value: props.profile.referral_required ? "Yes" : "No",
+            label: t("events.profile.referralRequired"),
+            value: props.profile.referral_required ? t("events.yes") : t("events.no"),
         },
     ];
 
@@ -63,6 +65,6 @@ function formatMoney(value: string | null): string {
     if (value === null || value === "") {
         return "";
     }
-    return `${value} EUR`;
+    return new Intl.NumberFormat(locale.value, { style: "currency", currency: "EUR" }).format(Number(value));
 }
 </script>

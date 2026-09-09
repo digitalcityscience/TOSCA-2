@@ -2,23 +2,23 @@ import { type EventLocationMode } from "@store/events";
 
 export type EventBadgeColor = "neutral" | "primary" | "secondary" | "success" | "info" | "warning" | "error";
 
-export function formatEventDate(value: string): string {
+export function formatEventDate(value: string, locale?: string): string {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) {
         return value;
     }
-    return new Intl.DateTimeFormat(undefined, {
+    return new Intl.DateTimeFormat(locale, {
         dateStyle: "medium",
         timeStyle: "short",
     }).format(date);
 }
 
-export function formatEventTime(value: string): string {
+export function formatEventTime(value: string, locale?: string): string {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) {
         return "";
     }
-    return new Intl.DateTimeFormat(undefined, {
+    return new Intl.DateTimeFormat(locale, {
         timeStyle: "short",
     }).format(date);
 }

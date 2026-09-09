@@ -10,12 +10,12 @@
             color="error"
             variant="subtle"
             icon="i-lucide-circle-alert"
-            title="This event couldn't be opened"
+            :title="t('events.detail.openErrorTitle')"
             :description="errorMessage"
         >
             <template #actions>
                 <UButton
-                    label="Try again"
+                    :label="t('events.tryAgain')"
                     icon="i-lucide-refresh-cw"
                     color="error"
                     variant="soft"
@@ -43,6 +43,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { type EventDetail, useEventsStore } from "@store/events";
 import { useGeoserverStore } from "@store/geoserver";
 import { useMapStore } from "@store/map";
@@ -62,6 +63,7 @@ const props = defineProps<{
 }>();
 
 const events = useEventsStore();
+const { t } = useI18n();
 const geoserver = useGeoserverStore();
 const mapStore = useMapStore();
 const toast = useToast();
@@ -88,8 +90,8 @@ async function loadEvent(eventId: string): Promise<void> {
             reportDeveloperError(`Loading event map layer ${layerName}`, error);
             toast.add({
                 severity: "warning",
-                summary: "Some map content is unavailable",
-                detail: "The event opened, but one of its map layers could not be shown.",
+                summary: t("events.detail.layerErrorTitle"),
+                detail: t("events.detail.layerErrorDetail"),
                 life: 5000,
             });
         },

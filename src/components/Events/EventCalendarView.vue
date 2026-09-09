@@ -1,5 +1,5 @@
 <template>
-    <section class="grid gap-3" aria-label="Event calendar">
+    <section class="grid gap-3" :aria-label="t('events.calendar.label')">
         <div class="flex items-center justify-between gap-2">
             <UButton
                 icon="i-lucide-chevron-left"
@@ -7,7 +7,7 @@
                 variant="ghost"
                 square
                 :disabled="isAtEarliestMonth"
-                aria-label="Previous month"
+                :aria-label="t('events.calendar.previousMonth')"
                 @click="goToPreviousMonth"
             />
             <h3 class="text-base font-semibold text-highlighted">{{ monthLabel }}</h3>
@@ -17,12 +17,12 @@
                 variant="ghost"
                 square
                 :loading="navigatingForward"
-                aria-label="Next month"
+                :aria-label="t('events.calendar.nextMonth')"
                 @click="goToNextMonth"
             />
         </div>
 
-        <div v-if="visibleLocationModes.length > 0" class="flex flex-wrap justify-center gap-1.5" aria-label="Location types">
+        <div v-if="visibleLocationModes.length > 0" class="flex flex-wrap justify-center gap-1.5" :aria-label="t('events.calendar.locationTypes')">
             <UBadge
                 v-for="mode in visibleLocationModes"
                 :key="mode"
@@ -32,7 +32,7 @@
                 :icon="eventLocationIcon(mode)"
                 class="font-semibold"
             >
-                {{ eventLocationLabel(mode) }}
+                {{ t(`events.location.${mode}`) }}
             </UBadge>
         </div>
 
@@ -69,7 +69,7 @@
                                     size="xs"
                                     class="calendar-event w-full"
                                     :icon="eventLocationIcon(event.location_mode)"
-                                    :aria-label="`${eventLocationLabel(event.location_mode)}, ${formatEventTime(event.start_datetime)} ${event.title}`"
+                                    :aria-label="`${t(`events.location.${event.location_mode}`)}, ${formatEventTime(event.start_datetime, locale)} ${event.title}`"
                                 >
                                     <span class="calendar-event-label">
                                         <strong>{{ formatEventTime(event.start_datetime) }}</strong>
@@ -86,7 +86,7 @@
                                             :icon="eventLocationIcon(event.location_mode)"
                                             class="w-fit font-semibold"
                                         >
-                                            {{ eventLocationLabel(event.location_mode) }}
+                                            {{ t(`events.location.${event.location_mode}`) }}
                                         </UBadge>
                                         <h4 class="text-sm font-semibold leading-snug">{{ event.title }}</h4>
                                         <p class="flex items-center gap-1.5 text-xs font-medium text-toned">
@@ -97,7 +97,7 @@
                                             {{ event.summary }}
                                         </p>
                                         <p v-if="event.location_mode === 'online'" class="text-xs font-medium text-info">
-                                            Online event — no physical map location
+                                            {{ t("events.calendar.onlineWithoutLocation") }}
                                         </p>
                                     </article>
                                 </template>
@@ -112,11 +112,11 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { type EventListItem, type EventLocationMode, useEventsStore } from "@store/events";
 import {
     eventLocationColor,
     eventLocationIcon,
-    eventLocationLabel,
     formatEventTime,
 } from "./eventPresentation";
 
@@ -125,6 +125,7 @@ const props = defineProps<{
 }>();
 
 const eventsStore = useEventsStore();
+const { locale, t } = useI18n();
 const visibleMonth = ref(startOfMonth(firstRelevantDate(props.events)));
 const navigatingForward = ref(false);
 
@@ -145,7 +146,7 @@ const visibleLocationModes = computed(() => {
 });
 
 const monthLabel = computed(() => {
-    return new Intl.DateTimeFormat(undefined, {
+    return new Intl.DateTimeFormat(locale.value, {
         month: "long",
         year: "numeric",
     }).format(visibleMonth.value);
@@ -156,7 +157,7 @@ const weekdayLabels = computed(() => {
     return Array.from({ length: 7 }, (_, index) => {
         const date = new Date(start);
         date.setDate(start.getDate() + index);
-        return new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(date);
+        return new Intl.DateTimeFormat(locale.value, { weekday: "short" }).format(date);
     });
 });
 
@@ -190,7 +191,7 @@ function formatEventPreviewDate(value: string): string {
     if (Number.isNaN(date.getTime())) {
         return value;
     }
-    return new Intl.DateTimeFormat(undefined, {
+    return new Intl.DateTimeFormat(locale.value, {
         weekday: "short",
         month: "short",
         day: "numeric",

@@ -287,6 +287,104 @@
       "seeActiveCampaigns": "Aktif Kampanyaları Gör"
     }
   },
+  "events": {
+    "tryAgain": "Tekrar dene",
+    "tryAgainDetail": "Lütfen tekrar deneyin.",
+    "yes": "Evet",
+    "no": "Hayır",
+    "moreCount": "+{count} tane daha",
+    "location": {
+      "physical": "Yüz yüze",
+      "online": "Çevrim içi",
+      "hybrid": "Hibrit",
+      "by_arrangement": "Randevuyla",
+      "home_visit": "Ev ziyareti"
+    },
+    "filters": {
+      "filtered": "Filtrelendi",
+      "startAfter": "Başlangıç sonrası",
+      "startBefore": "Başlangıç öncesi",
+      "eventType": "Etkinlik türü",
+      "allEventTypes": "Tüm etkinlik türleri",
+      "categoryFilters": "Kategori filtreleri",
+      "category": "Kategori",
+      "value": "Değer",
+      "anyCategory": "Herhangi bir kategori",
+      "anyValue": "Herhangi bir değer",
+      "addCategory": "Kategori filtresi ekle",
+      "removeCategory": "Kategori filtresini kaldır",
+      "errorTitle": "Etkinlik filtreleri güncellenemedi",
+      "errorDetail": "Lütfen biraz sonra tekrar deneyin."
+    },
+    "list": {
+      "count": "{count} etkinlik | {count} etkinlik",
+      "unavailableTitle": "Etkinlikler şu anda kullanılamıyor",
+      "emptyTitle": "Kullanılabilir etkinlik yok",
+      "emptyDescription": "Filtreleri değiştirmeyi veya geçmiş etkinlikleri dahil etmeyi deneyin.",
+      "loadNextMonth": "Gelecek ayı yükle",
+      "listView": "Liste",
+      "calendarView": "Takvim",
+      "openEvent": "Etkinliği aç"
+    },
+    "sidebar": {
+      "title": "Takvim ve vatandaş bilgileri",
+      "backToEvents": "Etkinliklere dön",
+      "backErrorTitle": "Etkinlik listesine dönülemedi"
+    },
+    "calendar": {
+      "label": "Etkinlik takvimi",
+      "previousMonth": "Önceki ay",
+      "nextMonth": "Sonraki ay",
+      "locationTypes": "Konum türleri",
+      "onlineWithoutLocation": "Çevrim içi etkinlik — fiziksel harita konumu yok"
+    },
+    "map": {
+      "unavailableTitle": "Etkinlik konumları geçici olarak kullanılamıyor",
+      "unavailableDetail": "Etkinlik listesi hâlâ kullanılabilir. Lütfen biraz sonra tekrar deneyin.",
+      "unavailableMoveDetail": "Etkinlik listesi hâlâ kullanılabilir. Biraz sonra haritayı yeniden hareket ettirmeyi deneyin.",
+      "openDetails": "Ayrıntıları aç",
+      "clusterCount": "Bu konumda {count} etkinlik | Bu konumda {count} etkinlik"
+    },
+    "detail": {
+      "openErrorTitle": "Bu etkinlik açılamadı",
+      "layerErrorTitle": "Bazı harita içerikleri kullanılamıyor",
+      "layerErrorDetail": "Etkinlik açıldı ancak harita katmanlarından biri gösterilemedi.",
+      "access": "Erişim",
+      "openOnline": "Çevrim içi etkinliği aç",
+      "provider": "Sağlayıcı",
+      "attributes": "Öznitelikler",
+      "mapLayers": "Harita katmanları",
+      "relatedContent": "İlgili içerik",
+      "address": "Adres",
+      "phone": "Telefon",
+      "email": "E-posta",
+      "social": "Sosyal medya",
+      "website": "Web sitesi",
+      "external": "Harici"
+    },
+    "profile": {
+      "moreDetails": "Daha fazla ayrıntı",
+      "required": "Gerekli",
+      "notRequired": "Gerekli değil",
+      "byArrangement": "Randevuyla",
+      "targetAge": "Hedef yaş",
+      "registration": "Kayıt",
+      "shortNotice": "Kısa sürede",
+      "possible": "Mümkün",
+      "notAvailable": "Kullanılamıyor",
+      "cost": "Ücret",
+      "reducedCost": "İndirimli ücret",
+      "subsidy": "Destek",
+      "transit": "Ulaşım",
+      "insuranceEligible": "Sigorta kapsamına uygun",
+      "referralRequired": "Sevk gerekli"
+    },
+    "series": {
+      "title": "Seri",
+      "updatedOccurrence": "Güncellenmiş etkinlik",
+      "originallyScheduled": "Başlangıçta {date} için planlandı"
+    }
+  },
   "geostories": {
     "runScenario": "Senaryoyu Çalıştır",
     "listing": {

@@ -5,6 +5,7 @@
 <script setup lang="ts">
 import maplibre, { type GeoJSONSource, type MapMouseEvent, type Popup } from "maplibre-gl";
 import { h, onBeforeUnmount, onMounted, render, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 import {
     getEventFeatureId,
@@ -30,6 +31,7 @@ const EVENT_INTERACTIVE_LAYER_IDS = [
 ];
 
 const events = useEventsStore();
+const { t } = useI18n();
 const mapStore = useMapStore();
 const route = useRoute();
 const router = useRouter();
@@ -495,8 +497,8 @@ function showError(error: unknown): void {
     reportDeveloperError("Updating the event map overlay", error);
     toast.add({
         severity: "warning",
-        summary: "Event locations are temporarily unavailable",
-        detail: "The event list is still available. Try moving the map again in a moment.",
+        summary: t("events.map.unavailableTitle"),
+        detail: t("events.map.unavailableMoveDetail"),
         life: 4000,
     });
 }

@@ -26,12 +26,12 @@
                 {{ chip }}
             </UBadge>
             <UBadge v-if="taxonomyPreview.hiddenCount > 0" color="neutral" variant="outline">
-                +{{ taxonomyPreview.hiddenCount }} more
+                {{ t("events.moreCount", { count: taxonomyPreview.hiddenCount }) }}
             </UBadge>
         </div>
 
         <UButton
-            label="Open details"
+            :label="t('events.map.openDetails')"
             trailing-icon="i-lucide-arrow-right"
             size="sm"
             class="w-fit"
@@ -42,6 +42,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import { type EventMapProperties } from "@store/events";
 import EventLocationBadge from "./EventLocationBadge.vue";
 import { previewTaxonomyChips } from "./taxonomyChips";
@@ -53,12 +54,13 @@ import {
 const props = defineProps<{
     event: EventMapProperties
 }>();
+const { locale, t } = useI18n();
 
 const emit = defineEmits<{
     "open-details": []
 }>();
 
-const dateLabel = computed(() => formatEventDate(props.event.start_datetime));
+const dateLabel = computed(() => formatEventDate(props.event.start_datetime, locale.value));
 const seriesLabel = computed(() => {
     return eventSeriesPosition(props.event.occurrence_index, props.event.total_occurrences);
 });

@@ -287,6 +287,104 @@
       "seeActiveCampaigns": "Aktive Kampagnen ansehen"
     }
   },
+  "events": {
+    "tryAgain": "Erneut versuchen",
+    "tryAgainDetail": "Bitte versuchen Sie es erneut.",
+    "yes": "Ja",
+    "no": "Nein",
+    "moreCount": "+{count} weitere",
+    "location": {
+      "physical": "Vor Ort",
+      "online": "Online",
+      "hybrid": "Hybrid",
+      "by_arrangement": "Nach Vereinbarung",
+      "home_visit": "Hausbesuch"
+    },
+    "filters": {
+      "filtered": "Gefiltert",
+      "startAfter": "Beginn nach",
+      "startBefore": "Beginn vor",
+      "eventType": "Veranstaltungstyp",
+      "allEventTypes": "Alle Veranstaltungstypen",
+      "categoryFilters": "Kategoriefilter",
+      "category": "Kategorie",
+      "value": "Wert",
+      "anyCategory": "Beliebige Kategorie",
+      "anyValue": "Beliebiger Wert",
+      "addCategory": "Kategoriefilter hinzufügen",
+      "removeCategory": "Kategoriefilter entfernen",
+      "errorTitle": "Veranstaltungsfilter konnten nicht aktualisiert werden",
+      "errorDetail": "Bitte versuchen Sie es gleich noch einmal."
+    },
+    "list": {
+      "count": "{count} Veranstaltung | {count} Veranstaltungen",
+      "unavailableTitle": "Veranstaltungen sind derzeit nicht verfügbar",
+      "emptyTitle": "Keine Veranstaltungen verfügbar",
+      "emptyDescription": "Ändern Sie die Filter oder beziehen Sie vergangene Veranstaltungen ein.",
+      "loadNextMonth": "Nächsten Monat laden",
+      "listView": "Liste",
+      "calendarView": "Kalender",
+      "openEvent": "Veranstaltung öffnen"
+    },
+    "sidebar": {
+      "title": "Kalender und Bürgerinformationen",
+      "backToEvents": "Zurück zu den Veranstaltungen",
+      "backErrorTitle": "Zur Veranstaltungsliste konnte nicht zurückgekehrt werden"
+    },
+    "calendar": {
+      "label": "Veranstaltungskalender",
+      "previousMonth": "Vorheriger Monat",
+      "nextMonth": "Nächster Monat",
+      "locationTypes": "Ortstypen",
+      "onlineWithoutLocation": "Online-Veranstaltung – kein physischer Kartenstandort"
+    },
+    "map": {
+      "unavailableTitle": "Veranstaltungsorte sind vorübergehend nicht verfügbar",
+      "unavailableDetail": "Die Veranstaltungsliste ist weiterhin verfügbar. Bitte versuchen Sie es gleich noch einmal.",
+      "unavailableMoveDetail": "Die Veranstaltungsliste ist weiterhin verfügbar. Verschieben Sie die Karte gleich noch einmal.",
+      "openDetails": "Details öffnen",
+      "clusterCount": "{count} Veranstaltung an diesem Ort | {count} Veranstaltungen an diesem Ort"
+    },
+    "detail": {
+      "openErrorTitle": "Diese Veranstaltung konnte nicht geöffnet werden",
+      "layerErrorTitle": "Einige Karteninhalte sind nicht verfügbar",
+      "layerErrorDetail": "Die Veranstaltung wurde geöffnet, aber eine Kartenebene konnte nicht angezeigt werden.",
+      "access": "Zugang",
+      "openOnline": "Online-Veranstaltung öffnen",
+      "provider": "Anbieter",
+      "attributes": "Attribute",
+      "mapLayers": "Kartenebenen",
+      "relatedContent": "Verwandte Inhalte",
+      "address": "Adresse",
+      "phone": "Telefon",
+      "email": "E-Mail",
+      "social": "Soziale Medien",
+      "website": "Website",
+      "external": "Extern"
+    },
+    "profile": {
+      "moreDetails": "Weitere Details",
+      "required": "Erforderlich",
+      "notRequired": "Nicht erforderlich",
+      "byArrangement": "Nach Vereinbarung",
+      "targetAge": "Zielalter",
+      "registration": "Anmeldung",
+      "shortNotice": "Kurzfristig",
+      "possible": "Möglich",
+      "notAvailable": "Nicht verfügbar",
+      "cost": "Kosten",
+      "reducedCost": "Ermäßigte Kosten",
+      "subsidy": "Förderung",
+      "transit": "Anfahrt",
+      "insuranceEligible": "Kassenleistung",
+      "referralRequired": "Überweisung erforderlich"
+    },
+    "series": {
+      "title": "Serie",
+      "updatedOccurrence": "Aktualisierter Termin",
+      "originallyScheduled": "Ursprünglich geplant für {date}"
+    }
+  },
   "geostories": {
     "runScenario": "Szenario ausführen",
     "listing": {

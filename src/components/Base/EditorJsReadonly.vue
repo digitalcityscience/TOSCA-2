@@ -19,6 +19,7 @@ import type { LogLevels, OutputData } from "@editorjs/editorjs";
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { resolveBackendMediaUrl } from "@store/backend";
 import { reportDeveloperError } from "@helpers/userFacingError";
+import EditorJsReadonlyList from "@helpers/editorJsReadonlyList";
 
 interface EditorJsBlock {
     id?: string;
@@ -72,7 +73,6 @@ async function initializeEditor(): Promise<void> {
     const [
         { default: EditorJs },
         { default: Header },
-        { default: List },
         { default: Quote },
         { default: Delimiter },
         { default: Code },
@@ -80,7 +80,6 @@ async function initializeEditor(): Promise<void> {
     ] = await Promise.all([
         import("@editorjs/editorjs"),
         import("@editorjs/header"),
-        import("@editorjs/list"),
         import("@editorjs/quote"),
         import("@editorjs/delimiter"),
         import("@editorjs/code"),
@@ -100,7 +99,7 @@ async function initializeEditor(): Promise<void> {
         logLevel: "ERROR" as LogLevels,
         tools: {
             header: Header,
-            list: List,
+            list: EditorJsReadonlyList,
             quote: Quote,
             delimiter: Delimiter,
             code: Code,
@@ -198,6 +197,35 @@ function handleInitializationError(error: unknown): void {
 .editorjs-readonly :deep(.ce-header) {
     color: var(--ui-text-highlighted);
     line-height: 1.25;
+    font-weight: 700;
+    margin: 0.55em 0 0.25em;
+}
+.editorjs-readonly :deep(h1.ce-header) { font-size: 1.875rem; }
+.editorjs-readonly :deep(h2.ce-header) { font-size: 1.5rem; }
+.editorjs-readonly :deep(h3.ce-header) { font-size: 1.25rem; }
+.editorjs-readonly :deep(h4.ce-header) { font-size: 1.125rem; }
+.editorjs-readonly :deep(h5.ce-header) { font-size: 1rem; }
+.editorjs-readonly :deep(h6.ce-header) { font-size: 0.875rem; }
+.editorjs-readonly :deep(.editorjs-readonly-list) {
+    margin: 0.45rem 0;
+    padding-left: 1.5rem;
+}
+.editorjs-readonly :deep(.editorjs-readonly-list--unordered) { list-style: disc; }
+.editorjs-readonly :deep(.editorjs-readonly-list--ordered) { list-style: decimal; }
+.editorjs-readonly :deep(.editorjs-readonly-list--checklist) {
+    padding-left: 0;
+    list-style: none;
+}
+.editorjs-readonly :deep(.editorjs-readonly-list__item) {
+    margin: 0.2rem 0;
+    line-height: 1.65;
+}
+.editorjs-readonly :deep(.editorjs-readonly-list__item > .editorjs-readonly-list) {
+    margin: 0.2rem 0;
+}
+.editorjs-readonly :deep(.editorjs-readonly-list__checkbox) {
+    margin-right: 0.55rem;
+    accent-color: var(--ui-primary);
 }
 .editorjs-readonly :deep(.cdx-quote) {
     border-left: 3px solid var(--ui-primary);

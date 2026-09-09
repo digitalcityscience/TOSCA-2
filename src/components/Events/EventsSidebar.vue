@@ -10,14 +10,14 @@
         <template #header>
             <div class="flex min-w-0 items-center gap-2">
                 <UIcon name="i-lucide-calendar-days" class="size-4 shrink-0 text-primary" />
-                <span class="truncate">Calendar and citizen information</span>
+                <span class="truncate">{{ t("events.sidebar.title") }}</span>
             </div>
         </template>
 
         <div v-if="route.name === 'event-detail'" class="mb-3">
             <UButton
                 icon="i-lucide-arrow-left"
-                label="Back to events"
+                :label="t('events.sidebar.backToEvents')"
                 size="sm"
                 color="neutral"
                 variant="outline"
@@ -34,6 +34,7 @@
 import bbox from "@turf/bbox";
 import { onMounted, ref } from "vue";
 import { RouterView, useRoute, useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 import BaseSlideoverSidebarComponent from "@components/Base/BaseSlideoverSidebarComponent.vue";
 import { useEventsStore } from "@store/events";
 import { useMapStore } from "@store/map";
@@ -42,6 +43,7 @@ import { reportDeveloperError } from "@helpers/userFacingError";
 import EventMapOverlay from "./EventMapOverlay.vue";
 
 const sidebarID = "events";
+const { t } = useI18n();
 const events = useEventsStore();
 const mapStore = useMapStore();
 const route = useRoute();
@@ -54,8 +56,8 @@ onMounted(() => {
         reportDeveloperError("Loading the Hamburg event map", error);
         toast.add({
             severity: "warning",
-            summary: "Event locations are temporarily unavailable",
-            detail: "The event list is still available. Please try again in a moment.",
+            summary: t("events.map.unavailableTitle"),
+            detail: t("events.map.unavailableDetail"),
             life: 4000,
         });
     });
@@ -71,8 +73,8 @@ async function goBackToEvents(): Promise<void> {
         reportDeveloperError("Returning to the event list", error);
         toast.add({
             severity: "error",
-            summary: "Couldn't return to the event list",
-            detail: "Please try again.",
+            summary: t("events.sidebar.backErrorTitle"),
+            detail: t("events.tryAgainDetail"),
             life: 4000,
         });
     } finally {

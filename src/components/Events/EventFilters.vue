@@ -6,25 +6,25 @@
         <div class="grid gap-3">
             <div v-if="hasActiveFilters" class="flex justify-end">
                 <UBadge color="primary" variant="subtle">
-                    Filtered
+                    {{ t("events.filters.filtered") }}
                 </UBadge>
             </div>
 
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <UFormField label="Start after">
+                <UFormField :label="t('events.filters.startAfter')">
                     <UInput v-model="startAfter" type="datetime-local" class="w-full" :min="minDateTime" />
                 </UFormField>
-                <UFormField label="Start before">
+                <UFormField :label="t('events.filters.startBefore')">
                     <UInput v-model="startBefore" type="datetime-local" class="w-full" :min="minDateTime" />
                 </UFormField>
             </div>
 
-            <UFormField label="Event type">
+            <UFormField :label="t('events.filters.eventType')">
                 <USelect
                     v-model="eventTypeId"
                     class="w-full"
                     :items="eventTypeItems"
-                    placeholder="All event types"
+                    :placeholder="t('events.filters.allEventTypes')"
                     @update:model-value="handleEventTypeChange"
                 />
             </UFormField>
@@ -40,36 +40,60 @@
                     >
                         <span class="flex items-center gap-2">
                             <UIcon name="i-lucide-tags" class="size-4" />
-                            Category filter
+                            {{ t("events.filters.categoryFilters") }}
                         </span>
                     </UButton>
                 </template>
                 <template #content>
-                    <div class="grid gap-3 border-t border-muted pt-3 sm:grid-cols-2">
-                        <UFormField label="Category">
-                            <USelect
-                                v-model="dimensionCode"
-                                class="w-full"
-                                :items="dimensionItems"
-                                placeholder="Any category"
+                    <div class="grid gap-3 border-t border-muted pt-3">
+                        <div
+                            v-for="(categoryFilter, index) in categoryFilters"
+                            :key="categoryFilter.id"
+                            class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2"
+                        >
+                            <UFormField :label="t('events.filters.category')">
+                                <USelect
+                                    v-model="categoryFilter.dimensionCode"
+                                    class="w-full"
+                                    :items="dimensionItems"
+                                    :placeholder="t('events.filters.anyCategory')"
+                                    @update:model-value="categoryFilter.termCode = ''"
+                                />
+                            </UFormField>
+                            <UFormField :label="t('events.filters.value')">
+                                <USelect
+                                    v-model="categoryFilter.termCode"
+                                    class="w-full"
+                                    :items="termItemsFor(categoryFilter.dimensionCode)"
+                                    :placeholder="t('events.filters.anyValue')"
+                                    :disabled="termItemsFor(categoryFilter.dimensionCode).length === 0"
+                                />
+                            </UFormField>
+                            <UButton
+                                :aria-label="t('events.filters.removeCategory')"
+                                icon="i-lucide-trash-2"
+                                color="neutral"
+                                variant="ghost"
+                                square
+                                @click="removeCategoryFilter(index)"
                             />
-                        </UFormField>
-                        <UFormField label="Value">
-                            <USelect
-                                v-model="termCode"
-                                class="w-full"
-                                :items="termItems"
-                                placeholder="Any value"
-                                :disabled="taxonomyTerms.length === 0"
-                            />
-                        </UFormField>
+                        </div>
+                        <UButton
+                            :label="t('events.filters.addCategory')"
+                            icon="i-lucide-plus"
+                            color="neutral"
+                            variant="outline"
+                            size="sm"
+                            class="w-fit"
+                            @click="addCategoryFilter"
+                        />
                     </div>
                 </template>
             </UCollapsible>
 
             <div class="flex justify-end gap-2">
                 <UButton
-                    label="Reset"
+                    :label="t('common.reset')"
                     icon="i-lucide-filter-x"
                     color="neutral"
                     variant="outline"
@@ -78,7 +102,7 @@
                     @click="resetFilters"
                 />
                 <UButton
-                    label="Apply"
+                    :label="t('common.apply')"
                     icon="i-lucide-filter"
                     size="sm"
                     :loading="loading"
@@ -92,11 +116,13 @@
 <script setup lang="ts">
 import bbox from "@turf/bbox";
 import { computed, onMounted, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { type EventFilters, useEventsStore } from "@store/events";
 import { useMapStore } from "@store/map";
 import { useToast } from "@helpers/toast";
 
 const events = useEventsStore();
+const { t } = useI18n();
 const mapStore = useMapStore();
 const toast = useToast();
 
@@ -105,22 +131,27 @@ const startAfter = ref(toDatetimeLocal(events.filters.start_after));
 const startBefore = ref(toDatetimeLocal(events.filters.start_before));
 const eventTypeId = ref(events.filters.event_type_id ?? "");
 const profileKey = ref(events.filters.profile_key ?? "public_health");
-const dimensionCode = ref(events.filters.dimension_code ?? "");
-const termCode = ref(events.filters.term_code ?? "");
+interface CategoryFilterRow {
+    id: number;
+    dimensionCode: string;
+    termCode: string;
+}
+let nextCategoryFilterId = 0;
+const initialDimensions = toStringArray(events.filters.dimension_code);
+const initialTerms = toStringArray(events.filters.term_code);
+const categoryFilters = ref<CategoryFilterRow[]>(
+    initialDimensions.length === 0
+        ? [createCategoryFilter()]
+        : initialDimensions.map((dimensionCode, index) => {
+            return createCategoryFilter(dimensionCode, initialTerms[index] ?? "");
+        })
+);
 const loading = computed(() => events.loadingList || events.loadingMap || events.loadingRegistries);
 
 const taxonomyRegistry = computed(() => {
     return events.taxonomyRegistriesByProfile[profileKey.value];
 });
 const taxonomyDimensions = computed(() => taxonomyRegistry.value?.dimensions ?? []);
-const taxonomyTerms = computed(() => {
-    if (dimensionCode.value === "") {
-        return taxonomyDimensions.value.flatMap((dimension) => dimension.terms);
-    }
-    return taxonomyDimensions.value.find((dimension) => {
-        return dimension.code === dimensionCode.value;
-    })?.terms ?? [];
-});
 const eventTypeItems = computed(() => [
     ...events.eventTypes.map((eventType) => ({
         label: eventType.label,
@@ -133,18 +164,11 @@ const dimensionItems = computed(() => [
         value: dimension.code,
     })),
 ]);
-const termItems = computed(() => [
-    ...taxonomyTerms.value.map((term) => ({
-        label: term.label,
-        value: term.code,
-    })),
-]);
 const hasActiveFilters = computed(() => {
     return startAfter.value !== "" ||
         startBefore.value !== "" ||
         eventTypeId.value !== "" ||
-        dimensionCode.value !== "" ||
-        termCode.value !== "";
+        categoryFilters.value.some((filter) => filter.dimensionCode !== "" || filter.termCode !== "");
 });
 
 onMounted(() => {
@@ -161,25 +185,21 @@ watch(profileKey, (nextProfileKey) => {
     }
 });
 
-watch(dimensionCode, () => {
-    termCode.value = "";
-});
-
 async function applyFilters(): Promise<void> {
+    const completeCategoryFilters = categoryFilters.value.filter((filter) => {
+        return filter.dimensionCode !== "" && filter.termCode !== "";
+    });
     const filters: EventFilters = {
         event_type_id: emptyToUndefined(eventTypeId.value),
         profile_key: emptyToUndefined(profileKey.value),
-        dimension_code: emptyToUndefined(dimensionCode.value),
-        term_code: emptyToUndefined(termCode.value),
+        dimension_code: emptyArrayToUndefined(completeCategoryFilters.map((filter) => filter.dimensionCode)),
+        term_code: emptyArrayToUndefined(completeCategoryFilters.map((filter) => filter.termCode)),
         start_after: datetimeLocalToIso(startAfter.value),
         start_before: datetimeLocalToIso(startBefore.value),
     };
     events.setFilters(filters);
     try {
-        await Promise.all([
-            events.loadEvents(),
-            events.loadEventMap(),
-        ]);
+        await events.loadEvents();
         fitMapToEvents();
     } catch {
         showError();
@@ -191,14 +211,10 @@ async function resetFilters(): Promise<void> {
     startBefore.value = "";
     eventTypeId.value = "";
     profileKey.value = "";
-    dimensionCode.value = "";
-    termCode.value = "";
+    categoryFilters.value = [createCategoryFilter()];
     events.setFilters({});
     try {
-        await Promise.all([
-            events.loadEvents(),
-            events.loadEventMap(),
-        ]);
+        await events.loadEvents();
         fitMapToEvents();
     } catch {
         showError();
@@ -211,8 +227,7 @@ function handleEventTypeChange(): void {
     });
     const nextProfileKey = selectedEventType?.profile_key ?? "";
     if (nextProfileKey !== profileKey.value) {
-        dimensionCode.value = "";
-        termCode.value = "";
+        categoryFilters.value = [createCategoryFilter()];
     }
     profileKey.value = nextProfileKey;
 }
@@ -220,6 +235,36 @@ function handleEventTypeChange(): void {
 function emptyToUndefined(value: string): string | undefined {
     const trimmedValue = value.trim();
     return trimmedValue === "" ? undefined : trimmedValue;
+}
+
+function emptyArrayToUndefined(value: string[]): string[] | undefined {
+    return value.length === 0 ? undefined : value;
+}
+
+function toStringArray(value?: string | string[]): string[] {
+    if (value === undefined) {
+        return [];
+    }
+    return Array.isArray(value) ? value : [value];
+}
+
+function termItemsFor(dimensionCode: string): Array<{ label: string; value: string }> {
+    const terms = dimensionCode === ""
+        ? []
+        : taxonomyDimensions.value.find((dimension) => dimension.code === dimensionCode)?.terms ?? [];
+    return terms.map((term) => ({ label: term.label, value: term.code }));
+}
+
+function addCategoryFilter(): void {
+    categoryFilters.value.push(createCategoryFilter());
+}
+
+function removeCategoryFilter(index: number): void {
+    categoryFilters.value.splice(index, 1);
+}
+
+function createCategoryFilter(dimensionCode = "", termCode = ""): CategoryFilterRow {
+    return { id: nextCategoryFilterId++, dimensionCode, termCode };
 }
 
 function datetimeLocalToIso(value: string): string | undefined {
@@ -245,8 +290,8 @@ function toDatetimeLocal(value?: string): string {
 function showError(): void {
     toast.add({
         severity: "warning",
-        summary: "Event filters couldn't be updated",
-        detail: "Please try again in a moment.",
+        summary: t("events.filters.errorTitle"),
+        detail: t("events.filters.errorDetail"),
         life: 4000,
     });
 }

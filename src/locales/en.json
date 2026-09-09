@@ -287,6 +287,104 @@
       "seeActiveCampaigns": "See Active Campaigns"
     }
   },
+  "events": {
+    "tryAgain": "Try again",
+    "tryAgainDetail": "Please try again.",
+    "yes": "Yes",
+    "no": "No",
+    "moreCount": "+{count} more",
+    "location": {
+      "physical": "In person",
+      "online": "Online",
+      "hybrid": "Hybrid",
+      "by_arrangement": "By arrangement",
+      "home_visit": "Home visit"
+    },
+    "filters": {
+      "filtered": "Filtered",
+      "startAfter": "Start after",
+      "startBefore": "Start before",
+      "eventType": "Event type",
+      "allEventTypes": "All event types",
+      "categoryFilters": "Category filters",
+      "category": "Category",
+      "value": "Value",
+      "anyCategory": "Any category",
+      "anyValue": "Any value",
+      "addCategory": "Add category filter",
+      "removeCategory": "Remove category filter",
+      "errorTitle": "Event filters couldn't be updated",
+      "errorDetail": "Please try again in a moment."
+    },
+    "list": {
+      "count": "{count} event | {count} events",
+      "unavailableTitle": "Events are unavailable right now",
+      "emptyTitle": "No events are available",
+      "emptyDescription": "Try changing the filters or including past events.",
+      "loadNextMonth": "Load next month",
+      "listView": "List",
+      "calendarView": "Calendar",
+      "openEvent": "Open event"
+    },
+    "sidebar": {
+      "title": "Calendar and citizen information",
+      "backToEvents": "Back to events",
+      "backErrorTitle": "Couldn't return to the event list"
+    },
+    "calendar": {
+      "label": "Event calendar",
+      "previousMonth": "Previous month",
+      "nextMonth": "Next month",
+      "locationTypes": "Location types",
+      "onlineWithoutLocation": "Online event — no physical map location"
+    },
+    "map": {
+      "unavailableTitle": "Event locations are temporarily unavailable",
+      "unavailableDetail": "The event list is still available. Please try again in a moment.",
+      "unavailableMoveDetail": "The event list is still available. Try moving the map again in a moment.",
+      "openDetails": "Open details",
+      "clusterCount": "{count} event at this location | {count} events at this location"
+    },
+    "detail": {
+      "openErrorTitle": "This event couldn't be opened",
+      "layerErrorTitle": "Some map content is unavailable",
+      "layerErrorDetail": "The event opened, but one of its map layers could not be shown.",
+      "access": "Access",
+      "openOnline": "Open online event",
+      "provider": "Provider",
+      "attributes": "Attributes",
+      "mapLayers": "Map layers",
+      "relatedContent": "Related content",
+      "address": "Address",
+      "phone": "Phone",
+      "email": "Email",
+      "social": "Social",
+      "website": "Website",
+      "external": "External"
+    },
+    "profile": {
+      "moreDetails": "More details",
+      "required": "Required",
+      "notRequired": "Not required",
+      "byArrangement": "By arrangement",
+      "targetAge": "Target age",
+      "registration": "Registration",
+      "shortNotice": "Short notice",
+      "possible": "Possible",
+      "notAvailable": "Not available",
+      "cost": "Cost",
+      "reducedCost": "Reduced cost",
+      "subsidy": "Subsidy",
+      "transit": "Transit",
+      "insuranceEligible": "Insurance eligible",
+      "referralRequired": "Referral required"
+    },
+    "series": {
+      "title": "Series",
+      "updatedOccurrence": "Updated occurrence",
+      "originallyScheduled": "Originally scheduled for {date}"
+    }
+  },
   "geostories": {
     "runScenario": "Run Scenario",
     "listing": {
