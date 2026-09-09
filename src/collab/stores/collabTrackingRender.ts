@@ -1012,7 +1012,17 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                 createGeojsonSourceAndLayer(sourceId, layerId, layerType, data, displayName, layerStyle)
             );
         }
+        updateLayerData(sourceId, data);
+    }
+
+    /** Keep the layer panel's table and zoom bounds in sync with the live map source. */
+    function updateLayerData(sourceId: string, data: FeatureCollection): void {
         mapStore.map?.getSource(sourceId)?.setData(data);
+        for (const layer of mapStore.layersOnMap ?? []) {
+            if (layer.source === sourceId) {
+                layer.layerData = data;
+            }
+        }
     }
 
     /**
@@ -1042,7 +1052,7 @@ export const useCollabTrackingRenderStore = defineStore("collabTrackingRender", 
                 });
             });
         }
-        mapStore.map?.getSource(sourceId)?.setData(data);
+        updateLayerData(sourceId, data);
     }
 
     async function ensureLineLayer(

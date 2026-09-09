@@ -24,19 +24,22 @@ const SURFACE_HEIGHT_PX = 1080;
 /** Degrees of longitude per projected pixel — the unit the fixtures below are written in. */
 const DEG_LNG_PER_PX = (AOI_MAX_LNG - AOI_MIN_LNG) / SURFACE_WIDTH_PX;
 
-const { addMapDataSource, addMapLayer, addCompanionLayer, fakeSources, fakeLayerVisibility } = vi.hoisted(() => {
+const { addMapDataSource, addMapLayer, addCompanionLayer, fakeSources, fakeLayerVisibility, layersOnMap } = vi.hoisted(() => {
     const sources = new Map<string, { setData: (data: unknown) => void }>();
     const visibility = new Map<string, string>();
+    const layers: Array<{ id: string; source: string; layerData: unknown }> = [];
     return {
+        layersOnMap: layers,
         fakeSources: sources,
         fakeLayerVisibility: visibility,
         addMapDataSource: vi.fn(async ({ identifier }: { identifier: string }) => {
             await Promise.resolve();
             sources.set(identifier, { setData: vi.fn() });
         }),
-        addMapLayer: vi.fn(async ({ identifier }: { identifier: string }) => {
+        addMapLayer: vi.fn(async ({ identifier, sourceIdentifier, geoJSONSrc }: { identifier: string; sourceIdentifier: string; geoJSONSrc: unknown }) => {
             await Promise.resolve();
             visibility.set(identifier, "visible");
+            layers.push({ id: identifier, source: sourceIdentifier, layerData: geoJSONSrc });
         }),
         // The outline is a companion of the fill, so it must appear in the visibility map too:
         // hiding only the fill and leaving the orange outline drawn would look, on the projected
@@ -49,6 +52,7 @@ const { addMapDataSource, addMapLayer, addCompanionLayer, fakeSources, fakeLayer
 
 vi.mock("@store/map", () => ({
     useMapStore: () => ({
+        layersOnMap,
         map: {
             getSource: (id: string) => fakeSources.get(id),
             getLayer: (id: string) => (fakeLayerVisibility.has(id) ? {} : undefined),
@@ -142,6 +146,7 @@ describe("Table's tracked-footprint flash under live camera noise", () => {
     beforeEach(() => {
         setActivePinia(createPinia());
         fakeSources.clear();
+        layersOnMap.length = 0;
         fakeLayerVisibility.clear();
         addMapDataSource.mockClear();
         addMapLayer.mockClear();
@@ -152,6 +157,36 @@ describe("Table's tracked-footprint flash under live camera noise", () => {
     afterEach(() => {
         vi.useRealTimers();
         vi.unstubAllEnvs();
+    });
+
+    test("Control keeps footprints visible and its panel data current when Table flash is enabled", async () => {
+        vi.stubEnv("VITE_COLLAB_TABLE_FOOTPRINT_ALWAYS_VISIBLE", "false");
+        vi.stubEnv("VITE_COLLAB_TABLE_FOOTPRINT_VISIBLE_SECONDS", "2");
+        vi.stubEnv("VITE_COLLAB_TRACKING_MODE", "mock");
+        const session = useCollabSessionStore();
+        const trackingRender = useCollabTrackingRenderStore();
+        trackingRender.startRendering("control");
+        await flush();
+
+        const collection = footprintAt("G01", 9.99, 53.55);
+        session.tracking.G01 = {
+            pose: { lng: 9.99, lat: 53.55, rotation: 0 },
+            geometry: collection.features[0].geometry as GeoJSON.Polygon,
+            confidence: 1,
+            lastSeen: 1,
+        };
+        await flush();
+        vi.advanceTimersByTime(3000);
+        await flush();
+
+        expect(footprintLayerShown()).toBe(true);
+        expect(fakeLayerVisibility.get("collabTrackedBbox-line")).toBe("visible");
+        for (const id of [FILL_LAYER_ID, "collabTrackedBbox-line"]) {
+            const panelData = layersOnMap.find((layer) => layer.id === id)?.layerData as FeatureCollection;
+            expect(panelData.features).toHaveLength(1);
+            expect(panelData.features[0].id).toBe("G01");
+        }
+        trackingRender.stop();
     });
 
     /**
