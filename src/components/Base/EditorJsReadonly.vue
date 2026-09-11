@@ -243,4 +243,10 @@ function handleInitializationError(error: unknown): void {
     max-height: none;
     border-radius: 0.5rem;
 }
+.editorjs-readonly :deep(.image-tool--caption) {
+    padding-bottom: 0;
+}
+.editorjs-readonly :deep(.image-tool__caption) {
+    position: static;
+}
 </style>
