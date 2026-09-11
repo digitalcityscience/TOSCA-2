@@ -8,6 +8,7 @@ import maplibre, { type MapMouseEvent, type Map } from "maplibre-gl"
 import { h, nextTick, onMounted, ref, render } from "vue";
 import { useI18n } from "vue-i18n";
 import { useMapStore } from "@store/map";
+import { withPopupAttributes } from "../../core/helpers/popupAttributes"
 import MapAttributeDialog from "./MapAttributeDialog.vue"
 import { useDrawStore } from "@store/draw";
 import { useParticipationStore } from "@store/participation";
@@ -163,7 +164,7 @@ async function showAttributePopup(event: MapMouseEvent): Promise<void> {
     const matchedFeatures = renderedFeatures.filter((feature) =>
         mapStore.layersOnMap.some((layer) => mapStore.layerOwnsSource(layer, feature.source))
     )
-    const vectorFeatures = deduplicatePopupAttributeFeatures(matchedFeatures)
+    const vectorFeatures = deduplicatePopupAttributeFeatures(matchedFeatures.map((feature) => withPopupAttributes(feature, mapStore.layersOnMap)))
 
     // deck.gl content (e.g. 3D Tiles buildings) isn't part of MapLibre's own
     // source/layer model, so it can't be seen by queryRenderedFeatures above —
@@ -173,17 +174,25 @@ async function showAttributePopup(event: MapMouseEvent): Promise<void> {
     const rasterLayers = mapStore.layersOnMap
         .slice()
         .reverse()
-        .flatMap((layer): RasterFeatureInfoLayer[] => {
+        .flatMap((layer): Array<RasterFeatureInfoLayer & { popupMemberId?: string }> => {
             // deck.gl layers have no MapLibre layout property to read and are
             // never GeoServer raster sources — picked separately above.
             if (layer.renderer === "deckgl") return []
-            if (mapStore.map.getLayoutProperty(layer.id, "visibility") === "none") return []
+            if (layer.logicalKind !== "group" && mapStore.map.getLayoutProperty(layer.id, "visibility") === "none") return []
             if (layer.logicalKind === "group") {
                 return layer.groupManifest?.members.flatMap((member) => {
                     if (member.details === undefined || !("coverage" in member.details)) return []
                     const source = layer.groupSourceIds?.[member.source_key ?? member.source_alias]
                     if (source === undefined) return []
+                    const renderIds = member.render_layer_ids ?? member.effective_style_layer_ids ?? []
+                    const visible = layer.groupManifest!.layers.some((raw, index) => {
+                        if (raw.metadata?.["tosca:member-id"] !== member.id && !renderIds.includes(raw.id)) return false
+                        const runtimeId = [layer.id, ...(layer.companionLayerIds ?? [])][index]
+                        return runtimeId !== undefined && mapStore.map.getLayoutProperty(runtimeId, "visibility") !== "none"
+                    })
+                    if (!visible) return []
                     return [{
+                        popupMemberId: member.id,
                         source,
                         workspaceName: layer.groupManifest!.workspace.name,
                         details: member.details as GeoserverRasterTypeLayerDetail,
@@ -205,10 +214,10 @@ async function showAttributePopup(event: MapMouseEvent): Promise<void> {
             }]
         })
     const rasterResults = await Promise.allSettled(rasterLayers.map(async (layer) =>
-        await queryRasterFeatureInfo(layer, {
+        (await queryRasterFeatureInfo(layer, {
             lng: event.lngLat.lng,
             lat: event.lngLat.lat,
-        }, signal)
+        }, signal)).map((feature) => ({ ...feature, popupMemberId: layer.popupMemberId }))
     ))
     if (signal.aborted) return
 
@@ -217,7 +226,7 @@ async function showAttributePopup(event: MapMouseEvent): Promise<void> {
         console.warn("Raster GetFeatureInfo failed", result.reason)
         return []
     })
-    const features = [...vectorFeatures, ...deckFeatures, ...rasterFeatures]
+    const features = [...vectorFeatures, ...deckFeatures, ...deduplicatePopupAttributeFeatures(rasterFeatures.map((feature) => withPopupAttributes(feature, mapStore.layersOnMap)))]
     if (features.length === 0) return
 
     clickedLayers.value = features

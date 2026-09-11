@@ -50,6 +50,7 @@ interface GeoStoryMapStore {
         spriteRuntimeIds?: string[];
         mbStyleLayers?: CatalogGroupStyleLayer[];
         activeStyleId?: string;
+        attributes?: import("../../store/geoserver").PopupAttributeDefinition[];
     }>;
 }
 
@@ -73,6 +74,7 @@ function getVectorGeometryType(detail: GeoServerVectorTypeLayerDetail): string {
 }
 
 interface SelectedVectorStyle {
+    attributes?: import("../../store/geoserver").PopupAttributeDefinition[];
     id: string;
     layers: CatalogGroupStyleLayer[];
     spriteUrl?: string;
@@ -113,11 +115,22 @@ async function loadSelectedVectorStyle(
     const spriteUrl = document?.sprite;
     return {
         id: assignment.style_id,
+        attributes: assignment.attributes ?? (document?.metadata as Record<string, import("../../store/geoserver").PopupAttributeDefinition[]> | undefined)?.["tosca:attributes"],
         layers: selectedLayers.map((layer) => ({ ...layer })),
         ...(typeof spriteUrl === "string" ? { spriteUrl } : {}),
     };
 }
 
+/**
+ * Load a geostory's layers with their selected styles and popup metadata.
+ *
+ * @remarks
+ * Geostory style assignments accept an optional `attributes` array. Selected
+ * vector styles prefer that array over top-level `metadata["tosca:attributes"]`
+ * in the MBStyle document. Raster layers prefer the selected assignment's array
+ * and fall back to the default style reference. Empty arrays remain explicit
+ * contributions of no fields, rather than requests to show every property.
+ */
 export async function loadGeostoryLayersOnMap(
     story: GeoStoryDetail,
     geoserverStore: GeoserverStore,
@@ -201,6 +214,7 @@ export async function loadGeostoryLayersOnMap(
                     if (logicalLayer !== undefined && selectedStyle !== undefined) {
                         logicalLayer.mbStyleLayers = selectedStyle.layers;
                         logicalLayer.activeStyleId = selectedStyle.id;
+                        logicalLayer.attributes = selectedStyle.attributes;
                         if (spriteRuntimeId !== undefined) {
                             logicalLayer.spriteRuntimeIds = [spriteRuntimeId];
                             spriteRegisteredOnLayer = true;
@@ -263,6 +277,9 @@ export async function loadGeostoryLayersOnMap(
                     displayName: rasterDetail.coverage.title ?? undefined,
                     workspaceName,
                 });
+                const rasterLayer = mapStore.layersOnMap?.find((layer) => layer.id === runtimeId);
+                if (rasterLayer !== undefined) rasterLayer.attributes = item.style_assignment?.attributes ?? response.layer.defaultStyle.attributes;
+
 
                 const bounds = rasterDetail.coverage.latLonBoundingBox;
                 layerBboxPolygons.features.push(

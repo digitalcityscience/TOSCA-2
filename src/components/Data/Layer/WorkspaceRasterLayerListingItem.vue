@@ -111,6 +111,14 @@ async function updateSummaryTruncation(): Promise<void> {
 }
 
 const mapStore = useMapStore()
+/**
+ * Add a standalone raster layer, optionally with its initial temporal selection.
+ *
+ * @remarks
+ * Popup attributes come from the default catalog style reference's `attributes`
+ * array. Omission preserves the all-properties fallback; an empty array explicitly
+ * contributes no fields. This is display configuration, not data filtering.
+ */
 async function add2Map(withTime: boolean): Promise<void> {
     if (isNullOrEmpty(layerDetail.value)) return
     let initialTime: string | undefined
@@ -159,6 +167,8 @@ async function add2Map(withTime: boolean): Promise<void> {
             time: initialTime,
         }
         await mapStore.addMapLayer(layerParams)
+        const logicalLayer = mapStore.layersOnMap.find((layer) => layer.id === layerParams.identifier)
+        if (logicalLayer !== undefined) logicalLayer.attributes = props.layerInformation.defaultStyle.attributes
     } catch (error) {
         toast.add({ severity: "error", summary: t("toast.error"), detail: error, life: 3000 })
     }
