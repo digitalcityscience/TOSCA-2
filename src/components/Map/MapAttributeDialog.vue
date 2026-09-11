@@ -29,7 +29,7 @@
                                 <dl v-if="getPropertyRows(feature).length > 0" class="divide-y divide-muted">
                                     <div v-for="property in getPropertyRows(feature)" :key="property.name" class="grid min-w-0 gap-1 px-2.5 py-1.5 sm:grid-cols-[minmax(7rem,12rem)_minmax(0,1fr)] sm:gap-3">
                                         <dt class="min-w-0 break-words text-[0.6875rem] font-semibold uppercase tracking-wide text-muted [overflow-wrap:anywhere]">
-                                            {{ property.name }}
+                                            {{ property.label }}
                                         </dt>
                                         <dd class="min-w-0 break-words text-[0.8125rem] text-default [overflow-wrap:anywhere]">
                                             {{ property.value }}
@@ -48,6 +48,7 @@
 
 <script setup lang="ts">
 import { useMapStore } from "@store/map"
+import { popupPropertyRows } from "../../core/helpers/popupAttributes";
 import { computed } from "vue";
 import type { PopupAttributeFeature } from "@store/geoserver";
 import { i18n } from "../../core/i18n";
@@ -89,13 +90,8 @@ function createDisplayName(source: string): string {
     return mapStore.displayNameForSource(source)?.replaceAll("_", " ") ?? "-x-x-x-"
 }
 
-function getPropertyRows(feature: PopupAttributeFeature): Array<{ name: string; value: string }> {
-    return Object.entries(feature.properties ?? {})
-        .filter(([, value]) => value !== undefined && value !== null && value !== "")
-        .map(([name, value]) => ({
-            name,
-            value: String(value),
-        }))
+function getPropertyRows(feature: PopupAttributeFeature) {
+    return popupPropertyRows(feature, i18n.global.locale.value)
 }
 
 function emitSizeChange(): void {

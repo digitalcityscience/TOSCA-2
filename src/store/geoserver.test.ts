@@ -497,6 +497,12 @@ describe("catalog store", () => {
                     }],
                     sources: { roads: { type: "vector", tiles: [] } },
                     layers: [{ id: "roads", type: "line", source: "roads" }],
+                    styles: {
+                        "style-1": {
+                            id: "style-1", name: "mobility", format: "mbstyle",
+                            href: "/api/v1/catalog/providers/provider%2F1/styles/style-1",
+                        },
+                    },
                     sprite: null,
                     style: {
                         id: "style-1",
@@ -513,6 +519,11 @@ describe("catalog store", () => {
                     title: "Roads",
                     attributes: { attribute: [] },
                 },
+            }))
+            .mockResolvedValueOnce(jsonResponse({
+                version: 8,
+                metadata: { "tosca:attributes": [{ name: "POP", labels: { en: "Population" } }] },
+                layers: [],
             }));
 
         const catalog = useGeoserverStore();
@@ -523,6 +534,7 @@ describe("catalog store", () => {
             provider_id: "provider/1",
             workspace_name: "Hamburg",
         });
+        expect(manifest.styles["style-1"].attributes).toEqual([{ name: "POP", labels: { en: "Population" } }]);
         expect(manifest.members[0].details).toMatchObject({
             featureType: { name: "roads" },
         });

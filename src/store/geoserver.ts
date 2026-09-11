@@ -1,3 +1,4 @@
+import { resolveGroupPopupAttributes } from "../core/helpers/groupPopupAttributes";
 /* eslint "@stylistic/indent": "off" */
 /* eslint "no-tabs": "off" */
 import { defineStore, acceptHMRUpdate } from "pinia";
@@ -197,7 +198,13 @@ export interface GeoServerFeatureTypeAttribute {
   nillable: boolean;
   binding: string;
 }
+export interface PopupAttributeDefinition {
+  name: string;
+  labels?: Record<string, string>;
+}
+
 export interface CatalogLayerStyleReference {
+  attributes?: PopupAttributeDefinition[];
   id?: string;
   name: string;
   title?: string;
@@ -228,6 +235,7 @@ export interface GeoserverLayerInfo {
 }
 
 export interface CatalogStyleListItem {
+  attributes?: PopupAttributeDefinition[];
   id: string;
   name: string;
   qualified_name: string;
@@ -243,7 +251,25 @@ export interface CatalogStyleListItem {
   sprite_asset_id: string | null;
 }
 
-/** Return the default style followed by every unique alternative style. */
+/**
+ * Return the default style followed by every unique alternative style.
+ *
+ * @remarks
+ * Catalog style references and list items accept an optional `attributes` array.
+ * Explicit reference attributes take precedence over catalog list metadata.
+ * Standalone MBStyle loading can fall back to top-level
+ * `metadata["tosca:attributes"]` in the original style JSON.
+ *
+ * @example
+ * ```json
+ * {
+ *   "attributes": [
+ *     { "name": "region_name", "labels": { "en": "Region", "tr": "Bölge" } },
+ *     { "name": "obesity_rate", "labels": { "en": "Obesity prevalence", "de": "Adipositasprävalenz" } }
+ *   ]
+ * }
+ * ```
+ */
 export function catalogLayerStyleReferences(
   layer: GeoserverLayerInfo,
   catalogStyles: CatalogStyleListItem[] = [],
@@ -257,7 +283,7 @@ export function catalogLayerStyleReferences(
     ? []
     : Array.isArray(nativeStyleValue) ? nativeStyleValue : [nativeStyleValue];
   const candidates = [
-    layer.defaultStyle,
+    { ...layer.defaultStyle, attributes: layer.defaultStyle.attributes ?? catalogStyles.find((style) => style.id === layer.defaultStyle.id || style.qualified_name === layer.defaultStyle.name)?.attributes },
     ...nativeAlternatives.flatMap((remoteStyle) => {
       const catalogStyle = catalogStyles.find(
         (style) => style.qualified_name === remoteStyle.name
@@ -273,6 +299,7 @@ export function catalogLayerStyleReferences(
         title: catalogStyle.title || catalogStyle.name,
         href: buildCatalogStyleUrl(providerId, catalogStyle.id).toString(),
         format: catalogStyle.format,
+        attributes: remoteStyle.attributes ?? catalogStyle.attributes,
         styleLayerIds: remoteStyle.styleLayerIds,
       }];
     }),
@@ -352,6 +379,7 @@ export interface CatalogLayerGroupMember {
     id: string;
     style_id: string;
     style_layer_ids: string[];
+    attributes?: PopupAttributeDefinition[];
   };
   render_layer_ids?: string[];
   effective_style_layer_ids?: string[];
@@ -394,6 +422,7 @@ export interface CatalogLayerGroupManifest {
     content_hash: string;
   }>;
   styles: Record<string, {
+    attributes?: PopupAttributeDefinition[];
     id: string;
     name: string;
     title: string;
@@ -425,6 +454,9 @@ export interface RasterFeatureInfoLayer {
 }
 
 export interface PopupAttributeFeature {
+  popupMemberId?: string;
+  layer?: { id: string };
+  attributeContributions?: Array<{ order: number; attributes: PopupAttributeDefinition[] }>;
   id?: string | number;
   source: string;
   sourceLayer?: string;
@@ -432,11 +464,20 @@ export interface PopupAttributeFeature {
   geometry?: unknown;
 }
 
-/** Collapse one data feature rendered by several MBStyle layers into one popup row. */
+/**
+ * Collapse one data feature rendered by several MBStyle layers into one popup row.
+ *
+ * @remarks
+ * Identity combines source, source layer, and feature ID, or stable geometry and
+ * properties when no ID exists. Group callers normalize sources by dataset first
+ * using `withPopupAttributes`; different datasets and logical layers remain
+ * separate. Duplicate hits append their attribute contributions to the retained
+ * feature so matching styles' lists can be unioned by `popupPropertyRows`.
+ */
 export function deduplicatePopupAttributeFeatures(
   features: PopupAttributeFeature[]
 ): PopupAttributeFeature[] {
-  const seen = new Set<string>();
+  const seen = new Map<string, PopupAttributeFeature>();
   return features.filter((feature) => {
     const featureIdentity = feature.id === undefined
       ? stableFeatureValue({
@@ -445,8 +486,14 @@ export function deduplicatePopupAttributeFeatures(
         })
       : String(feature.id);
     const key = [feature.source, feature.sourceLayer ?? "", featureIdentity].join("\u0000");
-    if (seen.has(key)) return false;
-    seen.add(key);
+    const previous = seen.get(key);
+    if (previous !== undefined) {
+      if (feature.attributeContributions !== undefined) {
+        previous.attributeContributions = [...(previous.attributeContributions ?? []), ...feature.attributeContributions];
+      }
+      return false;
+    }
+    seen.set(key, feature);
     return true;
   });
 }
@@ -1179,11 +1226,14 @@ export const useGeoserverStore = defineStore("geoserver", () => {
         base_url: response.group.provider.base_url.replace(/\/+$/, ""),
       });
     }
-    const members = await Promise.all(response.group.members.map(async (member) => ({
-      ...member,
-      details: await getLayerDetail(member.resource_href),
-    })));
-    return { ...response.group, members };
+    const [members, styles] = await Promise.all([
+      Promise.all(response.group.members.map(async (member) => ({
+        ...member,
+        details: await getLayerDetail(member.resource_href),
+      }))),
+      resolveGroupPopupAttributes(response.group.styles ?? {}, getLayerStyling),
+    ]);
+    return { ...response.group, members, styles };
   }
 
   /**

@@ -93,6 +93,7 @@ async function loadLayerInformation(): Promise<void> {
                         title: reference.title ?? reference.name,
                         isDefault: index === 0,
                         layers: selectedLayers.map((layer: CatalogGroupStyleLayer) => ({ ...layer })),
+                        attributes: reference.attributes ?? style.metadata?.["tosca:attributes"],
                         ...(typeof style.sprite === "string" ? { spriteUrl: style.sprite } : {}),
                     } satisfies MapLayerStyleOption
                 } catch (styleError) {

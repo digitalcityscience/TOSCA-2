@@ -59,6 +59,7 @@ export interface GeoStoryLayerSummary {
 }
 
 export interface GeoStoryStyleAssignment {
+    attributes?: import("./geoserver").PopupAttributeDefinition[];
     id: string;
     style_id: string;
     name: string;

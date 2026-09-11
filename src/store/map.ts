@@ -52,6 +52,7 @@ export interface LayerStyleOptions {
     visibility?: "none" | "visible";
 }
 export interface MapLayerStyleOption {
+    attributes?: import("./geoserver").PopupAttributeDefinition[];
     id: string;
     name: string;
     title?: string;
@@ -96,6 +97,7 @@ export interface LayerObjectWithAttributes extends CustomAddLayerObject {
     mbStyleLegendContext?: MapStyleLegendContext;
     availableStyles?: MapLayerStyleOption[];
     activeStyleId?: string;
+    attributes?: import("./geoserver").PopupAttributeDefinition[];
     /**
      * Which rendering pipeline owns this layer. Absent/"maplibre" means the id
      * is a real MapLibre style layer; "deckgl" means it only exists as an
