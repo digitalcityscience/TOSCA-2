@@ -60,7 +60,6 @@ watch(themeMode, (mode) => {
       </header>
       <main class="app-main">
         <RouterView name="default"></RouterView>
-        <RouterView v-if="mapStore.map" name="participation"></RouterView>
         <RouterView v-if="mapStore.map" name="events"></RouterView>
         <RouterView v-if="mapStore.map" name="geostories"></RouterView>
       </main>

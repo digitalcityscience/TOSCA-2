@@ -52,18 +52,6 @@ const leftItems = computed<FrameItem[]>(() => [
         action: () => toggleSlideoverSidebar("workspaceListing"),
     },
     {
-        id: "participation",
-        label: t("map.sideFrame.participation"),
-        icon: "i-lucide-chart-column",
-        action: async () => {
-            if (route.name === "participation-home" || route.name === "active-campaigns" || route.name === "campaign-details") {
-                toggleSlideoverSidebar("participation")
-                return
-            }
-            await router.push({ name: "participation-home" })
-        },
-    },
-    {
         id: "events",
         label: t("map.sideFrame.events"),
         icon: "i-lucide-calendar-days",
