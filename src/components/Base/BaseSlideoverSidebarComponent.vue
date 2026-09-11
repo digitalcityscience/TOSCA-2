@@ -7,7 +7,7 @@
         :overlay="false"
         :dismissible="false"
         :modal="false"
-        :unmount-on-hide="true"
+        :unmount-on-hide="props.unmountOnHide"
         :close="false"
         :ui="slideoverUi"
         @update:open="handleOpenUpdate"
@@ -60,12 +60,14 @@ interface Props {
     side?: SlideoverSidebarSide
     title?: string
     collapsed?: boolean
+    unmountOnHide?: boolean
     widthClass?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
     side: "right",
     collapsed: true,
+    unmountOnHide: true,
     widthClass: "w-[min(24rem,calc(100vw-5rem))]",
 })
 const emit = defineEmits<{

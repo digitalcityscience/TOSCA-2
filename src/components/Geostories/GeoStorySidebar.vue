@@ -3,6 +3,7 @@
         :id="sidebarID"
         side="left"
         :collapsed="route.meta.sidebar !== sidebarID"
+        :unmount-on-hide="false"
         width-class="w-[min(38.75rem,calc(100vw-5rem))]"
     >
         <template #header>
