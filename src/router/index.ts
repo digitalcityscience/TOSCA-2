@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from "vue-router"
 import MapView from "../views/MapView.vue"
 import { useParticipationStore } from "@store/participation"
 import { useMapStore } from "@store/map"
+import { isMapFeatureSwitch } from "./mapFeatureNavigation"
 
 const router = createRouter({
     history: createWebHistory(String(import.meta.env.VITE_BASE_URL)),
@@ -90,13 +91,16 @@ const router = createRouter({
         }
     ]
 })
-router.beforeEach((to, _from, next) => {
-    console.log("Navigation guard")
+router.beforeEach(async (to, from) => {
+    if (isMapFeatureSwitch(to, from)) {
+        const mapStore = useMapStore()
+        if (mapStore.map !== undefined) {
+            await mapStore.resetMapData(false)
+        }
+    }
     if (to.name === "active-campaigns") {
         const participationStore = useParticipationStore()
-        console.log("Active campaigns length: ", participationStore.activeCampaigns.length)
         if (participationStore.activeCampaigns.length < 1){
-            console.log("Populating active campaigns from navigation guard")
             participationStore.populateCampaignList()
         }
     }
@@ -104,7 +108,6 @@ router.beforeEach((to, _from, next) => {
         const mapStore = useMapStore()
         mapStore.resetMapData().then(() => { }, () => { })
     }
-    next()
 })
 
 export default router
