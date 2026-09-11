@@ -1,6 +1,12 @@
 <template>
     <nav :class="['map-side-frame', `map-side-frame-${props.side}`]" :aria-label="frameLabel">
-        <UTooltip v-for="item in frameItems" :key="item.id" :text="item.label" :delay-duration="0">
+        <UTooltip
+            v-for="item in frameItems"
+            :key="item.id"
+            :text="item.label"
+            :delay-duration="0"
+            :ui="{ content: 'z-[70]' }"
+        >
             <UButton
                 class="map-frame-button"
                 :icon="item.icon"
