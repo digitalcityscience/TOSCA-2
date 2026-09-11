@@ -4,7 +4,6 @@ import { RouterView } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { useMapStore } from "./store/map";
 import LocaleSwitcher from "./components/Base/LocaleSwitcher.vue";
-import toscaLogo from "./assets/GIZ-HCU-DCS-TOSCA_2.svg";
 
 type ThemeMode = "light" | "dark";
 
@@ -64,7 +63,6 @@ watch(themeMode, (mode) => {
         <RouterView v-if="mapStore.map" name="geostories"></RouterView>
       </main>
       <footer class="app-footer">
-        <img class="app-footer-logo" :src="toscaLogo" alt="GIZ HCU DCS TOSCA" />
       </footer>
     </div>
   </UApp>
