@@ -11,7 +11,6 @@ import { useMapStore } from "@store/map";
 import { withPopupAttributes } from "../../core/helpers/popupAttributes"
 import MapAttributeDialog from "./MapAttributeDialog.vue"
 import { useDrawStore } from "@store/draw";
-import { useParticipationStore } from "@store/participation";
 import { BaseMapControl, type BaseMapControlOptions } from "@helpers/baseMapControl";
 import { syncTerrainHillshadeVisibility } from "@helpers/mapTerrain";
 import { useToast } from "@helpers/toast";
@@ -110,7 +109,7 @@ onMounted(() => {
          * The attribute dialog is populated with the attributes of the clicked feature. Features are grouped by layer.
          */
         mapStore.map.on("click", (e: MapMouseEvent) => {
-            if (!(useDrawStore().drawOnProgress || useDrawStore().editOnProgress || useParticipationStore().locationSelectionOnProgress)) {
+            if (!(useDrawStore().drawOnProgress || useDrawStore().editOnProgress)) {
                 void showAttributePopup(e)
             }
         })

@@ -7,8 +7,7 @@ describe("map feature navigation", () => {
         ["/events", "events"],
         ["/events/event-1", "events"],
         ["/geostories", "geostories"],
-        ["/geostories/story-1", "geostories"],
-        ["/participation", undefined],
+        ["/geostories/story-1", "geostories"]
     ])("classifies %s as %s", (path, expected) => {
         expect(getMapFeatureArea({ path })).toBe(expected);
     });
@@ -26,8 +25,7 @@ describe("map feature navigation", () => {
     test.each([
         ["/events", "/events/event-1"],
         ["/geostories/story-1", "/geostories/story-2"],
-        ["/", "/"],
-        ["/participation", "/events"],
+        ["/", "/"]
     ])("does not treat %s to %s as a switch between the three features", (from, to) => {
         expect(isMapFeatureSwitch({ path: to }, { path: from })).toBe(false);
     });
