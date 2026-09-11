@@ -2,16 +2,22 @@
     <div class="grid gap-4">
         <EventFilters />
 
-        <div class="flex items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-2 sm:gap-3">
             <UTabs
                 v-model="activeView"
+                class="w-full sm:w-72 lg:w-80"
                 :items="viewItems"
                 :content="false"
                 color="neutral"
                 variant="pill"
-                size="sm"
+                size="lg"
+                :ui="{
+                    list: 'ring-1 ring-default shadow-sm',
+                    trigger: 'min-h-10 px-3 sm:min-h-11 sm:px-4',
+                    leadingIcon: 'size-5',
+                }"
             />
-            <span v-if="events.events.length > 0" class="text-xs text-muted">
+            <span v-if="events.events.length > 0" class="ml-auto text-xs text-muted">
                 {{ t("events.list.count", events.events.length) }}
             </span>
         </div>
