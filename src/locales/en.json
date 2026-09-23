@@ -396,7 +396,8 @@
     "detail": {
       "layerCount": "{count} map layer",
       "layerCountPlural": "{count} map layers",
-      "backToStories": "Back to stories"
+      "backToStories": "Back to stories",
+      "aboutAuthorTitle": "About the Author/Transparency (Public)"
     },
     "flood": {
       "title": "Flood Scenarios",

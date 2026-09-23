@@ -396,7 +396,8 @@
     "detail": {
       "layerCount": "{count} Kartenebene",
       "layerCountPlural": "{count} Kartenebenen",
-      "backToStories": "Zurück zu den Storys"
+      "backToStories": "Zurück zu den Storys",
+      "aboutAuthorTitle": "Über Autorinnen und Autoren/Transparenz (öffentlich)"
     },
     "flood": {
       "title": "Hochwasserszenarien",
