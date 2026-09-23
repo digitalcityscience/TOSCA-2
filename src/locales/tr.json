@@ -396,7 +396,8 @@
     "detail": {
       "layerCount": "{count} harita katmanı",
       "layerCountPlural": "{count} harita katmanı",
-      "backToStories": "Hikâyelere dön"
+      "backToStories": "Hikâyelere dön",
+      "aboutAuthorTitle": "Yazar Hakkında/Şeffaflık (Herkese Açık)"
     },
     "flood": {
       "title": "Sel Senaryoları",

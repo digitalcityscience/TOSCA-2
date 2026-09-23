@@ -85,6 +85,13 @@
                     description="This story does not have content yet."
                 />
 
+                <section v-if="story.about_author?.trim()" class="grid gap-2 border-t border-default pt-4">
+                    <h2 class="text-base font-semibold text-highlighted">{{ t("geostories.detail.aboutAuthorTitle") }}</h2>
+                    <p class="whitespace-pre-line text-sm leading-relaxed text-toned">
+                        {{ story.about_author }}
+                    </p>
+                </section>
+
                 <section v-if="story.feature_links.length > 0" class="grid gap-2">
                     <h2 class="text-base font-semibold text-highlighted">Related content</h2>
                     <div class="flex flex-wrap gap-1.5">

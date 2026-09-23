@@ -22,6 +22,7 @@ export interface GeoStoryListItem {
     id: string;
     title: string;
     summary: string;
+    about_author: string;
     hero_image_url: string | null;
     hero_image_alt: string;
     campaign: string;
