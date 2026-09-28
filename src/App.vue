@@ -4,6 +4,8 @@ import { RouterView } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { useMapStore } from "./store/map";
 import LocaleSwitcher from "./components/Base/LocaleSwitcher.vue";
+import AppFooter from "./components/Footer/AppFooter.vue";
+import FooterDocumentModal from "./components/Footer/FooterDocumentModal.vue";
 
 type ThemeMode = "light" | "dark";
 
@@ -62,8 +64,8 @@ watch(themeMode, (mode) => {
         <RouterView v-if="mapStore.map" name="events"></RouterView>
         <RouterView v-if="mapStore.map" name="geostories"></RouterView>
       </main>
-      <footer class="app-footer">
-      </footer>
+      <AppFooter />
+      <FooterDocumentModal />
     </div>
   </UApp>
 </template>
@@ -99,24 +101,5 @@ watch(themeMode, (mode) => {
     position: relative;
     min-height: 0;
     flex: 1 1 auto;
-}
-.app-footer {
-    height: var(--tosca-app-footer-height);
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 0.5rem;
-    padding: 0 1rem;
-    border-top: 1px solid var(--tosca-app-border);
-    background: var(--tosca-app-chrome-bg);
-    color: var(--tosca-app-chrome-muted);
-    font-size: 0.75rem;
-    line-height: 1;
-    z-index: 20;
-}
-.app-footer-logo {
-    max-height: calc(var(--tosca-app-footer-height) - 0.375rem);
-    max-width: min(32rem, calc(100vw - 2rem));
-    object-fit: contain;
 }
 </style>

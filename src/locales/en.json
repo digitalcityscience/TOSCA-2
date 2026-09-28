@@ -388,6 +388,15 @@
       "originallyScheduled": "Originally scheduled for {date}"
     }
   },
+  "footer": {
+    "label": "Site footer",
+    "documentsLabel": "Legal information",
+    "loadingTitle": "Loading document",
+    "notFoundTitle": "Document unavailable",
+    "notFoundDescription": "This document is not part of the currently published footer.",
+    "errorTitle": "Document could not be loaded",
+    "errorDescription": "Please try again in a moment."
+  },
   "geostories": {
     "runScenario": "Run Scenario",
     "listing": {

@@ -388,6 +388,15 @@
       "originallyScheduled": "Ursprünglich geplant für {date}"
     }
   },
+  "footer": {
+    "label": "Fußzeile",
+    "documentsLabel": "Rechtliche Informationen",
+    "loadingTitle": "Dokument wird geladen",
+    "notFoundTitle": "Dokument nicht verfügbar",
+    "notFoundDescription": "Dieses Dokument ist nicht Teil der aktuell veröffentlichten Fußzeile.",
+    "errorTitle": "Dokument konnte nicht geladen werden",
+    "errorDescription": "Bitte versuchen Sie es in Kürze erneut."
+  },
   "geostories": {
     "runScenario": "Szenario ausführen",
     "listing": {
