@@ -27,6 +27,7 @@
 import { useI18n } from "vue-i18n";
 import { createMapRuntimeId, useMapStore } from "@store/map";
 import { useToast } from "@helpers/toast";
+import { openSlideoverSidebar } from "@helpers/slideoverSidebarRegistry";
 
 export interface Props {
     identifier: string
@@ -47,6 +48,8 @@ function add2Map(): void {
             displayName: props.title,
             tilesetUrl: props.tilesetUrl,
         })
+        mapStore.requestLayerPanelExpansion(runtimeId)
+        openSlideoverSidebar("maplayerListing")
     } catch (error) {
         toast.add({ severity: "error", summary: t("toast.error"), detail: error, life: 3000 })
     }

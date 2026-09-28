@@ -263,6 +263,8 @@ export const useMapStore = defineStore("map", () => {
    * Each object in the array represents a layer with its attributes, such as its source type, display name, styling, etc.
    */
     const layersOnMap = ref<LayerObjectWithAttributes[]>([]);
+    /** Sidebar card that should open when a datastore addition reveals the layer list. */
+    const layerPanelExpansionTargetId = ref<string>();
     /**
    * Monotonic counter that is incremented on every MapLibre `styledata` event.
    * Vue computeds that read MapLibre paint/layout properties can dereference
@@ -1115,6 +1117,16 @@ export const useMapStore = defineStore("map", () => {
         });
     }
 
+    function requestLayerPanelExpansion(identifier: string): void {
+        layerPanelExpansionTargetId.value = identifier;
+    }
+
+    function consumeLayerPanelExpansion(identifier: string): void {
+        if (layerPanelExpansionTargetId.value === identifier) {
+            layerPanelExpansionTargetId.value = undefined;
+        }
+    }
+
     function setLogicalLayerVisibility(layer: LayerObjectWithAttributes, visible: boolean): void {
         const visibility = visible ? "visible" : "none";
         [layer.id, ...(layer.companionLayerIds ?? [])].forEach((layerId) => {
@@ -1546,6 +1558,7 @@ export const useMapStore = defineStore("map", () => {
     return {
         map,
         layersOnMap,
+        layerPanelExpansionTargetId,
         addMapDataSource,
         deleteMapDataSource,
         addMapLayer,
@@ -1558,6 +1571,8 @@ export const useMapStore = defineStore("map", () => {
         acquireMapSprite,
         releaseMapSprite,
         setLogicalLayerOpacity,
+        requestLayerPanelExpansion,
+        consumeLayerPanelExpansion,
         setLogicalLayerVisibility,
         setGroupMemberVisibility,
         layerOwnsSource,

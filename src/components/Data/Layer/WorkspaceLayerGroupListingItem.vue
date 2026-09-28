@@ -66,6 +66,7 @@ import { useI18n } from "vue-i18n";
 import { type CatalogLayerGroupListItem, useGeoserverStore } from "@store/geoserver";
 import { useMapStore } from "@store/map";
 import { useToast } from "@helpers/toast";
+import { openSlideoverSidebar } from "@helpers/slideoverSidebarRegistry";
 import RichDescription from "@components/Base/RichDescription.vue";
 
 const props = defineProps<{ item: CatalogLayerGroupListItem }>();
@@ -110,7 +111,9 @@ async function addGroupToMap(): Promise<void> {
     isAdding.value = true;
     try {
         const manifest = await catalog.getLayerGroup(props.item);
-        await mapStore.addMapGroup(manifest);
+        const group = await mapStore.addMapGroup(manifest);
+        mapStore.requestLayerPanelExpansion(group.id);
+        openSlideoverSidebar("maplayerListing");
     } catch (error) {
         toast.add({ severity: "error", summary: t("toast.error"), detail: error, life: 4000 });
     } finally {

@@ -62,6 +62,7 @@ import type { AddLayerObject } from "maplibre-gl";
 import type { LayerStylingBundle } from "./WorkspaceLayerListingItem.vue";
 import { isNullOrEmpty } from "../../../core/helpers/functions";
 import { useToast } from "@helpers/toast";
+import { openSlideoverSidebar } from "@helpers/slideoverSidebarRegistry";
 import RichDescription from "@components/Base/RichDescription.vue";
 
 export interface Props {
@@ -222,6 +223,8 @@ async function add2Map(): Promise<void> {
                     mapStore.releaseMapSprite(spriteRuntimeId)
                     spriteRuntimeId = undefined
                 }
+                mapStore.requestLayerPanelExpansion(runtimeId)
+                openSlideoverSidebar("maplayerListing")
             }
         } catch (error) {
             if (spriteRuntimeId !== undefined && !spriteRegisteredOnLayer) {
