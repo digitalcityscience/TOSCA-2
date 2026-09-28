@@ -1042,6 +1042,7 @@ export const useGeoserverStore = defineStore("geoserver", () => {
   const catalogError = ref("");
   const wmsCapabilitiesCache = new Map<string, Promise<WmsCapabilities>>();
   const styleListCache = new Map<string, Promise<CatalogStyleListItem[]>>();
+  const layerGroupManifestCache = new Map<string, Promise<CatalogLayerGroupManifest>>();
   let catalogLoadPromise: Promise<WorkspaceListResponse> | undefined;
 
   async function getProviderList(force = false): Promise<CatalogProvider[]> {
@@ -1213,27 +1214,45 @@ export const useGeoserverStore = defineStore("geoserver", () => {
     return { layers: { layer: layers }, groups: { group: groups } };
   }
 
+  async function getLayerGroupSummary(
+    item: CatalogLayerGroupListItem
+  ): Promise<CatalogLayerGroupManifest> {
+    const url = resolveBackendUrl(item.href);
+    const cacheKey = url.toString();
+    let pending = layerGroupManifestCache.get(cacheKey);
+    if (pending === undefined) {
+      pending = fetchBackendJson<CatalogLayerGroupManifestResponse>(
+        url,
+        `Catalog layer group ${item.name}`
+      ).then((response) => {
+        if (!providers.value.some((provider) => provider.id === response.group.provider.id)) {
+          providers.value.push({
+            ...response.group.provider,
+            base_url: response.group.provider.base_url.replace(/\/+$/, ""),
+          });
+        }
+        return response.group;
+      }).catch((error: unknown) => {
+        layerGroupManifestCache.delete(cacheKey);
+        throw error;
+      });
+      layerGroupManifestCache.set(cacheKey, pending);
+    }
+    return await pending;
+  }
+
   async function getLayerGroup(
     item: CatalogLayerGroupListItem
   ): Promise<CatalogLayerGroupManifest> {
-    const response = await fetchBackendJson<CatalogLayerGroupManifestResponse>(
-      resolveBackendUrl(item.href),
-      `Catalog layer group ${item.name}`
-    );
-    if (!providers.value.some((provider) => provider.id === response.group.provider.id)) {
-      providers.value.push({
-        ...response.group.provider,
-        base_url: response.group.provider.base_url.replace(/\/+$/, ""),
-      });
-    }
+    const group = await getLayerGroupSummary(item);
     const [members, styles] = await Promise.all([
-      Promise.all(response.group.members.map(async (member) => ({
+      Promise.all(group.members.map(async (member) => ({
         ...member,
         details: await getLayerDetail(member.resource_href),
       }))),
-      resolveGroupPopupAttributes(response.group.styles ?? {}, getLayerStyling),
+      resolveGroupPopupAttributes(group.styles ?? {}, getLayerStyling),
     ]);
-    return { ...response.group, members, styles };
+    return { ...group, members, styles };
   }
 
   /**
@@ -1504,6 +1523,7 @@ export const useGeoserverStore = defineStore("geoserver", () => {
     getLayerInformation,
     getStyleList,
     getLayerGroup,
+    getLayerGroupSummary,
     getLayerDetail,
     getProviderBaseUrlForWorkspace,
     getGeoJSONLayerSource,

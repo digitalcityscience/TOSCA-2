@@ -226,6 +226,7 @@
     "groupItem": {
       "group": "Group",
       "memberCount": "{count} layers",
+      "members": "Group members",
       "noDescription": "No group description available.",
       "addToMap": "Add group to map"
     },

@@ -22,6 +22,25 @@
                     <p class="text-[0.6875rem] font-medium uppercase tracking-[0.12em] text-muted">
                         {{ t('workspace.groupItem.memberCount', { count: item.member_count }) }}
                     </p>
+                    <div
+                        v-if="visibleMembers.length > 0"
+                        class="group-member-preview"
+                        role="list"
+                        :aria-label="t('workspace.groupItem.members')"
+                    >
+                        <span
+                            v-for="member in visibleMembers"
+                            :key="member.id"
+                            class="group-member-preview-item"
+                            role="listitem"
+                            :title="member.title"
+                        >
+                            #{{ member.title }}
+                        </span>
+                        <span v-if="remainingMemberCount > 0" class="group-member-preview-more">
+                            +{{ remainingMemberCount }}
+                        </span>
+                    </div>
                 </div>
             </div>
         </template>
@@ -63,7 +82,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { type CatalogLayerGroupListItem, useGeoserverStore } from "@store/geoserver";
+import { type CatalogLayerGroupListItem, type CatalogLayerGroupManifest, useGeoserverStore } from "@store/geoserver";
 import { useMapStore } from "@store/map";
 import { useToast } from "@helpers/toast";
 import { openSlideoverSidebar } from "@helpers/slideoverSidebarRegistry";
@@ -83,6 +102,12 @@ const isAdding = ref(false);
 const isDescriptionExpanded = ref(false);
 const isDescriptionTruncated = ref(false);
 const descriptionElement = ref<InstanceType<typeof RichDescription>>();
+const groupSummary = ref<CatalogLayerGroupManifest>();
+const visibleMembers = computed(() => groupSummary.value?.members.slice(0, 5) ?? []);
+const remainingMemberCount = computed(() => Math.max(
+    0,
+    (groupSummary.value?.members.length ?? 0) - visibleMembers.value.length
+));
 
 const handleResize = (): void => {
     void updateDescriptionTruncation();
@@ -100,6 +125,12 @@ onBeforeUnmount(() => {
 watch(() => props.item.description, () => {
     isDescriptionExpanded.value = false;
     void nextTick(updateDescriptionTruncation);
+});
+
+void catalog.getLayerGroupSummary(props.item).then((manifest) => {
+    groupSummary.value = manifest;
+}).catch((error: unknown) => {
+    console.error(`Could not load member preview for layer group ${props.item.name}`, error);
 });
 
 async function updateDescriptionTruncation(): Promise<void> {
@@ -131,6 +162,28 @@ async function addGroupToMap(): Promise<void> {
     min-width: 0;
     overflow-wrap: anywhere;
     line-height: 1.35;
+}
+
+.group-member-preview {
+    display: flex;
+    min-width: 0;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.15rem 0.55rem;
+    color: var(--ui-text);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    line-height: 1rem;
+}
+
+.group-member-preview-item {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+
+.group-member-preview-more {
+    flex: 0 0 auto;
+    font-weight: 600;
 }
 
 .group-layer-mark {

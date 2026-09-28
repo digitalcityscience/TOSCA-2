@@ -226,6 +226,7 @@
     "groupItem": {
       "group": "Gruppe",
       "memberCount": "{count} Ebenen",
+      "members": "Gruppenebenen",
       "noDescription": "Keine Gruppenbeschreibung verfügbar.",
       "addToMap": "Gruppe zur Karte hinzufügen"
     },

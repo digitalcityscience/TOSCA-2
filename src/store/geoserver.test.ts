@@ -528,16 +528,20 @@ describe("catalog store", () => {
 
         const catalog = useGeoserverStore();
         const response = await catalog.getLayerList(workspace());
+        const summary = await catalog.getLayerGroupSummary(response.groups!.group[0]);
         const manifest = await catalog.getLayerGroup(response.groups!.group[0]);
 
         expect(response.groups!.group[0]).toMatchObject({
             provider_id: "provider/1",
             workspace_name: "Hamburg",
         });
+        expect(summary.members[0]).toMatchObject({ id: "roads-1", title: "Roads" });
+        expect(summary.members[0].details).toBeUndefined();
         expect(manifest.styles["style-1"].attributes).toEqual([{ name: "POP", labels: { en: "Population" } }]);
         expect(manifest.members[0].details).toMatchObject({
             featureType: { name: "roads" },
         });
+        expect(fetchMock).toHaveBeenCalledTimes(4);
     });
 
     test("loads layer and resource details through Django and attaches provider metadata", async () => {

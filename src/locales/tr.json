@@ -226,6 +226,7 @@
     "groupItem": {
       "group": "Grup",
       "memberCount": "{count} katman",
+      "members": "Grup katmanları",
       "noDescription": "Grup açıklaması bulunmuyor.",
       "addToMap": "Grubu haritaya ekle"
     },
