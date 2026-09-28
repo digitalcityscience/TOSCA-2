@@ -93,6 +93,8 @@
       "temporalLayer": "Zamansal katman",
       "groupLayer": "Katman grubu",
       "groupMembers": "Grup katmanları",
+      "hideGroupMember": "{name} katmanını gizle",
+      "showGroupMember": "{name} katmanını göster",
       "zoom": "Yakınlaştır",
       "collapseControls": "Katman denetimlerini daralt",
       "expandControls": "Katman denetimlerini genişlet",

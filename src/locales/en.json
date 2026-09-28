@@ -93,6 +93,8 @@
       "temporalLayer": "Temporal layer",
       "groupLayer": "Layer group",
       "groupMembers": "Group members",
+      "hideGroupMember": "Hide {name}",
+      "showGroupMember": "Show {name}",
       "zoom": "Zoom",
       "collapseControls": "Collapse layer controls",
       "expandControls": "Expand layer controls",

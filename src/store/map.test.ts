@@ -481,6 +481,45 @@ describe("catalog layer group lifecycle", () => {
         expect(mapStore.displayNameForSource(roadsSource!)).toBe("Roads data");
     });
 
+    test("toggles individual group members and the complete group", async () => {
+        const sources = new Map<string, unknown>();
+        const layers = new Map<string, { id: string, layout?: Record<string, unknown> }>();
+        const mapStore = useMapStore();
+        mapStore.map = {
+            addSource: (id: string, source: unknown) => sources.set(id, source),
+            getSource: (id: string) => sources.get(id),
+            removeSource: (id: string) => sources.delete(id),
+            addLayer: (layer: { id: string, layout?: Record<string, unknown> }) => layers.set(layer.id, layer),
+            getLayer: (id: string) => layers.get(id),
+            removeLayer: (id: string) => layers.delete(id),
+            setLayoutProperty: (id: string, property: string, value: unknown) => {
+                const layer = layers.get(id);
+                if (layer !== undefined) layer.layout = { ...layer.layout, [property]: value };
+            },
+            addSprite: vi.fn(),
+            removeSprite: vi.fn(),
+        };
+
+        const group = await mapStore.addMapGroup(groupManifest());
+        const roadsLayerId = group.groupMemberLayerIds?.["roads-member"]?.[0];
+        const stopsLayerId = group.groupMemberLayerIds?.["stops-member"]?.[0];
+
+        expect(roadsLayerId).toBeDefined();
+        expect(stopsLayerId).toBeDefined();
+
+        mapStore.setGroupMemberVisibility(group, "roads-member", false);
+        expect(layers.get(roadsLayerId!)?.layout?.visibility).toBe("none");
+        expect(layers.get(stopsLayerId!)?.layout?.visibility).toBeUndefined();
+
+        mapStore.setLogicalLayerVisibility(group, false);
+        expect(layers.get(roadsLayerId!)?.layout?.visibility).toBe("none");
+        expect(layers.get(stopsLayerId!)?.layout?.visibility).toBe("none");
+
+        mapStore.setLogicalLayerVisibility(group, true);
+        expect(layers.get(roadsLayerId!)?.layout?.visibility).toBe("visible");
+        expect(layers.get(stopsLayerId!)?.layout?.visibility).toBe("visible");
+    });
+
     test("removes every group render layer, source, and sprite together", async () => {
         const sources = new Map<string, unknown>();
         const layers = new Map<string, unknown>();
