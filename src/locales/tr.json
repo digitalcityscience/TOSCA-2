@@ -388,6 +388,15 @@
       "originallyScheduled": "Başlangıçta {date} için planlandı"
     }
   },
+  "footer": {
+    "label": "Site alt bilgisi",
+    "documentsLabel": "Yasal bilgiler",
+    "loadingTitle": "Belge yükleniyor",
+    "notFoundTitle": "Belge kullanılamıyor",
+    "notFoundDescription": "Bu belge şu anda yayımlanmış alt bilgide yer almıyor.",
+    "errorTitle": "Belge yüklenemedi",
+    "errorDescription": "Lütfen birazdan tekrar deneyin."
+  },
   "geostories": {
     "runScenario": "Senaryoyu Çalıştır",
     "listing": {

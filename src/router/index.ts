@@ -86,6 +86,17 @@ const router = createRouter({
             }
         },
         {
+            path: "/:footerDocumentSlug",
+            name: "footer-document",
+            components: {
+                default: MapView
+            },
+            meta: {
+                sidebar: "workspaceListing",
+                sidebarPosition: "left"
+            }
+        },
+        {
             path: "/:catchAll(.*)",
             redirect: "/"
         }
