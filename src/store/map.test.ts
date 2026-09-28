@@ -415,6 +415,19 @@ describe("catalog layer group lifecycle", () => {
         setActivePinia(createPinia());
     });
 
+    test("consumes a layer panel expansion request only for its target", () => {
+        const mapStore = useMapStore();
+
+        mapStore.requestLayerPanelExpansion("new-layer");
+        expect(mapStore.layerPanelExpansionTargetId).toBe("new-layer");
+
+        mapStore.consumeLayerPanelExpansion("another-layer");
+        expect(mapStore.layerPanelExpansionTargetId).toBe("new-layer");
+
+        mapStore.consumeLayerPanelExpansion("new-layer");
+        expect(mapStore.layerPanelExpansionTargetId).toBeUndefined();
+    });
+
     test("namespaces a group independently from an individual member layer", async () => {
         const sources = new Map<string, unknown>();
         const layers = new Map<string, unknown>();

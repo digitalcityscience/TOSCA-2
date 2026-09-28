@@ -54,6 +54,7 @@ import { type GeoserverRasterTypeLayerDetail, type GeoserverLayerInfo, type Geos
 import { createMapRuntimeId, type GeoServerSourceParams, type LayerParams, useMapStore } from "@store/map";
 import { isNullOrEmpty } from "../../../core/helpers/functions";
 import { useToast } from "@helpers/toast";
+import { openSlideoverSidebar } from "@helpers/slideoverSidebarRegistry";
 import RichDescription from "@components/Base/RichDescription.vue";
 
 export interface Props {
@@ -169,6 +170,8 @@ async function add2Map(withTime: boolean): Promise<void> {
         await mapStore.addMapLayer(layerParams)
         const logicalLayer = mapStore.layersOnMap.find((layer) => layer.id === layerParams.identifier)
         if (logicalLayer !== undefined) logicalLayer.attributes = props.layerInformation.defaultStyle.attributes
+        mapStore.requestLayerPanelExpansion(runtimeId)
+        openSlideoverSidebar("maplayerListing")
     } catch (error) {
         toast.add({ severity: "error", summary: t("toast.error"), detail: error, life: 3000 })
     }

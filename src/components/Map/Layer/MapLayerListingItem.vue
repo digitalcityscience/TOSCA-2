@@ -1,5 +1,5 @@
 <template>
-    <div class="py-1">
+    <div ref="layerListItemElement" class="py-1">
         <div class="map-layer-listing-panel">
             <div class="map-layer-listing-header" :class="{ 'map-layer-listing-header-open': layerPanelOpen }">
                 <span
@@ -204,7 +204,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { type LayerObjectWithAttributes, type LayerRenderType, useMapStore } from "@store/map"
 import { useToast } from "@helpers/toast";
@@ -247,6 +247,7 @@ const failedGroupLegendKeys = ref<Set<string>>(new Set())
 const groupLegendLoading = ref<boolean>(false)
 const centralGroupLegendError = ref<boolean>(false)
 const layerPanelOpen = ref<boolean>(false)
+const layerListItemElement = ref<HTMLDivElement>()
 const opacity = ref<number>(1)
 const checked = ref<boolean>(true)
 const groupMemberVisibility = ref<Record<string, boolean>>({})
@@ -269,6 +270,18 @@ watch(
     () => props.layer.activeStyleId,
     (styleId) => {
         selectedStyleId.value = styleId ?? ""
+    },
+    { immediate: true }
+)
+
+watch(
+    () => mapStore.layerPanelExpansionTargetId,
+    async (identifier) => {
+        if (identifier !== props.layer.id) return
+        layerPanelOpen.value = true
+        await nextTick()
+        layerListItemElement.value?.scrollIntoView({ block: "nearest" })
+        mapStore.consumeLayerPanelExpansion(identifier)
     },
     { immediate: true }
 )
