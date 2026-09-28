@@ -93,6 +93,8 @@
       "temporalLayer": "Zeitliche Ebene",
       "groupLayer": "Ebenengruppe",
       "groupMembers": "Gruppenebenen",
+      "hideGroupMember": "{name} ausblenden",
+      "showGroupMember": "{name} einblenden",
       "zoom": "Zoom",
       "collapseControls": "Ebenensteuerung einklappen",
       "expandControls": "Ebenensteuerung ausklappen",

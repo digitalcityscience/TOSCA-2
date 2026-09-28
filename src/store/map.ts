@@ -91,6 +91,8 @@ export interface LayerObjectWithAttributes extends CustomAddLayerObject {
     logicalKind?: "layer" | "group";
     managedSourceIds?: string[];
     groupSourceIds?: Record<string, string>;
+    /** Runtime MapLibre layer IDs keyed by their catalog group member ID. */
+    groupMemberLayerIds?: Record<string, string[]>;
     groupManifest?: CatalogLayerGroupManifest;
     spriteRuntimeIds?: string[];
     mbStyleLayers?: CatalogLayerGroupManifest["layers"];
@@ -975,6 +977,7 @@ export const useMapStore = defineStore("map", () => {
             }
 
             const runtimeLayerObjects: LayerObjectWithAttributes[] = [];
+            const memberLayerIds: Record<string, string[]> = {};
             manifest.layers.forEach((rawLayer, index) => {
                 const sourceAlias = typeof rawLayer.source === "string" ? rawLayer.source : undefined;
                 const styleId = typeof rawLayer.metadata?.["tosca:style-id"] === "string"
@@ -998,6 +1001,11 @@ export const useMapStore = defineStore("map", () => {
                 } as unknown as AddLayerObject;
                 map.value.addLayer(layerObject);
                 addedLayers.push(runtimeLayerId);
+                const memberId = resolveGroupMemberId(manifest, rawLayer);
+                if (memberId !== undefined) {
+                    memberLayerIds[memberId] ??= [];
+                    memberLayerIds[memberId].push(runtimeLayerId);
+                }
                 runtimeLayerObjects.push({
                     ...(layerObject as unknown as CustomAddLayerObject),
                     source: sourceAlias === undefined ? addedSources[0] : sourceIds[sourceAlias],
@@ -1016,6 +1024,7 @@ export const useMapStore = defineStore("map", () => {
                 companionLayerIds: addedLayers.slice(1),
                 managedSourceIds: addedSources,
                 groupSourceIds: sourceIds,
+                groupMemberLayerIds: memberLayerIds,
                 groupManifest: manifest,
                 spriteRuntimeIds: addedSprites,
                 workspaceName: manifest.workspace.name,
@@ -1103,6 +1112,29 @@ export const useMapStore = defineStore("map", () => {
             opacityPropertiesForType(mapLayer.type as MapLibreLayerTypes).forEach(
                 (property) => map.value.setPaintProperty(layerId, property, opacity)
             );
+        });
+    }
+
+    function setLogicalLayerVisibility(layer: LayerObjectWithAttributes, visible: boolean): void {
+        const visibility = visible ? "visible" : "none";
+        [layer.id, ...(layer.companionLayerIds ?? [])].forEach((layerId) => {
+            if (map.value?.getLayer(layerId) !== undefined) {
+                map.value.setLayoutProperty(layerId, "visibility", visibility);
+            }
+        });
+    }
+
+    function setGroupMemberVisibility(
+        layer: LayerObjectWithAttributes,
+        memberId: string,
+        visible: boolean
+    ): void {
+        if (layer.logicalKind !== "group") return;
+        const visibility = visible ? "visible" : "none";
+        (layer.groupMemberLayerIds?.[memberId] ?? []).forEach((layerId) => {
+            if (map.value?.getLayer(layerId) !== undefined) {
+                map.value.setLayoutProperty(layerId, "visibility", visibility);
+            }
         });
     }
 
@@ -1526,6 +1558,8 @@ export const useMapStore = defineStore("map", () => {
         acquireMapSprite,
         releaseMapSprite,
         setLogicalLayerOpacity,
+        setLogicalLayerVisibility,
+        setGroupMemberVisibility,
         layerOwnsSource,
         displayNameForSource,
         paintVersion,
@@ -1548,6 +1582,25 @@ export const useMapStore = defineStore("map", () => {
 
 function sanitizeRuntimePart(value: string): string {
     return value.replace(/[^a-zA-Z0-9_-]+/g, "-");
+}
+
+function resolveGroupMemberId(
+    manifest: CatalogLayerGroupManifest,
+    layer: CatalogGroupStyleLayer
+): string | undefined {
+    const metadataMemberId = layer.metadata?.["tosca:member-id"];
+    if (typeof metadataMemberId === "string") return metadataMemberId;
+
+    return manifest.members.find((member) => {
+        const declaredLayerIds = [
+            ...(member.render_layer_ids ?? []),
+            ...(member.effective_style_layer_ids ?? []),
+            ...(member.style_assignment.style_layer_ids ?? []),
+        ];
+        if (declaredLayerIds.includes(layer.id)) return true;
+        return layer.source === (member.source_key ?? member.source_alias) ||
+            layer.source === member.source_alias;
+    })?.id;
 }
 
 export function rewriteSpriteLayout(

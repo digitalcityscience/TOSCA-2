@@ -167,15 +167,26 @@
                 </section>
                 <section v-if="isGroupLayer" class="layer-section">
                     <h4 class="layer-section-title">{{ t('map.layerItem.groupMembers') }}</h4>
-                    <div class="flex flex-wrap gap-1.5">
-                        <UBadge
+                    <div class="group-member-list">
+                        <UButton
                             v-for="member in props.layer.groupManifest?.members"
                             :key="member.id"
-                            color="neutral"
-                            variant="soft"
+                            :color="isGroupMemberVisible(member.id) ? 'primary' : 'neutral'"
+                            :variant="isGroupMemberVisible(member.id) ? 'soft' : 'outline'"
                             size="sm"
-                            :label="member.title"
-                        />
+                            class="group-member-toggle"
+                            :icon="isGroupMemberVisible(member.id) ? 'i-lucide-eye' : 'i-lucide-eye-off'"
+                            :aria-pressed="isGroupMemberVisible(member.id)"
+                            :aria-label="t(
+                                isGroupMemberVisible(member.id)
+                                    ? 'map.layerItem.hideGroupMember'
+                                    : 'map.layerItem.showGroupMember',
+                                { name: member.title }
+                            )"
+                            @click="toggleGroupMember(member.id)"
+                        >
+                            {{ member.title }}
+                        </UButton>
                     </div>
                 </section>
                 <section v-if="showFiltering" class="layer-section">
@@ -238,6 +249,7 @@ const centralGroupLegendError = ref<boolean>(false)
 const layerPanelOpen = ref<boolean>(false)
 const opacity = ref<number>(1)
 const checked = ref<boolean>(true)
+const groupMemberVisibility = ref<Record<string, boolean>>({})
 const selectedStyleId = ref<string>(props.layer.activeStyleId ?? "")
 const styleSwitching = ref(false)
 const initialLayerHeaderIndicator = ref<LayerHeaderIndicator>()
@@ -429,6 +441,7 @@ onMounted(() => {
         if (mapStore.map.getLayoutProperty(props.layer.id, "visibility") === "none") {
             checked.value = false
         }
+        if (isGroupLayer.value) syncGroupMemberVisibility()
     }
     void loadLegend()
 })
@@ -586,15 +599,41 @@ function changeLayerVisibility(layerVisibility: boolean): void {
         mapStore.setDeckLayerVisibility(props.layer.id, layerVisibility)
         return
     }
-    const value = layerVisibility ? "visible" : "none";
-    mapStore.map.setLayoutProperty(props.layer.id, "visibility", value);
-    // Mirror visibility on every companion so children (outlines, labels,
-    // cluster counts, etc.) hide and show with their parent.
-    props.layer.companionLayerIds?.forEach((companionId: string) => {
-        if (mapStore.map.getLayer(companionId) !== undefined) {
-            mapStore.map.setLayoutProperty(companionId, "visibility", value);
-        }
-    });
+    mapStore.setLogicalLayerVisibility(props.layer, layerVisibility)
+    if (isGroupLayer.value) {
+        groupMemberVisibility.value = Object.fromEntries(
+            (props.layer.groupManifest?.members ?? []).map((member) => [member.id, layerVisibility])
+        )
+    }
+}
+
+function syncGroupMemberVisibility(): void {
+    groupMemberVisibility.value = Object.fromEntries(
+        (props.layer.groupManifest?.members ?? []).map((member) => {
+            const runtimeIds = props.layer.groupMemberLayerIds?.[member.id] ?? []
+            const visible = runtimeIds.length > 0 && runtimeIds.some((layerId) =>
+                mapStore.map.getLayer(layerId) !== undefined &&
+                mapStore.map.getLayoutProperty(layerId, "visibility") !== "none"
+            )
+            return [member.id, visible]
+        })
+    )
+    checked.value = (props.layer.groupManifest?.members ?? []).some((member) =>
+        isGroupMemberVisible(member.id)
+    )
+}
+
+function isGroupMemberVisible(memberId: string): boolean {
+    return groupMemberVisibility.value[memberId] ?? true
+}
+
+function toggleGroupMember(memberId: string): void {
+    const visible = !isGroupMemberVisible(memberId)
+    mapStore.setGroupMemberVisibility(props.layer, memberId, visible)
+    groupMemberVisibility.value = { ...groupMemberVisibility.value, [memberId]: visible }
+    checked.value = (props.layer.groupManifest?.members ?? []).some((member) =>
+        isGroupMemberVisible(member.id)
+    )
 }
 const confirmDialogVisibility = ref<boolean>(false)
 const toast = useToast();
@@ -849,6 +888,20 @@ function createLayerHeaderIndicatorBackground(indicator: LayerHeaderIndicator): 
     letter-spacing: 0.06em;
     opacity: 0.6;
     margin: 0 0 0.4rem 0;
+}
+.group-member-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+}
+.group-member-toggle {
+    max-width: 100%;
+    transition: opacity 120ms ease, border-color 120ms ease, background-color 120ms ease;
+}
+.group-member-toggle[aria-pressed="false"] {
+    opacity: 0.62;
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
 }
 .layer-style-colors {
     display: grid;
