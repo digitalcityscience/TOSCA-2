@@ -20,6 +20,8 @@ import { type MapStyleLegendContext } from "@helpers/mapStyleLegend";
 import { isEditableMapStyleColorProperty } from "@helpers/mapStyleEditing";
 import { validateSpriteUrl } from "@helpers/mapStyleBundle";
 import { useToast } from "@helpers/toast";
+import { ChunkedGeoJsonLayer } from "@helpers/deckChunkedGeoJsonLayer";
+import type { DeckGeoJsonChunk } from "@helpers/deckGeoJsonChunk";
 
 /**
  * Tile3DLayer's own `filterSubLayer` skips rendering a tile for the *picking*
@@ -109,6 +111,20 @@ export interface LayerObjectWithAttributes extends CustomAddLayerObject {
     renderer?: LayerRenderer;
     /** Source URL for a deck.gl `Tile3DLayer` (3D Tiles tileset.json). */
     tilesetUrl?: string;
+    /**
+     * Set for GeoJSON layers loaded from a public OGC API / SensorThings
+     * service. Their features live in `layerData`; there are no GeoServer
+     * details to drive filtering or legends.
+     */
+    externalSource?: ExternalLayerSourceInfo;
+}
+export interface ExternalLayerSourceInfo {
+    type: "ogc-api" | "sensorthings";
+    sourceTitle: string;
+    /** Total features available upstream, when the service reports it. */
+    totalCount?: number;
+    /** Extent in CRS84, used to zoom to layers whose data is not in `layerData`. */
+    bbox?: number[];
 }
 type SourceType = "geojson" | "geoserver" | "deckgl";
 export type LayerRenderer = "maplibre" | "deckgl";
@@ -123,7 +139,7 @@ export type MapLibreLayerTypes =
   | "hillshade"
   | "background";
 /** MapLibre style-spec types, plus synthetic types for non-MapLibre renderers. */
-export type LayerRenderType = MapLibreLayerTypes | "deckgl-tile3d";
+export type LayerRenderType = MapLibreLayerTypes | "deckgl-tile3d" | "deckgl-geojson";
 
 interface BaseLayerParams {
     sourceType: SourceType;
@@ -288,14 +304,24 @@ export const useMapStore = defineStore("map", () => {
    * pattern, not a workaround.
    */
     const deckLayerProps = new Map<string, Record<string, unknown>>();
+    /** Which deck.gl Layer class renders each entry of `deckLayerProps`. */
+    const deckLayerKinds = new Map<string, "tile3d" | "geojson">();
     /**
    * Rebuilds every deck.gl Layer instance from `deckLayerProps` and pushes them
    * to the overlay. Called after any add/remove/prop change.
    */
     function syncDeckOverlay(): void {
         if (deckOverlay.value === undefined) return;
-        const layers = Array.from(deckLayerProps.values()).map(
-            (props) => new PickableTile3DLayer(props)
+        // Deck layers sharing an interleaving group draw in array order, so
+        // keep that order identical to the layer list (bottom to top).
+        const listOrder = new Map(layersOnMap.value.map((layer, index) => [layer.id, index]));
+        const position = (identifier: string): number => listOrder.get(identifier) ?? Number.MAX_SAFE_INTEGER;
+        const entries = Array.from(deckLayerProps.entries())
+            .sort(([a], [b]) => position(a) - position(b));
+        const layers = entries.map(([identifier, props]) =>
+            deckLayerKinds.get(identifier) === "geojson"
+                ? new ChunkedGeoJsonLayer(props)
+                : new PickableTile3DLayer(props)
         );
         deckOverlay.value.setProps({ layers });
     }
@@ -305,7 +331,11 @@ export const useMapStore = defineStore("map", () => {
    */
     function initializeDeckOverlay(): void {
         if (isNullOrEmpty(map.value) || deckOverlay.value !== undefined) return;
-        const overlay = new MapboxOverlay({ interleaved: true, layers: [] });
+        // `_pickable: false` stops deck.gl from picking on every pointer move.
+        // Nothing here uses hover, and a hover pick over a large layer (e.g.
+        // 260k parcels) costs 30-80 ms per event. Clicks pick explicitly in
+        // `pickDeckObjects`, which turns picking on for that call only.
+        const overlay = new MapboxOverlay({ interleaved: true, layers: [], _pickable: false });
         map.value.addControl(overlay);
         deckOverlay.value = overlay;
     }
@@ -332,6 +362,7 @@ export const useMapStore = defineStore("map", () => {
             throw new Error("Identifier is required to add layer");
         }
         initializeDeckOverlay();
+        deckLayerKinds.set(identifier, "tile3d");
         deckLayerProps.set(identifier, {
             id: identifier,
             data: tilesetUrl,
@@ -365,9 +396,95 @@ export const useMapStore = defineStore("map", () => {
             map.value.easeTo({ pitch: 60, duration: 800 });
         }
     }
+    /**
+   * Adds an empty deck.gl GeoJSON layer whose features arrive later in binary
+   * chunks (see `appendDeckGeoJsonChunk`). Used for feature counts beyond what
+   * a MapLibre GeoJSON source handles comfortably.
+   *
+   * @param {number} [params.index] - Position in the layer list (defaults to the end).
+   */
+    function addDeckGeoJsonLayer(params: {
+        identifier: string
+        displayName?: string
+        index?: number
+        externalSource?: ExternalLayerSourceInfo
+    }): LayerObjectWithAttributes {
+        if (isNullOrEmpty(map.value)) {
+            throw new Error("There is no map to add layer");
+        }
+        const { identifier, displayName, index, externalSource } = params;
+        if (identifier === "" || deckLayerProps.has(identifier)) {
+            throw new Error(`Cannot add deck.gl layer ${identifier}`);
+        }
+        initializeDeckOverlay();
+        const color = hexToRgb(getRandomHexColor());
+        deckLayerKinds.set(identifier, "geojson");
+        deckLayerProps.set(identifier, {
+            id: identifier,
+            chunks: [] as DeckGeoJsonChunk[],
+            fillColor: [...color, 90],
+            lineColor: [...color, 230],
+            opacity: 1,
+            visible: true,
+            pickable: true,
+        });
+        syncDeckOverlay();
+        const layerRecord: LayerObjectWithAttributes = {
+            id: identifier,
+            source: identifier,
+            sourceType: "deckgl",
+            type: "deckgl-geojson",
+            renderer: "deckgl",
+            showOnLayerList: true,
+            keepOnTop: false,
+            displayName,
+            externalSource,
+        };
+        add2MapLayerList(layerRecord, index);
+        return layersOnMap.value.find((layer) => layer.id === identifier) ?? layerRecord;
+    }
+    /** Appends one binary chunk to a deck.gl GeoJSON layer and redraws. */
+    function appendDeckGeoJsonChunk(identifier: string, chunk: DeckGeoJsonChunk): void {
+        const props = deckLayerProps.get(identifier);
+        if (props === undefined || deckLayerKinds.get(identifier) !== "geojson") return;
+        deckLayerProps.set(identifier, { ...props, chunks: [...(props.chunks as DeckGeoJsonChunk[]), chunk] });
+        syncDeckOverlay();
+    }
+    /** Drops every chunk of a deck.gl GeoJSON layer (e.g. before reloading it). */
+    function clearDeckGeoJsonChunks(identifier: string): void {
+        const props = deckLayerProps.get(identifier);
+        if (props === undefined || deckLayerKinds.get(identifier) !== "geojson") return;
+        deckLayerProps.set(identifier, { ...props, chunks: [] });
+        syncDeckOverlay();
+    }
     /** Removes a deck.gl layer from the overlay. Does not touch `layersOnMap`. */
     function removeDeckLayer(identifier: string): void {
         deckLayerProps.delete(identifier);
+        deckLayerKinds.delete(identifier);
+        syncDeckOverlay();
+    }
+    /**
+   * Re-anchors every deck.gl layer from the layer list order. In interleaved
+   * mode a deck layer without `beforeId` is forced above the whole MapLibre
+   * stack, so 2D deck layers are pinned before the nearest MapLibre layer
+   * above them in the list. 3D tilesets intentionally stay on top.
+   * Called after every list mutation (add, remove, reorder).
+   */
+    function syncDeckLayerAnchors(): void {
+        if (deckLayerProps.size === 0) return;
+        const list = layersOnMap.value;
+        list.forEach((layer, index) => {
+            const props = deckLayerProps.get(layer.id);
+            if (props === undefined) return;
+            const beforeId = deckLayerKinds.get(layer.id) === "tile3d"
+                ? undefined
+                : list.slice(index + 1).find((candidate) =>
+                    candidate.renderer !== "deckgl" && map.value?.getLayer(candidate.id) !== undefined
+                )?.id;
+            if (props.beforeId !== beforeId) {
+                deckLayerProps.set(layer.id, { ...props, beforeId });
+            }
+        });
         syncDeckOverlay();
     }
     function setDeckLayerVisibility(identifier: string, visible: boolean): void {
@@ -383,17 +500,6 @@ export const useMapStore = defineStore("map", () => {
         syncDeckOverlay();
     }
     /**
-   * Updates which MapLibre style layer a deck.gl layer should render
-   * immediately below, mirroring MapLibre's own `moveLayer(id, beforeId)`
-   * semantics so drag-reorder can interleave 3D layers between 2D ones.
-   */
-    function setDeckLayerBeforeId(identifier: string, beforeId?: string): void {
-        const props = deckLayerProps.get(identifier);
-        if (props === undefined) return;
-        deckLayerProps.set(identifier, { ...props, beforeId });
-        syncDeckOverlay();
-    }
-    /**
    * Picks every pickable deck.gl object under a click point (CSS pixel
    * coordinates, same space as MapLibre's `event.point`, since the overlay
    * is interleaved into the same canvas), mapped into the same
@@ -404,6 +510,7 @@ export const useMapStore = defineStore("map", () => {
     function pickDeckObjects(point: { x: number, y: number }): PopupAttributeFeature[] {
         if (deckOverlay.value === undefined) return [];
         let picks: PickingInfo[];
+        deckOverlay.value.setProps({ _pickable: true });
         try {
             picks = deckOverlay.value.pickMultipleObjects({
                 x: point.x, y: point.y, radius: 5, depth: 5, unproject3D: true,
@@ -411,6 +518,8 @@ export const useMapStore = defineStore("map", () => {
         } catch (error) {
             console.error("deck.gl pick failed", error);
             return [];
+        } finally {
+            deckOverlay.value.setProps({ _pickable: false });
         }
         return picks
             .filter((pick) => pick.picked && pick.layer !== null)
@@ -822,11 +931,15 @@ export const useMapStore = defineStore("map", () => {
         layerObject: LayerObjectWithAttributes,
         index?: number
     ): void {
-        if (index !== undefined) {
-            layersOnMap.value.splice(index, 0, layerObject);
+        // 3D tilesets stay on top of the list; other new layers go below them.
+        const first3DIndex = layersOnMap.value.findIndex(isDeck3DLayer);
+        const insertAt = index ?? (isDeck3DLayer(layerObject) || first3DIndex === -1 ? undefined : first3DIndex);
+        if (insertAt !== undefined) {
+            layersOnMap.value.splice(insertAt, 0, layerObject);
         } else {
             layersOnMap.value.push(layerObject);
         }
+        syncDeckLayerAnchors();
         if (
             layerObject.showOnLayerList !== undefined &&
       layerObject.showOnLayerList
@@ -870,26 +983,27 @@ export const useMapStore = defineStore("map", () => {
         const movedLayerRecord = currentVisibleLayers[currentVisibleIndex];
         const nextVisibleLayers = [...currentVisibleLayers];
         const [movedLayer] = nextVisibleLayers.splice(currentVisibleIndex, 1);
-        nextVisibleLayers.splice(targetVisibleTopIndex, 0, movedLayer);
+        // 3D tilesets are pinned above every 2D layer: clamp drops across that boundary.
+        const pinned3DCount = nextVisibleLayers.filter(isDeck3DLayer).length;
+        const targetIndex = isDeck3DLayer(movedLayerRecord)
+            ? Math.min(targetVisibleTopIndex, pinned3DCount)
+            : Math.max(targetVisibleTopIndex, pinned3DCount);
+        nextVisibleLayers.splice(targetIndex, 0, movedLayer);
 
-        // Both branches below resolve to the same thing: the id of the nearest
-        // real MapLibre layer above the moved layer's new position (deck.gl
-        // entries in between are skipped, since they are not part of
-        // MapLibre's own layer stack and cannot anchor a `beforeId`).
+        // The nearest real MapLibre layer above the new position (deck.gl
+        // entries are skipped: they cannot anchor a MapLibre `beforeId`).
         const beforeId = getMapLibreBeforeIdForVisibleMove(
             nextVisibleLayers,
-            targetVisibleTopIndex
+            targetIndex
         );
 
         if (beforeId === identifier) {
             return;
         }
 
-        if (movedLayerRecord.renderer === "deckgl") {
-            // Re-interleave the deck.gl layer at its new position among the
-            // MapLibre layers instead of moving a (nonexistent) style layer.
-            setDeckLayerBeforeId(identifier, beforeId);
-        } else {
+        // deck.gl layers have no style layer to move: `moveLayerInState`
+        // re-anchors them from the new list order.
+        if (movedLayerRecord.renderer !== "deckgl") {
             moveMapLibreLayer(identifier, beforeId);
             // Companions ride with their parent: re-issue moveLayer for each so
             // they sit immediately above the parent in registration order.
@@ -900,7 +1014,11 @@ export const useMapStore = defineStore("map", () => {
                 }
             });
         }
-        moveLayerInState(identifier, beforeId);
+        // The list follows the drop position exactly (directly below the
+        // visible neighbour above it), which may be a deck.gl layer.
+        const listBeforeId = nextVisibleLayers[targetIndex - 1]?.id ??
+            layersOnMap.value.find((layer) => layer.keepOnTop === true)?.id;
+        moveLayerInState(identifier, listBeforeId);
     }
 
     /**
@@ -1245,22 +1363,16 @@ export const useMapStore = defineStore("map", () => {
         }
 
         const [movedLayer] = layersOnMap.value.splice(currentIndex, 1);
-
-        if (beforeId === undefined) {
-            layersOnMap.value.push(movedLayer);
-            return;
-        }
-
-        const targetIndex = layersOnMap.value.findIndex(
-            (layer) => layer.id === beforeId
-        );
+        const targetIndex = beforeId === undefined
+            ? -1
+            : layersOnMap.value.findIndex((layer) => layer.id === beforeId);
 
         if (targetIndex === -1) {
             layersOnMap.value.push(movedLayer);
-            return;
+        } else {
+            layersOnMap.value.splice(targetIndex, 0, movedLayer);
         }
-
-        layersOnMap.value.splice(targetIndex, 0, movedLayer);
+        syncDeckLayerAnchors();
     }
     /**
    * Removes a layer from the `layersOnMap` list based on its identifier.
@@ -1277,6 +1389,7 @@ export const useMapStore = defineStore("map", () => {
         );
         if (index !== -1) {
             const [removedLayer] = layersOnMap.value.splice(index, 1);
+            syncDeckLayerAnchors();
             if (
                 removedLayer.showOnLayerList !== undefined &&
         removedLayer.showOnLayerList
@@ -1587,10 +1700,12 @@ export const useMapStore = defineStore("map", () => {
         deckOverlay,
         initializeDeckOverlay,
         addDeckTilesetLayer,
+        addDeckGeoJsonLayer,
+        appendDeckGeoJsonChunk,
+        clearDeckGeoJsonChunks,
         removeDeckLayer,
         setDeckLayerVisibility,
         setDeckLayerOpacity,
-        setDeckLayerBeforeId,
         pickDeckObjects,
     };
 });
@@ -1786,8 +1901,22 @@ function findNearestVertexBatchId(
     return bestIndex >= 0 ? (batchIds[bestIndex] as number) : undefined;
 }
 
+/** 3D tilesets render on top of all 2D content and are pinned there in the list. */
+function isDeck3DLayer(layer: Pick<LayerObjectWithAttributes, "renderer" | "type">): boolean {
+    return layer.renderer === "deckgl" && layer.type === "deckgl-tile3d";
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+    const value = Number.parseInt(hex.replace("#", "").slice(0, 6), 16);
+    return Number.isNaN(value) ? [56, 189, 248] : [(value >> 16) & 255, (value >> 8) & 255, value & 255];
+}
+
 function buildDeckPopupFeature(pick: PickingInfo): PopupAttributeFeature {
     const layerId = pick.layer!.id;
+    if (pick.layer instanceof ChunkedGeoJsonLayer) {
+        const properties = (pick.object as { properties?: Record<string, unknown> } | undefined)?.properties ?? {};
+        return { source: layerId, id: pick.index, properties };
+    }
     const tile = pick.object as {
         id?: string
         content?: { batchTableJson?: Record<string, unknown[]>, uri?: string }

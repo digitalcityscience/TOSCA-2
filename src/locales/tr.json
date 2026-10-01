@@ -140,7 +140,10 @@
       "indicatorMulti": "Katman birden fazla stil rengi kullanıyor",
       "indicatorHeatmap": "Isı haritası renkleri",
       "indicatorRaster": "Raster katman",
-      "indicatorUnknown": "Katman stil rengi kullanılamıyor"
+      "indicatorUnknown": "Katman stil rengi kullanılamıyor",
+      "externalSource": "Kaynak",
+      "featureCount": "{total} objeden {shown} tanesi",
+      "featureCountUnknown": "{shown} obje"
     },
     "layerListing": {
       "title": "Katmanlar",
@@ -165,6 +168,39 @@
       "addFilter": "Filtre Ekle",
       "hasFilter": "Bir geometri filtreniz var",
       "removeFilter": "Geometri filtresini kaldır"
+    },
+    "ogcQuery": {
+      "title": "Sunucu sorgusu",
+      "statusAll": "{total} objeden {loaded} tanesi yüklendi",
+      "statusViewport": "Harita görünümüne göre yükleniyor: görünümdeki {inView} objeden {loaded} tanesi (toplam {total})",
+      "zoomIn": "Görünümde bir kerede yüklenebilecekten fazla obje var. Tümünü görmek için yakınlaştırın.",
+      "filterRejected": "Servis bu filtreyi reddetti.",
+      "requestFailed": "Objeler servisten yüklenemedi.",
+      "noQueryables": "Bu koleksiyon seçilebilir veya filtrelenebilir öznitelik sunmuyor.",
+      "attributes": "Öznitelikler",
+      "allAttributes": "Tüm öznitelikler",
+      "filter": "Filtre (tüm koşullar sağlanmalı)",
+      "selectAttribute": "Öznitelik seçin",
+      "value": "Değer",
+      "addCondition": "Koşul ekle",
+      "invalidValue": "{property} için geçerli bir değer girin.",
+      "true": "doğru",
+      "false": "yanlış",
+      "operators": {
+        "eq": "eşittir",
+        "neq": "eşit değil",
+        "lt": "küçüktür",
+        "lte": "en fazla",
+        "gt": "büyüktür",
+        "gte": "en az",
+        "contains": "içerir"
+      },
+      "statusFull": "Tüm objeler (deck.gl): {total} objeden {loaded} tanesi yüklendi",
+      "loadAll": "Tüm {total} objeyi yükle",
+      "loadAllHint": "Eşleşen tüm objeleri arka planda {pages} istekle yükler ve deck.gl ile çizer. Bu modda veri tablosu kullanılamaz.",
+      "loadAllAttributesHint": "İpucu: Önce yalnızca ihtiyacınız olan öznitelikleri seçin. İndirme boyutu ciddi şekilde küçülür.",
+      "loadAllStopped": "Yükleme iptal edildi; objelerin yalnızca bir kısmı gösteriliyor.",
+      "reloadAll": "Tümünü yeniden yükle"
     }
   },
   "buffer": {
@@ -198,7 +234,9 @@
     "addLayer": "Katman Ekle"
   },
   "toast": {
-    "error": "Hata"
+    "error": "Hata",
+    "success": "Başarılı",
+    "warning": "Uyarı"
   },
   "workspace": {
     "listing": {
@@ -238,6 +276,43 @@
       "itemTitle": "Hamburg LoD3 Binaları",
       "itemDescription": "Hamburg için dokusuz LoD3 bina modelleri, Cesium 3D Tiles tileset olarak sunulur. deck.gl ile render edilir, MapLibre haritasıyla iç içe geçirilir.",
       "badge": "3B Tileset"
+    },
+    "external": {
+      "searchPlaceholder": "Ada göre filtrele",
+      "noResults": "Eşleşen kayıt yok.",
+      "showMore": "Daha fazla göster ({count} kaldı)",
+      "loadError": "Bu servisten veri yüklenemedi.",
+      "retry": "Tekrar dene",
+      "ogc": {
+        "badge": "OGC API",
+        "datasetCount": "{count} veri seti",
+        "showCollections": "Koleksiyonlar",
+        "hideCollections": "Koleksiyonları gizle",
+        "noCollections": "Bu veri setinde koleksiyon yok.",
+        "itemCount": "{count} obje",
+        "openCollection": "API'de aç",
+        "openDataset": "Veri seti sayfası",
+        "noFeatures": "Bu koleksiyon hiç obje döndürmedi.",
+        "truncated": "{total} objeden ilk {shown} tanesi gösteriliyor."
+      },
+      "sensorthings": {
+        "badge": "SensorThings",
+        "propertyCount": "{count} ölçüm türü",
+        "datastreamCount": "{count} veri akışı",
+        "showDatastreams": "Veri akışları",
+        "hideDatastreams": "Veri akışlarını gizle",
+        "loadMore": "Daha fazla yükle",
+        "shownOf": "{shown} / {total}",
+        "thing": "Thing",
+        "latest": "Son değer",
+        "noObservation": "Henüz gözlem yok",
+        "addAll": "Tümünü ekle ({count})",
+        "addStream": "Haritaya ekle",
+        "onMapCount": "{count} haritada",
+        "noLocation": "Bu veri akışları için konum bilgisi yok.",
+        "addedToLayer": "{layer} katmanına {count} veri akışı eklendi."
+      },
+      "onMap": "Haritada"
     }
   },
   "participation": {

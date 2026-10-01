@@ -140,7 +140,10 @@
       "indicatorMulti": "Layer uses multiple style colors",
       "indicatorHeatmap": "Heatmap layer colors",
       "indicatorRaster": "Raster layer",
-      "indicatorUnknown": "Layer style color unavailable"
+      "indicatorUnknown": "Layer style color unavailable",
+      "externalSource": "Source",
+      "featureCount": "{shown} of {total} features",
+      "featureCountUnknown": "{shown} features"
     },
     "layerListing": {
       "title": "Layers",
@@ -165,6 +168,39 @@
       "addFilter": "Add Filter",
       "hasFilter": "You have a geometry filter",
       "removeFilter": "Remove geometry filter"
+    },
+    "ogcQuery": {
+      "title": "Server query",
+      "statusAll": "{loaded} of {total} features loaded",
+      "statusViewport": "Loading by map view: {loaded} of {inView} in view ({total} in total)",
+      "zoomIn": "More features in view than can be loaded at once. Zoom in to see all of them.",
+      "filterRejected": "The service rejected this filter.",
+      "requestFailed": "Could not load features from the service.",
+      "noQueryables": "This collection doesn't list attributes to select or filter.",
+      "attributes": "Attributes",
+      "allAttributes": "All attributes",
+      "filter": "Filter (all conditions must match)",
+      "selectAttribute": "Select attribute",
+      "value": "Value",
+      "addCondition": "Add condition",
+      "invalidValue": "Enter a valid value for {property}.",
+      "true": "true",
+      "false": "false",
+      "operators": {
+        "eq": "equals",
+        "neq": "not equal",
+        "lt": "less than",
+        "lte": "at most",
+        "gt": "greater than",
+        "gte": "at least",
+        "contains": "contains"
+      },
+      "statusFull": "All features (deck.gl): {loaded} of {total} loaded",
+      "loadAll": "Load all {total}",
+      "loadAllHint": "Loads every matching feature in {pages} request(s) in the background and renders them with deck.gl. The data table is not available in this mode.",
+      "loadAllAttributesHint": "Tip: select only the attributes you need first. It makes the download much smaller.",
+      "loadAllStopped": "Loading was cancelled; only part of the features is shown.",
+      "reloadAll": "Load all again"
     }
   },
   "buffer": {
@@ -198,7 +234,9 @@
     "addLayer": "Add Layer"
   },
   "toast": {
-    "error": "Error"
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning"
   },
   "workspace": {
     "listing": {
@@ -238,6 +276,43 @@
       "itemTitle": "Hamburg LoD3 Buildings",
       "itemDescription": "Untextured LoD3 building models for Hamburg, served as a Cesium 3D Tiles tileset. Rendered with deck.gl, interleaved with the MapLibre map.",
       "badge": "3D Tileset"
+    },
+    "external": {
+      "searchPlaceholder": "Filter by name",
+      "noResults": "No matching entries.",
+      "showMore": "Show more ({count} remaining)",
+      "loadError": "Could not load data from this service.",
+      "retry": "Retry",
+      "ogc": {
+        "badge": "OGC API",
+        "datasetCount": "{count} datasets",
+        "showCollections": "Collections",
+        "hideCollections": "Hide collections",
+        "noCollections": "This dataset has no collections.",
+        "itemCount": "{count} features",
+        "openCollection": "Open in API",
+        "openDataset": "Dataset page",
+        "noFeatures": "This collection returned no features.",
+        "truncated": "Showing the first {shown} of {total} features."
+      },
+      "sensorthings": {
+        "badge": "SensorThings",
+        "propertyCount": "{count} properties",
+        "datastreamCount": "{count} datastreams",
+        "showDatastreams": "Datastreams",
+        "hideDatastreams": "Hide datastreams",
+        "loadMore": "Load more",
+        "shownOf": "{shown} of {total}",
+        "thing": "Thing",
+        "latest": "Latest",
+        "noObservation": "No observations yet",
+        "addAll": "Add all ({count})",
+        "addStream": "Add to map",
+        "onMapCount": "{count} on map",
+        "noLocation": "No location available for these datastreams.",
+        "addedToLayer": "Added {count} datastream(s) to {layer}."
+      },
+      "onMap": "On map"
     }
   },
   "participation": {
