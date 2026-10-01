@@ -33,7 +33,7 @@
                 <div class="layer-actions">
                     <UButton class="layer-icon-btn" icon="i-lucide-trash-2" color="error" variant="ghost" :aria-label="t('common.delete')"
                         @click="confirmDialogVisibility = true" />
-                    <UButton v-if="props.layer.renderer !== 'deckgl'" class="layer-icon-btn" icon="i-lucide-zoom-in" color="neutral" variant="ghost" :aria-label="t('map.layerItem.zoom')"
+                    <UButton v-if="props.layer.renderer !== 'deckgl' || props.layer.externalSource?.bbox" class="layer-icon-btn" icon="i-lucide-zoom-in" color="neutral" variant="ghost" :aria-label="t('map.layerItem.zoom')"
                         @click="zoomToLayer" />
                     <UButton
                         class="layer-icon-btn"
@@ -57,6 +57,15 @@
                 </UModal>
             </div>
             <div v-show="layerPanelOpen" class="layer-panel-body">
+                <section v-if="props.layer.externalSource" class="layer-section">
+                    <h4 class="layer-section-title">{{ t('map.layerItem.externalSource') }}</h4>
+                    <p class="text-sm text-toned">{{ props.layer.externalSource.sourceTitle }}</p>
+                    <p v-if="props.layer.externalSource.type !== 'ogc-api'" class="text-xs text-muted">{{ externalFeatureCountLabel }}</p>
+                </section>
+                <section v-if="props.layer.externalSource?.type === 'ogc-api'" class="layer-section">
+                    <h4 class="layer-section-title">{{ t('map.ogcQuery.title') }}</h4>
+                    <OgcLayerQueryControls :layer-id="props.layer.id" />
+                </section>
                 <section class="layer-section">
                     <h4 class="layer-section-title">{{ t('map.layerItem.style') }}</h4>
                     <label v-if="styleSelectItems.length > 1" class="layer-row">
@@ -210,6 +219,7 @@ import { type LayerObjectWithAttributes, type LayerRenderType, useMapStore } fro
 import { useToast } from "@helpers/toast";
 import { isNullOrEmpty } from "@helpers/functions";
 import { createMapStyleLegendEntries } from "@helpers/mapStyleLegend";
+import { fitMapToFeatures } from "@helpers/externalLayers";
 import {
     type MapStyleColorControl,
     type MapStyleColorLabel,
@@ -232,12 +242,13 @@ const GeometryFiltering = defineAsyncComponent(async () => await import("@compon
 const MapLayerResultTable = defineAsyncComponent(async () => await import("./MapLayerResultTable.vue"));
 const RasterLayerTimeControl = defineAsyncComponent(async () => await import("./RasterLayerTimeControl.vue"));
 const MapStyleLegend = defineAsyncComponent(async () => await import("./MapStyleLegend.vue"));
+const OgcLayerQueryControls = defineAsyncComponent(async () => await import("./OgcLayerQueryControls.vue"));
 
 export interface Props {
     layer: LayerObjectWithAttributes
 }
 const props = defineProps<Props>()
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const mapStore = useMapStore()
 const geoserver = useGeoserverStore()
 const legendUrl = ref<string>()
@@ -433,6 +444,13 @@ const showServerLegend = computed<boolean>(() => {
     if (hasEditableStyleColors.value) return false
     return true
 })
+const externalFeatureCountLabel = computed(() => {
+    const shown = (props.layer.layerData?.features.length ?? 0).toLocaleString(locale.value)
+    const total = props.layer.externalSource?.totalCount
+    return total === undefined
+        ? t("map.layerItem.featureCountUnknown", { shown })
+        : t("map.layerItem.featureCount", { shown, total: total.toLocaleString(locale.value) })
+})
 const showLegend = computed<boolean>(() => {
     return showCentralGroupLegend.value ||
         showServerLegend.value ||
@@ -440,6 +458,8 @@ const showLegend = computed<boolean>(() => {
 })
 const showFiltering = computed<boolean>(() => {
     if (isGroupLayer.value) return false
+    // Attribute/geometry filters are driven by GeoServer feature type details.
+    if (props.layer.externalSource !== undefined) return false
     if (props.layer.type === "raster") return false
     if (props.layer.renderer === "deckgl") return false
     return props.layer.filterLayer !== true
@@ -682,6 +702,17 @@ function zoomToLayer(): void {
                 [Math.max(...boxes.map((box) => box.maxx)), Math.max(...boxes.map((box) => box.maxy))],
             ], { padding: 20 })
         }
+        return
+    }
+    // External layers rendered by deck.gl only know their advertised extent.
+    const extent = props.layer.externalSource?.bbox
+    if (props.layer.renderer === "deckgl" && extent !== undefined && extent.length >= 4) {
+        mapStore.map.fitBounds([[extent[0], extent[1]], [extent[2], extent[3]]], { padding: 20 })
+        return
+    }
+    // GeoJSON layers (external sources, drawings) carry their own features.
+    if (props.layer.details === undefined && props.layer.layerData !== undefined) {
+        fitMapToFeatures(mapStore.map, props.layer.layerData)
         return
     }
     if (props.layer.type === "raster") {

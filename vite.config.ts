@@ -43,12 +43,22 @@ export default defineConfig(({ mode }) => {
               content: "z-[80]",
             },
           },
+          selectMenu: {
+            slots: {
+              content: "z-[80]",
+            },
+          },
         },
       }),
       vueI18n({
         include: resolve(__dirname, "./src/locales/**"),
       }),
     ],
+    optimizeDeps: {
+      // Imported only by the OGC feature-loader worker; pre-bundle them so the
+      // dev server does not discover them mid-session and reload the page.
+      include: ["@loaders.gl/gis", "@deck.gl/layers"],
+    },
     resolve: {
       alias: {
         "@components": resolve(__dirname, "./src/components"),

@@ -140,7 +140,10 @@
       "indicatorMulti": "Ebene verwendet mehrere Stilfarben",
       "indicatorHeatmap": "Heatmap-Farben",
       "indicatorRaster": "Rasterebene",
-      "indicatorUnknown": "Ebenenfarbe nicht verfügbar"
+      "indicatorUnknown": "Ebenenfarbe nicht verfügbar",
+      "externalSource": "Quelle",
+      "featureCount": "{shown} von {total} Features",
+      "featureCountUnknown": "{shown} Features"
     },
     "layerListing": {
       "title": "Ebenen",
@@ -165,6 +168,39 @@
       "addFilter": "Filter hinzufügen",
       "hasFilter": "Sie haben einen Geometriefilter",
       "removeFilter": "Geometriefilter entfernen"
+    },
+    "ogcQuery": {
+      "title": "Serverabfrage",
+      "statusAll": "{loaded} von {total} Features geladen",
+      "statusViewport": "Laden nach Kartenausschnitt: {loaded} von {inView} im Ausschnitt ({total} insgesamt)",
+      "zoomIn": "Im Ausschnitt sind mehr Features, als auf einmal geladen werden können. Hineinzoomen, um alle zu sehen.",
+      "filterRejected": "Der Dienst hat diesen Filter abgelehnt.",
+      "requestFailed": "Features konnten nicht vom Dienst geladen werden.",
+      "noQueryables": "Diese Collection bietet keine Attribute zur Auswahl oder Filterung an.",
+      "attributes": "Attribute",
+      "allAttributes": "Alle Attribute",
+      "filter": "Filter (alle Bedingungen müssen zutreffen)",
+      "selectAttribute": "Attribut wählen",
+      "value": "Wert",
+      "addCondition": "Bedingung hinzufügen",
+      "invalidValue": "Bitte einen gültigen Wert für {property} eingeben.",
+      "true": "wahr",
+      "false": "falsch",
+      "operators": {
+        "eq": "gleich",
+        "neq": "ungleich",
+        "lt": "kleiner als",
+        "lte": "höchstens",
+        "gt": "größer als",
+        "gte": "mindestens",
+        "contains": "enthält"
+      },
+      "statusFull": "Alle Features (deck.gl): {loaded} von {total} geladen",
+      "loadAll": "Alle {total} laden",
+      "loadAllHint": "Lädt alle passenden Features im Hintergrund in {pages} Anfrage(n) und stellt sie mit deck.gl dar. Die Datentabelle ist in diesem Modus nicht verfügbar.",
+      "loadAllAttributesHint": "Tipp: Vorher nur die benötigten Attribute auswählen. Das verkleinert den Download deutlich.",
+      "loadAllStopped": "Laden abgebrochen; es wird nur ein Teil der Features angezeigt.",
+      "reloadAll": "Erneut alle laden"
     }
   },
   "buffer": {
@@ -198,7 +234,9 @@
     "addLayer": "Ebene hinzufügen"
   },
   "toast": {
-    "error": "Fehler"
+    "error": "Fehler",
+    "success": "Erfolg",
+    "warning": "Warnung"
   },
   "workspace": {
     "listing": {
@@ -238,6 +276,43 @@
       "itemTitle": "Hamburg LoD3-Gebäude",
       "itemDescription": "Untexturierte LoD3-Gebäudemodelle für Hamburg, bereitgestellt als Cesium-3D-Tiles-Tileset. Gerendert mit deck.gl, interleaved mit der MapLibre-Karte.",
       "badge": "3D-Tileset"
+    },
+    "external": {
+      "searchPlaceholder": "Nach Namen filtern",
+      "noResults": "Keine passenden Einträge.",
+      "showMore": "Mehr anzeigen ({count} weitere)",
+      "loadError": "Daten dieses Dienstes konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "ogc": {
+        "badge": "OGC API",
+        "datasetCount": "{count} Datensätze",
+        "showCollections": "Collections",
+        "hideCollections": "Collections ausblenden",
+        "noCollections": "Dieser Datensatz hat keine Collections.",
+        "itemCount": "{count} Features",
+        "openCollection": "In der API öffnen",
+        "openDataset": "Datensatzseite",
+        "noFeatures": "Diese Collection hat keine Features geliefert.",
+        "truncated": "Es werden die ersten {shown} von {total} Features angezeigt."
+      },
+      "sensorthings": {
+        "badge": "SensorThings",
+        "propertyCount": "{count} Messgrößen",
+        "datastreamCount": "{count} Datenströme",
+        "showDatastreams": "Datenströme",
+        "hideDatastreams": "Datenströme ausblenden",
+        "loadMore": "Mehr laden",
+        "shownOf": "{shown} von {total}",
+        "thing": "Thing",
+        "latest": "Zuletzt",
+        "noObservation": "Noch keine Beobachtungen",
+        "addAll": "Alle hinzufügen ({count})",
+        "addStream": "Zur Karte hinzufügen",
+        "onMapCount": "{count} auf der Karte",
+        "noLocation": "Für diese Datenströme ist kein Standort verfügbar.",
+        "addedToLayer": "{count} Datenstrom/-ströme zu {layer} hinzugefügt."
+      },
+      "onMap": "Auf der Karte"
     }
   },
   "participation": {
