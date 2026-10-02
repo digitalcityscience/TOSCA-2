@@ -208,13 +208,18 @@ async function fetchExternalJson<T>(
     return await response.json() as T;
 }
 
+/**
+ * Picks the first link of a relation in the preferred media types. A link
+ * without a `type` is accepted as a last resort; links of other types are not
+ * (an `items` link may be CityJSON or glTF, which we cannot read as GeoJSON).
+ */
 function pickLink(links: OgcLink[] | undefined, rel: string, types: string[]): string | undefined {
     const candidates = (links ?? []).filter((link) => link.rel === rel);
     for (const type of types) {
         const match = candidates.find((link) => link.type === type);
         if (match !== undefined) return match.href;
     }
-    return candidates[0]?.href;
+    return candidates.find((link) => link.type === undefined)?.href;
 }
 
 export function parseOgcApiDatasets(

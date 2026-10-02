@@ -118,8 +118,17 @@ export interface LayerObjectWithAttributes extends CustomAddLayerObject {
      */
     externalSource?: ExternalLayerSourceInfo;
 }
+/** Editable appearance of a deck.gl GeoJSON layer (colors as #rrggbb). */
+export interface DeckGeoJsonStyle {
+    fillColor: string;
+    fillOpacity: number;
+    lineColor: string;
+    lineWidth: number;
+}
 export interface ExternalLayerSourceInfo {
     type: "ogc-api" | "sensorthings";
+    /** Id of the configured external source (VITE_EXTERNAL_DATA_SOURCES). */
+    sourceId?: string;
     sourceTitle: string;
     /** Total features available upstream, when the service reports it. */
     totalCount?: number;
@@ -304,6 +313,8 @@ export const useMapStore = defineStore("map", () => {
    * pattern, not a workaround.
    */
     const deckLayerProps = new Map<string, Record<string, unknown>>();
+    /** Styles of deck.gl GeoJSON layers, reactive for the layer panel. */
+    const deckGeoJsonStyles = ref<Record<string, DeckGeoJsonStyle>>({});
     /** Which deck.gl Layer class renders each entry of `deckLayerProps`. */
     const deckLayerKinds = new Map<string, "tile3d" | "geojson">();
     /**
@@ -417,13 +428,14 @@ export const useMapStore = defineStore("map", () => {
             throw new Error(`Cannot add deck.gl layer ${identifier}`);
         }
         initializeDeckOverlay();
-        const color = hexToRgb(getRandomHexColor());
+        const color = getRandomHexColor();
+        const style: DeckGeoJsonStyle = { fillColor: color, fillOpacity: 0.35, lineColor: color, lineWidth: 1 };
+        deckGeoJsonStyles.value[identifier] = style;
         deckLayerKinds.set(identifier, "geojson");
         deckLayerProps.set(identifier, {
             id: identifier,
             chunks: [] as DeckGeoJsonChunk[],
-            fillColor: [...color, 90],
-            lineColor: [...color, 230],
+            ...deckGeoJsonStyleProps(style),
             opacity: 1,
             visible: true,
             pickable: true,
@@ -443,6 +455,16 @@ export const useMapStore = defineStore("map", () => {
         add2MapLayerList(layerRecord, index);
         return layersOnMap.value.find((layer) => layer.id === identifier) ?? layerRecord;
     }
+    /** Updates the appearance of a deck.gl GeoJSON layer. */
+    function setDeckGeoJsonStyle(identifier: string, update: Partial<DeckGeoJsonStyle>): void {
+        const props = deckLayerProps.get(identifier);
+        const current = deckGeoJsonStyles.value[identifier];
+        if (props === undefined || current === undefined) return;
+        const style = { ...current, ...update };
+        deckGeoJsonStyles.value[identifier] = style;
+        deckLayerProps.set(identifier, { ...props, ...deckGeoJsonStyleProps(style) });
+        syncDeckOverlay();
+    }
     /** Appends one binary chunk to a deck.gl GeoJSON layer and redraws. */
     function appendDeckGeoJsonChunk(identifier: string, chunk: DeckGeoJsonChunk): void {
         const props = deckLayerProps.get(identifier);
@@ -461,6 +483,8 @@ export const useMapStore = defineStore("map", () => {
     function removeDeckLayer(identifier: string): void {
         deckLayerProps.delete(identifier);
         deckLayerKinds.delete(identifier);
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+        delete deckGeoJsonStyles.value[identifier];
         syncDeckOverlay();
     }
     /**
@@ -1701,6 +1725,8 @@ export const useMapStore = defineStore("map", () => {
         initializeDeckOverlay,
         addDeckTilesetLayer,
         addDeckGeoJsonLayer,
+        deckGeoJsonStyles,
+        setDeckGeoJsonStyle,
         appendDeckGeoJsonChunk,
         clearDeckGeoJsonChunks,
         removeDeckLayer,
@@ -1904,6 +1930,14 @@ function findNearestVertexBatchId(
 /** 3D tilesets render on top of all 2D content and are pinned there in the list. */
 function isDeck3DLayer(layer: Pick<LayerObjectWithAttributes, "renderer" | "type">): boolean {
     return layer.renderer === "deckgl" && layer.type === "deckgl-tile3d";
+}
+
+function deckGeoJsonStyleProps(style: DeckGeoJsonStyle): Record<string, unknown> {
+    return {
+        fillColor: [...hexToRgb(style.fillColor), Math.round(Math.min(Math.max(style.fillOpacity, 0), 1) * 255)],
+        lineColor: [...hexToRgb(style.lineColor), 255],
+        lineWidth: style.lineWidth,
+    };
 }
 
 function hexToRgb(hex: string): [number, number, number] {

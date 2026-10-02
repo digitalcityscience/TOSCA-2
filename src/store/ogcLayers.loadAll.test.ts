@@ -140,3 +140,61 @@ describe("OGC load all (deck.gl)", () => {
         expect(store.layers.parcels).toMatchObject({ mode: "full", errorKind: "filter", loading: false });
     });
 });
+
+describe("OGC map-view layers while hidden", () => {
+    test("skip reloads while hidden and catch up when shown again", async () => {
+        setActivePinia(createPinia());
+        const handlers: Record<string, () => void> = {};
+        let visibility = "visible";
+        const setData = vi.fn();
+        const layersOnMap = reactive<LayerObjectWithAttributes[]>([
+            { id: "parcels", source: "parcels", sourceType: "geojson", type: "fill" },
+        ]);
+        fakeMap.store = {
+            layersOnMap,
+            map: {
+                on: (event: string, handler: () => void) => { handlers[event] = handler; },
+                off: vi.fn(),
+                getLayer: () => ({}),
+                getSource: () => ({ setData }),
+                getLayoutProperty: () => visibility,
+                getBounds: () => ({ getWest: () => 9.9, getSouth: () => 53.5, getEast: () => 10, getNorth: () => 53.6 }),
+            },
+        };
+        const fetchMock = vi.fn(async (_input: RequestInfo | URL) => new Response(JSON.stringify({ type: "FeatureCollection", features: [], numberMatched: 50000 })));
+        vi.stubGlobal("fetch", fetchMock);
+        const store = useOgcLayersStore();
+        store.layers.parcels = {
+            layerId: "parcels",
+            collection: { id: "c", title: "C", description: "", itemsUrl: "https://x.test/c/items?f=json" },
+            queryables: [],
+            conditions: [],
+            mode: "viewport",
+            loadedCount: 0,
+            loading: false,
+        };
+        // Applying a query (re)registers the map listeners for viewport layers.
+        await store.updateLayerQuery("parcels", { conditions: [] });
+        const requestsAfterApply = fetchMock.mock.calls.length;
+
+        vi.useFakeTimers();
+        visibility = "none";
+        handlers.moveend();
+        await vi.advanceTimersByTimeAsync(500);
+        expect(fetchMock.mock.calls.length).toBe(requestsAfterApply);
+
+        visibility = "visible";
+        handlers.styledata();
+        await vi.advanceTimersByTimeAsync(0);
+        vi.useRealTimers();
+        expect(fetchMock.mock.calls.length).toBe(requestsAfterApply + 1);
+        const lastRequest = fetchMock.mock.calls.at(-1)?.[0];
+        expect(lastRequest instanceof URL ? lastRequest.toString() : lastRequest).toContain("bbox=");
+
+        // Once caught up, further style changes do not reload again.
+        handlers.styledata();
+        expect(fetchMock.mock.calls.length).toBe(requestsAfterApply + 1);
+        vi.unstubAllGlobals();
+    });
+});
+

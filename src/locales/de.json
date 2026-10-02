@@ -143,7 +143,18 @@
       "indicatorUnknown": "Ebenenfarbe nicht verfügbar",
       "externalSource": "Quelle",
       "featureCount": "{shown} von {total} Features",
-      "featureCountUnknown": "{shown} Features"
+      "featureCountUnknown": "{shown} Features",
+      "fillOpacity": "Füllungsdeckkraft",
+      "outlineWidth": "Umrissbreite",
+      "liveDisabled": "Für diese Quelle sind keine Live-Updates konfiguriert.",
+      "liveLastUpdate": "{status} · letzte Aktualisierung {time}",
+      "liveStatus": {
+        "connecting": "Live-Updates: verbinde",
+        "connected": "Live-Updates: verbunden",
+        "reconnecting": "Live-Updates: verbinde erneut",
+        "offline": "Live-Updates: offline",
+        "error": "Live-Updates: Verbindungsfehler"
+      }
     },
     "layerListing": {
       "title": "Ebenen",
@@ -200,7 +211,10 @@
       "loadAllHint": "Lädt alle passenden Features im Hintergrund in {pages} Anfrage(n) und stellt sie mit deck.gl dar. Die Datentabelle ist in diesem Modus nicht verfügbar.",
       "loadAllAttributesHint": "Tipp: Vorher nur die benötigten Attribute auswählen. Das verkleinert den Download deutlich.",
       "loadAllStopped": "Laden abgebrochen; es wird nur ein Teil der Features angezeigt.",
-      "reloadAll": "Erneut alle laden"
+      "reloadAll": "Erneut alle laden",
+      "confirmLoadAllTitle": "Alle Features laden?",
+      "confirmLoadAllBody": "Es werden {total} Features in {pages} Anfrage(n) geladen; dafür werden etwa {memory} MB Browserspeicher benötigt.",
+      "confirmLoadAllRisk": "Auf Geräten mit wenig Speicher kann der Browser langsam werden oder der Tab abstürzen."
     }
   },
   "buffer": {
@@ -310,7 +324,8 @@
         "addStream": "Zur Karte hinzufügen",
         "onMapCount": "{count} auf der Karte",
         "noLocation": "Für diese Datenströme ist kein Standort verfügbar.",
-        "addedToLayer": "{count} Datenstrom/-ströme zu {layer} hinzugefügt."
+        "addedToLayer": "{count} Datenstrom/-ströme zu {layer} hinzugefügt.",
+        "liveValue": "Live-Wert"
       },
       "onMap": "Auf der Karte"
     }

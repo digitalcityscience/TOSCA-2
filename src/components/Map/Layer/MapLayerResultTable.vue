@@ -112,7 +112,7 @@ import bbox from "@turf/bbox";
 import { type GeoserverRasterTypeLayerDetail, type GeoServerVectorTypeLayerDetail, useGeoserverStore } from "@store/geoserver";
 import booleanWithin from "@turf/boolean-within";
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 
 interface TableHeader {
     name: string,
@@ -229,8 +229,13 @@ function createTableHeaderList(tableData: FeatureCollection): TableHeader[] {
             });
         }
     });
+    // Prefer configured labels (e.g. OGC queryable titles) over raw names.
+    const labels = new Map((props.layer.attributes ?? []).map((attribute) => [
+        attribute.name,
+        attribute.labels?.[locale.value] ?? attribute.labels?.[locale.value.split("-")[0]] ?? attribute.labels?.en,
+    ]));
     return Array.from(uniqueProperties).map(prop => ({
-        name: prop,
+        name: labels.get(prop) ?? prop,
         value: prop,
         binding: "java.lang.String"
     }));

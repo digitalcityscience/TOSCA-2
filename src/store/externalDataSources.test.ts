@@ -1,7 +1,6 @@
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import {
-    DEFAULT_EXTERNAL_DATA_SOURCES,
     parseExternalDataSources,
     type ExternalDataSourceConfig,
 } from "../config/externalDataSources";
@@ -39,9 +38,12 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 describe("external data source config", () => {
-    test("uses defaults when unset and accepts an explicit empty list", () => {
-        expect(parseExternalDataSources(undefined)).toBe(DEFAULT_EXTERNAL_DATA_SOURCES);
+    test("lists nothing unless configured", () => {
+        expect(parseExternalDataSources(undefined)).toEqual([]);
+        expect(parseExternalDataSources("  ")).toEqual([]);
         expect(parseExternalDataSources("[]")).toEqual([]);
+        vi.spyOn(console, "error").mockImplementation(() => undefined);
+        expect(parseExternalDataSources("{not json")).toEqual([]);
     });
 
     test("drops invalid entries", () => {
@@ -50,7 +52,10 @@ describe("external data source config", () => {
             ogcSource,
             { ...staSource, type: "wfs" },
             { ...staSource, url: "ftp://nope" },
+            { ...staSource, mqttUrl: "mqtt://iot.example.test:1883" },
         ]))).toEqual([ogcSource]);
+        const live = { ...staSource, mqttUrl: "wss://iot.example.test/mqtt" };
+        expect(parseExternalDataSources(JSON.stringify([live]))).toEqual([live]);
     });
 });
 
@@ -106,6 +111,20 @@ describe("external data source parsing", () => {
             itemsUrl: "https://x.test/items?f=json",
             htmlUrl: "https://x.test/items?f=html",
         });
+    });
+
+    test("ignores non-GeoJSON items links (e.g. CityJSON, glTF)", () => {
+        const [building] = parseOgcApiCollections({
+            collections: [{
+                id: "building",
+                itemType: "feature",
+                links: [
+                    { rel: "items", type: "application/city+json", href: "https://x.test/items?f=cityjson" },
+                    { rel: "items", type: "model/gltf-binary", href: "https://x.test/items?f=glb" },
+                ],
+            }],
+        });
+        expect(building.itemsUrl).toBeUndefined();
     });
 
     test("quotes string ids in SensorThings URLs", () => {
