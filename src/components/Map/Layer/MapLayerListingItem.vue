@@ -61,6 +61,10 @@
                     <h4 class="layer-section-title">{{ t('map.layerItem.externalSource') }}</h4>
                     <p class="text-sm text-toned">{{ props.layer.externalSource.sourceTitle }}</p>
                     <p v-if="props.layer.externalSource.type !== 'ogc-api'" class="text-xs text-muted">{{ externalFeatureCountLabel }}</p>
+                    <p v-if="liveStatusLabel" class="flex items-center gap-1.5 text-xs text-muted">
+                        <span class="inline-block size-1.5 rounded-full" :class="liveStatusDotClass" aria-hidden="true" />
+                        <span>{{ liveStatusLabel }}</span>
+                    </p>
                 </section>
                 <section v-if="props.layer.externalSource?.type === 'ogc-api'" class="layer-section">
                     <h4 class="layer-section-title">{{ t('map.ogcQuery.title') }}</h4>
@@ -81,7 +85,61 @@
                             @update:model-value="changeLayerStyle"
                         />
                     </label>
-                    <div v-if="styleEditingCapabilities.mode === 'editable'" class="layer-style-colors">
+                    <div v-if="deckStyle" class="layer-style-colors">
+                        <div v-for="control in deckColorControls" :key="control.key" class="layer-row">
+                            <span class="layer-row-label">{{ control.label }}</span>
+                            <UPopover :content="{ side: 'bottom', align: 'end', collisionPadding: 12 }" :ui="{ content: 'z-[80]' }">
+                                <UButton
+                                    class="layer-color-trigger"
+                                    color="neutral"
+                                    variant="outline"
+                                    size="sm"
+                                    :aria-label="t('map.layerItem.chooseStyleColor', { property: control.label })"
+                                >
+                                    <template #leading>
+                                        <span class="layer-color-swatch" :style="{ backgroundColor: deckStyle[control.key] }" aria-hidden="true" />
+                                    </template>
+                                    <span class="layer-color-value">{{ deckStyle[control.key].toUpperCase() }}</span>
+                                </UButton>
+                                <template #content>
+                                    <div class="layer-color-popover">
+                                        <UColorPicker
+                                            :aria-label="t('map.layerItem.chooseStyleColor', { property: control.label })"
+                                            :model-value="deckStyle[control.key]"
+                                            format="hex"
+                                            size="sm"
+                                            @update:model-value="setDeckColor(control.key, $event)"
+                                        />
+                                    </div>
+                                </template>
+                            </UPopover>
+                        </div>
+                        <label class="layer-row">
+                            <span class="layer-row-label">{{ t('map.layerItem.fillOpacity') }}</span>
+                            <USlider
+                                class="grow"
+                                :aria-label="t('map.layerItem.fillOpacity')"
+                                :model-value="deckStyle.fillOpacity"
+                                :min="0"
+                                :max="1"
+                                :step="0.05"
+                                @update:model-value="setDeckNumber('fillOpacity', $event)"
+                            />
+                        </label>
+                        <label class="layer-row">
+                            <span class="layer-row-label">{{ t('map.layerItem.outlineWidth') }}</span>
+                            <USlider
+                                class="grow"
+                                :aria-label="t('map.layerItem.outlineWidth')"
+                                :model-value="deckStyle.lineWidth"
+                                :min="0"
+                                :max="5"
+                                :step="0.5"
+                                @update:model-value="setDeckNumber('lineWidth', $event)"
+                            />
+                        </label>
+                    </div>
+                    <div v-else-if="styleEditingCapabilities.mode === 'editable'" class="layer-style-colors">
                         <div v-for="styleColor in styleColorControls" :key="styleColor.property" class="layer-row">
                             <span class="layer-row-label">{{ t(styleColorLabelKey(styleColor.label)) }}</span>
                             <UPopover
@@ -220,6 +278,7 @@ import { useToast } from "@helpers/toast";
 import { isNullOrEmpty } from "@helpers/functions";
 import { createMapStyleLegendEntries } from "@helpers/mapStyleLegend";
 import { fitMapToFeatures } from "@helpers/externalLayers";
+import { useSensorThingsLiveStore } from "@store/sensorThingsLive";
 import {
     type MapStyleColorControl,
     type MapStyleColorLabel,
@@ -335,6 +394,7 @@ const layerHeaderIndicator = computed<LayerHeaderIndicator>(() => {
     void mapStore.paintVersion;
     void initialLayerHeaderIndicator.value;
     if (isGroupLayer.value) return { kind: "multi", colors: [] };
+    if (deckStyle.value !== undefined) return { kind: "single", colors: [deckStyle.value.fillColor] };
     return resolveLayerHeaderIndicator(props.layer.type);
 })
 const layerHeaderIndicatorStyle = computed<Record<string, string>>(() => {
@@ -444,6 +504,42 @@ const showServerLegend = computed<boolean>(() => {
     if (hasEditableStyleColors.value) return false
     return true
 })
+const live = useSensorThingsLiveStore()
+const liveSourceId = computed(() =>
+    props.layer.externalSource?.type === "sensorthings" ? props.layer.externalSource.sourceId : undefined
+)
+const liveStatusLabel = computed(() => {
+    const sourceId = liveSourceId.value
+    if (sourceId === undefined) return undefined
+    if (!live.isLiveEnabled(sourceId)) return t("map.layerItem.liveDisabled")
+    const state = live.status[sourceId] ?? "connecting"
+    const label = t(`map.layerItem.liveStatus.${state}`)
+    const lastAt = live.lastMessageAt[sourceId]
+    return lastAt === undefined
+        ? label
+        : t("map.layerItem.liveLastUpdate", { status: label, time: new Date(lastAt).toLocaleTimeString(locale.value) })
+})
+const liveStatusDotClass = computed(() => {
+    const sourceId = liveSourceId.value
+    const state = sourceId === undefined ? undefined : live.status[sourceId]
+    if (state === "connected") return "bg-success"
+    if (state === "error" || state === "offline") return "bg-error"
+    return "bg-warning"
+})
+/** deck.gl GeoJSON layers keep their own (non-MapLibre) style. */
+const deckStyle = computed(() => mapStore.deckGeoJsonStyles[props.layer.id])
+const deckColorControls = computed(() => [
+    { key: "fillColor" as const, label: t("map.layerItem.styleColor.fill") },
+    { key: "lineColor" as const, label: t("map.layerItem.styleColor.outline") },
+])
+function setDeckColor(key: "fillColor" | "lineColor", value: unknown): void {
+    const color = normalizeEditableHexColor(value)
+    if (color !== undefined) mapStore.setDeckGeoJsonStyle(props.layer.id, { [key]: color })
+}
+function setDeckNumber(key: "fillOpacity" | "lineWidth", value: unknown): void {
+    const number = Number(Array.isArray(value) ? value[0] : value)
+    if (Number.isFinite(number)) mapStore.setDeckGeoJsonStyle(props.layer.id, { [key]: number })
+}
 const externalFeatureCountLabel = computed(() => {
     const shown = (props.layer.layerData?.features.length ?? 0).toLocaleString(locale.value)
     const total = props.layer.externalSource?.totalCount

@@ -123,4 +123,21 @@ describe("deck.gl layer ordering", () => {
         expect(mapStore.layersOnMap.map((layer) => layer.id)).toEqual(["high", "low", "parcels"]);
         expect(deckLayers(mapStore)).toEqual([["parcels", undefined]]);
     });
+
+    test("updates deck.gl GeoJSON styles", () => {
+        const mapStore = useMapStore();
+        mapStore.map = map;
+        mapStore.addDeckGeoJsonLayer({ identifier: "parcels" });
+
+        mapStore.setDeckGeoJsonStyle("parcels", { fillColor: "#ff0000", fillOpacity: 0.5, lineColor: "#0000ff", lineWidth: 2 });
+
+        expect(mapStore.deckGeoJsonStyles.parcels).toEqual({ fillColor: "#ff0000", fillOpacity: 0.5, lineColor: "#0000ff", lineWidth: 2 });
+        const layer = (mapStore.deckOverlay as unknown as { props: { layers: Array<{ props: Record<string, unknown> }> } }).props.layers[0];
+        expect(layer.props.fillColor).toEqual([255, 0, 0, 128]);
+        expect(layer.props.lineColor).toEqual([0, 0, 255, 255]);
+        expect(layer.props.lineWidth).toBe(2);
+
+        mapStore.removeDeckLayer("parcels");
+        expect(mapStore.deckGeoJsonStyles.parcels).toBeUndefined();
+    });
 });

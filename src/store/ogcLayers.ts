@@ -13,6 +13,7 @@ import {
     type OgcApiQueryable,
 } from "./externalDataSources";
 import { useMapStore } from "./map";
+import type { PopupAttributeDefinition } from "./geoserver";
 import {
     addExternalGeoJSONLayer,
     findExternalLayer,
@@ -74,6 +75,22 @@ export function intersectBbox(a: Bbox, b: number[] | undefined): Bbox | undefine
     return box[0] <= box[2] && box[1] <= box[3] ? box : undefined;
 }
 
+/**
+ * Popup/table labels from the collection's queryable titles (e.g.
+ * "Straßenname" for `strassenname`). Servers give one language, stored under
+ * `en`, which the popup uses as the fallback for every UI locale. Limited to
+ * the selected properties when a selection is active.
+ */
+export function queryableAttributeLabels(
+    queryables: OgcApiQueryable[],
+    selected?: string[]
+): PopupAttributeDefinition[] | undefined {
+    const attributes = queryables
+        .filter((item) => !item.isGeometry && (selected === undefined || selected.includes(item.name)))
+        .map((item) => ({ name: item.name, labels: { en: item.title } }));
+    return attributes.length === 0 ? undefined : attributes;
+}
+
 function isAbort(error: unknown): boolean {
     return error instanceof DOMException && error.name === "AbortError";
 }
@@ -86,6 +103,8 @@ export const useOgcLayersStore = defineStore("ogcLayers", () => {
     /** Layers being swapped from MapLibre to deck.gl; their state must survive the swap. */
     const replacing = new Set<string>();
     let listenedMap: any;
+    /** Viewport layers that missed a reload while hidden. */
+    const staleLayerIds = new Set<string>();
     let reloadTimer: ReturnType<typeof setTimeout> | undefined;
 
     function currentViewBbox(): Bbox | undefined {
@@ -102,25 +121,52 @@ export const useOgcLayersStore = defineStore("ogcLayers", () => {
         clearTimeout(reloadTimer);
         reloadTimer = setTimeout(() => {
             for (const state of Object.values(layers.value)) {
-                if (state.mode === "viewport" && isLayerVisible(state.layerId)) {
+                if (state.mode !== "viewport") continue;
+                if (isLayerVisible(state.layerId)) {
                     void refreshLayer(state.layerId);
+                } else {
+                    // Skip hidden layers, but reload them once they are shown.
+                    staleLayerIds.add(state.layerId);
                 }
             }
         }, VIEWPORT_RELOAD_DELAY_MS);
+    }
+
+    /** Visibility toggles fire `styledata`; reload stale layers that became visible. */
+    function onMapStyleData(): void {
+        for (const layerId of [...staleLayerIds]) {
+            if (layers.value[layerId]?.mode !== "viewport") {
+                staleLayerIds.delete(layerId);
+            } else if (isLayerVisible(layerId)) {
+                staleLayerIds.delete(layerId);
+                void refreshLayer(layerId);
+            }
+        }
     }
 
     function ensureMapListener(): void {
         const map = mapStore.map;
         if (map === undefined || map === listenedMap) return;
         listenedMap?.off?.("moveend", onMapMoveEnd);
+        listenedMap?.off?.("styledata", onMapStyleData);
         map.on("moveend", onMapMoveEnd);
+        map.on("styledata", onMapStyleData);
         listenedMap = map;
     }
 
     function stopListeningIfIdle(): void {
         if (Object.values(layers.value).some((state) => state.mode === "viewport")) return;
         listenedMap?.off?.("moveend", onMapMoveEnd);
+        listenedMap?.off?.("styledata", onMapStyleData);
         listenedMap = undefined;
+        staleLayerIds.clear();
+    }
+
+    function applyAttributeLabels(layerId: string): void {
+        const state = layers.value[layerId];
+        const record = mapStore.layersOnMap.find((layer) => layer.id === layerId);
+        if (state === undefined || record === undefined) return;
+        record.attributes = queryableAttributeLabels(state.queryables, state.properties);
     }
 
     function selectedProperties(state: OgcLayerState): string[] | undefined {
@@ -241,6 +287,7 @@ export const useOgcLayersStore = defineStore("ogcLayers", () => {
                 mapStore.addDeckGeoJsonLayer({ identifier: layerId, displayName, index, externalSource });
                 // The swap mounts a new list item; keep its panel (and progress) open.
                 mapStore.requestLayerPanelExpansion(layerId);
+                applyAttributeLabels(layerId);
             } finally {
                 replacing.delete(layerId);
             }
@@ -319,6 +366,7 @@ export const useOgcLayersStore = defineStore("ogcLayers", () => {
             loading: false,
         };
         if (mode === "viewport") ensureMapListener();
+        applyAttributeLabels(layerId);
         return layers.value[layerId];
     }
 
@@ -335,6 +383,7 @@ export const useOgcLayersStore = defineStore("ogcLayers", () => {
         const filter = buildCql2Filter(update.conditions, state.queryables);
         state.properties = update.properties;
         state.conditions = update.conditions;
+        applyAttributeLabels(layerId);
         state.errorKind = undefined;
         state.loading = true;
         try {
@@ -370,6 +419,7 @@ export const useOgcLayersStore = defineStore("ogcLayers", () => {
                 if (present.has(layerId) || replacing.has(layerId)) continue;
                 controllers.get(layerId)?.abort();
                 controllers.delete(layerId);
+                staleLayerIds.delete(layerId);
                 // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
                 delete layers.value[layerId];
             }

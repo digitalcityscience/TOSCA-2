@@ -31,9 +31,24 @@
                     icon="i-lucide-layers"
                     :disabled="state.loading"
                     :label="t('map.ogcQuery.loadAll', { total: formattedTotal })"
-                    @click="ogcLayers.loadAll(props.layerId)"
+                    @click="requestLoadAll"
                 />
             </div>
+            <UModal v-model:open="confirmLoadAllOpen" :title="t('map.ogcQuery.confirmLoadAllTitle')" :ui="{ content: 'max-w-[26rem]' }">
+                <template #body>
+                    <div class="space-y-2 text-sm">
+                        <p class="text-toned">{{ t('map.ogcQuery.confirmLoadAllBody', { total: formattedTotal, pages: pageCount, memory: estimatedMemoryLabel }) }}</p>
+                        <p class="text-muted">{{ t('map.ogcQuery.confirmLoadAllRisk') }}</p>
+                        <p v-if="state.properties === undefined" class="text-warning">{{ t('map.ogcQuery.loadAllAttributesHint') }}</p>
+                    </div>
+                </template>
+                <template #footer>
+                    <div class="flex w-full justify-end gap-2">
+                        <UButton size="sm" color="neutral" variant="soft" :label="t('common.cancel')" @click="confirmLoadAllOpen = false" />
+                        <UButton size="sm" color="warning" :label="t('map.ogcQuery.loadAll', { total: formattedTotal })" @click="startLoadAll" />
+                    </div>
+                </template>
+            </UModal>
         </div>
         <div v-else-if="state.mode === 'full'" class="flex justify-end gap-2">
             <UButton
@@ -166,6 +181,15 @@ const props = defineProps<Props>()
 const { t, locale } = useI18n();
 const ogcLayers = useOgcLayersStore()
 const LOAD_ALL_ATTRIBUTE_HINT_THRESHOLD = 50000
+/**
+ * Rough browser memory per loaded feature (geometry, GPU-side copies and
+ * properties). Measured ~2 KB per ALKIS parcel with one attribute.
+ */
+const BYTES_PER_FEATURE = 1800
+const BYTES_PER_ATTRIBUTE = 250
+/** Ask for confirmation above this estimated memory use. */
+const LOAD_ALL_CONFIRM_BYTES = 300 * 1024 * 1024
+const confirmLoadAllOpen = ref(false)
 
 const state = computed(() => ogcLayers.layers[props.layerId])
 const attributeQueryables = computed(() => state.value?.queryables.filter((item) => !item.isGeometry) ?? [])
@@ -214,6 +238,30 @@ const suggestFewerAttributes = computed(() =>
     (state.value?.totalMatched ?? 0) > LOAD_ALL_ATTRIBUTE_HINT_THRESHOLD &&
     attributeQueryables.value.length > 3
 )
+const estimatedMemoryBytes = computed(() => {
+    const current = state.value
+    if (current?.totalMatched === undefined) return 0
+    const attributeCount = current.properties?.length ?? attributeQueryables.value.length
+    return current.totalMatched * (BYTES_PER_FEATURE + BYTES_PER_ATTRIBUTE * attributeCount)
+})
+const estimatedMemoryLabel = computed(() =>
+    Math.round(estimatedMemoryBytes.value / (1024 * 1024)).toLocaleString(locale.value)
+)
+
+/** Large loads can exhaust memory on small devices, so they need a confirmation. */
+function requestLoadAll(): void {
+    if (estimatedMemoryBytes.value > LOAD_ALL_CONFIRM_BYTES) {
+        confirmLoadAllOpen.value = true
+        return
+    }
+    void ogcLayers.loadAll(props.layerId)
+}
+
+function startLoadAll(): void {
+    confirmLoadAllOpen.value = false
+    void ogcLayers.loadAll(props.layerId)
+}
+
 const modeIcon = computed(() => ({
     all: "i-lucide-database",
     viewport: "i-lucide-scan",

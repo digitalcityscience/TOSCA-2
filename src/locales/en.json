@@ -143,7 +143,18 @@
       "indicatorUnknown": "Layer style color unavailable",
       "externalSource": "Source",
       "featureCount": "{shown} of {total} features",
-      "featureCountUnknown": "{shown} features"
+      "featureCountUnknown": "{shown} features",
+      "fillOpacity": "Fill opacity",
+      "outlineWidth": "Outline width",
+      "liveDisabled": "Live updates are not configured for this source.",
+      "liveLastUpdate": "{status} · last update {time}",
+      "liveStatus": {
+        "connecting": "Live updates: connecting",
+        "connected": "Live updates: connected",
+        "reconnecting": "Live updates: reconnecting",
+        "offline": "Live updates: offline",
+        "error": "Live updates: connection error"
+      }
     },
     "layerListing": {
       "title": "Layers",
@@ -200,7 +211,10 @@
       "loadAllHint": "Loads every matching feature in {pages} request(s) in the background and renders them with deck.gl. The data table is not available in this mode.",
       "loadAllAttributesHint": "Tip: select only the attributes you need first. It makes the download much smaller.",
       "loadAllStopped": "Loading was cancelled; only part of the features is shown.",
-      "reloadAll": "Load all again"
+      "reloadAll": "Load all again",
+      "confirmLoadAllTitle": "Load all features?",
+      "confirmLoadAllBody": "This loads {total} features in {pages} request(s) and needs roughly {memory} MB of browser memory.",
+      "confirmLoadAllRisk": "On devices with little memory the browser can become slow or the tab can crash."
     }
   },
   "buffer": {
@@ -310,7 +324,8 @@
         "addStream": "Add to map",
         "onMapCount": "{count} on map",
         "noLocation": "No location available for these datastreams.",
-        "addedToLayer": "Added {count} datastream(s) to {layer}."
+        "addedToLayer": "Added {count} datastream(s) to {layer}.",
+        "liveValue": "Live value"
       },
       "onMap": "On map"
     }

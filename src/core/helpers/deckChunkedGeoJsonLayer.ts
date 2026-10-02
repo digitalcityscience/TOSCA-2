@@ -7,12 +7,15 @@ export interface ChunkedGeoJsonLayerProps {
     chunks: DeckGeoJsonChunk[];
     fillColor: Color;
     lineColor: Color;
+    /** Outline / line width in pixels. */
+    lineWidth: number;
 }
 
 const defaultProps: DefaultProps<ChunkedGeoJsonLayerProps> = {
     chunks: { type: "array", value: [], compare: true },
     fillColor: { type: "color", value: [56, 189, 248, 90] },
     lineColor: { type: "color", value: [14, 116, 144, 230] },
+    lineWidth: { type: "number", value: 1, min: 0 },
 };
 
 const CHUNK_ID = /^-chunk-(\d+)/;
@@ -28,23 +31,23 @@ export class ChunkedGeoJsonLayer extends CompositeLayer<ChunkedGeoJsonLayerProps
     static defaultProps = defaultProps;
 
     renderLayers(): Layer[] {
-        const { chunks, fillColor, lineColor } = this.props;
+        const { chunks, fillColor, lineColor, lineWidth } = this.props;
         return chunks.map((chunk, index) => new GeoJsonLayer(this.getSubLayerProps({
             id: `chunk-${index}`,
             data: chunk.binary,
             filled: true,
-            stroked: true,
             getFillColor: fillColor,
             getLineColor: lineColor,
             lineWidthUnits: "pixels",
-            getLineWidth: 1,
-            lineWidthMinPixels: 1,
+            stroked: lineWidth > 0,
+            getLineWidth: lineWidth,
             pointRadiusUnits: "pixels",
             getPointRadius: 4,
             pickable: true,
             updateTriggers: {
                 getFillColor: fillColor,
                 getLineColor: lineColor,
+                getLineWidth: lineWidth,
             },
         })));
     }

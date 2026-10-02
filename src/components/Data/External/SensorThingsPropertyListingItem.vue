@@ -34,10 +34,15 @@
                                 {{ t('workspace.external.sensorthings.thing') }}: {{ datastream.thingName }}
                             </p>
                             <p class="mt-1 text-xs text-toned">
-                                <template v-if="datastream.latestObservation">
+                                <template v-if="currentObservation(datastream)">
+                                    <span
+                                        v-if="isLive(datastream)"
+                                        class="mr-1 inline-block size-1.5 rounded-full bg-success align-middle"
+                                        :title="t('workspace.external.sensorthings.liveValue')"
+                                    />
                                     {{ t('workspace.external.sensorthings.latest') }}:
                                     <span class="font-semibold text-highlighted">{{ formatObservation(datastream) }}</span>
-                                    <span class="text-muted"> · {{ formatTime(datastream.latestObservation.phenomenonTime) }}</span>
+                                    <span class="text-muted"> · {{ formatTime(currentObservation(datastream)!.phenomenonTime) }}</span>
                                 </template>
                                 <span v-else class="text-muted">{{ t('workspace.external.sensorthings.noObservation') }}</span>
                             </p>
@@ -108,6 +113,7 @@ import {
     type SensorThingsObservedProperty,
 } from "@store/externalDataSources";
 import { useMapStore } from "@store/map";
+import { useSensorThingsLiveStore, type LiveObservation } from "@store/sensorThingsLive";
 import type { Feature } from "@helpers/geojson";
 import {
     addExternalGeoJSONLayer,
@@ -128,6 +134,8 @@ const props = defineProps<Props>()
 const { t, locale } = useI18n();
 const externalSources = useExternalDataSourcesStore()
 const mapStore = useMapStore()
+// Created here so live updates start as soon as a stream is added to the map.
+const live = useSensorThingsLiveStore()
 const toast = useToast()
 
 const isExpanded = ref(false)
@@ -210,6 +218,7 @@ async function addDatastreamsToMap(streams: SensorThingsDatastream[]): Promise<v
         features: { type: "FeatureCollection", features },
         externalSource: {
             type: "sensorthings",
+            sourceId: props.source.id,
             sourceTitle: props.source.title,
             totalCount: props.property.datastreamCount,
         },
@@ -251,8 +260,17 @@ function datastreamButtonTitle(datastream: SensorThingsDatastream): string {
     return t("workspace.external.sensorthings.addStream")
 }
 
+/** Live MQTT value when one arrived, otherwise the value loaded with the list. */
+function currentObservation(datastream: SensorThingsDatastream): LiveObservation | undefined {
+    return live.latestFor(props.source.id, datastream.id) ?? datastream.latestObservation
+}
+
+function isLive(datastream: SensorThingsDatastream): boolean {
+    return live.latestFor(props.source.id, datastream.id) !== undefined
+}
+
 function formatObservation(datastream: SensorThingsDatastream): string {
-    const result = datastream.latestObservation?.result
+    const result = currentObservation(datastream)?.result
     const value = typeof result === "object" && result !== null
         ? JSON.stringify(result)
         : typeof result === "number"
