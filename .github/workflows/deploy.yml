@@ -1,4 +1,4 @@
-name: Deploy frontend
+name: Trigger production deployment
 
 on:
   push:
@@ -8,15 +8,11 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: production-frontend
-  cancel-in-progress: false
-
 jobs:
   deploy:
     runs-on: [self-hosted, ngcn, production]
     steps:
-      - name: Deploy local production stack
+      - name: Deploy TOSCA
         run: |
-          cd /opt/NGCN/TOSCA-Deployment
+          cd "${TOSCA_DEPLOYMENT_DIR:-/opt/NGCN/TOSCA-Deployment}"
           ./deploy.sh
