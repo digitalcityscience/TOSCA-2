@@ -32,6 +32,12 @@ export default withVueTs(
         },
     },
     js.configs.recommended,
+    {
+        files: ["scripts/**/*.mjs"],
+        languageOptions: {
+            globals: globals.node,
+        },
+    },
     pluginVue.configs["flat/essential"],
     vueTsConfigs.recommendedTypeChecked,
     {

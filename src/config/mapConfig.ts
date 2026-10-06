@@ -19,7 +19,7 @@ type ConfigurationValue = EnvironmentValueDefinition | LiteralValueDefinition;
 
 export interface BasemapProviderDefinition {
     baseUrl: ConfigurationValue;
-    apiKey: ConfigurationValue;
+    apiKey?: ConfigurationValue;
     apiKeyQueryParameter?: string;
 }
 
@@ -148,7 +148,6 @@ export const mapConfiguration = {
         },
         inHouse: {
             baseUrl: { environmentVariable: "VITE_INHOUSE_MAP_BASE_URL" },
-            apiKey: { environmentVariable: "VITE_INHOUSE_MAP_API_KEY" },
         },
     },
     basemaps: [
@@ -206,9 +205,8 @@ export function resolveMapConfiguration(
     environment: Record<string, string | undefined>,
     translate: Translate
 ): ResolvedMapConfiguration {
-    // A basemap whose provider is missing a required baseUrl/apiKey (e.g. an
-    // in-house deployment env var left unset) is dropped from the list
-    // instead of failing map setup for every basemap.
+    // A basemap whose provider is missing a required environment value is
+    // dropped from the list instead of failing map setup for every basemap.
     const basemaps = configuration.basemaps.flatMap((definition): BasemapOption[] => {
         try {
             return [resolveBasemapDefinition(definition, configuration.providers, environment, translate)];
@@ -331,8 +329,10 @@ function resolveBasemapUrl(
         throw new Error(`Unknown basemap provider "${definition.provider}"`);
     }
     const baseUrl = resolveConfigurationValue(provider.baseUrl, environment);
-    const apiKey = resolveConfigurationValue(provider.apiKey, environment);
     const resolvedUrl = `${baseUrl.replace(/\/+$/, "")}/${definition.path.replace(/^\/+/, "")}`;
+    if (provider.apiKey === undefined) return resolvedUrl;
+
+    const apiKey = resolveConfigurationValue(provider.apiKey, environment);
     const separator = resolvedUrl.includes("?") ? "&" : "?";
     return `${resolvedUrl}${separator}${provider.apiKeyQueryParameter ?? "key"}=${encodeURIComponent(apiKey)}`;
 }

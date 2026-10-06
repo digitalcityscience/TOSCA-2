@@ -10,7 +10,6 @@ import {
 const environment = {
     VITE_MAPTILER_API_KEY: "map key",
     VITE_INHOUSE_MAP_BASE_URL: "https://maps.example.test/",
-    VITE_INHOUSE_MAP_API_KEY: "inHouse key",
 };
 
 describe("map configuration", () => {
@@ -42,8 +41,8 @@ describe("map configuration", () => {
 
         expect(inHouse).toMatchObject({
             kind: "vector",
-            styleUrl: "https://maps.example.test/styles/osm-bright.json?key=inHouse%20key",
-            thumbnailUrl: "https://maps.example.test/thumbnails/osmBright.jpg?key=inHouse%20key",
+            styleUrl: "https://maps.example.test/styles/osm-bright.json",
+            thumbnailUrl: "https://maps.example.test/thumbnails/osmBright.jpg",
         });
     });
 
@@ -54,7 +53,7 @@ describe("map configuration", () => {
             "tiles/terrain/{z}/{x}/{y}",
             environment
         )).toBe(
-            "https://maps.example.test/tiles/terrain/{z}/{x}/{y}?key=inHouse%20key"
+            "https://maps.example.test/tiles/terrain/{z}/{x}/{y}"
         );
     });
 
@@ -70,7 +69,7 @@ describe("map configuration", () => {
             demSource: {
                 type: "raster-dem",
                 tiles: [
-                    "https://maps.example.test/tiles/terrain-hamburg-official/{z}/{x}/{y}?key=inHouse%20key",
+                    "https://maps.example.test/tiles/terrain-hamburg-official/{z}/{x}/{y}",
                 ],
                 encoding: "mapbox",
                 tileSize: 256,
@@ -80,7 +79,7 @@ describe("map configuration", () => {
             hillshadeSource: {
                 type: "raster",
                 tiles: [
-                    "https://maps.example.test/tiles/hillshade-hamburg-official/{z}/{x}/{y}?key=inHouse%20key",
+                    "https://maps.example.test/tiles/hillshade-hamburg-official/{z}/{x}/{y}",
                 ],
                 tileSize: 256,
                 minzoom: 9,
@@ -110,21 +109,18 @@ describe("map configuration", () => {
         expect(resolved.terrain.hillshadeSource.tiles).toBeUndefined();
     });
 
-    test("skips a basemap whose provider is missing a required environment value", () => {
-        vi.spyOn(console, "error").mockImplementation(() => {});
-
+    test("keeps the in-house provider keyless so secrets can stay behind the proxy", () => {
         const resolved = resolveMapConfiguration(
             mapConfiguration,
             {
                 VITE_MAPTILER_API_KEY: "key",
                 VITE_INHOUSE_MAP_BASE_URL: "https://maps.example.test",
-                // VITE_INHOUSE_MAP_API_KEY intentionally omitted
             },
             (key) => key
         );
 
-        expect(resolved.basemaps.find(({ id }) => id === "inHouse")).toBeUndefined();
-        expect(resolved.basemaps.find(({ id }) => id === "dataviz")).toBeDefined();
+        expect(resolved.basemaps.find(({ id }) => id === "inHouse")?.thumbnailUrl)
+            .toBe("https://maps.example.test/thumbnails/osmBright.jpg");
     });
 
     test("skips a basemap whose provider baseUrl is missing entirely", () => {
@@ -134,7 +130,7 @@ describe("map configuration", () => {
             mapConfiguration,
             {
                 VITE_MAPTILER_API_KEY: "key",
-                // VITE_INHOUSE_MAP_BASE_URL and VITE_INHOUSE_MAP_API_KEY both omitted
+                // VITE_INHOUSE_MAP_BASE_URL intentionally omitted
             },
             (key) => key
         );
