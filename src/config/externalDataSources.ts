@@ -5,7 +5,7 @@ export interface ExternalDataSourceCapabilities {
     full_load: boolean;
     live_updates: boolean;
     server_filters: boolean;
-    max_features: number;
+    max_features: number | null;
 }
 
 /** A public third-party data service published by the backend catalog. */
@@ -15,5 +15,6 @@ export interface ExternalDataSourceConfig {
     title: string;
     url: string;
     mqttUrl?: string;
+    attribution: string;
     capabilities: ExternalDataSourceCapabilities;
 }

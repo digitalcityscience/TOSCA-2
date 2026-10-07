@@ -2,6 +2,8 @@ import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import type { ExternalDataSourceConfig } from "../config/externalDataSources";
 import {
+    buildExternalCategoriesUrl,
+    buildExternalCategoryUrl,
     buildExternalServicesUrl,
     buildSensorThingsDatastreamsUrl,
     mapExternalService,
@@ -27,6 +29,7 @@ const ogcSource: ExternalDataSourceConfig = {
     type: "ogc-api",
     title: "OGC",
     url: "https://api.example.test/datasets/v1",
+    attribution: "Example data",
     capabilities,
 };
 const staSource: ExternalDataSourceConfig = {
@@ -34,6 +37,7 @@ const staSource: ExternalDataSourceConfig = {
     type: "sensorthings",
     title: "STA",
     url: "https://iot.example.test/",
+    attribution: "Example data",
     capabilities,
 };
 
@@ -139,6 +143,7 @@ describe("external data sources store", () => {
             title: "Hamburg SensorThings",
             base_url: "https://iot.example.test",
             mqtt_url: "wss://iot.example.test/mqtt",
+            attribution: "Urban Data Platform Hamburg",
             capabilities,
         })).toEqual({
             id: "hamburg-sta",
@@ -146,8 +151,18 @@ describe("external data sources store", () => {
             title: "Hamburg SensorThings",
             url: "https://iot.example.test",
             mqttUrl: "wss://iot.example.test/mqtt",
+            attribution: "Urban Data Platform Hamburg",
             capabilities,
         });
+    });
+
+    test("builds category URLs with encoded slugs", () => {
+        expect(buildExternalCategoriesUrl().toString()).toBe(
+            "http://localhost:8000/api/v1/catalog/external-categories"
+        );
+        expect(buildExternalCategoryUrl("traffic & bikes").toString()).toBe(
+            "http://localhost:8000/api/v1/catalog/external-categories/traffic%20%26%20bikes"
+        );
     });
 
     test("loads backend services once and exposes the loaded state", async () => {
@@ -158,6 +173,7 @@ describe("external data sources store", () => {
             title: "Hamburg OGC API",
             base_url: "https://api.example.test/datasets/v1",
             mqtt_url: null,
+            attribution: "Example data",
             capabilities,
         }]));
         const store = useExternalDataSourcesStore();
@@ -192,6 +208,86 @@ describe("external data sources store", () => {
         expect(fetchMock).toHaveBeenCalledTimes(2);
         expect(store.loaded).toBe(true);
         expect(store.error).toBe("");
+    });
+
+    test("loads the category list once", async () => {
+        const fetchMock = vi.mocked(fetch);
+        const categories = [{
+            slug: "shared-mobility",
+            title: "Shared mobility",
+            description: "Bikes and charging",
+            display_order: 3,
+            item_count: 2,
+        }];
+        fetchMock.mockResolvedValueOnce(jsonResponse(categories));
+        const store = useExternalDataSourcesStore();
+
+        await store.loadExternalCategories();
+        await store.loadExternalCategories();
+
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(requestedUrl(0)).toBe(
+            "http://localhost:8000/api/v1/catalog/external-categories"
+        );
+        expect(store.categories).toEqual(categories);
+        expect(store.categoriesLoaded).toBe(true);
+        expect(store.categoriesError).toBe("");
+    });
+
+    test("loads and caches category details per slug", async () => {
+        const fetchMock = vi.mocked(fetch);
+        const detail = {
+            slug: "shared-mobility",
+            title: "Shared mobility",
+            description: "Bikes and charging",
+            items: [{
+                id: "item-1",
+                title: "StadtRAD stations",
+                description: "Bike stations",
+                service: "hamburg-ogc",
+                service_type: "ogc_api_features",
+                ogc: { dataset_id: "stadtrad", collection_ids: ["stadtrad_stationen"] },
+                style: { color: "#0288d1" },
+                loading: { min_zoom: null },
+                defaults: { properties: [], filter: [] },
+                availability: { state: "OK", feature_count: 358, checked_at: "2026-10-07T08:00:00Z" },
+            }],
+        };
+        fetchMock.mockResolvedValueOnce(jsonResponse(detail));
+        const store = useExternalDataSourcesStore();
+
+        await store.getExternalCategory("shared-mobility");
+        await store.getExternalCategory("shared-mobility");
+
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(requestedUrl(0)).toBe(
+            "http://localhost:8000/api/v1/catalog/external-categories/shared-mobility"
+        );
+        expect(store.categoryDetails["shared-mobility"]).toEqual(detail);
+        expect(store.categoryLoading["shared-mobility"]).toBe(false);
+    });
+
+    test("evicts failed category details so they can be retried", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => undefined);
+        const fetchMock = vi.mocked(fetch);
+        fetchMock
+            .mockResolvedValueOnce(new Response("", { status: 503 }))
+            .mockResolvedValueOnce(jsonResponse({
+                slug: "traffic",
+                title: "Traffic",
+                description: "",
+                items: [],
+            }));
+        const store = useExternalDataSourcesStore();
+
+        await expect(store.getExternalCategory("traffic")).rejects.toThrow("503");
+        expect(store.categoryErrors.traffic).toBe(
+            "We couldn't reach the external catalog service. Please try again in a moment."
+        );
+
+        await expect(store.getExternalCategory("traffic")).resolves.toMatchObject({ slug: "traffic" });
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        expect(store.categoryErrors.traffic).toBe("");
     });
 
     test("requests OGC JSON and caches datasets", async () => {

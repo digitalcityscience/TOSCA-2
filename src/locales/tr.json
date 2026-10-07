@@ -297,6 +297,13 @@
       "showMore": "Daha fazla göster ({count} kaldı)",
       "loadError": "Bu servisten veri yüklenemedi.",
       "retry": "Tekrar dene",
+      "category": {
+        "itemCount": "{count} veri kümesi",
+        "noItems": "Bu kategoride veri kümesi yok.",
+        "featureCount": "{count} özellik",
+        "missing": "Bu veri kümesi şu anda kullanılamıyor.",
+        "error": "Bu veri kümesinin kullanılabilirliği doğrulanamadı."
+      },
       "ogc": {
         "badge": "OGC API",
         "datasetCount": "{count} veri seti",
