@@ -90,6 +90,54 @@ export interface SensorThingsPage<T> {
     nextLink?: string;
 }
 
+export interface ExternalCategorySummary {
+    slug: string;
+    title: string;
+    description: string;
+    display_order: number;
+    item_count: number;
+}
+
+export type ExternalCategoryAvailabilityState = "UNKNOWN" | "OK" | "MISSING" | "ERROR";
+
+export interface ExternalCategoryItem {
+    id: string;
+    title: string;
+    description: string;
+    service: string;
+    service_type: "ogc_api_features" | "sensorthings";
+    ogc?: {
+        dataset_id: string;
+        collection_ids: string[];
+    };
+    sensorthings?: {
+        service_name: string;
+        layer_name: string;
+    };
+    style: { color: string };
+    loading: { min_zoom: number | null };
+    defaults?: {
+        properties: string[];
+        filter: Array<{
+            property: string;
+            operator: "eq" | "neq" | "lt" | "lte" | "gt" | "gte" | "contains";
+            value: string | number | boolean;
+        }>;
+    };
+    availability: {
+        state: ExternalCategoryAvailabilityState;
+        feature_count: number | null;
+        checked_at: string | null;
+    };
+}
+
+export interface ExternalCategoryDetail {
+    slug: string;
+    title: string;
+    description: string;
+    items: ExternalCategoryItem[];
+}
+
 interface OgcLink {
     href: string;
     rel?: string;
@@ -151,6 +199,7 @@ interface ExternalServiceResponse {
     title: string;
     base_url: string;
     mqtt_url?: string | null;
+    attribution: string;
     capabilities: ExternalDataSourceCapabilities;
 }
 
@@ -167,10 +216,22 @@ export const OGC_API_MAX_FEATURES = 10000;
 export const OGC_API_MAX_PAGE_SIZE = 10000;
 const SENSORTHINGS_MAX_PROPERTY_PAGES = 10;
 const EXTERNAL_SERVICES_API_PATH = "/api/v1/catalog/external-services";
+const EXTERNAL_CATEGORIES_API_PATH = "/api/v1/catalog/external-categories";
 const OGC_DATA_RELS = new Set(["data", "http://www.opengis.net/def/rel/ogc/1.0/data"]);
 
 export function buildExternalServicesUrl(): URL {
     return new URL(EXTERNAL_SERVICES_API_PATH, getBackendRootUrl());
+}
+
+export function buildExternalCategoriesUrl(): URL {
+    return new URL(EXTERNAL_CATEGORIES_API_PATH, getBackendRootUrl());
+}
+
+export function buildExternalCategoryUrl(slug: string): URL {
+    return new URL(
+        `${EXTERNAL_CATEGORIES_API_PATH}/${encodeURIComponent(slug)}`,
+        getBackendRootUrl()
+    );
 }
 
 export function mapExternalService(service: ExternalServiceResponse): ExternalDataSourceConfig {
@@ -183,6 +244,7 @@ export function mapExternalService(service: ExternalServiceResponse): ExternalDa
         title: service.title,
         url: service.base_url,
         ...(service.mqtt_url == null ? {} : { mqttUrl: service.mqtt_url }),
+        attribution: service.attribution,
         capabilities: service.capabilities,
     };
 }
@@ -442,12 +504,21 @@ export const useExternalDataSourcesStore = defineStore("externalDataSources", ()
     const loading = ref(false);
     const loaded = ref(false);
     const error = ref("");
+    const categories = ref<ExternalCategorySummary[]>([]);
+    const categoriesLoading = ref(false);
+    const categoriesLoaded = ref(false);
+    const categoriesError = ref("");
+    const categoryDetails = ref<Record<string, ExternalCategoryDetail>>({});
+    const categoryLoading = ref<Record<string, boolean>>({});
+    const categoryErrors = ref<Record<string, string>>({});
     const ogcDatasetCache = new Map<string, Promise<OgcApiDataset[]>>();
     const ogcCollectionCache = new Map<string, Promise<OgcApiCollection[]>>();
     const ogcQueryablesCache = new Map<string, Promise<OgcApiQueryable[]>>();
     const sensorThingsBaseCache = new Map<string, Promise<string>>();
     const observedPropertyCache = new Map<string, Promise<SensorThingsObservedProperty[]>>();
     let servicesLoadPromise: Promise<ExternalDataSourceConfig[]> | undefined;
+    let categoriesLoadPromise: Promise<ExternalCategorySummary[]> | undefined;
+    const categoryDetailPromises = new Map<string, Promise<ExternalCategoryDetail>>();
 
     async function loadExternalServices(): Promise<ExternalDataSourceConfig[]> {
         if (loaded.value) return sources.value;
@@ -480,6 +551,68 @@ export const useExternalDataSourcesStore = defineStore("externalDataSources", ()
         } finally {
             servicesLoadPromise = undefined;
         }
+    }
+
+    async function loadExternalCategories(): Promise<ExternalCategorySummary[]> {
+        if (categoriesLoaded.value) return categories.value;
+        if (categoriesLoadPromise !== undefined) return await categoriesLoadPromise;
+
+        const request = (async (): Promise<ExternalCategorySummary[]> => {
+            categoriesLoading.value = true;
+            categoriesError.value = "";
+            try {
+                categories.value = await fetchBackendJson<ExternalCategorySummary[]>(
+                    buildExternalCategoriesUrl(),
+                    "External categories"
+                );
+                categoriesLoaded.value = true;
+                return categories.value;
+            } catch (cause) {
+                categories.value = [];
+                categoriesError.value = serviceUnavailableMessage("external catalog");
+                reportDeveloperError("Loading external catalog categories", cause);
+                throw cause;
+            } finally {
+                categoriesLoading.value = false;
+            }
+        })();
+
+        categoriesLoadPromise = request;
+        try {
+            return await request;
+        } finally {
+            categoriesLoadPromise = undefined;
+        }
+    }
+
+    async function getExternalCategory(slug: string): Promise<ExternalCategoryDetail> {
+        const existing = categoryDetails.value[slug];
+        if (existing !== undefined) return existing;
+        const pending = categoryDetailPromises.get(slug);
+        if (pending !== undefined) return await pending;
+
+        categoryLoading.value = { ...categoryLoading.value, [slug]: true };
+        categoryErrors.value = { ...categoryErrors.value, [slug]: "" };
+        const request = fetchBackendJson<ExternalCategoryDetail>(
+            buildExternalCategoryUrl(slug),
+            "External category"
+        ).then((category) => {
+            categoryDetails.value = { ...categoryDetails.value, [slug]: category };
+            return category;
+        }).catch((cause: unknown) => {
+            categoryErrors.value = {
+                ...categoryErrors.value,
+                [slug]: serviceUnavailableMessage("external catalog"),
+            };
+            reportDeveloperError(`Loading external category ${slug}`, cause);
+            throw cause;
+        }).finally(() => {
+            categoryLoading.value = { ...categoryLoading.value, [slug]: false };
+            categoryDetailPromises.delete(slug);
+        });
+
+        categoryDetailPromises.set(slug, request);
+        return await request;
     }
 
     /** Caches a promise but evicts it on failure so the user can retry. */
@@ -684,7 +817,16 @@ export const useExternalDataSourcesStore = defineStore("externalDataSources", ()
         loading,
         loaded,
         error,
+        categories,
+        categoriesLoading,
+        categoriesLoaded,
+        categoriesError,
+        categoryDetails,
+        categoryLoading,
+        categoryErrors,
         loadExternalServices,
+        loadExternalCategories,
+        getExternalCategory,
         getOgcApiCollectionFeatures,
         countOgcApiFeatures,
         getOgcApiQueryables,

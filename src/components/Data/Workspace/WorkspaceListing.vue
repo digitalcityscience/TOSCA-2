@@ -21,18 +21,19 @@
                 >
                     <template #body="{ item }">
                         <Workspace3DDataListingItem v-if="item.kind === 'mock3d'" />
+                        <ExternalCategoryListing v-else-if="item.kind === 'external-category' && item.category" :category="item.category" />
                         <OgcApiSourceListing v-else-if="item.kind === 'ogc-api' && item.source" :source="item.source" />
                         <SensorThingsSourceListing v-else-if="item.kind === 'sensorthings' && item.source" :source="item.source" />
                         <WorkspaceListingItem v-else-if="item.workspace" :workspace="item.workspace"></WorkspaceListingItem>
                     </template>
                 </UAccordion>
                 <UAlert
-                    v-if="externalSources.error !== ''"
+                    v-if="externalCatalogError !== ''"
                     class="w-full mt-2"
                     color="error"
                     variant="subtle"
                     icon="i-lucide-circle-alert"
-                    :description="externalSources.error"
+                    :description="externalCatalogError"
                 >
                     <template #actions>
                         <UButton
@@ -41,8 +42,8 @@
                             color="error"
                             variant="soft"
                             size="sm"
-                            :loading="externalSources.loading"
-                            @click="loadExternalServices"
+                            :loading="externalSources.loading || externalSources.categoriesLoading"
+                            @click="loadExternalCatalog"
                         />
                     </template>
                 </UAlert>
@@ -58,9 +59,10 @@ import WorkspaceListingItem from "./WorkspaceListingItem.vue";
 import Workspace3DDataListingItem from "./Workspace3DDataListingItem.vue";
 import OgcApiSourceListing from "@components/Data/External/OgcApiSourceListing.vue";
 import SensorThingsSourceListing from "@components/Data/External/SensorThingsSourceListing.vue";
+import ExternalCategoryListing from "@components/Data/External/ExternalCategoryListing.vue";
 // JS-TS imports
 import { type WorkspaceListItem } from "@store/geoserver";
-import { useExternalDataSourcesStore } from "@store/externalDataSources";
+import { useExternalDataSourcesStore, type ExternalCategorySummary } from "@store/externalDataSources";
 import type { ExternalDataSourceConfig, ExternalDataSourceType } from "../../../config/externalDataSources";
 
 import { useRoute } from "vue-router";
@@ -75,15 +77,22 @@ const sidebarID = "workspaceListing"
 interface WorkspaceAccordionItem {
     label: string
     value: string
-    kind: "catalog" | "mock3d" | ExternalDataSourceType
+    kind: "catalog" | "external-category" | "mock3d" | ExternalDataSourceType
     workspace?: WorkspaceListItem
+    category?: ExternalCategorySummary
     source?: ExternalDataSourceConfig
 }
 const externalSources = useExternalDataSourcesStore()
-function loadExternalServices(): void {
-    void externalSources.loadExternalServices().catch(() => undefined)
+const externalCatalogError = computed(() =>
+    externalSources.categoriesError || externalSources.error
+)
+function loadExternalCatalog(): void {
+    void Promise.allSettled([
+        externalSources.loadExternalServices(),
+        externalSources.loadExternalCategories(),
+    ])
 }
-onMounted(loadExternalServices)
+onMounted(loadExternalCatalog)
 const workspaceAccordionItems = computed<WorkspaceAccordionItem[]>(() => {
     const realWorkspaceItems = props.workspaces?.map((workspace): WorkspaceAccordionItem => ({
         label: `${workspace.provider.name} · ${workspace.name}`,
@@ -91,8 +100,16 @@ const workspaceAccordionItems = computed<WorkspaceAccordionItem[]>(() => {
         kind: "catalog",
         workspace,
     })) ?? []
-    // Public third-party services are loaded from the backend catalog. Their
-    // datasets remain lazy and are fetched only when a service is expanded.
+    const categoryItems = [...externalSources.categories]
+        .sort((left, right) => left.display_order - right.display_order)
+        .map((category): WorkspaceAccordionItem => ({
+            label: category.title,
+            value: `external-category:${category.slug}`,
+            kind: "external-category",
+            category,
+        }))
+    // Public third-party services remain available until F6 applies the
+    // show_uncurated capability. Their datasets are still loaded lazily.
     const externalItems = externalSources.sources.map((source): WorkspaceAccordionItem => ({
         label: source.title,
         value: `external:${source.id}`,
@@ -106,7 +123,7 @@ const workspaceAccordionItems = computed<WorkspaceAccordionItem[]>(() => {
         value: "mock:3d-data",
         kind: "mock3d",
     }
-    return [...realWorkspaceItems, ...externalItems, mock3dItem]
+    return [...realWorkspaceItems, ...categoryItems, ...externalItems, mock3dItem]
 })
 
 const route = useRoute()

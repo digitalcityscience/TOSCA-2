@@ -297,6 +297,13 @@
       "showMore": "Show more ({count} remaining)",
       "loadError": "Could not load data from this service.",
       "retry": "Retry",
+      "category": {
+        "itemCount": "{count} datasets",
+        "noItems": "This category has no datasets.",
+        "featureCount": "{count} features",
+        "missing": "This dataset is currently unavailable.",
+        "error": "The availability of this dataset could not be verified."
+      },
       "ogc": {
         "badge": "OGC API",
         "datasetCount": "{count} datasets",
