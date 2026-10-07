@@ -8,6 +8,7 @@
             <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0 space-y-1">
                     <p class="external-card-title font-semibold text-highlighted">{{ props.item.title }}</p>
+                    <p v-if="subtitle !== ''" class="external-card-title text-xs text-toned">{{ subtitle }}</p>
                     <div class="flex flex-wrap items-center gap-2">
                         <UBadge color="neutral" variant="soft" size="sm" :label="sourceTypeLabel" />
                         <span v-if="featureCount !== undefined" class="text-xs text-muted">{{ featureCount }}</span>
@@ -25,7 +26,23 @@
                     @click="addToMap"
                 />
             </div>
-            <p v-if="props.item.description !== ''" class="text-sm text-muted line-clamp-3">{{ props.item.description }}</p>
+            <div v-if="props.item.description !== ''" class="space-y-1">
+                <p
+                    class="external-card-description whitespace-pre-line text-sm text-muted"
+                    :class="{ 'line-clamp-3': !descriptionExpanded }"
+                >{{ props.item.description }}</p>
+                <UButton
+                    v-if="descriptionNeedsToggle"
+                    size="xs"
+                    color="neutral"
+                    variant="link"
+                    class="h-auto p-0"
+                    :label="t(descriptionExpanded
+                        ? 'workspace.external.category.descriptionLess'
+                        : 'workspace.external.category.descriptionMore')"
+                    @click="descriptionExpanded = !descriptionExpanded"
+                />
+            </div>
             <p v-if="props.source?.attribution" class="text-xs text-dimmed">{{ props.source.attribution }}</p>
             <p v-if="availabilityMessage !== ''" class="text-xs font-medium text-warning">{{ availabilityMessage }}</p>
         </div>
@@ -56,6 +73,7 @@ const ogcLayers = useOgcLayersStore()
 const sensorThingsLayers = useSensorThingsLayersStore()
 const toast = useToast()
 const adding = ref(false)
+const descriptionExpanded = ref(false)
 
 const unavailable = computed(() =>
     props.item.availability.state === "MISSING" || props.item.availability.state === "ERROR"
@@ -63,6 +81,13 @@ const unavailable = computed(() =>
 const sourceTypeLabel = computed(() => props.item.service_type === "ogc_api_features"
     ? t("workspace.external.ogc.badge")
     : t("workspace.external.sensorthings.badge")
+)
+const subtitle = computed(() => props.item.service_type === "ogc_api_features"
+    ? props.item.ogc?.dataset_title ?? ""
+    : props.item.sensorthings?.service_name ?? ""
+)
+const descriptionNeedsToggle = computed(() =>
+    props.item.description.length > 180 || props.item.description.split("\n").length > 3
 )
 const layerId = computed(() => props.item.service_type === "sensorthings" && props.item.sensorthings !== undefined
     ? sensorThingsLayerId(
@@ -118,5 +143,8 @@ async function addToMap(): Promise<void> {
 .external-card-title {
     overflow-wrap: anywhere;
     line-height: 1.35;
+}
+.external-card-description {
+    overflow-wrap: anywhere;
 }
 </style>

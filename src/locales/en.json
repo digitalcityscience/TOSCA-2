@@ -302,6 +302,9 @@
         "itemCount": "{count} datasets",
         "noItems": "This category has no datasets.",
         "featureCount": "{count} features",
+        "descriptionMore": "More",
+        "descriptionLess": "Less",
+        "otherGroup": "Other datasets",
         "missing": "This dataset is currently unavailable.",
         "error": "The availability of this dataset could not be verified."
       },

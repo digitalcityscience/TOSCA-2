@@ -302,6 +302,9 @@
         "itemCount": "{count} veri kümesi",
         "noItems": "Bu kategoride veri kümesi yok.",
         "featureCount": "{count} özellik",
+        "descriptionMore": "Daha fazla",
+        "descriptionLess": "Daha az",
+        "otherGroup": "Diğer veri kümeleri",
         "missing": "Bu veri kümesi şu anda kullanılamıyor.",
         "error": "Bu veri kümesinin kullanılabilirliği doğrulanamadı."
       },

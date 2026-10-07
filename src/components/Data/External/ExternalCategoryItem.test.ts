@@ -38,7 +38,11 @@ const item = {
     description: "Bike stations across Hamburg",
     service: "hamburg-ogc",
     service_type: "ogc_api_features" as const,
-    ogc: { dataset_id: "stadtrad", collection_ids: ["stadtrad_stationen"] },
+    ogc: {
+        dataset_id: "stadtrad",
+        dataset_title: "Urban mobility",
+        collection_id: "stadtrad_stationen",
+    },
     style: { color: "#0288d1" },
     loading: { min_zoom: null },
     defaults: { properties: [], filter: [] },
@@ -58,8 +62,11 @@ describe("ExternalCategoryItem", () => {
             plugins: [pinia],
             stubs: {
                 UCard: CardStub,
+                Card: CardStub,
                 UBadge: BadgeStub,
+                Badge: BadgeStub,
                 UButton: ButtonStub,
+                Button: ButtonStub,
             },
         };
     }
@@ -68,6 +75,7 @@ describe("ExternalCategoryItem", () => {
         const wrapper = mount(ExternalCategoryItem, { props: { item, source }, global: globalOptions() });
 
         expect(wrapper.text()).toContain("StadtRAD stations");
+        expect(wrapper.text()).toContain("Urban mobility");
         expect(wrapper.text()).toContain("OGC API");
         expect(wrapper.text()).toContain("358 features");
         expect(wrapper.text()).toContain("Urban Data Platform Hamburg");
@@ -110,5 +118,24 @@ describe("ExternalCategoryItem", () => {
 
         expect(wrapper.text()).toContain("SensorThings");
         expect(wrapper.get("button").attributes("disabled")).toBeUndefined();
+    });
+
+    test("renders multiline descriptions as plain text with an expandable clamp", async () => {
+        const description = `<strong>Plain text</strong>\n${"A long OGC description. ".repeat(12)}`;
+        const wrapper = mount(ExternalCategoryItem, {
+            props: { item: { ...item, description }, source },
+            global: globalOptions(),
+        });
+
+        expect(wrapper.text()).toContain("<strong>Plain text</strong>");
+        expect(wrapper.find("strong").exists()).toBe(false);
+        expect(wrapper.get(".external-card-description").classes()).toContain("line-clamp-3");
+        expect(wrapper.text()).toContain("More");
+
+        const moreButton = wrapper.findAll("button").find((button) => button.text() === "More");
+        expect(moreButton).toBeDefined();
+        await moreButton!.trigger("click");
+        expect(wrapper.get(".external-card-description").classes()).not.toContain("line-clamp-3");
+        expect(wrapper.text()).toContain("Less");
     });
 });
