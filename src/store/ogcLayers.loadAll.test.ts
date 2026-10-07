@@ -141,6 +141,69 @@ describe("OGC load all (deck.gl)", () => {
         expect(store.layers.parcels).toMatchObject({ mode: "full", errorKind: "filter", loading: false });
     });
 
+    test("refuses full loading when the service capability is disabled", async () => {
+        const store = useOgcLayersStore();
+        seedState(store);
+        store.layers.parcels.capabilities = {
+            show_uncurated: false,
+            full_load: false,
+            live_updates: false,
+            server_filters: true,
+            max_features: null,
+        };
+
+        await store.loadAll("parcels");
+
+        expect(loaderMock.loadAllOgcFeatures).not.toHaveBeenCalled();
+        expect(map.addDeckGeoJsonLayer).not.toHaveBeenCalled();
+        expect(store.layers.parcels.mode).toBe("viewport");
+    });
+
+    test("passes the service feature limit to full loads", async () => {
+        loaderMock.loadAllOgcFeatures.mockResolvedValue(undefined);
+        const store = useOgcLayersStore();
+        seedState(store);
+        store.layers.parcels.maxFeatures = 250;
+        store.layers.parcels.capabilities = {
+            show_uncurated: false,
+            full_load: true,
+            live_updates: false,
+            server_filters: true,
+            max_features: 250,
+        };
+
+        await store.loadAll("parcels");
+
+        expect(loaderMock.loadAllOgcFeatures).toHaveBeenCalledWith(expect.objectContaining({ maxFeatures: 250 }));
+        const firstPage = new URL(loaderMock.loadAllOgcFeatures.mock.calls[0][0].firstPageUrl);
+        expect(firstPage.searchParams.get("limit")).toBe("250");
+    });
+
+    test("ignores query updates when server filters are disabled", async () => {
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        const store = useOgcLayersStore();
+        seedState(store);
+        store.layers.parcels.capabilities = {
+            show_uncurated: false,
+            full_load: true,
+            live_updates: false,
+            server_filters: false,
+            max_features: null,
+        };
+
+        await store.updateLayerQuery("parcels", {
+            properties: [],
+            conditions: [{ property: "flstkennz", operator: "eq", value: "changed" }],
+        });
+
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(store.layers.parcels.conditions).toEqual([
+            { property: "flstkennz", operator: "contains", value: "0102" },
+        ]);
+        vi.unstubAllGlobals();
+    });
+
     test("fans a merged layer out across collections and aggregates progress", async () => {
         loaderMock.loadAllOgcFeatures.mockImplementation(async (options) => {
             const isFirst = options.firstPageUrl.includes("/first/");

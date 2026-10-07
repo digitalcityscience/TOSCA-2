@@ -820,15 +820,18 @@ export const useExternalDataSourcesStore = defineStore("externalDataSources", ()
     ): Promise<SensorThingsDatastream[]> {
         const baseUrl = await getSensorThingsBaseUrl(source);
         const datastreams: SensorThingsDatastream[] = [];
+        const maxFeatures = source.capabilities.max_features ?? Number.POSITIVE_INFINITY;
+        const pageSize = Math.max(1, Math.min(SENSORTHINGS_BULK_PAGE_SIZE, maxFeatures));
         let next: string | undefined = buildSensorThingsDatastreamsUrl(
             baseUrl,
             observedPropertyId,
-            SENSORTHINGS_BULK_PAGE_SIZE
+            pageSize
         ).toString();
-        for (let page = 0; next !== undefined && page < SENSORTHINGS_MAX_BULK_PAGES; page++) {
+        for (let page = 0; next !== undefined && page < SENSORTHINGS_MAX_BULK_PAGES && datastreams.length < maxFeatures; page++) {
             const response: SensorThingsCollectionResponse<SensorThingsDatastreamResponse> =
                 await fetchExternalJson(next, `${source.title} datastreams`);
-            datastreams.push(...response.value.map(parseSensorThingsDatastream));
+            const remaining = maxFeatures - datastreams.length;
+            datastreams.push(...response.value.slice(0, remaining).map(parseSensorThingsDatastream));
             next = response["@iot.nextLink"] === undefined
                 ? undefined
                 : assertSameOrigin(response["@iot.nextLink"], baseUrl);
@@ -844,15 +847,19 @@ export const useExternalDataSourcesStore = defineStore("externalDataSources", ()
     ): Promise<SensorThingsDatastream[]> {
         const baseUrl = await getSensorThingsBaseUrl(source);
         const datastreams: SensorThingsDatastream[] = [];
+        const maxFeatures = source.capabilities.max_features ?? Number.POSITIVE_INFINITY;
+        const pageSize = Math.max(1, Math.min(SENSORTHINGS_BULK_PAGE_SIZE, maxFeatures));
         let next: string | undefined = buildSensorThingsLayerDatastreamsUrl(
             baseUrl,
             serviceName,
-            layerName
+            layerName,
+            pageSize
         ).toString();
-        for (let page = 0; next !== undefined && page < SENSORTHINGS_MAX_BULK_PAGES; page++) {
+        for (let page = 0; next !== undefined && page < SENSORTHINGS_MAX_BULK_PAGES && datastreams.length < maxFeatures; page++) {
             const response: SensorThingsCollectionResponse<SensorThingsDatastreamResponse> =
                 await fetchExternalJson(next, `${source.title} datastreams`);
-            datastreams.push(...response.value.map(parseSensorThingsDatastream));
+            const remaining = maxFeatures - datastreams.length;
+            datastreams.push(...response.value.slice(0, remaining).map(parseSensorThingsDatastream));
             next = response["@iot.nextLink"] === undefined
                 ? undefined
                 : assertSameOrigin(response["@iot.nextLink"], baseUrl);

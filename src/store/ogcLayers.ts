@@ -1,6 +1,9 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
 import { ref, watch } from "vue";
-import type { ExternalDataSourceConfig } from "../config/externalDataSources";
+import type {
+    ExternalDataSourceCapabilities,
+    ExternalDataSourceConfig,
+} from "../config/externalDataSources";
 import {
     ExternalRequestError,
     OGC_API_MAX_FEATURES,
@@ -66,6 +69,10 @@ export interface OgcLayerState {
     minZoom?: number;
     belowMinZoom?: boolean;
     color?: string;
+    sourceId?: string;
+    capabilities?: ExternalDataSourceCapabilities;
+    /** Service-specific upper bound for one layer load. */
+    maxFeatures?: number;
 }
 
 export interface OgcLayerQueryUpdate {
@@ -243,13 +250,38 @@ export const useOgcLayersStore = defineStore("ogcLayers", () => {
     function featureQuery(
         state: OgcLayerState,
         collection: OgcApiCollection,
-        signal?: AbortSignal
+        signal?: AbortSignal,
+        maxFeatures = state.maxFeatures ?? OGC_API_MAX_FEATURES
     ): OgcApiFeatureQuery {
         return {
+            maxFeatures,
             properties: selectedProperties(state, collection),
             filter: buildCql2Filter(state.conditions, state.queryables),
             signal,
         };
+    }
+
+    function collectionLimit(totalLimit: number, index: number, collectionCount: number): number {
+        const base = Math.floor(totalLimit / collectionCount);
+        return base + (index < totalLimit % collectionCount ? 1 : 0);
+    }
+
+    const defaultCapabilities: ExternalDataSourceCapabilities = {
+        show_uncurated: true,
+        full_load: true,
+        live_updates: true,
+        server_filters: true,
+        max_features: null,
+    };
+
+    function capabilitiesForState(state: OgcLayerState): ExternalDataSourceCapabilities {
+        return externalSources.sources.find((source) => source.id === state.sourceId)?.capabilities ??
+            state.capabilities ?? defaultCapabilities;
+    }
+
+    function capabilitiesForLayer(layerId: string): ExternalDataSourceCapabilities {
+        const state = layers.value[layerId];
+        return state === undefined ? defaultCapabilities : capabilitiesForState(state);
     }
 
     function replaceLayerFeatures(layerId: string, features: FeatureCollection): void {
@@ -270,8 +302,14 @@ export const useOgcLayersStore = defineStore("ogcLayers", () => {
         signal: AbortSignal,
         view?: Bbox
     ): Promise<{ features: FeatureCollection, numberMatched?: number }> {
-        const results = await Promise.all(stateCollections(state).map(async (collection) => {
-            const query = featureQuery(state, collection, signal);
+        const collections = stateCollections(state);
+        const totalLimit = state.maxFeatures ?? OGC_API_MAX_FEATURES;
+        const results = await Promise.all(collections.map(async (collection, index) => {
+            const limit = collectionLimit(totalLimit, index, collections.length);
+            if (limit === 0) {
+                return { features: { type: "FeatureCollection" as const, features: [] }, numberMatched: 0 };
+            }
+            const query = featureQuery(state, collection, signal, limit);
             if (view !== undefined) {
                 const bbox = intersectBbox(view, collection.bbox);
                 if (bbox === undefined) {
@@ -337,6 +375,7 @@ export const useOgcLayersStore = defineStore("ogcLayers", () => {
     async function runFullLoad(layerId: string): Promise<void> {
         const state = layers.value[layerId];
         if (state === undefined || !mapStore.layersOnMap.some((layer) => layer.id === layerId)) return;
+        if (!capabilitiesForState(state).full_load) return;
         controllers.get(layerId)?.abort();
         const controller = new AbortController();
         controllers.set(layerId, controller);
@@ -350,15 +389,21 @@ export const useOgcLayersStore = defineStore("ogcLayers", () => {
             const loadedByCollection = new Map<string, number>();
             const totalsByCollection = new Map<string, number | undefined>();
             const concurrency = Math.max(1, Math.floor(OGC_LOAD_ALL_CONCURRENCY / collections.length));
-            await Promise.all(collections.map(async (collection) => {
+            await Promise.all(collections.map(async (collection, index) => {
+                const limit = state.maxFeatures === undefined
+                    ? undefined
+                    : collectionLimit(state.maxFeatures, index, collections.length);
+                if (limit === 0) return;
                 const { properties, filter } = featureQuery(state, collection);
+                const pageSize = Math.max(1, Math.min(OGC_API_MAX_PAGE_SIZE, limit ?? OGC_API_MAX_PAGE_SIZE));
                 await loadAllOgcFeatures({
                     firstPageUrl: buildOgcApiItemsUrl(
                         collection,
                         { properties, filter },
-                        OGC_API_MAX_PAGE_SIZE
+                        pageSize
                     ).toString(),
                     concurrency,
+                    maxFeatures: limit,
                     signal: controller.signal,
                     onTotal: (total) => {
                         totalsByCollection.set(collection.id, total);
@@ -394,6 +439,7 @@ export const useOgcLayersStore = defineStore("ogcLayers", () => {
         const state = layers.value[layerId];
         const record = mapStore.layersOnMap.find((layer) => layer.id === layerId);
         if (state === undefined || record === undefined) return;
+        if (!capabilitiesForState(state).full_load) return;
         if (state.mode !== "full") {
             controllers.get(layerId)?.abort();
             if (record.renderer !== "deckgl") {
@@ -434,8 +480,8 @@ export const useOgcLayersStore = defineStore("ogcLayers", () => {
         state.stopped = true;
     }
 
-    function modeFor(totalMatched: number | undefined): OgcLayerLoadMode {
-        return totalMatched !== undefined && totalMatched <= OGC_API_MAX_FEATURES ? "all" : "viewport";
+    function modeFor(totalMatched: number | undefined, maxFeatures = OGC_API_MAX_FEATURES): OgcLayerLoadMode {
+        return totalMatched !== undefined && totalMatched <= maxFeatures ? "all" : "viewport";
     }
 
     function applyLayerColor(layerId: string, color: string | undefined): void {
@@ -477,12 +523,16 @@ export const useOgcLayersStore = defineStore("ogcLayers", () => {
         } = params;
         if (collections.length === 0) throw new Error(`No OGC collections configured for ${displayName}`);
 
-        const queryableLists = await Promise.all(collections.map(async (collection) =>
-            await externalSources.getOgcApiQueryables(collection).catch((error: unknown) => {
-                reportDeveloperError(`Loading queryables for ${collection.id}`, error);
-                return [] as OgcApiQueryable[];
-            })
-        ));
+        const capabilities = source.capabilities;
+        const maxFeatures = capabilities.max_features ?? OGC_API_MAX_FEATURES;
+        const queryableLists = capabilities.server_filters
+            ? await Promise.all(collections.map(async (collection) =>
+                await externalSources.getOgcApiQueryables(collection).catch((error: unknown) => {
+                    reportDeveloperError(`Loading queryables for ${collection.id}`, error);
+                    return [] as OgcApiQueryable[];
+                })
+            ))
+            : collections.map(() => [] as OgcApiQueryable[]);
         const queryables = commonQueryables(queryableLists);
         const selectable = new Set(queryables.filter((item) => !item.isGeometry).map((item) => item.name));
         const initialProperties = params.initialProperties?.filter((name) => selectable.has(name));
@@ -497,7 +547,7 @@ export const useOgcLayersStore = defineStore("ogcLayers", () => {
                 .catch(() => collection.itemCount)
         ));
         const totalMatched = sumCounts(counts) ?? fallbackTotal;
-        const mode = modeFor(totalMatched);
+        const mode = modeFor(totalMatched, maxFeatures);
         const extent = combinedBbox(collections);
         if (mode === "viewport" && extent !== undefined) {
             mapStore.map?.fitBounds(
@@ -523,6 +573,9 @@ export const useOgcLayersStore = defineStore("ogcLayers", () => {
             loading: false,
             minZoom,
             color,
+            sourceId: source.id,
+            capabilities,
+            maxFeatures: capabilities.max_features ?? undefined,
         };
         state.belowMinZoom = mode === "viewport" && belowMinimumZoom(state);
         const view = mode === "viewport" && !state.belowMinZoom
@@ -639,6 +692,7 @@ export const useOgcLayersStore = defineStore("ogcLayers", () => {
     async function updateLayerQuery(layerId: string, update: OgcLayerQueryUpdate): Promise<void> {
         const state = layers.value[layerId];
         if (state === undefined) return;
+        if (!capabilitiesForState(state).server_filters) return;
         // Validate before touching state so an invalid value keeps the old query.
         const filter = buildCql2Filter(update.conditions, state.queryables);
         state.properties = update.properties;
@@ -659,7 +713,10 @@ export const useOgcLayersStore = defineStore("ogcLayers", () => {
         }
         const previousMode = state.mode;
         // Once loaded in full (deck.gl), stay in full mode and reload everything.
-        state.mode = previousMode === "full" ? "full" : modeFor(state.totalMatched);
+        state.mode = previousMode === "full" ? "full" : modeFor(
+            state.totalMatched,
+            state.maxFeatures ?? OGC_API_MAX_FEATURES
+        );
         state.viewMatched = undefined;
         if (state.mode === "viewport") ensureMapListener();
         else stopListeningIfIdle();
@@ -698,6 +755,7 @@ export const useOgcLayersStore = defineStore("ogcLayers", () => {
         refreshLayer,
         loadAll,
         cancelFullLoad,
+        capabilitiesForLayer,
     };
 });
 
