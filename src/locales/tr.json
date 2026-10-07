@@ -293,6 +293,7 @@
       "badge": "3B Tileset"
     },
     "external": {
+      "allDatasets": "Tüm veri kümeleri · {source}",
       "searchPlaceholder": "Ada göre filtrele",
       "noResults": "Eşleşen kayıt yok.",
       "showMore": "Daha fazla göster ({count} kaldı)",
@@ -322,6 +323,7 @@
       },
       "sensorthings": {
         "badge": "SensorThings",
+        "layerCount": "{count} katman",
         "propertyCount": "{count} ölçüm türü",
         "datastreamCount": "{count} veri akışı",
         "showDatastreams": "Veri akışları",

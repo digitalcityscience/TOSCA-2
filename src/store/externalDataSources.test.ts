@@ -454,6 +454,42 @@ describe("external data sources store", () => {
         expect(params.has("$count")).toBe(false);
     });
 
+    test("derives and caches the service/layer catalog from lightweight property pages", async () => {
+        const fetchMock = vi.mocked(fetch);
+        fetchMock
+            .mockResolvedValueOnce(jsonResponse({
+                value: [
+                    { properties: { serviceName: "Traffic", layerName: "Speed" } },
+                    { properties: { serviceName: "Traffic", layerName: "Speed" } },
+                    { properties: { serviceName: "Mobility", layerName: "Bikes" } },
+                    { properties: { serviceName: "Traffic" } },
+                ],
+                "@iot.nextLink": "https://iot.example.test/v1.1/Datastreams?$skip=1000",
+            }))
+            .mockResolvedValueOnce(jsonResponse({
+                value: [
+                    { properties: { serviceName: "Traffic", layerName: "Volume" } },
+                    { properties: { serviceName: "Mobility", layerName: "Bikes" } },
+                ],
+            }));
+        const store = useExternalDataSourcesStore();
+        const source = { ...staSource, url: "https://iot.example.test/v1.1" };
+
+        await expect(store.getSensorThingsLayerCatalog(source)).resolves.toEqual([
+            { serviceName: "Mobility", layerName: "Bikes", datastreamCount: 2 },
+            { serviceName: "Traffic", layerName: "Speed", datastreamCount: 2 },
+            { serviceName: "Traffic", layerName: "Volume", datastreamCount: 1 },
+        ]);
+        await store.getSensorThingsLayerCatalog(source);
+
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        const params = new URL(requestedUrl(0)).searchParams;
+        expect(params.get("$top")).toBe("1000");
+        expect(params.get("$select")).toBe("properties");
+        expect(params.has("$count")).toBe(false);
+        expect(params.has("$expand")).toBe(false);
+    });
+
     test("caps SensorThings bulk loads with the service feature limit", async () => {
         const fetchMock = vi.mocked(fetch);
         fetchMock.mockResolvedValueOnce(jsonResponse({
