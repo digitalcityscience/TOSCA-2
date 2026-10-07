@@ -41,10 +41,14 @@ async function fetchPage(url: string, signal: AbortSignal): Promise<ItemsPage> {
     return await response.json() as ItemsPage;
 }
 
-function emitPage(page: ItemsPage, progress: { loaded: number }): void {
-    const chunk = featuresToDeckChunk(page.features ?? []);
-    progress.loaded += page.features?.length ?? 0;
+function emitPage(page: ItemsPage, progress: { loaded: number }, maxFeatures?: number): boolean {
+    const remaining = maxFeatures === undefined ? undefined : Math.max(0, maxFeatures - progress.loaded);
+    const features = remaining === undefined ? (page.features ?? []) : (page.features ?? []).slice(0, remaining);
+    if (features.length === 0) return maxFeatures !== undefined && progress.loaded >= maxFeatures;
+    const chunk = featuresToDeckChunk(features);
+    progress.loaded += features.length;
     scope.postMessage({ type: "chunk", chunk, loaded: progress.loaded }, chunkTransferables(chunk));
+    return maxFeatures !== undefined && progress.loaded >= maxFeatures;
 }
 
 async function load(request: OgcLoaderRequest & { type: "load" }, signal: AbortSignal): Promise<void> {
@@ -52,30 +56,33 @@ async function load(request: OgcLoaderRequest & { type: "load" }, signal: AbortS
     const first = await fetchPage(request.firstPageUrl, signal);
     const total = typeof first.numberMatched === "number" ? first.numberMatched : undefined;
     scope.postMessage({ type: "meta", total });
-    emitPage(first, progress);
+    if (emitPage(first, progress, request.maxFeatures)) return;
 
     const pageSize = first.features?.length ?? 0;
     let next = nextPageLink(first.links);
     if (next === undefined || pageSize === 0) return;
     if (!isSameOrigin(next, request.firstPageUrl)) throw new Error(`Refusing to follow paging link to another origin: ${next}`);
 
-    const urls = total === undefined ? undefined : remainingPageUrls(next, pageSize, total);
+    const loadTotal = total === undefined || request.maxFeatures === undefined
+        ? total
+        : Math.min(total, request.maxFeatures);
+    const urls = loadTotal === undefined ? undefined : remainingPageUrls(next, pageSize, loadTotal);
     if (urls !== undefined) {
         let cursor = 0;
         const runNext = async (): Promise<void> => {
-            while (cursor < urls.length) {
+            while (cursor < urls.length && (request.maxFeatures === undefined || progress.loaded < request.maxFeatures)) {
                 const url = urls[cursor++];
-                emitPage(await fetchPage(url, signal), progress);
+                emitPage(await fetchPage(url, signal), progress, request.maxFeatures);
             }
         };
         await Promise.all(Array.from({ length: Math.min(request.concurrency, urls.length) }, runNext));
         return;
     }
     // No offset paging: follow `next` links sequentially.
-    while (next !== undefined) {
+    while (next !== undefined && (request.maxFeatures === undefined || progress.loaded < request.maxFeatures)) {
         const page = await fetchPage(next, signal);
         if ((page.features?.length ?? 0) === 0) return;
-        emitPage(page, progress);
+        if (emitPage(page, progress, request.maxFeatures)) return;
         next = nextPageLink(page.links);
         if (next !== undefined && !isSameOrigin(next, request.firstPageUrl)) {
             throw new Error(`Refusing to follow paging link to another origin: ${next}`);

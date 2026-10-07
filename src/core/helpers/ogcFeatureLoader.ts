@@ -1,7 +1,7 @@
 import type { DeckGeoJsonChunk } from "./deckGeoJsonChunk";
 
 export type OgcLoaderRequest =
-    | { type: "load", firstPageUrl: string, concurrency: number }
+    | { type: "load", firstPageUrl: string, concurrency: number, maxFeatures?: number }
     | { type: "cancel" };
 
 export type OgcLoaderResponse =
@@ -21,6 +21,8 @@ export interface LoadAllOgcFeaturesOptions {
     /** URL of the first `items` page, including filter/properties and `limit`. */
     firstPageUrl: string;
     concurrency?: number;
+    /** Stop after emitting this many features, even when more pages exist. */
+    maxFeatures?: number;
     signal?: AbortSignal;
     onTotal?: (total: number | undefined) => void;
     onChunk: (chunk: DeckGeoJsonChunk, loaded: number) => void;
@@ -34,7 +36,7 @@ export const OGC_LOAD_ALL_CONCURRENCY = 6;
  * with an AbortError when `signal` aborts. The worker is always terminated.
  */
 export async function loadAllOgcFeatures(options: LoadAllOgcFeaturesOptions): Promise<void> {
-    const { firstPageUrl, concurrency = OGC_LOAD_ALL_CONCURRENCY, signal, onTotal, onChunk } = options;
+    const { firstPageUrl, concurrency = OGC_LOAD_ALL_CONCURRENCY, maxFeatures, signal, onTotal, onChunk } = options;
     if (signal?.aborted === true) throw new DOMException("Aborted", "AbortError");
     const worker = new Worker(new URL("../workers/ogcFeatureLoader.worker.ts", import.meta.url), { type: "module" });
     try {
@@ -58,7 +60,7 @@ export async function loadAllOgcFeatures(options: LoadAllOgcFeaturesOptions): Pr
                     else reject(new OgcLoadError(message.message, message.status));
                 }
             };
-            worker.postMessage({ type: "load", firstPageUrl, concurrency } satisfies OgcLoaderRequest);
+            worker.postMessage({ type: "load", firstPageUrl, concurrency, maxFeatures } satisfies OgcLoaderRequest);
         });
     } finally {
         worker.terminate();

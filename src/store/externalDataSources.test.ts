@@ -449,6 +449,29 @@ describe("external data sources store", () => {
         expect(params.get("$top")).toBe("1000");
         expect(params.has("$count")).toBe(false);
     });
+
+    test("caps SensorThings bulk loads with the service feature limit", async () => {
+        const fetchMock = vi.mocked(fetch);
+        fetchMock.mockResolvedValueOnce(jsonResponse({
+            value: [1, 2, 3].map((id) => ({ "@iot.id": id, name: `Stream ${id}` })),
+            "@iot.nextLink": "https://iot.example.test/v1.1/Datastreams?$skip=3",
+        }));
+        const store = useExternalDataSourcesStore();
+
+        const streams = await store.getAllSensorThingsLayerDatastreams(
+            {
+                ...staSource,
+                url: "https://iot.example.test/v1.1",
+                capabilities: { ...staSource.capabilities, max_features: 2 },
+            },
+            "service",
+            "layer"
+        );
+
+        expect(streams.map((item) => item.id)).toEqual([1, 2]);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(new URL(requestedUrl(0)).searchParams.get("$top")).toBe("2");
+    });
 });
 
 describe("SensorThings curated layer URLs", () => {

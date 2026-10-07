@@ -25,7 +25,7 @@
             </div>
         </div>
 
-        <div v-if="state.mode === 'viewport'" class="space-y-1 rounded-md border border-muted p-2">
+        <div v-if="state.mode === 'viewport' && canFullLoad" class="space-y-1 rounded-md border border-muted p-2">
             <p class="text-xs text-toned">{{ t('map.ogcQuery.loadAllHint', { pages: pageCount }) }}</p>
             <p v-if="suggestFewerAttributes" class="text-xs text-warning">{{ t('map.ogcQuery.loadAllAttributesHint') }}</p>
             <div class="flex justify-end">
@@ -74,6 +74,7 @@
             />
         </div>
 
+        <template v-if="canUseServerFilters">
         <UAlert
             v-if="attributeQueryables.length === 0"
             color="neutral"
@@ -161,6 +162,7 @@
                 <UButton size="sm" :label="t('common.apply')" :loading="state.loading" :disabled="!isDirty" @click="apply" />
             </div>
         </template>
+        </template>
     </div>
 </template>
 
@@ -195,6 +197,9 @@ const LOAD_ALL_CONFIRM_BYTES = 300 * 1024 * 1024
 const confirmLoadAllOpen = ref(false)
 
 const state = computed(() => ogcLayers.layers[props.layerId])
+const capabilities = computed(() => ogcLayers.capabilitiesForLayer(props.layerId))
+const canFullLoad = computed(() => capabilities.value.full_load)
+const canUseServerFilters = computed(() => capabilities.value.server_filters)
 const attributeQueryables = computed(() => state.value?.queryables.filter((item) => !item.isGeometry) ?? [])
 const attributeItems = computed(() => attributeQueryables.value.map((item) => ({ label: item.title, value: item.name })))
 const booleanItems = computed(() => [
@@ -228,10 +233,17 @@ const isDirty = computed(() => {
     return applied !== draft
 })
 
-const formattedTotal = computed(() => state.value?.totalMatched?.toLocaleString(locale.value) ?? "?")
-const pageCount = computed(() => Math.max(1, Math.ceil((state.value?.totalMatched ?? 0) / OGC_API_MAX_PAGE_SIZE)))
-const progressPercent = computed(() => {
+const loadAllTotal = computed(() => {
     const total = state.value?.totalMatched
+    if (total === undefined) return undefined
+    const limit = capabilities.value.max_features
+    return limit === null ? total : Math.min(total, limit)
+})
+const formattedTotal = computed(() => loadAllTotal.value?.toLocaleString(locale.value) ?? "?")
+const pageSize = computed(() => Math.min(OGC_API_MAX_PAGE_SIZE, capabilities.value.max_features ?? OGC_API_MAX_PAGE_SIZE))
+const pageCount = computed(() => Math.max(1, Math.ceil((loadAllTotal.value ?? 0) / pageSize.value)))
+const progressPercent = computed(() => {
+    const total = state.value?.mode === "full" ? loadAllTotal.value : state.value?.totalMatched
     if (total === undefined || total === 0) return undefined
     return Math.min(100, Math.round((state.value!.loadedCount / total) * 100))
 })
@@ -243,9 +255,9 @@ const suggestFewerAttributes = computed(() =>
 )
 const estimatedMemoryBytes = computed(() => {
     const current = state.value
-    if (current?.totalMatched === undefined) return 0
+    if (loadAllTotal.value === undefined) return 0
     const attributeCount = current.properties?.length ?? attributeQueryables.value.length
-    return current.totalMatched * (BYTES_PER_FEATURE + BYTES_PER_ATTRIBUTE * attributeCount)
+    return loadAllTotal.value * (BYTES_PER_FEATURE + BYTES_PER_ATTRIBUTE * attributeCount)
 })
 const estimatedMemoryLabel = computed(() =>
     Math.round(estimatedMemoryBytes.value / (1024 * 1024)).toLocaleString(locale.value)
