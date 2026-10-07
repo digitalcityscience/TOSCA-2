@@ -6,6 +6,7 @@ import { useMapStore } from "./store/map";
 import LocaleSwitcher from "./components/Base/LocaleSwitcher.vue";
 import AppFooter from "./components/Footer/AppFooter.vue";
 import FooterDocumentModal from "./components/Footer/FooterDocumentModal.vue";
+import { brandName } from "./config/branding";
 
 type ThemeMode = "light" | "dark";
 
@@ -41,8 +42,8 @@ watch(themeMode, (mode) => {
   <UApp>
     <div class="app-container flex min-h-0 flex-col bg-default text-default font-sans">
       <header class="app-header">
-        <RouterLink to="/" class="app-brand" aria-label="TOSCA home">
-          TOSCA
+        <RouterLink to="/" class="app-brand" :aria-label="`${brandName} home`">
+          {{ brandName }}
         </RouterLink>
         <div class="flex items-center gap-1">
           <LocaleSwitcher />
