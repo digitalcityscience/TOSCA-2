@@ -127,7 +127,7 @@ export interface DeckGeoJsonStyle {
 }
 export interface ExternalLayerSourceInfo {
     type: "ogc-api" | "sensorthings";
-    /** Id of the configured external source (VITE_EXTERNAL_DATA_SOURCES). */
+    /** Id of the external service published by the backend catalog. */
     sourceId?: string;
     sourceTitle: string;
     /** Total features available upstream, when the service reports it. */
