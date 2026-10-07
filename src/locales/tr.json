@@ -293,7 +293,6 @@
       "badge": "3B Tileset"
     },
     "external": {
-      "allDatasets": "Tüm veri kümeleri · {source}",
       "searchPlaceholder": "Ada göre filtrele",
       "noResults": "Eşleşen kayıt yok.",
       "showMore": "Daha fazla göster ({count} kaldı)",

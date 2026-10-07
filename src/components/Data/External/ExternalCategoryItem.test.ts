@@ -6,14 +6,14 @@ import ExternalCategoryItem from "./ExternalCategoryItem.vue";
 
 const CardStub = defineComponent({
     inheritAttrs: false,
-    template: "<section v-bind='$attrs'><slot /></section>",
+    template: "<section v-bind='$attrs'><slot name='header' /><slot /><slot name='footer' /></section>",
 });
 const BadgeStub = defineComponent({
     props: { label: String },
     template: "<span>{{ label }}</span>",
 });
 const ButtonStub = defineComponent({
-    props: { label: String, disabled: Boolean },
+    props: { label: String, disabled: Boolean, size: String, variant: String, icon: String },
     template: "<button :disabled='disabled'>{{ label }}</button>",
 });
 
@@ -79,7 +79,9 @@ describe("ExternalCategoryItem", () => {
         expect(wrapper.text()).toContain("OGC API");
         expect(wrapper.text()).toContain("358 features");
         expect(wrapper.text()).toContain("Urban Data Platform Hamburg");
-        expect(wrapper.get("button").attributes("disabled")).toBeUndefined();
+        const addButton = wrapper.findComponent(ButtonStub);
+        expect(addButton.attributes("disabled")).toBeUndefined();
+        expect(addButton.props()).toMatchObject({ size: "sm", variant: undefined, icon: undefined });
     });
 
     test("greys out missing items and explains their state", () => {

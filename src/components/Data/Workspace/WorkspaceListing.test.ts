@@ -73,7 +73,8 @@ describe("WorkspaceListing external services", () => {
             },
         });
 
-        expect(wrapper.text()).toContain("All datasets · Public OGC");
+        expect(wrapper.text()).toContain("Public OGC");
+        expect(wrapper.text()).not.toContain("All datasets");
         expect(wrapper.text()).not.toContain("Curated SensorThings");
     });
 });

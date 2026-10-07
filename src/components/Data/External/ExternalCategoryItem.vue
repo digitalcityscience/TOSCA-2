@@ -1,31 +1,20 @@
 <template>
     <UCard
-        class="external-category-card bg-default/95 dark:bg-elevated/80"
+        class="workspace-layer-card bg-default/95 dark:bg-elevated/80"
         :class="{ 'opacity-60': unavailable }"
-        :ui="{ body: 'p-3' }"
+        :ui="{ header: 'p-3 pb-2', body: 'p-3 pt-1', footer: 'p-3 pt-2' }"
     >
-        <div class="space-y-2">
-            <div class="flex items-start justify-between gap-3">
-                <div class="min-w-0 space-y-1">
-                    <p class="external-card-title font-semibold text-highlighted">{{ props.item.title }}</p>
-                    <p v-if="subtitle !== ''" class="external-card-title text-xs text-toned">{{ subtitle }}</p>
-                    <div class="flex flex-wrap items-center gap-2">
-                        <UBadge color="neutral" variant="soft" size="sm" :label="sourceTypeLabel" />
-                        <span v-if="featureCount !== undefined" class="text-xs text-muted">{{ featureCount }}</span>
-                    </div>
+        <template #header>
+            <div class="min-w-0 space-y-1">
+                <p class="external-card-title font-semibold text-highlighted">{{ props.item.title }}</p>
+                <p v-if="subtitle !== ''" class="external-card-title text-xs text-toned">{{ subtitle }}</p>
+                <div class="flex flex-wrap items-center gap-2">
+                    <UBadge color="neutral" variant="soft" size="sm" :label="sourceTypeLabel" />
+                    <span v-if="featureCount !== undefined" class="text-xs text-muted">{{ featureCount }}</span>
                 </div>
-                <UButton
-                    size="xs"
-                    class="shrink-0"
-                    :color="isOnMap ? 'primary' : 'neutral'"
-                    :variant="isOnMap ? 'soft' : 'outline'"
-                    :icon="isOnMap ? 'i-lucide-check' : 'i-lucide-map-plus'"
-                    :label="isOnMap ? t('workspace.external.onMap') : t('workspace.layerItem.addToMap')"
-                    :loading="adding"
-                    :disabled="!canAdd || unavailable || isOnMap"
-                    @click="addToMap"
-                />
             </div>
+        </template>
+        <div class="space-y-2">
             <div v-if="props.item.description !== ''" class="space-y-1">
                 <p
                     class="external-card-description whitespace-pre-line text-sm text-muted"
@@ -46,6 +35,17 @@
             <p v-if="props.source?.attribution" class="text-xs text-dimmed">{{ props.source.attribution }}</p>
             <p v-if="availabilityMessage !== ''" class="text-xs font-medium text-warning">{{ availabilityMessage }}</p>
         </div>
+        <template #footer>
+            <div class="flex justify-end">
+                <UButton
+                    size="sm"
+                    :label="isOnMap ? t('workspace.external.onMap') : t('workspace.layerItem.addToMap')"
+                    :loading="adding"
+                    :disabled="!canAdd || unavailable || isOnMap"
+                    @click="addToMap"
+                />
+            </div>
+        </template>
     </UCard>
 </template>
 
