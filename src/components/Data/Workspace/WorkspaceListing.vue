@@ -26,6 +26,26 @@
                         <WorkspaceListingItem v-else-if="item.workspace" :workspace="item.workspace"></WorkspaceListingItem>
                     </template>
                 </UAccordion>
+                <UAlert
+                    v-if="externalSources.error !== ''"
+                    class="w-full mt-2"
+                    color="error"
+                    variant="subtle"
+                    icon="i-lucide-circle-alert"
+                    :description="externalSources.error"
+                >
+                    <template #actions>
+                        <UButton
+                            :label="t('workspace.external.retry')"
+                            icon="i-lucide-refresh-cw"
+                            color="error"
+                            variant="soft"
+                            size="sm"
+                            :loading="externalSources.loading"
+                            @click="loadExternalServices"
+                        />
+                    </template>
+                </UAlert>
                 <UAlert v-if="!props.workspaces || props.workspaces.length === 0" class="w-full mt-2" color="info" variant="soft" :description="t('workspace.listing.noWorkspace')" />
             </div>
         </BaseSlideoverSidebarComponent>
@@ -44,7 +64,7 @@ import { useExternalDataSourcesStore } from "@store/externalDataSources";
 import type { ExternalDataSourceConfig, ExternalDataSourceType } from "../../../config/externalDataSources";
 
 import { useRoute } from "vue-router";
-import { computed } from "vue";
+import { computed, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 export interface Props {
     workspaces: WorkspaceListItem[] | undefined
@@ -60,6 +80,10 @@ interface WorkspaceAccordionItem {
     source?: ExternalDataSourceConfig
 }
 const externalSources = useExternalDataSourcesStore()
+function loadExternalServices(): void {
+    void externalSources.loadExternalServices().catch(() => undefined)
+}
+onMounted(loadExternalServices)
 const workspaceAccordionItems = computed<WorkspaceAccordionItem[]>(() => {
     const realWorkspaceItems = props.workspaces?.map((workspace): WorkspaceAccordionItem => ({
         label: `${workspace.provider.name} · ${workspace.name}`,
@@ -67,8 +91,8 @@ const workspaceAccordionItems = computed<WorkspaceAccordionItem[]>(() => {
         kind: "catalog",
         workspace,
     })) ?? []
-    // Public third-party services (OGC API, SensorThings) configured in
-    // config/externalDataSources.ts; they are fetched only when expanded.
+    // Public third-party services are loaded from the backend catalog. Their
+    // datasets remain lazy and are fetched only when a service is expanded.
     const externalItems = externalSources.sources.map((source): WorkspaceAccordionItem => ({
         label: source.title,
         value: `external:${source.id}`,

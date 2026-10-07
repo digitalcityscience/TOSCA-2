@@ -1,11 +1,10 @@
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, test, vi } from "vitest";
+import type { ExternalDataSourceConfig } from "../config/externalDataSources";
 import {
-    parseExternalDataSources,
-    type ExternalDataSourceConfig,
-} from "../config/externalDataSources";
-import {
+    buildExternalServicesUrl,
     buildSensorThingsDatastreamsUrl,
+    mapExternalService,
     parseOgcApiCollections,
     parseOgcApiDatasets,
     parseOgcApiQueryables,
@@ -15,17 +14,27 @@ import {
     useExternalDataSourcesStore,
 } from "./externalDataSources";
 
+const capabilities = {
+    show_uncurated: true,
+    full_load: true,
+    live_updates: true,
+    server_filters: true,
+    max_features: 10000,
+};
+
 const ogcSource: ExternalDataSourceConfig = {
     id: "ogc",
     type: "ogc-api",
     title: "OGC",
     url: "https://api.example.test/datasets/v1",
+    capabilities,
 };
 const staSource: ExternalDataSourceConfig = {
     id: "sta",
     type: "sensorthings",
     title: "STA",
     url: "https://iot.example.test/",
+    capabilities,
 };
 
 function requestedUrl(call: number): string {
@@ -36,28 +45,6 @@ function requestedUrl(call: number): string {
 function jsonResponse(body: unknown, status = 200): Response {
     return new Response(JSON.stringify(body), { status });
 }
-
-describe("external data source config", () => {
-    test("lists nothing unless configured", () => {
-        expect(parseExternalDataSources(undefined)).toEqual([]);
-        expect(parseExternalDataSources("  ")).toEqual([]);
-        expect(parseExternalDataSources("[]")).toEqual([]);
-        vi.spyOn(console, "error").mockImplementation(() => undefined);
-        expect(parseExternalDataSources("{not json")).toEqual([]);
-    });
-
-    test("drops invalid entries", () => {
-        vi.spyOn(console, "error").mockImplementation(() => undefined);
-        expect(parseExternalDataSources(JSON.stringify([
-            ogcSource,
-            { ...staSource, type: "wfs" },
-            { ...staSource, url: "ftp://nope" },
-            { ...staSource, mqttUrl: "mqtt://iot.example.test:1883" },
-        ]))).toEqual([ogcSource]);
-        const live = { ...staSource, mqttUrl: "wss://iot.example.test/mqtt" };
-        expect(parseExternalDataSources(JSON.stringify([live]))).toEqual([live]);
-    });
-});
 
 describe("external data source parsing", () => {
     test("strips HTML from descriptions", () => {
@@ -138,7 +125,73 @@ describe("external data source parsing", () => {
 describe("external data sources store", () => {
     beforeEach(() => {
         setActivePinia(createPinia());
+        vi.stubEnv("VITE_BACKEND_ROOT_URL", "http://localhost:8000");
         vi.stubGlobal("fetch", vi.fn());
+    });
+
+    test("builds the service URL and maps backend service fields", () => {
+        expect(buildExternalServicesUrl().toString()).toBe(
+            "http://localhost:8000/api/v1/catalog/external-services"
+        );
+        expect(mapExternalService({
+            slug: "hamburg-sta",
+            service_type: "sensorthings",
+            title: "Hamburg SensorThings",
+            base_url: "https://iot.example.test",
+            mqtt_url: "wss://iot.example.test/mqtt",
+            capabilities,
+        })).toEqual({
+            id: "hamburg-sta",
+            type: "sensorthings",
+            title: "Hamburg SensorThings",
+            url: "https://iot.example.test",
+            mqttUrl: "wss://iot.example.test/mqtt",
+            capabilities,
+        });
+    });
+
+    test("loads backend services once and exposes the loaded state", async () => {
+        const fetchMock = vi.mocked(fetch);
+        fetchMock.mockResolvedValueOnce(jsonResponse([{
+            slug: "hamburg-ogc",
+            service_type: "ogc_api_features",
+            title: "Hamburg OGC API",
+            base_url: "https://api.example.test/datasets/v1",
+            mqtt_url: null,
+            capabilities,
+        }]));
+        const store = useExternalDataSourcesStore();
+
+        expect(store.loaded).toBe(false);
+        await store.loadExternalServices();
+        await store.loadExternalServices();
+
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(store.loaded).toBe(true);
+        expect(store.loading).toBe(false);
+        expect(store.error).toBe("");
+        expect(store.sources).toEqual([{ ...ogcSource, id: "hamburg-ogc", title: "Hamburg OGC API" }]);
+    });
+
+    test("reports service errors and allows retrying", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => undefined);
+        const fetchMock = vi.mocked(fetch);
+        fetchMock
+            .mockResolvedValueOnce(new Response("", { status: 503 }))
+            .mockResolvedValueOnce(jsonResponse([]));
+        const store = useExternalDataSourcesStore();
+
+        await expect(store.loadExternalServices()).rejects.toThrow("503");
+        expect(store.loaded).toBe(false);
+        expect(store.sources).toEqual([]);
+        expect(store.error).toBe(
+            "We couldn't reach the external catalog service. Please try again in a moment."
+        );
+
+        await expect(store.loadExternalServices()).resolves.toEqual([]);
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        expect(store.loaded).toBe(true);
+        expect(store.error).toBe("");
     });
 
     test("requests OGC JSON and caches datasets", async () => {

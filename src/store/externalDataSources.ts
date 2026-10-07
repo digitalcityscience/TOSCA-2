@@ -1,10 +1,13 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
 import { ref } from "vue";
-import {
-    getExternalDataSources,
-    type ExternalDataSourceConfig,
+import type {
+    ExternalDataSourceCapabilities,
+    ExternalDataSourceConfig,
+    ExternalDataSourceType,
 } from "../config/externalDataSources";
 import type { Feature, FeatureCollection } from "@helpers/geojson";
+import { reportDeveloperError, serviceUnavailableMessage } from "@helpers/userFacingError";
+import { fetchBackendJson, getBackendRootUrl } from "./backend";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -142,6 +145,15 @@ interface SensorThingsDatastreamResponse {
     Observations?: SensorThingsObservation[];
 }
 
+interface ExternalServiceResponse {
+    slug: string;
+    service_type: "ogc_api_features" | "sensorthings";
+    title: string;
+    base_url: string;
+    mqtt_url?: string | null;
+    capabilities: ExternalDataSourceCapabilities;
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -154,7 +166,26 @@ const SENSORTHINGS_MAX_BULK_PAGES = 50;
 export const OGC_API_MAX_FEATURES = 10000;
 export const OGC_API_MAX_PAGE_SIZE = 10000;
 const SENSORTHINGS_MAX_PROPERTY_PAGES = 10;
+const EXTERNAL_SERVICES_API_PATH = "/api/v1/catalog/external-services";
 const OGC_DATA_RELS = new Set(["data", "http://www.opengis.net/def/rel/ogc/1.0/data"]);
+
+export function buildExternalServicesUrl(): URL {
+    return new URL(EXTERNAL_SERVICES_API_PATH, getBackendRootUrl());
+}
+
+export function mapExternalService(service: ExternalServiceResponse): ExternalDataSourceConfig {
+    const type: ExternalDataSourceType = service.service_type === "ogc_api_features"
+        ? "ogc-api"
+        : "sensorthings";
+    return {
+        id: service.slug,
+        type,
+        title: service.title,
+        url: service.base_url,
+        ...(service.mqtt_url == null ? {} : { mqttUrl: service.mqtt_url }),
+        capabilities: service.capabilities,
+    };
+}
 
 function trimTrailingSlash(value: string): string {
     return value.replace(/\/+$/, "");
@@ -407,12 +438,49 @@ export function isOgcApiFeatureCollection(collection: OgcApiCollection): boolean
 // ---------------------------------------------------------------------------
 
 export const useExternalDataSourcesStore = defineStore("externalDataSources", () => {
-    const sources = ref<ExternalDataSourceConfig[]>(getExternalDataSources());
+    const sources = ref<ExternalDataSourceConfig[]>([]);
+    const loading = ref(false);
+    const loaded = ref(false);
+    const error = ref("");
     const ogcDatasetCache = new Map<string, Promise<OgcApiDataset[]>>();
     const ogcCollectionCache = new Map<string, Promise<OgcApiCollection[]>>();
     const ogcQueryablesCache = new Map<string, Promise<OgcApiQueryable[]>>();
     const sensorThingsBaseCache = new Map<string, Promise<string>>();
     const observedPropertyCache = new Map<string, Promise<SensorThingsObservedProperty[]>>();
+    let servicesLoadPromise: Promise<ExternalDataSourceConfig[]> | undefined;
+
+    async function loadExternalServices(): Promise<ExternalDataSourceConfig[]> {
+        if (loaded.value) return sources.value;
+        if (servicesLoadPromise !== undefined) return await servicesLoadPromise;
+
+        const request = (async (): Promise<ExternalDataSourceConfig[]> => {
+            loading.value = true;
+            error.value = "";
+            try {
+                const response = await fetchBackendJson<ExternalServiceResponse[]>(
+                    buildExternalServicesUrl(),
+                    "External catalog"
+                );
+                sources.value = response.map(mapExternalService);
+                loaded.value = true;
+                return sources.value;
+            } catch (cause) {
+                sources.value = [];
+                error.value = serviceUnavailableMessage("external catalog");
+                reportDeveloperError("Loading external catalog services", cause);
+                throw cause;
+            } finally {
+                loading.value = false;
+            }
+        })();
+
+        servicesLoadPromise = request;
+        try {
+            return await request;
+        } finally {
+            servicesLoadPromise = undefined;
+        }
+    }
 
     /** Caches a promise but evicts it on failure so the user can retry. */
     function cached<T>(cache: Map<string, Promise<T>>, key: string, load: () => Promise<T>): Promise<T> {
@@ -613,6 +681,10 @@ export const useExternalDataSourcesStore = defineStore("externalDataSources", ()
 
     return {
         sources,
+        loading,
+        loaded,
+        error,
+        loadExternalServices,
         getOgcApiCollectionFeatures,
         countOgcApiFeatures,
         getOgcApiQueryables,
