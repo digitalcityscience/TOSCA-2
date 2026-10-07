@@ -5,7 +5,7 @@
             <MapContainer></MapContainer>
         </div>
         <MapSideFrame side="right"></MapSideFrame>
-        <WorkspaceListing :workspaces="geoserverStore.workspaceList"></WorkspaceListing>
+        <WorkspaceListing v-if="datastoresEnabled" :workspaces="geoserverStore.workspaceList"></WorkspaceListing>
         <MapLayerListing></MapLayerListing>
         <ToolboxSidebar></ToolboxSidebar>
     </div>
@@ -18,10 +18,12 @@ import { useGeoserverStore } from "../store/geoserver";
 import MapContainer from "@components/Map/MapContainer.vue";
 import MapSideFrame from "@components/Map/MapSideFrame.vue";
 import { reportDeveloperError } from "@helpers/userFacingError";
+import { isFeatureEnabled } from "../config/features";
 const WorkspaceListing = defineAsyncComponent(async () => await import("@components/Data/Workspace/WorkspaceListing.vue"));
 const MapLayerListing = defineAsyncComponent(async () => await import("@components/Map/Layer/MapLayerListing.vue"));
 const ToolboxSidebar = defineAsyncComponent(async () => await import("@components/Map/ToolboxSidebar.vue"))
 const geoserverStore = useGeoserverStore()
+const datastoresEnabled = isFeatureEnabled("datastores")
 onMounted(()=>{
     geoserverStore.getWorkspaceList().catch((error) => {
         reportDeveloperError("Loading catalog providers and workspaces", error)

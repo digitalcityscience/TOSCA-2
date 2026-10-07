@@ -25,6 +25,7 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 import { toggleSlideoverSidebar } from "@helpers/slideoverSidebarRegistry";
+import { isFeatureEnabled, type FeatureId } from "../../config/features";
 
 interface Props {
     side: "left" | "right"
@@ -37,6 +38,7 @@ const router = useRouter()
 
 interface FrameItem {
     id: string
+    feature?: FeatureId
     label: string
     icon: string
     action: (event: MouseEvent) => void | Promise<void>
@@ -44,15 +46,17 @@ interface FrameItem {
 
 const frameLabel = computed(() => props.side === "left" ? t("map.sideFrame.leftLabel") : t("map.sideFrame.rightLabel"))
 const frameItems = computed(() => props.side === "left" ? leftItems.value : rightItems.value)
-const leftItems = computed<FrameItem[]>(() => [
+const leftItems = computed<FrameItem[]>(() => ([
     {
         id: "workspaceListing",
+        feature: "datastores",
         label: t("map.sideFrame.datastores"),
         icon: "i-lucide-database",
         action: () => toggleSlideoverSidebar("workspaceListing"),
     },
     {
         id: "events",
+        feature: "events",
         label: t("map.sideFrame.events"),
         icon: "i-lucide-calendar-days",
         action: async () => {
@@ -65,6 +69,7 @@ const leftItems = computed<FrameItem[]>(() => [
     },
     {
         id: "geostories",
+        feature: "geostories",
         label: t("map.sideFrame.geostories"),
         icon: "i-lucide-book-open",
         action: async () => {
@@ -75,7 +80,7 @@ const leftItems = computed<FrameItem[]>(() => [
             await router.push({ name: "geostory-list" })
         },
     },
-])
+] satisfies FrameItem[]).filter((item) => item.feature === undefined || isFeatureEnabled(item.feature)))
 
 const rightItems = computed<FrameItem[]>(() => [
     {

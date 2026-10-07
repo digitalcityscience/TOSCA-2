@@ -3,6 +3,13 @@ import MapView from "../views/MapView.vue"
 import { useParticipationStore } from "@store/participation"
 import { useMapStore } from "@store/map"
 import { isMapFeatureSwitch } from "./mapFeatureNavigation"
+import { isFeatureEnabled, type FeatureId } from "../config/features"
+
+declare module "vue-router" {
+    interface RouteMeta {
+        feature?: FeatureId
+    }
+}
 
 const router = createRouter({
     history: createWebHistory(String(import.meta.env.VITE_BASE_URL)),
@@ -56,6 +63,7 @@ const router = createRouter({
                 }
             ],
             meta: {
+                feature: "events",
                 sidebar: "events",
                 sidebarPosition: "left"
             }
@@ -81,6 +89,7 @@ const router = createRouter({
                 }
             ],
             meta: {
+                feature: "geostories",
                 sidebar: "geostories",
                 sidebarPosition: "left"
             }
@@ -103,6 +112,9 @@ const router = createRouter({
     ]
 })
 router.beforeEach(async (to, from) => {
+    if (to.meta.feature !== undefined && !isFeatureEnabled(to.meta.feature)) {
+        return { path: "/", replace: true }
+    }
     if (isMapFeatureSwitch(to, from)) {
         const mapStore = useMapStore()
         if (mapStore.map !== undefined) {
