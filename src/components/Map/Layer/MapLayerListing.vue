@@ -23,7 +23,7 @@
                 :description="t('map.layerListing.emptyDescription')"
                 :ui="{ root: 'py-8', description: 'text-sm' }"
             />
-            <div class="flex justify-center pt-3">
+            <div v-if="datastoresEnabled" class="flex justify-center pt-3">
                 <UButton size="sm" icon="i-lucide-database" @click="openSlideoverSidebar('workspaceListing')">
                     {{ t('map.layerListing.openDatastores') }}
                 </UButton>
@@ -42,9 +42,11 @@ import MapLayerListingItem from "./MapLayerListingItem.vue";
 // JS imports
 import { useMapStore } from "@store/map";
 import { openSlideoverSidebar } from "@helpers/slideoverSidebarRegistry";
+import { isFeatureEnabled } from "../../../config/features";
 
 const { t } = useI18n();
 const mapStore = useMapStore()
+const datastoresEnabled = isFeatureEnabled("datastores")
 const visibleLayers = computed(() => mapStore.getReorderableVisibleLayersTopToBottom())
 
 const sidebarID = "maplayerListing"
