@@ -111,7 +111,7 @@ const workspaceAccordionItems = computed<WorkspaceAccordionItem[]>(() => {
     const externalItems = externalSources.sources
         .filter((source) => source.capabilities.show_uncurated)
         .map((source): WorkspaceAccordionItem => ({
-            label: t("workspace.external.allDatasets", { source: source.title }),
+            label: source.title,
             value: `external:${source.id}`,
             kind: source.type,
             source,

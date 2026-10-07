@@ -293,7 +293,6 @@
       "badge": "3D-Tileset"
     },
     "external": {
-      "allDatasets": "Alle Datensätze · {source}",
       "searchPlaceholder": "Nach Namen filtern",
       "noResults": "Keine passenden Einträge.",
       "showMore": "Mehr anzeigen ({count} weitere)",

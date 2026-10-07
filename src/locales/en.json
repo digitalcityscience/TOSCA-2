@@ -293,7 +293,6 @@
       "badge": "3D Tileset"
     },
     "external": {
-      "allDatasets": "All datasets · {source}",
       "searchPlaceholder": "Filter by name",
       "noResults": "No matching entries.",
       "showMore": "Show more ({count} remaining)",

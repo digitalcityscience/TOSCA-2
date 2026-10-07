@@ -1,39 +1,37 @@
 <template>
     <UCard
         class="workspace-layer-card bg-default/95 dark:bg-elevated/80"
-        :ui="{ body: 'p-3' }"
+        :ui="{ header: 'p-3 pb-2', body: 'p-3 pt-1', footer: 'p-3 pt-2' }"
     >
-        <div class="flex items-start justify-between gap-3">
+        <template #header>
             <div class="min-w-0 space-y-1">
-                <p class="external-card-title text-sm font-semibold text-highlighted">
+                <p class="external-card-title font-semibold text-highlighted">
                     {{ props.layer.layerName }}
                 </p>
-                <div class="flex flex-wrap items-center gap-2">
-                    <UBadge
-                        color="neutral"
-                        variant="soft"
-                        size="sm"
-                        :label="t('workspace.external.sensorthings.badge')"
-                    />
-                    <span class="text-xs text-muted">
-                        {{ t('workspace.external.sensorthings.datastreamCount', {
-                            count: props.layer.datastreamCount.toLocaleString(locale)
-                        }) }}
-                    </span>
-                </div>
+                <UBadge
+                    color="neutral"
+                    variant="soft"
+                    size="sm"
+                    :label="t('workspace.external.sensorthings.badge')"
+                />
             </div>
-            <UButton
-                class="shrink-0"
-                size="sm"
-                :color="isOnMap ? 'primary' : 'neutral'"
-                :variant="isOnMap ? 'soft' : 'outline'"
-                :icon="isOnMap ? 'i-lucide-check' : 'i-lucide-map-plus'"
-                :label="isOnMap ? t('workspace.external.onMap') : t('workspace.layerItem.addToMap')"
-                :disabled="isOnMap"
-                :loading="isAdding"
-                @click="addToMap"
-            />
-        </div>
+        </template>
+        <span class="text-xs text-muted">
+            {{ t('workspace.external.sensorthings.datastreamCount', {
+                count: props.layer.datastreamCount.toLocaleString(locale)
+            }) }}
+        </span>
+        <template #footer>
+            <div class="flex justify-end">
+                <UButton
+                    size="sm"
+                    :label="isOnMap ? t('workspace.external.onMap') : t('workspace.layerItem.addToMap')"
+                    :disabled="isOnMap"
+                    :loading="isAdding"
+                    @click="addToMap"
+                />
+            </div>
+        </template>
     </UCard>
 </template>
 
