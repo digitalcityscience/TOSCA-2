@@ -27,9 +27,21 @@ export function ogcCollectionLayerId(sourceId: string, datasetId: string, collec
     return ["external-ogc", sourceId, datasetId, collectionId].map(sanitizeIdPart).join("--");
 }
 
-/** One map layer per observed property of a SensorThings service. */
-export function sensorThingsLayerId(sourceId: string, observedPropertyId: string | number): string {
-    return ["external-sta", sourceId, observedPropertyId].map(sanitizeIdPart).join("--");
+/** One logical map layer per curated external category item. */
+export function externalCategoryLayerId(sourceId: string, itemId: string): string {
+    return ["external-cat", sourceId, itemId].map(sanitizeIdPart).join("--");
+}
+
+/** One map layer per observed property, or per curated service/layer pair. */
+export function sensorThingsLayerId(
+    sourceId: string,
+    observedPropertyOrServiceName: string | number,
+    layerName?: string
+): string {
+    return ["external-sta", sourceId, observedPropertyOrServiceName, layerName]
+        .filter((part) => part !== undefined)
+        .map((part) => sanitizeIdPart(part as string | number))
+        .join("--");
 }
 
 export function findExternalLayer(

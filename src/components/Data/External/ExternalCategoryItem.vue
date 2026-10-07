@@ -16,11 +16,13 @@
                 <UButton
                     size="xs"
                     class="shrink-0"
-                    color="neutral"
-                    variant="outline"
-                    icon="i-lucide-map-plus"
-                    :label="t('workspace.layerItem.addToMap')"
-                    disabled
+                    :color="isOnMap ? 'primary' : 'neutral'"
+                    :variant="isOnMap ? 'soft' : 'outline'"
+                    :icon="isOnMap ? 'i-lucide-check' : 'i-lucide-map-plus'"
+                    :label="isOnMap ? t('workspace.external.onMap') : t('workspace.layerItem.addToMap')"
+                    :loading="adding"
+                    :disabled="!canAdd || unavailable || isOnMap"
+                    @click="addToMap"
                 />
             </div>
             <p v-if="props.item.description !== ''" class="text-sm text-muted line-clamp-3">{{ props.item.description }}</p>
@@ -31,10 +33,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import type { ExternalDataSourceConfig } from "../../../config/externalDataSources";
 import type { ExternalCategoryItem } from "@store/externalDataSources";
+import { useMapStore } from "@store/map";
+import { useOgcLayersStore } from "@store/ogcLayers";
+import { useSensorThingsLayersStore } from "@store/sensorThingsLayers";
+import { externalCategoryLayerId, sensorThingsLayerId } from "@helpers/externalLayers";
+import { openSlideoverSidebar } from "@helpers/slideoverSidebarRegistry";
+import { useToast } from "@helpers/toast";
+import { reportDeveloperError } from "@helpers/userFacingError";
 
 export interface Props {
     item: ExternalCategoryItem
@@ -42,6 +51,11 @@ export interface Props {
 }
 const props = defineProps<Props>()
 const { t, locale } = useI18n()
+const mapStore = useMapStore()
+const ogcLayers = useOgcLayersStore()
+const sensorThingsLayers = useSensorThingsLayersStore()
+const toast = useToast()
+const adding = ref(false)
 
 const unavailable = computed(() =>
     props.item.availability.state === "MISSING" || props.item.availability.state === "ERROR"
@@ -49,6 +63,20 @@ const unavailable = computed(() =>
 const sourceTypeLabel = computed(() => props.item.service_type === "ogc_api_features"
     ? t("workspace.external.ogc.badge")
     : t("workspace.external.sensorthings.badge")
+)
+const layerId = computed(() => props.item.service_type === "sensorthings" && props.item.sensorthings !== undefined
+    ? sensorThingsLayerId(
+        props.item.service,
+        props.item.sensorthings.service_name,
+        props.item.sensorthings.layer_name
+    )
+    : externalCategoryLayerId(props.item.service, props.item.id)
+)
+const isOnMap = computed(() => mapStore.layersOnMap.some((layer) => layer.id === layerId.value))
+const canAdd = computed(() =>
+    props.source !== undefined &&
+    ((props.item.service_type === "ogc_api_features" && props.item.ogc !== undefined) ||
+        (props.item.service_type === "sensorthings" && props.item.sensorthings !== undefined))
 )
 const featureCount = computed(() => props.item.availability.feature_count === null
     ? undefined
@@ -65,6 +93,25 @@ const availabilityMessage = computed(() => {
     }
     return ""
 })
+
+async function addToMap(): Promise<void> {
+    if (!canAdd.value || unavailable.value || isOnMap.value || props.source === undefined) return
+    adding.value = true
+    try {
+        if (props.item.service_type === "sensorthings") {
+            await sensorThingsLayers.addCategoryItemLayer(props.item, props.source)
+        } else {
+            await ogcLayers.addCategoryItemLayer(props.item, props.source)
+        }
+        mapStore.requestLayerPanelExpansion(layerId.value)
+        openSlideoverSidebar("maplayerListing")
+    } catch (error) {
+        toast.add({ severity: "error", summary: t("toast.error"), detail: error, life: 3000 })
+        reportDeveloperError(`Adding external category item ${props.item.id}`, error)
+    } finally {
+        adding.value = false
+    }
+}
 </script>
 
 <style scoped>

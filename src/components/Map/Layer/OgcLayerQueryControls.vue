@@ -13,6 +13,9 @@
                 :max="100"
             />
             <p v-if="isViewTruncated && !state.loading" class="text-warning">{{ t('map.ogcQuery.zoomIn') }}</p>
+            <p v-if="state.belowMinZoom && state.minZoom !== undefined" class="text-warning">
+                {{ t('map.ogcQuery.minimumZoom', { zoom: state.minZoom }) }}
+            </p>
             <p v-if="state.stopped" class="text-warning">{{ t('map.ogcQuery.loadAllStopped') }}</p>
             <div v-if="state.errorKind" class="flex items-center justify-between gap-2">
                 <p class="text-error">

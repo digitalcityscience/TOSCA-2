@@ -6,6 +6,7 @@ import {
     buildExternalCategoryUrl,
     buildExternalServicesUrl,
     buildSensorThingsDatastreamsUrl,
+    buildSensorThingsLayerDatastreamsUrl,
     mapExternalService,
     parseOgcApiCollections,
     parseOgcApiDatasets,
@@ -417,6 +418,51 @@ describe("external data sources store", () => {
         expect(streams.map((item) => item.id)).toEqual([1, 2]);
         expect(new URL(requestedUrl(0)).searchParams.get("$top")).toBe("1000");
         expect(streams[0].geometry).toEqual({ type: "Point", coordinates: [10, 53] });
+    });
+
+    test("loads a curated service/layer pair without requesting a count", async () => {
+        const fetchMock = vi.mocked(fetch);
+        const stream = (id: number) => ({
+            "@iot.id": id,
+            name: `Stream ${id}`,
+            Thing: { Locations: [{ location: { type: "Point", coordinates: [10, 53] } }] },
+        });
+        fetchMock
+            .mockResolvedValueOnce(jsonResponse({
+                value: [stream(1)],
+                "@iot.nextLink": "https://iot.example.test/v1.1/Datastreams?$skip=1000",
+            }))
+            .mockResolvedValueOnce(jsonResponse({ value: [stream(2)] }));
+        const store = useExternalDataSourcesStore();
+
+        const streams = await store.getAllSensorThingsLayerDatastreams(
+            { ...staSource, url: "https://iot.example.test/v1.1" },
+            "HH_STA_O'Brien",
+            "Status Ladepunkt"
+        );
+
+        expect(streams.map((item) => item.id)).toEqual([1, 2]);
+        const params = new URL(requestedUrl(0)).searchParams;
+        expect(params.get("$filter")).toBe(
+            "properties/serviceName eq 'HH_STA_O''Brien' and properties/layerName eq 'Status Ladepunkt'"
+        );
+        expect(params.get("$top")).toBe("1000");
+        expect(params.has("$count")).toBe(false);
+    });
+});
+
+describe("SensorThings curated layer URLs", () => {
+    test("escapes string literals and omits the slow count parameter", () => {
+        const url = buildSensorThingsLayerDatastreamsUrl(
+            "https://iot.example.test/v1.1",
+            "service's name",
+            "layer's name"
+        );
+
+        expect(url.searchParams.get("$filter")).toBe(
+            "properties/serviceName eq 'service''s name' and properties/layerName eq 'layer''s name'"
+        );
+        expect(url.searchParams.has("$count")).toBe(false);
     });
 });
 

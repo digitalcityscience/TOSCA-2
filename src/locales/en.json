@@ -185,6 +185,7 @@
       "statusAll": "{loaded} of {total} features loaded",
       "statusViewport": "Loading by map view: {loaded} of {inView} in view ({total} in total)",
       "zoomIn": "More features in view than can be loaded at once. Zoom in to see all of them.",
+      "minimumZoom": "Zoom in to level {zoom} to load this layer.",
       "filterRejected": "The service rejected this filter.",
       "requestFailed": "Could not load features from the service.",
       "noQueryables": "This collection doesn't list attributes to select or filter.",

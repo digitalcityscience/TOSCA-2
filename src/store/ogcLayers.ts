@@ -11,19 +11,23 @@ import {
     type OgcApiDataset,
     type OgcApiFeatureQuery,
     type OgcApiQueryable,
+    type ExternalCategoryItem,
 } from "./externalDataSources";
 import { useMapStore } from "./map";
 import type { PopupAttributeDefinition } from "./geoserver";
 import {
     addExternalGeoJSONLayer,
-    findExternalLayer,
+    externalCategoryLayerId,
     fitMapToFeatures,
     ogcCollectionLayerId,
     setExternalLayerFeatures,
 } from "@helpers/externalLayers";
 import { buildCql2Filter, type OgcFilterCondition } from "@helpers/ogcCql2";
-import { OgcLoadError, loadAllOgcFeatures } from "@helpers/ogcFeatureLoader";
+import { OGC_LOAD_ALL_CONCURRENCY, OgcLoadError, loadAllOgcFeatures } from "@helpers/ogcFeatureLoader";
 import { reportDeveloperError } from "@helpers/userFacingError";
+import { featuresToDeckChunk } from "@helpers/deckGeoJsonChunk";
+import { mapStyleColorProperties } from "@helpers/mapStyleEditing";
+import type { FeatureCollection } from "@helpers/geojson";
 
 type Bbox = [number, number, number, number];
 
@@ -41,6 +45,10 @@ export type OgcLayerErrorKind = "filter" | "request";
 export interface OgcLayerState {
     layerId: string;
     collection: OgcApiCollection;
+    /** One entry for normal layers; several for curated merged layers. */
+    collections?: OgcApiCollection[];
+    /** Per-collection schemas retain geometry names that need not be shared. */
+    collectionQueryables?: Record<string, OgcApiQueryable[]>;
     queryables: OgcApiQueryable[];
     /** Selected non-geometry properties; undefined returns all of them. */
     properties?: string[];
@@ -55,6 +63,9 @@ export interface OgcLayerState {
     errorKind?: OgcLayerErrorKind;
     /** A full load was cancelled before every page arrived. */
     stopped?: boolean;
+    minZoom?: number;
+    belowMinZoom?: boolean;
+    color?: string;
 }
 
 export interface OgcLayerQueryUpdate {
@@ -91,6 +102,46 @@ export function queryableAttributeLabels(
     return attributes.length === 0 ? undefined : attributes;
 }
 
+/** Queryables present in every collection, keeping the first collection's labels. */
+export function commonQueryables(collections: OgcApiQueryable[][]): OgcApiQueryable[] {
+    if (collections.length === 0) return [];
+    return collections[0].filter((queryable) =>
+        collections.slice(1).every((items) => items.some((item) => item.name === queryable.name))
+    );
+}
+
+function combinedBbox(collections: OgcApiCollection[]): Bbox | undefined {
+    const boxes = collections
+        .map((collection) => collection.bbox)
+        .filter((bbox): bbox is number[] => bbox !== undefined && bbox.length >= 4);
+    if (boxes.length === 0) return undefined;
+    return [
+        Math.min(...boxes.map((bbox) => bbox[0])),
+        Math.min(...boxes.map((bbox) => bbox[1])),
+        Math.max(...boxes.map((bbox) => bbox[2])),
+        Math.max(...boxes.map((bbox) => bbox[3])),
+    ];
+}
+
+function sumCounts(counts: Array<number | undefined>): number | undefined {
+    return counts.every((count) => count !== undefined)
+        ? counts.reduce((sum, count) => sum + (count ?? 0), 0)
+        : undefined;
+}
+
+function mergeFeatureResults(results: Array<{ features: FeatureCollection, numberMatched?: number }>): {
+    features: FeatureCollection
+    numberMatched?: number
+} {
+    return {
+        features: {
+            type: "FeatureCollection",
+            features: results.flatMap((result) => result.features.features),
+        },
+        numberMatched: sumCounts(results.map((result) => result.numberMatched)),
+    };
+}
+
 function isAbort(error: unknown): boolean {
     return error instanceof DOMException && error.name === "AbortError";
 }
@@ -115,6 +166,15 @@ export const useOgcLayersStore = defineStore("ogcLayers", () => {
 
     function isLayerVisible(layerId: string): boolean {
         return mapStore.map?.getLayoutProperty?.(layerId, "visibility") !== "none";
+    }
+
+    function stateCollections(state: OgcLayerState): OgcApiCollection[] {
+        return state.collections ?? [state.collection];
+    }
+
+    function belowMinimumZoom(state: OgcLayerState): boolean {
+        return state.minZoom !== undefined &&
+            (mapStore.map?.getZoom?.() ?? state.minZoom) < state.minZoom;
     }
 
     function onMapMoveEnd(): void {
@@ -169,19 +229,62 @@ export const useOgcLayersStore = defineStore("ogcLayers", () => {
         record.attributes = queryableAttributeLabels(state.queryables, state.properties);
     }
 
-    function selectedProperties(state: OgcLayerState): string[] | undefined {
+    function selectedProperties(
+        state: OgcLayerState,
+        collection: OgcApiCollection
+    ): string[] | undefined {
         if (state.properties === undefined) return undefined;
         // Without its geometry property a feature comes back with `geometry: null`.
-        const geometryNames = state.queryables.filter((item) => item.isGeometry).map((item) => item.name);
-        return [...state.properties, ...geometryNames];
+        const queryables = state.collectionQueryables?.[collection.id] ?? state.queryables;
+        const geometryNames = queryables.filter((item) => item.isGeometry).map((item) => item.name);
+        return [...new Set([...state.properties, ...geometryNames])];
     }
 
-    function featureQuery(state: OgcLayerState, signal?: AbortSignal): OgcApiFeatureQuery {
+    function featureQuery(
+        state: OgcLayerState,
+        collection: OgcApiCollection,
+        signal?: AbortSignal
+    ): OgcApiFeatureQuery {
         return {
-            properties: selectedProperties(state),
+            properties: selectedProperties(state, collection),
             filter: buildCql2Filter(state.conditions, state.queryables),
             signal,
         };
+    }
+
+    function replaceLayerFeatures(layerId: string, features: FeatureCollection): void {
+        const record = mapStore.layersOnMap.find((layer) => layer.id === layerId);
+        if (record?.renderer === "deckgl") {
+            mapStore.clearDeckGeoJsonChunks(layerId);
+            if (features.features.length > 0) {
+                mapStore.appendDeckGeoJsonChunk(layerId, featuresToDeckChunk(features.features));
+            }
+            record.layerData = features;
+            return;
+        }
+        setExternalLayerFeatures(mapStore, layerId, features);
+    }
+
+    async function loadCollections(
+        state: OgcLayerState,
+        signal: AbortSignal,
+        view?: Bbox
+    ): Promise<{ features: FeatureCollection, numberMatched?: number }> {
+        const results = await Promise.all(stateCollections(state).map(async (collection) => {
+            const query = featureQuery(state, collection, signal);
+            if (view !== undefined) {
+                const bbox = intersectBbox(view, collection.bbox);
+                if (bbox === undefined) {
+                    return {
+                        features: { type: "FeatureCollection" as const, features: [] },
+                        numberMatched: 0,
+                    };
+                }
+                query.bbox = bbox;
+            }
+            return await externalSources.getOgcApiCollectionFeatures(collection, query);
+        }));
+        return mergeFeatureResults(results);
     }
 
     /** Reloads a layer's features for its current query (and view). */
@@ -191,28 +294,27 @@ export const useOgcLayersStore = defineStore("ogcLayers", () => {
             await runFullLoad(layerId);
             return;
         }
-        if (state === undefined || findExternalLayer(mapStore, layerId) === undefined) return;
+        if (state === undefined || !mapStore.layersOnMap.some((layer) => layer.id === layerId)) return;
         controllers.get(layerId)?.abort();
         const controller = new AbortController();
         controllers.set(layerId, controller);
         state.loading = true;
         state.errorKind = undefined;
         try {
-            const query = featureQuery(state, controller.signal);
-            if (state.mode === "viewport") {
-                const view = currentViewBbox();
-                const bbox = view === undefined ? undefined : intersectBbox(view, state.collection.bbox);
-                if (view !== undefined && bbox === undefined) {
-                    setExternalLayerFeatures(mapStore, layerId, { type: "FeatureCollection", features: [] });
-                    state.viewMatched = 0;
-                    state.loadedCount = 0;
-                    return;
-                }
-                query.bbox = bbox;
+            state.belowMinZoom = state.mode === "viewport" && belowMinimumZoom(state);
+            if (state.belowMinZoom) {
+                replaceLayerFeatures(layerId, { type: "FeatureCollection", features: [] });
+                state.viewMatched = undefined;
+                state.loadedCount = 0;
+                return;
             }
-            const result = await externalSources.getOgcApiCollectionFeatures(state.collection, query);
+            let view: Bbox | undefined;
+            if (state.mode === "viewport") {
+                view = currentViewBbox();
+            }
+            const result = await loadCollections(state, controller.signal, view);
             if (controller.signal.aborted) return;
-            setExternalLayerFeatures(mapStore, layerId, result.features);
+            replaceLayerFeatures(layerId, result.features);
             state.loadedCount = result.features.features.length;
             if (state.mode === "viewport") {
                 state.viewMatched = result.numberMatched;
@@ -244,18 +346,34 @@ export const useOgcLayersStore = defineStore("ogcLayers", () => {
         state.loadedCount = 0;
         mapStore.clearDeckGeoJsonChunks(layerId);
         try {
-            const { properties, filter } = featureQuery(state);
-            await loadAllOgcFeatures({
-                firstPageUrl: buildOgcApiItemsUrl(state.collection, { properties, filter }, OGC_API_MAX_PAGE_SIZE).toString(),
-                signal: controller.signal,
-                onTotal: (total) => {
-                    state.totalMatched = total ?? state.totalMatched;
-                },
-                onChunk: (chunk, loaded) => {
-                    mapStore.appendDeckGeoJsonChunk(layerId, chunk);
-                    state.loadedCount = loaded;
-                },
-            });
+            const collections = stateCollections(state);
+            const loadedByCollection = new Map<string, number>();
+            const totalsByCollection = new Map<string, number | undefined>();
+            const concurrency = Math.max(1, Math.floor(OGC_LOAD_ALL_CONCURRENCY / collections.length));
+            await Promise.all(collections.map(async (collection) => {
+                const { properties, filter } = featureQuery(state, collection);
+                await loadAllOgcFeatures({
+                    firstPageUrl: buildOgcApiItemsUrl(
+                        collection,
+                        { properties, filter },
+                        OGC_API_MAX_PAGE_SIZE
+                    ).toString(),
+                    concurrency,
+                    signal: controller.signal,
+                    onTotal: (total) => {
+                        totalsByCollection.set(collection.id, total);
+                        state.totalMatched = sumCounts(collections.map((item) =>
+                            totalsByCollection.get(item.id)
+                        )) ?? state.totalMatched;
+                    },
+                    onChunk: (chunk, loaded) => {
+                        loadedByCollection.set(collection.id, loaded);
+                        mapStore.appendDeckGeoJsonChunk(layerId, chunk);
+                        state.loadedCount = [...loadedByCollection.values()]
+                            .reduce((sum, count) => sum + count, 0);
+                    },
+                });
+            }));
         } catch (error) {
             if (isAbort(error) || controller.signal.aborted) return;
             state.errorKind = error instanceof OgcLoadError && error.status === 400 ? "filter" : "request";
@@ -278,18 +396,26 @@ export const useOgcLayersStore = defineStore("ogcLayers", () => {
         if (state === undefined || record === undefined) return;
         if (state.mode !== "full") {
             controllers.get(layerId)?.abort();
-            const index = mapStore.layersOnMap.indexOf(record);
-            const { displayName, externalSource } = record;
-            replacing.add(layerId);
-            try {
-                await mapStore.deleteMapLayer(layerId, false);
-                if (mapStore.map?.getSource(layerId) !== undefined) mapStore.deleteMapDataSource(layerId);
-                mapStore.addDeckGeoJsonLayer({ identifier: layerId, displayName, index, externalSource });
-                // The swap mounts a new list item; keep its panel (and progress) open.
-                mapStore.requestLayerPanelExpansion(layerId);
-                applyAttributeLabels(layerId);
-            } finally {
-                replacing.delete(layerId);
+            if (record.renderer !== "deckgl") {
+                const index = mapStore.layersOnMap.indexOf(record);
+                const { displayName, externalSource } = record;
+                replacing.add(layerId);
+                try {
+                    await mapStore.deleteMapLayer(layerId, false);
+                    if (mapStore.map?.getSource(layerId) !== undefined) mapStore.deleteMapDataSource(layerId);
+                    mapStore.addDeckGeoJsonLayer({ identifier: layerId, displayName, index, externalSource });
+                    // The swap mounts a new list item; keep its panel (and progress) open.
+                    mapStore.requestLayerPanelExpansion(layerId);
+                    applyAttributeLabels(layerId);
+                } finally {
+                    replacing.delete(layerId);
+                }
+            }
+            if (state.color !== undefined) {
+                mapStore.setDeckGeoJsonStyle(layerId, {
+                    fillColor: state.color,
+                    lineColor: state.color,
+                });
             }
             state.mode = "full";
             state.viewMatched = undefined;
@@ -312,6 +438,140 @@ export const useOgcLayersStore = defineStore("ogcLayers", () => {
         return totalMatched !== undefined && totalMatched <= OGC_API_MAX_FEATURES ? "all" : "viewport";
     }
 
+    function applyLayerColor(layerId: string, color: string | undefined): void {
+        if (color === undefined) return;
+        const record = mapStore.layersOnMap.find((layer) => layer.id === layerId);
+        if (record?.renderer === "deckgl") {
+            mapStore.setDeckGeoJsonStyle(layerId, { fillColor: color, lineColor: color });
+            return;
+        }
+        const property = record === undefined ? undefined : mapStyleColorProperties(record.type)[0];
+        if (property !== undefined) {
+            mapStore.setStandaloneLayerPaintColor(layerId, property, color);
+        }
+    }
+
+    async function addCollectionsLayer(params: {
+        source: ExternalDataSourceConfig
+        dataset: OgcApiDataset
+        collections: OgcApiCollection[]
+        layerId: string
+        displayName: string
+        initialProperties?: string[]
+        initialConditions?: OgcFilterCondition[]
+        minZoom?: number
+        color?: string
+        fallbackTotal?: number
+        forceDeck?: boolean
+    }): Promise<OgcLayerState> {
+        const {
+            source,
+            dataset,
+            collections,
+            layerId,
+            displayName,
+            minZoom,
+            color,
+            fallbackTotal,
+            forceDeck = false,
+        } = params;
+        if (collections.length === 0) throw new Error(`No OGC collections configured for ${displayName}`);
+
+        const queryableLists = await Promise.all(collections.map(async (collection) =>
+            await externalSources.getOgcApiQueryables(collection).catch((error: unknown) => {
+                reportDeveloperError(`Loading queryables for ${collection.id}`, error);
+                return [] as OgcApiQueryable[];
+            })
+        ));
+        const queryables = commonQueryables(queryableLists);
+        const selectable = new Set(queryables.filter((item) => !item.isGeometry).map((item) => item.name));
+        const initialProperties = params.initialProperties?.filter((name) => selectable.has(name));
+        const properties = initialProperties !== undefined && initialProperties.length > 0
+            ? initialProperties
+            : undefined;
+        const conditions = (params.initialConditions ?? [])
+            .filter((condition) => selectable.has(condition.property));
+        const filter = buildCql2Filter(conditions, queryables);
+        const counts = await Promise.all(collections.map(async (collection) =>
+            await externalSources.countOgcApiFeatures(collection, { filter })
+                .catch(() => collection.itemCount)
+        ));
+        const totalMatched = sumCounts(counts) ?? fallbackTotal;
+        const mode = modeFor(totalMatched);
+        const extent = combinedBbox(collections);
+        if (mode === "viewport" && extent !== undefined) {
+            mapStore.map?.fitBounds(
+                [[extent[0], extent[1]], [extent[2], extent[3]]],
+                { padding: 40, duration: 0 }
+            );
+        }
+
+        const collectionQueryables = Object.fromEntries(
+            collections.map((collection, index) => [collection.id, queryableLists[index]])
+        );
+        const state: OgcLayerState = {
+            layerId,
+            collection: collections[0],
+            collections,
+            collectionQueryables,
+            queryables,
+            properties,
+            conditions,
+            mode,
+            totalMatched,
+            loadedCount: 0,
+            loading: false,
+            minZoom,
+            color,
+        };
+        state.belowMinZoom = mode === "viewport" && belowMinimumZoom(state);
+        const view = mode === "viewport" && !state.belowMinZoom
+            ? currentViewBbox()
+            : undefined;
+        const result = state.belowMinZoom
+            ? { features: { type: "FeatureCollection" as const, features: [] } }
+            : await loadCollections(state, new AbortController().signal, view);
+
+        const externalSource = {
+            type: "ogc-api" as const,
+            sourceId: source.id,
+            sourceTitle: `${source.title} · ${dataset.title}`,
+            totalCount: totalMatched,
+            bbox: extent,
+        };
+        // Merged collections use deck.gl from the outset: one binary layer can
+        // render mixed point, line and polygon geometries without hiding a family.
+        const useDeck = forceDeck || state.belowMinZoom === true;
+        if (useDeck) {
+            const record = mapStore.addDeckGeoJsonLayer({
+                identifier: layerId,
+                displayName,
+                externalSource,
+            });
+            if (result.features.features.length > 0) {
+                mapStore.appendDeckGeoJsonChunk(layerId, featuresToDeckChunk(result.features.features));
+            }
+            record.layerData = result.features;
+            if (mode === "all") fitMapToFeatures(mapStore.map, result.features);
+        } else {
+            await addExternalGeoJSONLayer(mapStore, {
+                identifier: layerId,
+                displayName,
+                features: result.features,
+                externalSource,
+                fitToFeatures: mode === "all",
+            });
+        }
+        state.loadedCount = result.features.features.length;
+        state.viewMatched = mode === "viewport" ? result.numberMatched : undefined;
+        state.totalMatched ??= mode === "all" ? state.loadedCount : undefined;
+        layers.value[layerId] = state;
+        applyLayerColor(layerId, color);
+        if (mode === "viewport") ensureMapListener();
+        applyAttributeLabels(layerId);
+        return state;
+    }
+
     /**
      * Adds a collection as one map layer. Small collections are loaded in
      * full; large ones (or ones without a count) load by map view.
@@ -322,52 +582,52 @@ export const useOgcLayersStore = defineStore("ogcLayers", () => {
         collection: OgcApiCollection
     }): Promise<OgcLayerState> {
         const { source, dataset, collection } = params;
-        const layerId = ogcCollectionLayerId(source.id, dataset.id, collection.id);
-        const [queryables, totalMatched] = await Promise.all([
-            externalSources.getOgcApiQueryables(collection).catch((error: unknown) => {
-                reportDeveloperError(`Loading queryables for ${collection.id}`, error);
-                return [] as OgcApiQueryable[];
-            }),
-            externalSources.countOgcApiFeatures(collection).catch(() => collection.itemCount),
-        ]);
-        const mode = modeFor(totalMatched ?? collection.itemCount);
-        let bbox: Bbox | undefined;
-        if (mode === "viewport") {
-            // Frame the collection first so the initial view load is meaningful.
-            const extent = collection.bbox;
-            if (extent !== undefined && extent.length >= 4) {
-                mapStore.map?.fitBounds([[extent[0], extent[1]], [extent[2], extent[3]]], { padding: 40, duration: 0 });
-            }
-            const view = currentViewBbox();
-            bbox = view === undefined ? undefined : intersectBbox(view, extent);
-        }
-        const result = await externalSources.getOgcApiCollectionFeatures(collection, { bbox });
-        await addExternalGeoJSONLayer(mapStore, {
-            identifier: layerId,
+        return await addCollectionsLayer({
+            source,
+            dataset,
+            collections: [collection],
+            layerId: ogcCollectionLayerId(source.id, dataset.id, collection.id),
             displayName: collection.title,
-            features: result.features,
-            externalSource: {
-                type: "ogc-api",
-                sourceTitle: `${source.title} · ${dataset.title}`,
-                totalCount: totalMatched,
-                bbox: collection.bbox,
-            },
-            fitToFeatures: mode === "all",
         });
-        layers.value[layerId] = {
-            layerId,
-            collection,
-            queryables,
-            conditions: [],
-            mode,
-            totalMatched: totalMatched ?? (mode === "all" ? result.features.features.length : undefined),
-            viewMatched: mode === "viewport" ? result.numberMatched : undefined,
-            loadedCount: result.features.features.length,
-            loading: false,
-        };
-        if (mode === "viewport") ensureMapListener();
-        applyAttributeLabels(layerId);
-        return layers.value[layerId];
+    }
+
+    async function addCategoryItemLayer(
+        item: ExternalCategoryItem,
+        source: ExternalDataSourceConfig
+    ): Promise<OgcLayerState> {
+        if (item.service_type !== "ogc_api_features" || item.ogc === undefined) {
+            throw new Error(`${item.title} is not an OGC API category item`);
+        }
+        const datasets = await externalSources.getOgcApiDatasets(source);
+        const dataset = item.ogc.dataset_id === ""
+            ? datasets[0]
+            : datasets.find((candidate) => candidate.id === item.ogc?.dataset_id);
+        if (dataset === undefined) {
+            throw new Error(`OGC dataset ${item.ogc.dataset_id || "(default)"} was not found`);
+        }
+        const availableCollections = await externalSources.getOgcApiCollections(dataset);
+        const byId = new Map(availableCollections.map((collection) => [collection.id, collection]));
+        const collections = item.ogc.collection_ids.map((id) => {
+            const collection = byId.get(id);
+            if (collection === undefined) throw new Error(`OGC collection ${id} was not found`);
+            return collection;
+        });
+        return await addCollectionsLayer({
+            source,
+            dataset,
+            collections,
+            layerId: externalCategoryLayerId(source.id, item.id),
+            displayName: item.title,
+            initialProperties: item.defaults?.properties,
+            initialConditions: item.defaults?.filter.map((condition) => ({
+                ...condition,
+                value: String(condition.value),
+            })),
+            minZoom: item.loading.min_zoom ?? undefined,
+            color: item.style.color,
+            fallbackTotal: item.availability.feature_count ?? undefined,
+            forceDeck: collections.length > 1,
+        });
     }
 
     /**
@@ -387,7 +647,10 @@ export const useOgcLayersStore = defineStore("ogcLayers", () => {
         state.errorKind = undefined;
         state.loading = true;
         try {
-            state.totalMatched = await externalSources.countOgcApiFeatures(state.collection, { filter });
+            const counts = await Promise.all(stateCollections(state).map(async (collection) =>
+                await externalSources.countOgcApiFeatures(collection, { filter })
+            ));
+            state.totalMatched = sumCounts(counts);
         } catch (error) {
             state.loading = false;
             state.errorKind = error instanceof ExternalRequestError && error.status === 400 ? "filter" : "request";
@@ -430,6 +693,7 @@ export const useOgcLayersStore = defineStore("ogcLayers", () => {
     return {
         layers,
         addCollectionLayer,
+        addCategoryItemLayer,
         updateLayerQuery,
         refreshLayer,
         loadAll,
