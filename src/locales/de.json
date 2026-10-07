@@ -302,6 +302,9 @@
         "itemCount": "{count} Datensätze",
         "noItems": "Diese Kategorie enthält keine Datensätze.",
         "featureCount": "{count} Objekte",
+        "descriptionMore": "Mehr",
+        "descriptionLess": "Weniger",
+        "otherGroup": "Weitere Datensätze",
         "missing": "Dieser Datensatz ist derzeit nicht verfügbar.",
         "error": "Die Verfügbarkeit dieses Datensatzes konnte nicht geprüft werden."
       },

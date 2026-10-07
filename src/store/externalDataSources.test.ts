@@ -247,7 +247,11 @@ describe("external data sources store", () => {
                 description: "Bike stations",
                 service: "hamburg-ogc",
                 service_type: "ogc_api_features",
-                ogc: { dataset_id: "stadtrad", collection_ids: ["stadtrad_stationen"] },
+                ogc: {
+                    dataset_id: "stadtrad",
+                    dataset_title: "Urban mobility",
+                    collection_id: "stadtrad_stationen",
+                },
                 style: { color: "#0288d1" },
                 loading: { min_zoom: null },
                 defaults: { properties: [], filter: [] },

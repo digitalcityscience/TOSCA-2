@@ -12,6 +12,7 @@ vi.mock("@helpers/ogcFeatureLoader", async (importOriginal) => ({
 const fakeMap = vi.hoisted(() => ({ store: undefined as unknown }));
 vi.mock("./map", () => ({ useMapStore: () => fakeMap.store }));
 
+const { useExternalDataSourcesStore } = await import("./externalDataSources");
 const { useOgcLayersStore } = await import("./ogcLayers");
 
 function createFakeMapStore() {
@@ -28,7 +29,23 @@ function createFakeMapStore() {
     ]);
     const store = {
         layersOnMap,
-        map: { getSource: vi.fn(() => ({})), off: vi.fn(), on: vi.fn() },
+        map: {
+            getSource: vi.fn(() => ({})),
+            fitBounds: vi.fn(),
+            off: vi.fn(),
+            on: vi.fn(),
+        },
+        geometryConversion: vi.fn(() => "circle" as const),
+        addMapDataSource: vi.fn(),
+        addMapLayer: vi.fn(async (params: { identifier: string, displayName?: string }) => {
+            layersOnMap.push({
+                id: params.identifier,
+                source: params.identifier,
+                sourceType: "geojson",
+                type: "circle",
+                displayName: params.displayName,
+            });
+        }),
         deleteMapLayer: vi.fn(async (id: string) => {
             layersOnMap.splice(layersOnMap.findIndex((layer) => layer.id === id), 1);
         }),
@@ -49,6 +66,7 @@ function createFakeMapStore() {
         setDeckGeoJsonStyle: vi.fn(),
         requestLayerPanelExpansion: vi.fn(),
         clearDeckGeoJsonChunks: vi.fn(),
+        setStandaloneLayerPaintColor: vi.fn(),
     };
     return store;
 }
@@ -204,29 +222,87 @@ describe("OGC load all (deck.gl)", () => {
         vi.unstubAllGlobals();
     });
 
-    test("fans a merged layer out across collections and aggregates progress", async () => {
-        loaderMock.loadAllOgcFeatures.mockImplementation(async (options) => {
-            const isFirst = options.firstPageUrl.includes("/first/");
-            options.onTotal?.(isFirst ? 3 : 2);
-            options.onChunk({ featureCount: isFirst ? 3 : 2 }, isFirst ? 3 : 2);
+});
+
+describe("OGC category layers", () => {
+    test("loads only the collection selected by collection_id", async () => {
+        setActivePinia(createPinia());
+        const map = createFakeMapStore();
+        fakeMap.store = map;
+        const externalSources = useExternalDataSourcesStore();
+        const dataset = {
+            id: "mobility",
+            title: "Urban mobility",
+            description: "",
+            landingPageUrl: "https://x.test/mobility",
+        };
+        const selectedCollection = {
+            id: "stations",
+            title: "Stations",
+            description: "",
+            itemsUrl: "https://x.test/stations/items?f=json",
+        };
+        const otherCollection = {
+            id: "vehicles",
+            title: "Vehicles",
+            description: "",
+            itemsUrl: "https://x.test/vehicles/items?f=json",
+        };
+        vi.spyOn(externalSources, "getOgcApiDatasets").mockResolvedValue([dataset]);
+        vi.spyOn(externalSources, "getOgcApiCollections").mockResolvedValue([
+            selectedCollection,
+            otherCollection,
+        ]);
+        vi.spyOn(externalSources, "getOgcApiQueryables").mockResolvedValue([]);
+        vi.spyOn(externalSources, "countOgcApiFeatures").mockResolvedValue(1);
+        const getFeatures = vi.spyOn(externalSources, "getOgcApiCollectionFeatures").mockResolvedValue({
+            features: {
+                type: "FeatureCollection",
+                features: [{
+                    type: "Feature",
+                    geometry: { type: "Point", coordinates: [10, 53] },
+                    properties: {},
+                }],
+            },
+            numberMatched: 1,
         });
+        const source = {
+            id: "hamburg-ogc",
+            type: "ogc-api" as const,
+            title: "Hamburg OGC API",
+            url: "https://x.test",
+            attribution: "Hamburg",
+            capabilities: {
+                show_uncurated: false,
+                full_load: true,
+                live_updates: false,
+                server_filters: true,
+                max_features: null,
+            },
+        };
         const store = useOgcLayersStore();
-        seedState(store);
-        store.layers.parcels.collections = [
-            { id: "first", title: "First", description: "", itemsUrl: "https://x.test/first/items?f=json" },
-            { id: "second", title: "Second", description: "", itemsUrl: "https://x.test/second/items?f=json" },
-        ];
 
-        await store.loadAll("parcels");
+        const state = await store.addCategoryItemLayer({
+            id: "bike-stations",
+            title: "Bike stations",
+            description: "",
+            service: source.id,
+            service_type: "ogc_api_features",
+            ogc: {
+                dataset_id: dataset.id,
+                dataset_title: dataset.title,
+                collection_id: selectedCollection.id,
+            },
+            style: { color: "#0288d1" },
+            loading: { min_zoom: null },
+            defaults: { properties: [], filter: [] },
+            availability: { state: "OK", feature_count: 1, checked_at: null },
+        }, source);
 
-        expect(loaderMock.loadAllOgcFeatures).toHaveBeenCalledTimes(2);
-        expect(map.appendDeckGeoJsonChunk).toHaveBeenCalledTimes(2);
-        expect(store.layers.parcels).toMatchObject({
-            mode: "full",
-            totalMatched: 5,
-            loadedCount: 5,
-            loading: false,
-        });
+        expect(state.collection).toEqual(selectedCollection);
+        expect(getFeatures).toHaveBeenCalledTimes(1);
+        expect(getFeatures).toHaveBeenCalledWith(selectedCollection, expect.any(Object));
+        expect(getFeatures).not.toHaveBeenCalledWith(otherCollection, expect.any(Object));
     });
 });
 

@@ -108,7 +108,8 @@ export interface ExternalCategoryItem {
     service_type: "ogc_api_features" | "sensorthings";
     ogc?: {
         dataset_id: string;
-        collection_ids: string[];
+        dataset_title: string;
+        collection_id: string;
     };
     sensorthings?: {
         service_name: string;
