@@ -108,14 +108,14 @@ const workspaceAccordionItems = computed<WorkspaceAccordionItem[]>(() => {
             kind: "external-category",
             category,
         }))
-    // Public third-party services remain available until F6 applies the
-    // show_uncurated capability. Their datasets are still loaded lazily.
-    const externalItems = externalSources.sources.map((source): WorkspaceAccordionItem => ({
-        label: source.title,
-        value: `external:${source.id}`,
-        kind: source.type,
-        source,
-    }))
+    const externalItems = externalSources.sources
+        .filter((source) => source.capabilities.show_uncurated)
+        .map((source): WorkspaceAccordionItem => ({
+            label: t("workspace.external.allDatasets", { source: source.title }),
+            value: `external:${source.id}`,
+            kind: source.type,
+            source,
+        }))
     // Synthetic accordion entry for the deck.gl 3D Tiles demo — see
     // Workspace3DDataListingItem.vue for why this bypasses the real catalog.
     const mock3dItem: WorkspaceAccordionItem = {

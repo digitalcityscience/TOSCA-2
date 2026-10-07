@@ -57,6 +57,12 @@ export interface SensorThingsDatastream {
     geometry?: GeoJSON.Geometry;
 }
 
+export interface SensorThingsLayerSummary {
+    serviceName: string;
+    layerName: string;
+    datastreamCount: number;
+}
+
 export type OgcQueryableType = "string" | "number" | "integer" | "boolean" | "other";
 
 export interface OgcApiQueryable {
@@ -194,6 +200,10 @@ interface SensorThingsDatastreamResponse {
     Observations?: SensorThingsObservation[];
 }
 
+interface SensorThingsLayerPropertiesResponse {
+    properties?: Record<string, unknown> | null;
+}
+
 interface ExternalServiceResponse {
     slug: string;
     service_type: "ogc_api_features" | "sensorthings";
@@ -212,6 +222,7 @@ export const SENSORTHINGS_PAGE_SIZE = 20;
 /** Page size used when loading every datastream of an observed property. */
 const SENSORTHINGS_BULK_PAGE_SIZE = 1000;
 const SENSORTHINGS_MAX_BULK_PAGES = 50;
+const SENSORTHINGS_LAYER_CATALOG_PAGE_SIZE = 1000;
 /** Upper bound of features loaded from one OGC API collection. */
 export const OGC_API_MAX_FEATURES = 10000;
 export const OGC_API_MAX_PAGE_SIZE = 10000;
@@ -541,6 +552,7 @@ export const useExternalDataSourcesStore = defineStore("externalDataSources", ()
     const ogcQueryablesCache = new Map<string, Promise<OgcApiQueryable[]>>();
     const sensorThingsBaseCache = new Map<string, Promise<string>>();
     const observedPropertyCache = new Map<string, Promise<SensorThingsObservedProperty[]>>();
+    const sensorThingsLayerCatalogCache = new Map<string, Promise<SensorThingsLayerSummary[]>>();
     let servicesLoadPromise: Promise<ExternalDataSourceConfig[]> | undefined;
     let categoriesLoadPromise: Promise<ExternalCategorySummary[]> | undefined;
     const categoryDetailPromises = new Map<string, Promise<ExternalCategoryDetail>>();
@@ -727,6 +739,53 @@ export const useExternalDataSourcesStore = defineStore("externalDataSources", ()
     }
 
     /**
+     * Distinct Hamburg serviceName/layerName pairs. Only lightweight
+     * Datastream properties are paged, then the result is cached per source.
+     */
+    async function getSensorThingsLayerCatalog(
+        source: ExternalDataSourceConfig
+    ): Promise<SensorThingsLayerSummary[]> {
+        return await cached(sensorThingsLayerCatalogCache, source.id, async () => {
+            const baseUrl = await getSensorThingsBaseUrl(source);
+            const url = new URL(`${baseUrl}/Datastreams`);
+            url.searchParams.set("$top", String(SENSORTHINGS_LAYER_CATALOG_PAGE_SIZE));
+            url.searchParams.set("$select", "properties");
+
+            const services = new Map<string, Map<string, number>>();
+            let next: string | undefined = url.toString();
+            for (let page = 0; next !== undefined && page < SENSORTHINGS_MAX_BULK_PAGES; page++) {
+                const response: SensorThingsCollectionResponse<SensorThingsLayerPropertiesResponse> =
+                    await fetchExternalJson(next, `${source.title} layer catalog`);
+                for (const datastream of response.value) {
+                    const serviceName = datastream.properties?.serviceName;
+                    const layerName = datastream.properties?.layerName;
+                    if (typeof serviceName !== "string" || serviceName.trim() === "" ||
+                        typeof layerName !== "string" || layerName.trim() === "") continue;
+                    const layers = services.get(serviceName) ?? new Map<string, number>();
+                    layers.set(layerName, (layers.get(layerName) ?? 0) + 1);
+                    services.set(serviceName, layers);
+                }
+                next = response["@iot.nextLink"] === undefined
+                    ? undefined
+                    : assertSameOrigin(response["@iot.nextLink"], baseUrl);
+            }
+
+            return [...services.entries()]
+                .flatMap(([serviceName, layers]) => [...layers.entries()].map(
+                    ([layerName, datastreamCount]): SensorThingsLayerSummary => ({
+                        serviceName,
+                        layerName,
+                        datastreamCount,
+                    })
+                ))
+                .sort((left, right) =>
+                    left.serviceName.localeCompare(right.serviceName) ||
+                    left.layerName.localeCompare(right.layerName)
+                );
+        });
+    }
+
+    /**
      * One page of datastreams for an observed property, each with its Thing
      * and latest observation. Pass the previous page's `nextLink` to continue.
      */
@@ -891,6 +950,7 @@ export const useExternalDataSourcesStore = defineStore("externalDataSources", ()
         getOgcApiDatasets,
         getOgcApiCollections,
         getSensorThingsBaseUrl,
+        getSensorThingsLayerCatalog,
         getSensorThingsObservedProperties,
         getSensorThingsDatastreams,
     };

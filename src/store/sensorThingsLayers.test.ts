@@ -111,4 +111,43 @@ describe("SensorThings category layers", () => {
             "#0288d1"
         );
     });
+
+    test("uses the shared service/layer path for uncurated datasets", async () => {
+        fakes.getLayerDatastreams.mockResolvedValue([{
+            id: 9,
+            name: "Counter",
+            description: "",
+            geometry: { type: "Point", coordinates: [10, 53] },
+        }]);
+        const source = {
+            id: "hamburg-sta",
+            type: "sensorthings" as const,
+            title: "Hamburg SensorThings",
+            url: "https://iot.example.test/v1.1",
+            attribution: "Hamburg",
+            capabilities: {
+                show_uncurated: true,
+                full_load: false,
+                live_updates: false,
+                server_filters: false,
+                max_features: null,
+            },
+        };
+        const store = useSensorThingsLayersStore();
+
+        const record = await store.addServiceLayer({
+            source,
+            serviceName: "Traffic",
+            layerName: "Volume",
+            displayName: "Volume",
+            totalCount: 42,
+        });
+
+        expect(fakes.getLayerDatastreams).toHaveBeenCalledWith(source, "Traffic", "Volume");
+        expect(record.id).toBe("external-sta--hamburg-sta--Traffic--Volume");
+        expect(record.displayName).toBe("Volume");
+        expect(record.externalSource?.totalCount).toBe(42);
+        const map = fakes.map as { setStandaloneLayerPaintColor: ReturnType<typeof vi.fn> };
+        expect(map.setStandaloneLayerPaintColor).not.toHaveBeenCalled();
+    });
 });
