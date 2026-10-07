@@ -185,6 +185,7 @@
       "statusAll": "{total} objeden {loaded} tanesi yüklendi",
       "statusViewport": "Harita görünümüne göre yükleniyor: görünümdeki {inView} objeden {loaded} tanesi (toplam {total})",
       "zoomIn": "Görünümde bir kerede yüklenebilecekten fazla obje var. Tümünü görmek için yakınlaştırın.",
+      "minimumZoom": "Bu katmanı yüklemek için {zoom}. seviyeye yakınlaştırın.",
       "filterRejected": "Servis bu filtreyi reddetti.",
       "requestFailed": "Objeler servisten yüklenemedi.",
       "noQueryables": "Bu koleksiyon seçilebilir veya filtrelenebilir öznitelik sunmuyor.",

@@ -223,7 +223,7 @@ export const useSensorThingsLiveStore = defineStore("sensorThingsLive", () => {
         }
         for (const sourceId of desired.keys()) {
             const source = sourceById(sourceId);
-            if (source?.mqttUrl === undefined) continue;
+            if (source?.mqttUrl === undefined || !source.capabilities.live_updates) continue;
             if (!connections.has(sourceId)) {
                 let pending = pendingConnections.get(sourceId);
                 if (pending === undefined) {
@@ -247,9 +247,10 @@ export const useSensorThingsLiveStore = defineStore("sensorThingsLive", () => {
         void reconcile();
     }, { immediate: true });
 
-    /** Whether a source streams live values at all (has an `mqttUrl`). */
+    /** Whether live updates are both configured and enabled for the source. */
     function isLiveEnabled(sourceId: string): boolean {
-        return sourceById(sourceId)?.mqttUrl !== undefined;
+        const source = sourceById(sourceId);
+        return source?.mqttUrl !== undefined && source.capabilities.live_updates;
     }
 
     function latestFor(sourceId: string, datastreamId: number | string): LiveObservation | undefined {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { intersectBbox, queryableAttributeLabels } from "./ogcLayers";
+import { commonQueryables, intersectBbox, queryableAttributeLabels } from "./ogcLayers";
 
 describe("OGC layer viewport helpers", () => {
     test("intersects the view with the collection extent", () => {
@@ -23,5 +23,24 @@ describe("OGC attribute labels", () => {
         ]);
         expect(queryableAttributeLabels(queryables, ["breite"])).toEqual([{ name: "breite", labels: { en: "Breite" } }]);
         expect(queryableAttributeLabels([])).toBeUndefined();
+    });
+});
+
+describe("OGC merged collection queryables", () => {
+    test("keeps only shared names and preserves the first collection's title", () => {
+        expect(commonQueryables([
+            [
+                { name: "name", title: "Display name", type: "string", isGeometry: false },
+                { name: "height", title: "Height", type: "number", isGeometry: false },
+                { name: "geom", title: "Geometry", type: "other", isGeometry: true },
+            ],
+            [
+                { name: "name", title: "Name", type: "string", isGeometry: false },
+                { name: "status", title: "Status", type: "string", isGeometry: false },
+                { name: "shape", title: "Shape", type: "other", isGeometry: true },
+            ],
+        ])).toEqual([
+            { name: "name", title: "Display name", type: "string", isGeometry: false },
+        ]);
     });
 });

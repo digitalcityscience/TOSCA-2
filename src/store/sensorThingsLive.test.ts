@@ -46,6 +46,14 @@ vi.mock("./externalDataSources", () => ({
 
 const { datastreamIdFromTopic, datastreamTopic, useSensorThingsLiveStore } = await import("./sensorThingsLive");
 
+const capabilities = {
+    show_uncurated: false,
+    full_load: false,
+    live_updates: true,
+    server_filters: false,
+    max_features: null,
+};
+
 function streamFeature(id: number): GeoJSON.Feature {
     return {
         type: "Feature",
@@ -95,7 +103,14 @@ describe("SensorThings live updates", () => {
             layersOnMap,
             map: { getLayer: () => ({}), getSource: () => ({ setData }) },
         };
-        fakes.sources = [{ id: "sta", type: "sensorthings", title: "STA", url: "https://iot.example.test", mqttUrl: "wss://iot.example.test/mqtt" }];
+        fakes.sources = [{
+            id: "sta",
+            type: "sensorthings",
+            title: "STA",
+            url: "https://iot.example.test",
+            mqttUrl: "wss://iot.example.test/mqtt",
+            capabilities,
+        }];
     });
 
     afterEach(() => {
@@ -154,7 +169,24 @@ describe("SensorThings live updates", () => {
     });
 
     test("does not connect sources without an MQTT endpoint", async () => {
-        fakes.sources = [{ id: "sta", type: "sensorthings", title: "STA", url: "https://iot.example.test" }];
+        fakes.sources = [{ id: "sta", type: "sensorthings", title: "STA", url: "https://iot.example.test", capabilities }];
+        const live = useSensorThingsLiveStore();
+        layersOnMap.push(staLayer("chargers", [1]));
+        await settle();
+
+        expect(mqttMock.connect).not.toHaveBeenCalled();
+        expect(live.isLiveEnabled("sta")).toBe(false);
+    });
+
+    test("does not connect when live updates are disabled by the service", async () => {
+        fakes.sources = [{
+            id: "sta",
+            type: "sensorthings",
+            title: "STA",
+            url: "https://iot.example.test",
+            mqttUrl: "wss://iot.example.test/mqtt",
+            capabilities: { ...capabilities, live_updates: false },
+        }];
         const live = useSensorThingsLiveStore();
         layersOnMap.push(staLayer("chargers", [1]));
         await settle();

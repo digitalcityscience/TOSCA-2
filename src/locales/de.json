@@ -185,6 +185,7 @@
       "statusAll": "{loaded} von {total} Features geladen",
       "statusViewport": "Laden nach Kartenausschnitt: {loaded} von {inView} im Ausschnitt ({total} insgesamt)",
       "zoomIn": "Im Ausschnitt sind mehr Features, als auf einmal geladen werden können. Hineinzoomen, um alle zu sehen.",
+      "minimumZoom": "Zoomen Sie auf Stufe {zoom}, um diesen Layer zu laden.",
       "filterRejected": "Der Dienst hat diesen Filter abgelehnt.",
       "requestFailed": "Features konnten nicht vom Dienst geladen werden.",
       "noQueryables": "Diese Collection bietet keine Attribute zur Auswahl oder Filterung an.",

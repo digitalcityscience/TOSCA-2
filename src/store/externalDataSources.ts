@@ -429,6 +429,30 @@ export function buildSensorThingsDatastreamsUrl(
     return url;
 }
 
+function sensorThingsStringLiteral(value: string): string {
+    return `'${value.replace(/'/g, "''")}'`;
+}
+
+/** Datastreams selected by the Hamburg serviceName/layerName convention. */
+export function buildSensorThingsLayerDatastreamsUrl(
+    baseUrl: string,
+    serviceName: string,
+    layerName: string,
+    pageSize = SENSORTHINGS_BULK_PAGE_SIZE
+): URL {
+    const url = new URL(`${baseUrl}/Datastreams`);
+    url.searchParams.set(
+        "$filter",
+        `properties/serviceName eq ${sensorThingsStringLiteral(serviceName)} and ` +
+        `properties/layerName eq ${sensorThingsStringLiteral(layerName)}`
+    );
+    url.searchParams.set("$top", String(pageSize));
+    url.searchParams.set("$orderby", "name");
+    url.searchParams.set("$select", "@iot.id,name,description,unitOfMeasurement");
+    url.searchParams.set("$expand", DATASTREAM_EXPAND);
+    return url;
+}
+
 /** Only follow server-provided paging links that stay on the configured service. */
 function assertSameOrigin(link: string, baseUrl: string): string {
     if (new URL(link).origin !== new URL(baseUrl).origin) {
@@ -812,6 +836,30 @@ export const useExternalDataSourcesStore = defineStore("externalDataSources", ()
         return datastreams;
     }
 
+    /** Every datastream matching a curated service/layer pair, without the slow `$count`. */
+    async function getAllSensorThingsLayerDatastreams(
+        source: ExternalDataSourceConfig,
+        serviceName: string,
+        layerName: string
+    ): Promise<SensorThingsDatastream[]> {
+        const baseUrl = await getSensorThingsBaseUrl(source);
+        const datastreams: SensorThingsDatastream[] = [];
+        let next: string | undefined = buildSensorThingsLayerDatastreamsUrl(
+            baseUrl,
+            serviceName,
+            layerName
+        ).toString();
+        for (let page = 0; next !== undefined && page < SENSORTHINGS_MAX_BULK_PAGES; page++) {
+            const response: SensorThingsCollectionResponse<SensorThingsDatastreamResponse> =
+                await fetchExternalJson(next, `${source.title} datastreams`);
+            datastreams.push(...response.value.map(parseSensorThingsDatastream));
+            next = response["@iot.nextLink"] === undefined
+                ? undefined
+                : assertSameOrigin(response["@iot.nextLink"], baseUrl);
+        }
+        return datastreams;
+    }
+
     return {
         sources,
         loading,
@@ -831,6 +879,7 @@ export const useExternalDataSourcesStore = defineStore("externalDataSources", ()
         countOgcApiFeatures,
         getOgcApiQueryables,
         getAllSensorThingsDatastreams,
+        getAllSensorThingsLayerDatastreams,
         getOgcApiDatasets,
         getOgcApiCollections,
         getSensorThingsBaseUrl,

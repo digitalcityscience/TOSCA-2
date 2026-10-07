@@ -1,6 +1,7 @@
 import { mount } from "@vue/test-utils";
+import { createPinia, setActivePinia } from "pinia";
 import { defineComponent } from "vue";
-import { describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test } from "vitest";
 import ExternalCategoryItem from "./ExternalCategoryItem.vue";
 
 const CardStub = defineComponent({
@@ -44,23 +45,33 @@ const item = {
     availability: { state: "OK" as const, feature_count: 358, checked_at: null },
 };
 
-const global = {
-    stubs: {
-        UCard: CardStub,
-        UBadge: BadgeStub,
-        UButton: ButtonStub,
-    },
-};
-
 describe("ExternalCategoryItem", () => {
+    let pinia: ReturnType<typeof createPinia>;
+
+    beforeEach(() => {
+        pinia = createPinia();
+        setActivePinia(pinia);
+    });
+
+    function globalOptions() {
+        return {
+            plugins: [pinia],
+            stubs: {
+                UCard: CardStub,
+                UBadge: BadgeStub,
+                UButton: ButtonStub,
+            },
+        };
+    }
+
     test("renders service metadata and feature count", () => {
-        const wrapper = mount(ExternalCategoryItem, { props: { item, source }, global });
+        const wrapper = mount(ExternalCategoryItem, { props: { item, source }, global: globalOptions() });
 
         expect(wrapper.text()).toContain("StadtRAD stations");
         expect(wrapper.text()).toContain("OGC API");
         expect(wrapper.text()).toContain("358 features");
         expect(wrapper.text()).toContain("Urban Data Platform Hamburg");
-        expect(wrapper.get("button").attributes()).toHaveProperty("disabled");
+        expect(wrapper.get("button").attributes("disabled")).toBeUndefined();
     });
 
     test("greys out missing items and explains their state", () => {
@@ -72,10 +83,32 @@ describe("ExternalCategoryItem", () => {
                 },
                 source,
             },
-            global,
+            global: globalOptions(),
         });
 
         expect(wrapper.classes()).toContain("opacity-60");
         expect(wrapper.text()).toContain("currently unavailable");
+        expect(wrapper.get("button").attributes()).toHaveProperty("disabled");
+    });
+
+    test("enables curated SensorThings items", () => {
+        const wrapper = mount(ExternalCategoryItem, {
+            props: {
+                item: {
+                    ...item,
+                    service_type: "sensorthings" as const,
+                    ogc: undefined,
+                    sensorthings: {
+                        service_name: "HH_STA_E-Ladestationen",
+                        layer_name: "Status_E-Ladepunkt",
+                    },
+                },
+                source: { ...source, type: "sensorthings" as const },
+            },
+            global: globalOptions(),
+        });
+
+        expect(wrapper.text()).toContain("SensorThings");
+        expect(wrapper.get("button").attributes("disabled")).toBeUndefined();
     });
 });

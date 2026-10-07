@@ -46,6 +46,7 @@ function createFakeMapStore() {
             return record;
         }),
         appendDeckGeoJsonChunk: vi.fn(),
+        setDeckGeoJsonStyle: vi.fn(),
         requestLayerPanelExpansion: vi.fn(),
         clearDeckGeoJsonChunks: vi.fn(),
     };
@@ -139,6 +140,31 @@ describe("OGC load all (deck.gl)", () => {
 
         expect(store.layers.parcels).toMatchObject({ mode: "full", errorKind: "filter", loading: false });
     });
+
+    test("fans a merged layer out across collections and aggregates progress", async () => {
+        loaderMock.loadAllOgcFeatures.mockImplementation(async (options) => {
+            const isFirst = options.firstPageUrl.includes("/first/");
+            options.onTotal?.(isFirst ? 3 : 2);
+            options.onChunk({ featureCount: isFirst ? 3 : 2 }, isFirst ? 3 : 2);
+        });
+        const store = useOgcLayersStore();
+        seedState(store);
+        store.layers.parcels.collections = [
+            { id: "first", title: "First", description: "", itemsUrl: "https://x.test/first/items?f=json" },
+            { id: "second", title: "Second", description: "", itemsUrl: "https://x.test/second/items?f=json" },
+        ];
+
+        await store.loadAll("parcels");
+
+        expect(loaderMock.loadAllOgcFeatures).toHaveBeenCalledTimes(2);
+        expect(map.appendDeckGeoJsonChunk).toHaveBeenCalledTimes(2);
+        expect(store.layers.parcels).toMatchObject({
+            mode: "full",
+            totalMatched: 5,
+            loadedCount: 5,
+            loading: false,
+        });
+    });
 });
 
 describe("OGC map-view layers while hidden", () => {
@@ -197,4 +223,3 @@ describe("OGC map-view layers while hidden", () => {
         vi.unstubAllGlobals();
     });
 });
-
