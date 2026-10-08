@@ -75,6 +75,7 @@
                 <EditorJsReadonly
                     v-if="storyContent.blocks.length > 0"
                     :data="storyContent"
+                    map-scene-anchors
                 />
                 <UAlert
                     v-else
