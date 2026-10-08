@@ -511,7 +511,9 @@
       "sceneCount": "{count} map scene",
       "sceneCountPlural": "{count} map scenes",
       "backToStories": "Back to stories",
-      "aboutAuthorTitle": "About the Author/Transparency (Public)"
+      "aboutAuthorTitle": "About the Author/Transparency (Public)",
+      "layerDetailsUnavailableTitle": "Some map details are unavailable",
+      "layerDetailsUnavailableDetail": "The map is shown, but popups and tables are unavailable for one of its layers."
     },
     "flood": {
       "title": "Flood Scenarios",
