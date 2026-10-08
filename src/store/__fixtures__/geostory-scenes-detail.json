@@ -1,0 +1,603 @@
+{
+  "id": "019fa35c-669e-7512-bf21-51a19cd7f59b",
+  "title": "Geostory Title",
+  "summary": "Summary for the geostory. Summary for the geostory. Summary ",
+  "about_author": "",
+  "content": {
+    "blocks": [
+      {
+        "data": {
+          "text": "Editor.js authoring loads on top of this field. If JavaScript is disabled, paste or edit canonical Editor.js JSON directly.Editor.js authoring loads on top of this field. If JavaScript is disabled, paste or edit canonical Editor.js JSON directly.Editor.js authoring loads on top of this field. If JavaScript is disabled, paste or edit canonical Editor.js JSON directly.Editor.js authoring loads on top of this field. If JavaScript is disabled, paste or edit canonical Editor.js JSON directly."
+        },
+        "type": "paragraph"
+      },
+      {
+        "data": {
+          "text": "Editor.js authoring loads on top of this field. If JavaScript is disabled, paste or edit canonical Editor.js JSON directly.Editor.js authoring loads on top of this field. If JavaScript is disabled, paste or edit canonical Editor.js JSON directly.Editor.js authoring loads on top of this field. If JavaScript is disabled, paste or edit canonical Editor.js JSON directly.Editor.js authoring loads on top of this field. If JavaScript is disabled, paste or edit canonical Editor.js JSON directly."
+        },
+        "type": "paragraph"
+      },
+      {
+        "data": {
+          "text": "Header",
+          "level": 2
+        },
+        "type": "header"
+      },
+      {
+        "data": {
+          "scene_id": "01a11877-6bc0-770c-810b-58e7da2014a2"
+        },
+        "type": "mapScene"
+      },
+      {
+        "type": "paragraph",
+        "data": {
+          "text": "After the harbour anchor."
+        }
+      }
+    ]
+  },
+  "hero_image_url": "http://garage.localhost:3900/tosca-media-private/media/originals/geostories/019fa35c-669e-7512-bf21-51a19cd7f59b/hero/ed636efd6aba4fc6b30d313653056df3.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=GKtosca-local-django%2F20261008%2Fgarage%2Fs3%2Faws4_request&X-Amz-Date=20261008T091910Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=4d73e66838ec725a64e7c225716403fe042ce2b0f4067553d4cf097744ec3459",
+  "hero_image_alt": "alt caption",
+  "status": "published",
+  "campaign": "019fa351-b103-734e-8f7a-402f8ab23a7f",
+  "scenes": [
+    {
+      "id": "01a116c0-9110-73cf-9bad-841050d73855",
+      "order": 0,
+      "title": "Overview",
+      "caption": "",
+      "camera": {
+        "center": null,
+        "zoom": null,
+        "bearing": 0.0,
+        "pitch": 0.0,
+        "bounds": null
+      },
+      "transition": {
+        "type": "fly",
+        "duration_ms": 1500
+      },
+      "layers": [
+        {
+          "id": "01a116c0-9111-721f-886f-49b02f970c78",
+          "layer": {
+            "id": "019fa35b-ed25-72c3-bb98-1cb49784bfb5",
+            "name": "bezirke",
+            "workspace": {
+              "id": "019f5a3b-4721-7562-af3f-49a7bab6a6c1",
+              "name": "Hamburg"
+            },
+            "geometry_type": "MultiPolygon",
+            "srid": 4326,
+            "bounds": [
+              8.413190412417501,
+              53.3950850851258,
+              10.32527718680819,
+              53.96490622857893
+            ],
+            "published_url": "",
+            "is_public": true,
+            "publishing_state": "PUBLISHED",
+            "sync_state": "SYNCED",
+            "provider": {
+              "id": "019f4c95-d874-7336-bd30-1d051360813a",
+              "name": "Default GeoServer",
+              "base_url": "http://localhost:8080/geoserver"
+            }
+          },
+          "style_assignment": {
+            "id": "019fa35b-ed2a-7017-aa81-418b9d53a6db",
+            "style_id": "019fa35b-ecca-71e4-8ea4-cb14a5e315e5",
+            "name": "polygon",
+            "qualified_name": "polygon",
+            "role": "default",
+            "format": "sld",
+            "style_layer_ids": []
+          },
+          "render_layer_ids": [],
+          "source_key": "wms-019fa35b-ed25-72c3-bb98-1cb49784bfb5-019fa35b-ecca-71e4-8ea4-cb14a5e315e5",
+          "display_order": 0,
+          "opacity": 1.0,
+          "features": {
+            "mode": "all",
+            "attribute": null,
+            "ids": []
+          }
+        },
+        {
+          "id": "01a116c0-9111-721f-886f-49b120565a3b",
+          "layer": {
+            "id": "019fa35b-ed18-7221-9740-563c14dbcb49",
+            "name": "apotheken",
+            "workspace": {
+              "id": "019f5a3b-4721-7562-af3f-49a7bab6a6c1",
+              "name": "Hamburg"
+            },
+            "geometry_type": "Point",
+            "srid": 4326,
+            "bounds": [
+              9.7560778994331,
+              53.40464499957493,
+              10.22327689722198,
+              53.70889689690776
+            ],
+            "published_url": "",
+            "is_public": true,
+            "publishing_state": "PUBLISHED",
+            "sync_state": "SYNCED",
+            "provider": {
+              "id": "019f4c95-d874-7336-bd30-1d051360813a",
+              "name": "Default GeoServer",
+              "base_url": "http://localhost:8080/geoserver"
+            }
+          },
+          "style_assignment": {
+            "id": "019fa35b-ed1f-739a-954a-3b69f89469b6",
+            "style_id": "019fa35b-ecbf-76a9-b562-803435418b37",
+            "name": "point",
+            "qualified_name": "point",
+            "role": "default",
+            "format": "sld",
+            "style_layer_ids": []
+          },
+          "render_layer_ids": [],
+          "source_key": "wms-019fa35b-ed18-7221-9740-563c14dbcb49-019fa35b-ecbf-76a9-b562-803435418b37",
+          "display_order": 1,
+          "opacity": 1.0,
+          "features": {
+            "mode": "all",
+            "attribute": null,
+            "ids": []
+          }
+        },
+        {
+          "id": "01a116c0-9111-721f-886f-49b2cb780a44",
+          "layer": {
+            "id": "019fa35b-ed2e-7597-bf8f-fd0c611fc1d3",
+            "name": "kita",
+            "workspace": {
+              "id": "019f5a3b-4721-7562-af3f-49a7bab6a6c1",
+              "name": "Hamburg"
+            },
+            "geometry_type": "MultiPoint",
+            "srid": 4326,
+            "bounds": [
+              9.754143679024917,
+              53.39933768868894,
+              10.27012145831762,
+              53.7056196083231
+            ],
+            "published_url": "",
+            "is_public": true,
+            "publishing_state": "PUBLISHED",
+            "sync_state": "SYNCED",
+            "provider": {
+              "id": "019f4c95-d874-7336-bd30-1d051360813a",
+              "name": "Default GeoServer",
+              "base_url": "http://localhost:8080/geoserver"
+            }
+          },
+          "style_assignment": {
+            "id": "019fa35b-ed33-7784-a727-92a7ae89bbcf",
+            "style_id": "019fa35b-ecbf-76a9-b562-803435418b37",
+            "name": "point",
+            "qualified_name": "point",
+            "role": "default",
+            "format": "sld",
+            "style_layer_ids": []
+          },
+          "render_layer_ids": [],
+          "source_key": "wms-019fa35b-ed2e-7597-bf8f-fd0c611fc1d3-019fa35b-ecbf-76a9-b562-803435418b37",
+          "display_order": 2,
+          "opacity": 1.0,
+          "features": {
+            "mode": "all",
+            "attribute": null,
+            "ids": []
+          }
+        }
+      ],
+      "render_layers": [
+        {
+          "id": "scene-layer-01a116c0-9111-721f-886f-49b02f970c78",
+          "type": "raster",
+          "source": "wms-019fa35b-ed25-72c3-bb98-1cb49784bfb5-019fa35b-ecca-71e4-8ea4-cb14a5e315e5",
+          "metadata": {
+            "tosca:member-id": "01a116c0-9111-721f-886f-49b02f970c78",
+            "tosca:scene-layer-id": "01a116c0-9111-721f-886f-49b02f970c78",
+            "tosca:layer-id": "019fa35b-ed25-72c3-bb98-1cb49784bfb5",
+            "tosca:style-id": "019fa35b-ecca-71e4-8ea4-cb14a5e315e5"
+          }
+        },
+        {
+          "id": "scene-layer-01a116c0-9111-721f-886f-49b120565a3b",
+          "type": "raster",
+          "source": "wms-019fa35b-ed18-7221-9740-563c14dbcb49-019fa35b-ecbf-76a9-b562-803435418b37",
+          "metadata": {
+            "tosca:member-id": "01a116c0-9111-721f-886f-49b120565a3b",
+            "tosca:scene-layer-id": "01a116c0-9111-721f-886f-49b120565a3b",
+            "tosca:layer-id": "019fa35b-ed18-7221-9740-563c14dbcb49",
+            "tosca:style-id": "019fa35b-ecbf-76a9-b562-803435418b37"
+          }
+        },
+        {
+          "id": "scene-layer-01a116c0-9111-721f-886f-49b2cb780a44",
+          "type": "raster",
+          "source": "wms-019fa35b-ed2e-7597-bf8f-fd0c611fc1d3-019fa35b-ecbf-76a9-b562-803435418b37",
+          "metadata": {
+            "tosca:member-id": "01a116c0-9111-721f-886f-49b2cb780a44",
+            "tosca:scene-layer-id": "01a116c0-9111-721f-886f-49b2cb780a44",
+            "tosca:layer-id": "019fa35b-ed2e-7597-bf8f-fd0c611fc1d3",
+            "tosca:style-id": "019fa35b-ecbf-76a9-b562-803435418b37"
+          }
+        }
+      ],
+      "legend": [
+        {
+          "scene_layer_id": "01a116c0-9111-721f-886f-49b2cb780a44",
+          "layer_id": "019fa35b-ed2e-7597-bf8f-fd0c611fc1d3",
+          "title": "kita",
+          "data_type": "VECTOR",
+          "rendering": "wms",
+          "style": {
+            "id": "019fa35b-ecbf-76a9-b562-803435418b37",
+            "title": "point"
+          },
+          "graphic_url": "http://localhost:8080/geoserver/wms?SERVICE=WMS&REQUEST=GetLegendGraphic&VERSION=1.0.0&FORMAT=image%2Fpng&LAYER=Hamburg%3Akita&STYLE=point"
+        },
+        {
+          "scene_layer_id": "01a116c0-9111-721f-886f-49b120565a3b",
+          "layer_id": "019fa35b-ed18-7221-9740-563c14dbcb49",
+          "title": "apotheken",
+          "data_type": "VECTOR",
+          "rendering": "wms",
+          "style": {
+            "id": "019fa35b-ecbf-76a9-b562-803435418b37",
+            "title": "point"
+          },
+          "graphic_url": "http://localhost:8080/geoserver/wms?SERVICE=WMS&REQUEST=GetLegendGraphic&VERSION=1.0.0&FORMAT=image%2Fpng&LAYER=Hamburg%3Aapotheken&STYLE=point"
+        },
+        {
+          "scene_layer_id": "01a116c0-9111-721f-886f-49b02f970c78",
+          "layer_id": "019fa35b-ed25-72c3-bb98-1cb49784bfb5",
+          "title": "bezirke",
+          "data_type": "VECTOR",
+          "rendering": "wms",
+          "style": {
+            "id": "019fa35b-ecca-71e4-8ea4-cb14a5e315e5",
+            "title": "polygon"
+          },
+          "graphic_url": "http://localhost:8080/geoserver/wms?SERVICE=WMS&REQUEST=GetLegendGraphic&VERSION=1.0.0&FORMAT=image%2Fpng&LAYER=Hamburg%3Abezirke&STYLE=polygon"
+        }
+      ]
+    },
+    {
+      "id": "01a11877-6bc0-770c-810b-58e7da2014a2",
+      "order": 1,
+      "title": "Harbour detail",
+      "caption": "",
+      "camera": {
+        "center": [
+          10.03086,
+          53.56882
+        ],
+        "zoom": 13.4,
+        "bearing": -20.0,
+        "pitch": 45.0,
+        "bounds": [
+          9.98,
+          53.54,
+          10.08,
+          53.6
+        ]
+      },
+      "transition": {
+        "type": "fly",
+        "duration_ms": 1500
+      },
+      "layers": [
+        {
+          "id": "01a116c0-910f-76c4-9ebe-8183b676143b",
+          "layer": {
+            "id": "01a000f4-9348-7723-99c1-34505ba1049c",
+            "name": "StatGebiet_roh_F_v5",
+            "workspace": {
+              "id": "019febc4-aeb9-73b3-a47f-68c71569204f",
+              "name": "Adipositas"
+            },
+            "geometry_type": "MultiPolygon",
+            "srid": 3044,
+            "bounds": [
+              9.727400378615119,
+              53.394080782295944,
+              10.334313683775244,
+              53.74283900841962
+            ],
+            "published_url": "",
+            "is_public": true,
+            "publishing_state": "PUBLISHED",
+            "sync_state": "SYNCED",
+            "provider": {
+              "id": "019f4c95-d874-7336-bd30-1d051360813a",
+              "name": "Default GeoServer",
+              "base_url": "http://localhost:8080/geoserver"
+            }
+          },
+          "style_assignment": {
+            "id": "01a000f4-fe99-7259-9c06-5109a259deaa",
+            "style_id": "019ff030-61af-7256-9bd9-9698b8c40d55",
+            "name": "adipositas-indexklass",
+            "qualified_name": "Adipositas:adipositas-indexklass",
+            "role": "alternate",
+            "format": "mbstyle",
+            "style_layer_ids": [
+              "adipositas-indexklass-unbewohnt",
+              "adipositas-indexklass-sehr-niedrig",
+              "adipositas-indexklass-niedrig",
+              "adipositas-indexklass-mittel",
+              "adipositas-indexklass-hoch"
+            ]
+          },
+          "render_layer_ids": [
+            "adipositas-indexklass-unbewohnt",
+            "adipositas-indexklass-sehr-niedrig",
+            "adipositas-indexklass-niedrig",
+            "adipositas-indexklass-mittel",
+            "adipositas-indexklass-hoch"
+          ],
+          "source_key": "vector-01a000f4-9348-7723-99c1-34505ba1049c",
+          "display_order": 0,
+          "opacity": 1.0,
+          "features": {
+            "mode": "highlight",
+            "attribute": "STATGEB",
+            "ids": [
+              49009
+            ]
+          }
+        }
+      ],
+      "render_layers": [
+        {
+          "id": "scene-layer-01a116c0-910f-76c4-9ebe-8183b676143b/adipositas-indexklass-unbewohnt",
+          "type": "fill",
+          "source": "vector-01a000f4-9348-7723-99c1-34505ba1049c",
+          "source-layer": "StatGebiet_roh_F_v5",
+          "filter": [
+            "any",
+            [
+              "==",
+              [
+                "get",
+                "Indexklass"
+              ],
+              99
+            ],
+            [
+              "==",
+              [
+                "get",
+                "Indexklass"
+              ],
+              null
+            ]
+          ],
+          "metadata": {
+            "tosca:legend-label": "<300EW bzw. unbewohnt",
+            "tosca:member-id": "01a116c0-910f-76c4-9ebe-8183b676143b",
+            "tosca:scene-layer-id": "01a116c0-910f-76c4-9ebe-8183b676143b",
+            "tosca:layer-id": "01a000f4-9348-7723-99c1-34505ba1049c",
+            "tosca:style-id": "019ff030-61af-7256-9bd9-9698b8c40d55"
+          },
+          "paint": {
+            "fill-color": "rgba(0, 0, 0, 0)",
+            "fill-opacity": 0
+          }
+        },
+        {
+          "id": "scene-layer-01a116c0-910f-76c4-9ebe-8183b676143b/adipositas-indexklass-sehr-niedrig",
+          "type": "fill",
+          "source": "vector-01a000f4-9348-7723-99c1-34505ba1049c",
+          "source-layer": "StatGebiet_roh_F_v5",
+          "filter": [
+            "==",
+            [
+              "get",
+              "Indexklass"
+            ],
+            1
+          ],
+          "metadata": {
+            "tosca:legend-label": "sehr niedrig",
+            "tosca:member-id": "01a116c0-910f-76c4-9ebe-8183b676143b",
+            "tosca:scene-layer-id": "01a116c0-910f-76c4-9ebe-8183b676143b",
+            "tosca:layer-id": "01a000f4-9348-7723-99c1-34505ba1049c",
+            "tosca:style-id": "019ff030-61af-7256-9bd9-9698b8c40d55"
+          },
+          "paint": {
+            "fill-color": "#E6537A",
+            "fill-opacity": 1
+          }
+        }
+      ],
+      "legend": [
+        {
+          "scene_layer_id": "01a116c0-910f-76c4-9ebe-8183b676143b",
+          "layer_id": "01a000f4-9348-7723-99c1-34505ba1049c",
+          "title": "StatGebiet_roh_F_v5",
+          "data_type": "VECTOR",
+          "rendering": "vector-tiles",
+          "style": {
+            "id": "019ff030-61af-7256-9bd9-9698b8c40d55",
+            "title": "adipositas-indexklass"
+          },
+          "graphic_url": "http://localhost:8080/geoserver/wms?SERVICE=WMS&REQUEST=GetLegendGraphic&VERSION=1.0.0&FORMAT=image%2Fpng&LAYER=Adipositas%3AStatGebiet_roh_F_v5&STYLE=adipositas-indexklass"
+        }
+      ]
+    }
+  ],
+  "map": {
+    "sources": {
+      "wms-019fa35b-ed25-72c3-bb98-1cb49784bfb5-019fa35b-ecca-71e4-8ea4-cb14a5e315e5": {
+        "type": "raster",
+        "tiles": [
+          "http://localhost:8080/geoserver/wms?REQUEST=GetMap&SERVICE=WMS&VERSION=1.3.0&LAYERS=Hamburg%3Abezirke&STYLES=polygon&CRS=EPSG%3A3857&WIDTH=256&HEIGHT=256&transparent=true&format=image%2Fpng&TILED=true&BBOX={bbox-epsg-3857}"
+        ],
+        "tileSize": 256
+      },
+      "wms-019fa35b-ed18-7221-9740-563c14dbcb49-019fa35b-ecbf-76a9-b562-803435418b37": {
+        "type": "raster",
+        "tiles": [
+          "http://localhost:8080/geoserver/wms?REQUEST=GetMap&SERVICE=WMS&VERSION=1.3.0&LAYERS=Hamburg%3Aapotheken&STYLES=point&CRS=EPSG%3A3857&WIDTH=256&HEIGHT=256&transparent=true&format=image%2Fpng&TILED=true&BBOX={bbox-epsg-3857}"
+        ],
+        "tileSize": 256
+      },
+      "wms-019fa35b-ed2e-7597-bf8f-fd0c611fc1d3-019fa35b-ecbf-76a9-b562-803435418b37": {
+        "type": "raster",
+        "tiles": [
+          "http://localhost:8080/geoserver/wms?REQUEST=GetMap&SERVICE=WMS&VERSION=1.3.0&LAYERS=Hamburg%3Akita&STYLES=point&CRS=EPSG%3A3857&WIDTH=256&HEIGHT=256&transparent=true&format=image%2Fpng&TILED=true&BBOX={bbox-epsg-3857}"
+        ],
+        "tileSize": 256
+      },
+      "vector-01a000f4-9348-7723-99c1-34505ba1049c": {
+        "type": "vector",
+        "tiles": [
+          "http://localhost:8080/geoserver/gwc/service/wmts?REQUEST=GetTile&SERVICE=WMTS&VERSION=1.0.0&LAYER=Adipositas%3AStatGebiet_roh_F_v5&STYLE=&TILEMATRIX=EPSG%3A900913%3A{z}&TILEMATRIXSET=EPSG%3A900913&TILECOL={x}&TILEROW={y}&FORMAT=application%2Fvnd.mapbox-vector-tile"
+        ]
+      }
+    },
+    "styles": {
+      "019fa35b-ecca-71e4-8ea4-cb14a5e315e5": {
+        "id": "019fa35b-ecca-71e4-8ea4-cb14a5e315e5",
+        "name": "polygon",
+        "title": "polygon",
+        "format": "sld",
+        "content_hash": "f793fcf6995bfa18e02d16ad691d83f834cee420abf449c3466e642f11d16f11",
+        "sprite_id": null,
+        "href": "http://localhost:8000/api/v1/catalog/providers/019f4c95-d874-7336-bd30-1d051360813a/styles/019fa35b-ecca-71e4-8ea4-cb14a5e315e5"
+      },
+      "019fa35b-ecbf-76a9-b562-803435418b37": {
+        "id": "019fa35b-ecbf-76a9-b562-803435418b37",
+        "name": "point",
+        "title": "point",
+        "format": "sld",
+        "content_hash": "088e176d5094fef4a3348f9341e091057cc4cf3820134e7e0e86b1b535add652",
+        "sprite_id": null,
+        "href": "http://localhost:8000/api/v1/catalog/providers/019f4c95-d874-7336-bd30-1d051360813a/styles/019fa35b-ecbf-76a9-b562-803435418b37"
+      },
+      "019ff030-61af-7256-9bd9-9698b8c40d55": {
+        "id": "019ff030-61af-7256-9bd9-9698b8c40d55",
+        "name": "adipositas-indexklass",
+        "title": "adipositas-indexklass",
+        "format": "mbstyle",
+        "content_hash": "c421394c5db38d6d156f6a1a5f99850c8d08705a65ff53be583752af945e9f5d",
+        "sprite_id": null,
+        "href": "http://localhost:8000/api/v1/catalog/providers/019f4c95-d874-7336-bd30-1d051360813a/styles/019ff030-61af-7256-9bd9-9698b8c40d55"
+      }
+    },
+    "sprites": {}
+  },
+  "layers": [
+    {
+      "layer": {
+        "id": "019fa35b-ed25-72c3-bb98-1cb49784bfb5",
+        "name": "bezirke",
+        "workspace": {
+          "id": "019f5a3b-4721-7562-af3f-49a7bab6a6c1",
+          "name": "Hamburg"
+        },
+        "geometry_type": "MultiPolygon",
+        "srid": 4326,
+        "bounds": [
+          8.413190412417501,
+          53.3950850851258,
+          10.32527718680819,
+          53.96490622857893
+        ],
+        "published_url": "",
+        "is_public": true,
+        "publishing_state": "PUBLISHED",
+        "sync_state": "SYNCED"
+      },
+      "style_assignment": {
+        "id": "019fa35b-ed2a-7017-aa81-418b9d53a6db",
+        "style_id": "019fa35b-ecca-71e4-8ea4-cb14a5e315e5",
+        "name": "polygon",
+        "qualified_name": "polygon",
+        "role": "default",
+        "format": "sld",
+        "style_layer_ids": []
+      },
+      "display_order": 0
+    },
+    {
+      "layer": {
+        "id": "019fa35b-ed18-7221-9740-563c14dbcb49",
+        "name": "apotheken",
+        "workspace": {
+          "id": "019f5a3b-4721-7562-af3f-49a7bab6a6c1",
+          "name": "Hamburg"
+        },
+        "geometry_type": "Point",
+        "srid": 4326,
+        "bounds": [
+          9.7560778994331,
+          53.40464499957493,
+          10.22327689722198,
+          53.70889689690776
+        ],
+        "published_url": "",
+        "is_public": true,
+        "publishing_state": "PUBLISHED",
+        "sync_state": "SYNCED"
+      },
+      "style_assignment": {
+        "id": "019fa35b-ed1f-739a-954a-3b69f89469b6",
+        "style_id": "019fa35b-ecbf-76a9-b562-803435418b37",
+        "name": "point",
+        "qualified_name": "point",
+        "role": "default",
+        "format": "sld",
+        "style_layer_ids": []
+      },
+      "display_order": 1
+    },
+    {
+      "layer": {
+        "id": "019fa35b-ed2e-7597-bf8f-fd0c611fc1d3",
+        "name": "kita",
+        "workspace": {
+          "id": "019f5a3b-4721-7562-af3f-49a7bab6a6c1",
+          "name": "Hamburg"
+        },
+        "geometry_type": "MultiPoint",
+        "srid": 4326,
+        "bounds": [
+          9.754143679024917,
+          53.39933768868894,
+          10.27012145831762,
+          53.7056196083231
+        ],
+        "published_url": "",
+        "is_public": true,
+        "publishing_state": "PUBLISHED",
+        "sync_state": "SYNCED"
+      },
+      "style_assignment": {
+        "id": "019fa35b-ed33-7784-a727-92a7ae89bbcf",
+        "style_id": "019fa35b-ecbf-76a9-b562-803435418b37",
+        "name": "point",
+        "qualified_name": "point",
+        "role": "default",
+        "format": "sld",
+        "style_layer_ids": []
+      },
+      "display_order": 2
+    }
+  ],
+  "feature_links": [],
+  "created_at": "2026-07-27T11:36:09.630114Z",
+  "updated_at": "2026-10-07T22:25:11.833380Z"
+}
