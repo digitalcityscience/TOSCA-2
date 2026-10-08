@@ -59,7 +59,8 @@ export interface LoadGeostoryLayersOptions {
 }
 
 function getOrderedRenderableLayers(story: GeoStoryDetail): GeoStoryLayerLink[] {
-    return [...story.layers]
+    // `layers` is deprecated (scenes replace it in S3) and may be absent.
+    return [...(story.layers ?? [])]
         .sort((a, b) => a.display_order - b.display_order)
         .filter((item) => {
             return item.layer.is_public && item.layer.publishing_state === "PUBLISHED";

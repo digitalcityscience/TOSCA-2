@@ -151,7 +151,7 @@ const storyContent = computed(() => ({
     blocks: story.value?.content?.blocks ?? [],
 }));
 const renderableLayerCount = computed(() => {
-    return story.value?.layers.filter((item) => {
+    return story.value?.layers?.filter((item) => {
         return item.layer.is_public && item.layer.publishing_state === "PUBLISHED";
     }).length ?? 0;
 });
