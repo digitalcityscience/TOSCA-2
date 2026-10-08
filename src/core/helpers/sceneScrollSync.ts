@@ -48,6 +48,29 @@ export function triggerLineOffset(scrollTop: number, clientHeight: number, scrol
     return half;
 }
 
+/**
+ * Scroll position at which an anchor has just passed the trigger line, i.e. the
+ * smallest `scrollTop` that activates its scene.
+ *
+ * @param anchorOffset - The anchor's offset from the top of the scroll content.
+ * @returns A scroll position in `[0, scrollHeight - clientHeight]`; the maximum
+ * when no position reaches the anchor.
+ */
+export function scrollTopForAnchor(anchorOffset: number, clientHeight: number, scrollHeight: number): number {
+    const maxScroll = Math.max(scrollHeight - clientHeight, 0);
+    const passes = (y: number) => y + triggerLineOffset(y, clientHeight, scrollHeight) >= anchorOffset;
+    if (!passes(maxScroll)) return maxScroll;
+    // y + line(y) never decreases as y grows, so bisect for the first position that passes.
+    let low = 0;
+    let high = maxScroll;
+    while (high - low > 0.5) {
+        const middle = (low + high) / 2;
+        if (passes(middle)) high = middle;
+        else low = middle;
+    }
+    return Math.min(Math.ceil(high) + 1, maxScroll);
+}
+
 export interface SceneScrollSyncOptions {
     /** Switch the map; called only when the scene for the scroll position changes. */
     onActivate: (sceneId: string) => void;
@@ -90,7 +113,10 @@ export function createSceneScrollSync(options: SceneScrollSyncOptions): SceneScr
     let timer: ReturnType<typeof setTimeout> | undefined;
 
     function evaluate(): void {
-        if (root === undefined) return;
+        // A hidden container (e.g. the story sidebar collapsed while its content
+        // stays mounted) measures every anchor at 0, which would look as if all
+        // were passed. Keep the current scene until it is shown again.
+        if (root === undefined || root.clientHeight === 0) return;
         const rootTop = root.getBoundingClientRect().top;
         const midline = rootTop + triggerLineOffset(root.scrollTop, root.clientHeight, root.scrollHeight);
         const positions = anchors

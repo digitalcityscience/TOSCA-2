@@ -9,7 +9,8 @@ import scenesDetailFixture from "./__fixtures__/geostory-scenes-detail.json";
 
 const validateSpriteUrl = vi.hoisted(() => vi.fn(async () => {}));
 vi.mock("@helpers/mapStyleBundle", () => ({ validateSpriteUrl }));
-vi.mock("@helpers/toast", () => ({ useToast: () => ({ add: vi.fn() }) }));
+const toastAdd = vi.hoisted(() => vi.fn());
+vi.mock("@helpers/toast", () => ({ useToast: () => ({ add: toastAdd }) }));
 
 // Real story: scene 0 "Overview" (3 WMS layers, no camera), scene 1 "Harbour
 // detail" (1 vector-tile layer, captured camera, fly transition).
@@ -102,6 +103,17 @@ describe("geostory scene store", () => {
         expect(fake.map.flyTo).toHaveBeenCalledWith({
             center: [10.03086, 53.56882], zoom: 13.4, bearing: -20, pitch: 45, duration: 1500,
         });
+    });
+
+    test("switches scenes without a 'layer added' toast", async () => {
+        const detail = story();
+        const scenes = useGeostorySceneStore();
+        toastAdd.mockClear();
+
+        await scenes.openStory(detail);
+        await scenes.showScene(detail.scenes[1].id);
+
+        expect(toastAdd).not.toHaveBeenCalled();
     });
 
     test("exposes the requested scene as target before the switch finishes", async () => {

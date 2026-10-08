@@ -508,8 +508,8 @@
       "openStory": "Open story"
     },
     "detail": {
-      "layerCount": "{count} map layer",
-      "layerCountPlural": "{count} map layers",
+      "sceneCount": "{count} map scene",
+      "sceneCountPlural": "{count} map scenes",
       "backToStories": "Back to stories",
       "aboutAuthorTitle": "About the Author/Transparency (Public)"
     },
@@ -574,6 +574,12 @@
         "moderateLabel": "Moderate (5–15 cases/1k)",
         "lowLabel": "Low (<5 cases/1k)"
       }
+    },
+    "scenes": {
+      "navLabel": "Map scenes",
+      "progress": "Scene {current} of {total}",
+      "captionLabel": "Map scene caption",
+      "hideCaption": "Hide caption"
     }
   }
 }

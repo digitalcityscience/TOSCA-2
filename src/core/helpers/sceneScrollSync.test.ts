@@ -4,6 +4,7 @@ import {
     createSceneScrollSync,
     findScrollParent,
     SCENE_SCROLL_DEBOUNCE_MS,
+    scrollTopForAnchor,
     triggerLineOffset,
 } from "./sceneScrollSync";
 
@@ -54,6 +55,29 @@ describe("triggerLineOffset", () => {
     });
 });
 
+describe("scrollTopForAnchor", () => {
+    // Viewport 600 px, content 3000 px: max scroll 2400.
+    test.each([
+        [100, 51], // first half-screen: line = scrollTop, so 50 + 50 reaches it
+        [1500, 1201], // mid-story: anchor sits on the middle line
+        [2850, 2326], // last half-screen: line slides down, reached near the bottom
+        [5000, 2400], // beyond the content: scroll as far as possible
+    ])("anchor at %i activates from scrollTop %i", (anchorOffset, expected) => {
+        const scrollTop = scrollTopForAnchor(anchorOffset, 600, 3000);
+
+        expect(scrollTop).toBeCloseTo(expected, -1);
+        if (anchorOffset <= 3000) {
+            expect(scrollTop + triggerLineOffset(scrollTop, 600, 3000)).toBeGreaterThanOrEqual(anchorOffset);
+        }
+    });
+
+    test("activates the anchor without passing the next one", () => {
+        const first = scrollTopForAnchor(1500, 600, 3000);
+
+        expect(first + triggerLineOffset(first, 600, 3000)).toBeLessThan(1510);
+    });
+});
+
 describe("createSceneScrollSync", () => {
     const ROOT_TOP = 100;
     const ROOT_HEIGHT = 600; // midline at viewport y = 400
@@ -83,8 +107,10 @@ describe("createSceneScrollSync", () => {
         vi.advanceTimersByTime(SCENE_SCROLL_DEBOUNCE_MS);
     }
 
+    const created: Array<ReturnType<typeof createSceneScrollSync>> = [];
+
     function createSync(known = ["a", "b", "c"]) {
-        return createSceneScrollSync({
+        const sync = createSceneScrollSync({
             onActivate: (sceneId) => {
                 target = sceneId;
                 onActivate(sceneId);
@@ -93,6 +119,8 @@ describe("createSceneScrollSync", () => {
             getTargetSceneId: () => target,
             isKnownScene: (sceneId) => known.includes(sceneId),
         });
+        created.push(sync);
+        return sync;
     }
 
     beforeEach(() => {
@@ -117,6 +145,8 @@ describe("createSceneScrollSync", () => {
     });
 
     afterEach(() => {
+        // Controllers listen on window; detach them so tests stay independent.
+        created.splice(0).forEach((sync) => sync.detach());
         vi.useRealTimers();
         vi.unstubAllGlobals();
     });
@@ -178,6 +208,21 @@ describe("createSceneScrollSync", () => {
         settle();
 
         expect(onActivate.mock.calls).toEqual([["b"]]);
+    });
+
+    test("ignores scrolling and resizing while the container is hidden", () => {
+        const hidden = document.createElement("main");
+        hidden.getBoundingClientRect = () => ({ top: 0 } as DOMRect);
+        Object.defineProperty(hidden, "clientHeight", { value: 0 });
+        hidden.append(content);
+        for (const sceneId of Object.keys(anchorTops)) anchorTops[sceneId] = 0;
+        createSync().attach(hidden, content);
+
+        window.dispatchEvent(new Event("resize"));
+        vi.advanceTimersByTime(16);
+        settle();
+
+        expect(onActivate).not.toHaveBeenCalled();
     });
 
     test("stops reacting after detach", () => {
