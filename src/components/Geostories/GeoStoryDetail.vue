@@ -76,6 +76,7 @@
                     v-if="storyContent.blocks.length > 0"
                     :data="storyContent"
                     map-scene-anchors
+                    @rendered="attachSceneScroll"
                 />
                 <UAlert
                     v-else
@@ -112,7 +113,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { computed, inject, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     type GeoStoryDetail,
@@ -127,6 +128,8 @@ import {
     serviceUnavailableMessage,
 } from "@helpers/userFacingError";
 import EditorJsReadonly from "@components/Base/EditorJsReadonly.vue";
+import { slideoverScrollContainerKey } from "@helpers/slideoverSidebarRegistry";
+import { createSceneScrollSync, findScrollParent } from "@helpers/sceneScrollSync";
 
 const props = defineProps<{
     storyId: string
@@ -204,9 +207,34 @@ async function loadStory(storyId: string): Promise<void> {
     });
 }
 
+// Scrolling the story switches the map to the scene of the last anchor above
+// the middle of the sidebar (see createSceneScrollSync).
+const sidebarScrollContainer = inject(slideoverScrollContainerKey, undefined);
+const sceneScroll = createSceneScrollSync({
+    onActivate: (sceneId) => {
+        sceneStore.showScene(sceneId).catch((error: unknown) => {
+            reportDeveloperError(`Switching GeoStory scene ${sceneId}`, error);
+        });
+    },
+    getFirstSceneId: () => sceneStore.scenes[0]?.id,
+    getTargetSceneId: () => sceneStore.targetSceneId,
+    isKnownScene: (sceneId) => sceneStore.scenes.some((scene) => scene.id === sceneId),
+});
+
+function attachSceneScroll(content: HTMLElement): void {
+    const root = sidebarScrollContainer?.value ?? findScrollParent(content);
+    if (root !== undefined) sceneScroll.attach(root, content);
+}
+
+// Content can render before the story's scenes are open; re-check once they are.
+watch(() => sceneStore.story, () => {
+    sceneScroll.refresh();
+});
+
 // Stop scene switching when the story view goes away; the layers stay until the
 // reader returns to the story list (which resets the map).
 onBeforeUnmount(() => {
+    sceneScroll.detach();
     void sceneStore.closeStory();
 });
 

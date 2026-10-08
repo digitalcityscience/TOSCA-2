@@ -1,3 +1,12 @@
+import type { InjectionKey, Ref } from "vue"
+
+/**
+ * The sidebar's scrolling element (`<main>`), provided by
+ * `BaseSlideoverSidebarComponent` to everything rendered inside it.
+ */
+export const slideoverScrollContainerKey: InjectionKey<Ref<HTMLElement | undefined>> =
+    Symbol("slideoverScrollContainer")
+
 export type SlideoverSidebarSide = "left" | "right" | "top" | "bottom"
 
 export interface SlideoverSidebarController {
