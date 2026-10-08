@@ -511,7 +511,9 @@
       "sceneCount": "{count} harita sahnesi",
       "sceneCountPlural": "{count} harita sahnesi",
       "backToStories": "Hikâyelere dön",
-      "aboutAuthorTitle": "Yazar Hakkında/Şeffaflık (Herkese Açık)"
+      "aboutAuthorTitle": "Yazar Hakkında/Şeffaflık (Herkese Açık)",
+      "layerDetailsUnavailableTitle": "Bazı harita ayrıntıları kullanılamıyor",
+      "layerDetailsUnavailableDetail": "Harita gösteriliyor, ancak katmanlarından biri için açılır pencereler ve tablolar kullanılamıyor."
     },
     "flood": {
       "title": "Sel Senaryoları",

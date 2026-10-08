@@ -511,7 +511,9 @@
       "sceneCount": "{count} Kartenszene",
       "sceneCountPlural": "{count} Kartenszenen",
       "backToStories": "Zurück zu den Storys",
-      "aboutAuthorTitle": "Über Autorinnen und Autoren/Transparenz (öffentlich)"
+      "aboutAuthorTitle": "Über Autorinnen und Autoren/Transparenz (öffentlich)",
+      "layerDetailsUnavailableTitle": "Einige Kartendetails sind nicht verfügbar",
+      "layerDetailsUnavailableDetail": "Die Karte wird angezeigt, aber für eine ihrer Ebenen sind Popups und Tabellen nicht verfügbar."
     },
     "flood": {
       "title": "Hochwasserszenarien",

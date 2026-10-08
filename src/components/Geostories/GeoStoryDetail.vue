@@ -204,8 +204,8 @@ async function loadStory(storyId: string): Promise<void> {
             reportDeveloperError(`Loading GeoStory map layer details ${layerName}`, error);
             toast.add({
                 severity: "warning",
-                summary: "Some map details are unavailable",
-                detail: "The map is shown, but popups and tables are unavailable for one of its layers.",
+                summary: t("geostories.detail.layerDetailsUnavailableTitle"),
+                detail: t("geostories.detail.layerDetailsUnavailableDetail"),
                 life: 5000,
             });
         },
