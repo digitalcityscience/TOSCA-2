@@ -2,6 +2,8 @@ import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import {
     createGeoStorySceneLoader,
+    sceneCameraMove,
+    sceneLayersBounds,
     sceneToGroupManifest,
     type CatalogLayerDetail,
 } from "./geostoryScenes";
@@ -253,5 +255,63 @@ describe("addMapGroup with scene manifests", () => {
             scene.layers.map((layer) => layer.id).sort()
         );
         expect(mapStore.layersOnMap.filter((layer) => layer.showOnLayerList)).toHaveLength(1);
+    });
+});
+
+describe("sceneCameraMove", () => {
+    const captured = { center: [10, 53.5] as [number, number], zoom: 12, bearing: -20, pitch: 45, bounds: null };
+
+    function withCamera(camera: GeoStoryScene["camera"], type: "fly" | "ease" | "jump" = "fly"): GeoStoryScene {
+        return { ...story().scenes[0], camera, transition: { type, duration_ms: 900 } };
+    }
+
+    test.each([
+        ["fly", "flyTo"],
+        ["ease", "easeTo"],
+    ] as const)("animates a captured camera with %s", (type, method) => {
+        expect(sceneCameraMove(withCamera(captured, type))).toEqual({
+            method,
+            options: { center: [10, 53.5], zoom: 12, bearing: -20, pitch: 45, duration: 900 },
+        });
+    });
+
+    test("jumps for jump transitions and for reduced motion", () => {
+        const jump = { method: "jumpTo", options: { center: [10, 53.5], zoom: 12, bearing: -20, pitch: 45 } };
+
+        expect(sceneCameraMove(withCamera(captured, "jump"))).toEqual(jump);
+        expect(sceneCameraMove(withCamera(captured, "fly"), { reducedMotion: true })).toEqual(jump);
+    });
+
+    test("fits captured bounds, keeping bearing and pitch", () => {
+        const camera = { center: null, zoom: null, bearing: 15, pitch: 30, bounds: [9, 53, 11, 54] as GeoStoryScene["camera"]["bounds"] };
+
+        expect(sceneCameraMove(withCamera(camera))).toEqual({
+            method: "fitBounds",
+            bounds: [[9, 53], [11, 54]],
+            options: { padding: 40, bearing: 15, pitch: 30, duration: 900 },
+        });
+    });
+
+    test("fits the union of the layers' extents without a camera", () => {
+        const scene = withCamera({ center: null, zoom: null, bearing: 0, pitch: 0, bounds: null });
+        const union = sceneLayersBounds(scene)!;
+
+        expect(union[0]).toBe(Math.min(...scene.layers.map((layer) => layer.layer.bounds![0])));
+        expect(union[3]).toBe(Math.max(...scene.layers.map((layer) => layer.layer.bounds![3])));
+        expect(sceneCameraMove(scene, { reducedMotion: true })).toEqual({
+            method: "fitBounds",
+            bounds: [[union[0], union[1]], [union[2], union[3]]],
+            options: { padding: 40, bearing: 0, pitch: 0, duration: 0 },
+        });
+    });
+
+    test("keeps the view for an empty scene without a camera", () => {
+        const scene = {
+            ...withCamera({ center: null, zoom: null, bearing: 0, pitch: 0, bounds: null }),
+            layers: [],
+            render_layers: [],
+        };
+
+        expect(sceneCameraMove(scene)).toBeUndefined();
     });
 });

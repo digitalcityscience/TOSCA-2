@@ -111,16 +111,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     type GeoStoryDetail,
     resolveBackendMediaUrl,
     useGeostoryStore,
 } from "@store/geostory";
-import { useGeoserverStore } from "@store/geoserver";
+import { useGeostorySceneStore } from "@store/geostoryScenes";
 import { useMapStore } from "@store/map";
-import { loadGeostoryLayersOnMap } from "@helpers/geostoryLayers";
 import { useToast } from "@helpers/toast";
 import {
     reportDeveloperError,
@@ -134,8 +133,8 @@ const props = defineProps<{
 
 const geostory = useGeostoryStore();
 const { locale, t } = useI18n();
-const geoserver = useGeoserverStore();
 const mapStore = useMapStore();
+const sceneStore = useGeostorySceneStore();
 const toast = useToast();
 const errorMessage = ref("");
 const heroImageLoading = ref(false);
@@ -188,19 +187,27 @@ watch(heroImageUrl, (url) => {
 async function loadStory(storyId: string): Promise<void> {
     errorMessage.value = "";
     const detail = await geostory.getStoryDetail(storyId);
-    await loadGeostoryLayersOnMap(detail, geoserver, mapStore, {
-        onLayerError: (error, layer) => {
-            const layerName = `${layer.layer.workspace.name}:${layer.layer.name}`;
-            reportDeveloperError(`Loading GeoStory map layer ${layerName}`, error);
+    if (detail.id !== props.storyId) return; // a newer story was opened meanwhile
+    await mapStore.resetMapData(false);
+    await sceneStore.openStory(detail, {
+        onLayerError: (error, sceneLayer) => {
+            const layerName = `${sceneLayer.layer.workspace.name}:${sceneLayer.layer.name}`;
+            reportDeveloperError(`Loading GeoStory map layer details ${layerName}`, error);
             toast.add({
                 severity: "warning",
-                summary: "Some map content is unavailable",
-                detail: "The story opened, but one of its map layers could not be shown.",
+                summary: "Some map details are unavailable",
+                detail: "The map is shown, but popups and tables are unavailable for one of its layers.",
                 life: 5000,
             });
         },
     });
 }
+
+// Stop scene switching when the story view goes away; the layers stay until the
+// reader returns to the story list (which resets the map).
+onBeforeUnmount(() => {
+    void sceneStore.closeStory();
+});
 
 function retryLoad(): void {
     loadStory(props.storyId).catch(handleLoadError);

@@ -34,6 +34,7 @@ import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { RouterView, useRoute, useRouter } from "vue-router";
 import BaseSlideoverSidebarComponent from "@components/Base/BaseSlideoverSidebarComponent.vue";
+import { useGeostorySceneStore } from "@store/geostoryScenes";
 import { useMapStore } from "@store/map";
 import { useToast } from "@helpers/toast";
 import { reportDeveloperError } from "@helpers/userFacingError";
@@ -41,6 +42,7 @@ import { reportDeveloperError } from "@helpers/userFacingError";
 const sidebarID = "geostories";
 const { t } = useI18n();
 const mapStore = useMapStore();
+const sceneStore = useGeostorySceneStore();
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
@@ -49,6 +51,7 @@ const returningToList = ref(false);
 async function goBackToStories(): Promise<void> {
     returningToList.value = true;
     try {
+        await sceneStore.closeStory();
         await mapStore.resetMapData(false);
         await router.push({ name: "geostory-list" });
     } catch (error) {
