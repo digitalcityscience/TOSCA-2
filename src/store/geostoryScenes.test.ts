@@ -104,6 +104,21 @@ describe("geostory scene store", () => {
         });
     });
 
+    test("exposes the requested scene as target before the switch finishes", async () => {
+        const detail = story();
+        const scenes = useGeostorySceneStore();
+        await scenes.openStory(detail);
+
+        const switching = scenes.showScene(detail.scenes[1].id);
+        expect(scenes.targetSceneId).toBe(detail.scenes[1].id);
+        expect(scenes.activeSceneId).toBe(detail.scenes[0].id);
+        await switching;
+        expect(scenes.activeSceneId).toBe(detail.scenes[1].id);
+
+        await scenes.closeStory();
+        expect(scenes.targetSceneId).toBeUndefined();
+    });
+
     test("ends on the last requested scene after rapid switches", async () => {
         const detail = story();
         const scenes = useGeostorySceneStore();

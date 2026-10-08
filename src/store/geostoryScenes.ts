@@ -27,6 +27,8 @@ export const useGeostorySceneStore = defineStore("geostoryScenes", () => {
 
     const story = shallowRef<GeoStoryDetail>();
     const activeSceneId = ref<string>();
+    /** Latest requested scene; equals `activeSceneId` once the switch finished. */
+    const targetSceneId = ref<string>();
     const switching = ref(false);
     const scenes = computed(() => (story.value === undefined ? [] : sortedScenes(story.value)));
     const activeScene = computed(() => scenes.value.find((scene) => scene.id === activeSceneId.value));
@@ -60,6 +62,7 @@ export const useGeostorySceneStore = defineStore("geostoryScenes", () => {
      */
     function showScene(sceneId: string): Promise<void> {
         requestedSceneId = sceneId;
+        targetSceneId.value = sceneId;
         running ??= drain().finally(() => {
             running = undefined;
         });
@@ -147,6 +150,7 @@ export const useGeostorySceneStore = defineStore("geostoryScenes", () => {
         groupRecordId = undefined;
         story.value = undefined;
         activeSceneId.value = undefined;
+        targetSceneId.value = undefined;
         loader = undefined;
         if (removeLayers) {
             lingeringGroupId = undefined;
@@ -160,6 +164,7 @@ export const useGeostorySceneStore = defineStore("geostoryScenes", () => {
         story,
         scenes,
         activeSceneId,
+        targetSceneId,
         activeScene,
         switching,
         openStory,
