@@ -20,6 +20,7 @@ import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { resolveBackendMediaUrl } from "@store/backend";
 import { reportDeveloperError } from "@helpers/userFacingError";
 import EditorJsReadonlyList from "@helpers/editorJsReadonlyList";
+import EditorJsMapSceneAnchor from "@helpers/editorJsMapSceneAnchor";
 
 interface EditorJsBlock {
     id?: string;
@@ -34,8 +35,20 @@ export interface EditorJsContent {
     blocks?: EditorJsBlock[];
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
     data: EditorJsContent
+    /**
+     * Render GeoStory `mapScene` blocks as invisible scroll anchors. Without it,
+     * such blocks are dropped instead of showing Editor.js's unsupported-block stub.
+     */
+    mapSceneAnchors?: boolean
+}>(), {
+    mapSceneAnchors: false,
+});
+
+const emit = defineEmits<{
+    /** Content is in the DOM (after the first render and every re-render). */
+    rendered: [holder: HTMLElement]
 }>();
 
 const holder = ref<HTMLElement>();
@@ -104,6 +117,7 @@ async function initializeEditor(): Promise<void> {
             delimiter: Delimiter,
             code: Code,
             image: Image,
+            ...(props.mapSceneAnchors ? { mapScene: EditorJsMapSceneAnchor } : {}),
         },
         data: normalizeEditorData(props.data),
     });
@@ -115,7 +129,9 @@ async function initializeEditor(): Promise<void> {
         if (editor === instance) {
             editor = undefined;
         }
+        return;
     }
+    emit("rendered", holder.value);
 }
 
 async function renderData(): Promise<void> {
@@ -130,13 +146,18 @@ async function renderData(): Promise<void> {
         return;
     }
     await instance.blocks.render(normalizeEditorData(props.data));
+    if (currentRender === renderVersion && instance === editor && holder.value !== undefined) {
+        emit("rendered", holder.value);
+    }
 }
 
 function normalizeEditorData(content: EditorJsContent): OutputData {
     return {
         version: content.version,
         time: content.time,
-        blocks: (content.blocks ?? []).map((block) => ({
+        blocks: (content.blocks ?? []).filter((block) => {
+            return props.mapSceneAnchors || block.type !== "mapScene";
+        }).map((block) => ({
             id: block.id,
             type: block.type,
             data: normalizeBlockData(block),
@@ -190,6 +211,14 @@ function handleInitializationError(error: unknown): void {
 }
 .editorjs-readonly :deep(.ce-block) {
     padding: 0.25rem 0;
+}
+/* Scene anchors are scroll triggers only: no height, no block spacing. */
+.editorjs-readonly :deep(.ce-block:has(.geostory-scene-anchor)) {
+    padding: 0;
+}
+.editorjs-readonly :deep(.geostory-scene-anchor) {
+    height: 0;
+    overflow: hidden;
 }
 .editorjs-readonly :deep(.ce-paragraph) {
     line-height: 1.7;
