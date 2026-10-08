@@ -508,8 +508,8 @@
       "openStory": "Hikâyeyi aç"
     },
     "detail": {
-      "layerCount": "{count} harita katmanı",
-      "layerCountPlural": "{count} harita katmanı",
+      "sceneCount": "{count} harita sahnesi",
+      "sceneCountPlural": "{count} harita sahnesi",
       "backToStories": "Hikâyelere dön",
       "aboutAuthorTitle": "Yazar Hakkında/Şeffaflık (Herkese Açık)"
     },
@@ -574,6 +574,12 @@
         "moderateLabel": "Orta (1.000'de 5–15 vaka)",
         "lowLabel": "Düşük (1.000'de <5 vaka)"
       }
+    },
+    "scenes": {
+      "navLabel": "Harita sahneleri",
+      "progress": "Sahne {current} / {total}",
+      "captionLabel": "Harita sahnesi açıklaması",
+      "hideCaption": "Açıklamayı gizle"
     }
   }
 }

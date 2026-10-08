@@ -3,6 +3,7 @@
         <MapSideFrame side="left"></MapSideFrame>
         <div class="mapview-map">
             <MapContainer></MapContainer>
+            <GeoStorySceneCaption></GeoStorySceneCaption>
         </div>
         <MapSideFrame side="right"></MapSideFrame>
         <WorkspaceListing v-if="datastoresEnabled" :workspaces="geoserverStore.workspaceList"></WorkspaceListing>
@@ -17,6 +18,7 @@ import { defineAsyncComponent, onMounted } from "vue";
 import { useGeoserverStore } from "../store/geoserver";
 import MapContainer from "@components/Map/MapContainer.vue";
 import MapSideFrame from "@components/Map/MapSideFrame.vue";
+import GeoStorySceneCaption from "@components/Geostories/GeoStorySceneCaption.vue";
 import { reportDeveloperError } from "@helpers/userFacingError";
 import { isFeatureEnabled } from "../config/features";
 const WorkspaceListing = defineAsyncComponent(async () => await import("@components/Data/Workspace/WorkspaceListing.vue"));
@@ -42,6 +44,7 @@ onMounted(()=>{
     grid-template-rows: minmax(0, 1fr);
 }
 .mapview-map {
+    position: relative;
     min-width: 0;
     min-height: 0;
     width: 100%;

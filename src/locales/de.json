@@ -508,8 +508,8 @@
       "openStory": "Story öffnen"
     },
     "detail": {
-      "layerCount": "{count} Kartenebene",
-      "layerCountPlural": "{count} Kartenebenen",
+      "sceneCount": "{count} Kartenszene",
+      "sceneCountPlural": "{count} Kartenszenen",
       "backToStories": "Zurück zu den Storys",
       "aboutAuthorTitle": "Über Autorinnen und Autoren/Transparenz (öffentlich)"
     },
@@ -574,6 +574,12 @@
         "moderateLabel": "Mittel (5–15 Fälle/1.000)",
         "lowLabel": "Niedrig (<5 Fälle/1.000)"
       }
+    },
+    "scenes": {
+      "navLabel": "Kartenszenen",
+      "progress": "Szene {current} von {total}",
+      "captionLabel": "Beschreibung der Kartenszene",
+      "hideCaption": "Beschreibung ausblenden"
     }
   }
 }

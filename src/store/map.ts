@@ -953,7 +953,8 @@ export const useMapStore = defineStore("map", () => {
    */
     function add2MapLayerList(
         layerObject: LayerObjectWithAttributes,
-        index?: number
+        index?: number,
+        { notify = true }: { notify?: boolean } = {}
     ): void {
         // 3D tilesets stay on top of the list; other new layers go below them.
         const first3DIndex = layersOnMap.value.findIndex(isDeck3DLayer);
@@ -965,6 +966,7 @@ export const useMapStore = defineStore("map", () => {
         }
         syncDeckLayerAnchors();
         if (
+            notify &&
             layerObject.showOnLayerList !== undefined &&
       layerObject.showOnLayerList
         ) {
@@ -1090,7 +1092,16 @@ export const useMapStore = defineStore("map", () => {
      * Add a complete catalog group as isolated runtime sources/layers while
      * registering a single logical entry in the map layer sidebar.
      */
-    async function addMapGroup(manifest: CatalogLayerGroupManifest): Promise<LayerObjectWithAttributes> {
+    /**
+     * Add a layer-group manifest as one listed layer with companion render layers.
+     *
+     * @param options.notify - Show the "layer added" toast (default). Callers that
+     * swap groups automatically, such as GeoStory scene switching, turn it off.
+     */
+    async function addMapGroup(
+        manifest: CatalogLayerGroupManifest,
+        { notify = true }: { notify?: boolean } = {}
+    ): Promise<LayerObjectWithAttributes> {
         if (isNullOrEmpty(map.value)) {
             throw new Error("There is no map to add the group");
         }
@@ -1174,7 +1185,7 @@ export const useMapStore = defineStore("map", () => {
                 workspaceName: manifest.workspace.name,
                 details: manifest.members[0]?.details,
             };
-            add2MapLayerList(logicalRecord);
+            add2MapLayerList(logicalRecord, undefined, { notify });
             return logicalRecord;
         } catch (error) {
             [...addedLayers].reverse().forEach((layerId) => {

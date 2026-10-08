@@ -96,12 +96,15 @@ export const useGeostorySceneStore = defineStore("geostoryScenes", () => {
         if (manifest !== undefined) {
             try {
                 // Add before removing so the map never flashes empty between scenes.
-                const record = await mapStore.addMapGroup(manifest);
+                // Scrolling switches scenes often; no "layer added" toast for each.
+                const record = await mapStore.addMapGroup(manifest, { notify: false });
                 if (storyGeneration !== generation) {
                     await removeGroup(record.id);
                     return;
                 }
                 groupRecordId = record.id;
+                // Show the scene's member legends in the layer listing.
+                mapStore.requestLayerPanelExpansion(record.id);
             } catch (error) {
                 reportDeveloperError(`Showing GeoStory scene ${scene.id}`, error);
             }

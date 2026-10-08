@@ -57,17 +57,18 @@
                             {{ createdAtLabel }}
                         </UBadge>
                         <UBadge
-                            v-if="renderableLayerCount > 0"
+                            v-if="sceneCount > 0"
                             color="info"
                             variant="subtle"
-                            icon="i-lucide-layers"
+                            icon="i-lucide-map"
                         >
-                            {{ layerCountLabel }}
+                            {{ sceneCountLabel }}
                         </UBadge>
                     </div>
                     <p v-if="story.summary !== ''" class="text-sm leading-relaxed text-toned">
                         {{ story.summary }}
                     </p>
+                    <GeoStorySceneProgress @select="selectScene" />
                 </header>
 
                 <USeparator />
@@ -128,8 +129,14 @@ import {
     serviceUnavailableMessage,
 } from "@helpers/userFacingError";
 import EditorJsReadonly from "@components/Base/EditorJsReadonly.vue";
+import GeoStorySceneProgress from "@components/Geostories/GeoStorySceneProgress.vue";
 import { slideoverScrollContainerKey } from "@helpers/slideoverSidebarRegistry";
-import { createSceneScrollSync, findScrollParent } from "@helpers/sceneScrollSync";
+import {
+    createSceneScrollSync,
+    findScrollParent,
+    scrollTopForAnchor,
+} from "@helpers/sceneScrollSync";
+import { SCENE_ANCHOR_CLASS } from "@helpers/editorJsMapSceneAnchor";
 
 const props = defineProps<{
     storyId: string
@@ -153,16 +160,14 @@ const storyContent = computed(() => ({
     ...story.value?.content,
     blocks: story.value?.content?.blocks ?? [],
 }));
-const renderableLayerCount = computed(() => {
-    return story.value?.layers?.filter((item) => {
-        return item.layer.is_public && item.layer.publishing_state === "PUBLISHED";
-    }).length ?? 0;
+const sceneCount = computed(() => {
+    return sceneStore.story?.id === story.value?.id ? sceneStore.scenes.length : 0;
 });
-const layerCountLabel = computed(() => {
-    const count = renderableLayerCount.value;
+const sceneCountLabel = computed(() => {
+    const count = sceneCount.value;
     const key = count === 1
-        ? "geostories.detail.layerCount"
-        : "geostories.detail.layerCountPlural";
+        ? "geostories.detail.sceneCount"
+        : "geostories.detail.sceneCountPlural";
 
     return t(key, { count });
 });
@@ -221,9 +226,41 @@ const sceneScroll = createSceneScrollSync({
     isKnownScene: (sceneId) => sceneStore.scenes.some((scene) => scene.id === sceneId),
 });
 
+let scrollRoot: HTMLElement | undefined;
+let storyContentElement: HTMLElement | undefined;
+
 function attachSceneScroll(content: HTMLElement): void {
     const root = sidebarScrollContainer?.value ?? findScrollParent(content);
+    storyContentElement = content;
+    scrollRoot = root;
     if (root !== undefined) sceneScroll.attach(root, content);
+}
+
+/**
+ * Scene picked in the progress list: scroll to where the story shows it (its
+ * anchor just past the trigger line; the top for the first scene) and switch the
+ * map right away. Scenes without an anchor only switch the map.
+ */
+function selectScene(sceneId: string): void {
+    const isFirst = sceneStore.scenes[0]?.id === sceneId;
+    const anchor = storyContentElement?.querySelector<HTMLElement>(
+        `.${SCENE_ANCHOR_CLASS}[data-scene-id="${CSS.escape(sceneId)}"]`
+    );
+    if (scrollRoot !== undefined && (isFirst || anchor != null)) {
+        const root = scrollRoot;
+        const top = isFirst || anchor == null
+            ? 0
+            : scrollTopForAnchor(
+                anchor.getBoundingClientRect().top - root.getBoundingClientRect().top + root.scrollTop,
+                root.clientHeight,
+                root.scrollHeight
+            );
+        const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+        root.scrollTo({ top, behavior: reducedMotion ? "auto" : "smooth" });
+    }
+    sceneStore.showScene(sceneId).catch((error: unknown) => {
+        reportDeveloperError(`Switching GeoStory scene ${sceneId}`, error);
+    });
 }
 
 // Content can render before the story's scenes are open; re-check once they are.
