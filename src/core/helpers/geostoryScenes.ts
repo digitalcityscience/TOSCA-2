@@ -6,7 +6,12 @@ import {
     type GeoserverRasterTypeLayerDetail,
     type GeoServerVectorTypeLayerDetail,
 } from "@store/geoserver";
-import type { GeoStoryDetail, GeoStoryScene, GeoStorySceneLayer } from "@store/geostory";
+import type {
+    GeoStoryBounds,
+    GeoStoryDetail,
+    GeoStoryScene,
+    GeoStorySceneLayer,
+} from "@store/geostory";
 
 /**
  * Draw GeoStory scenes through the layer-group pipeline (`mapStore.addMapGroup`).
@@ -218,4 +223,85 @@ export function createGeoStorySceneLoader(
     }
 
     return { manifestFor };
+}
+
+/** Union of the drawn layers' extents, for "fit to layers" scenes. */
+export function sceneLayersBounds(scene: GeoStoryScene): GeoStoryBounds | undefined {
+    const boxes = drawnSceneLayers(scene)
+        .map((sceneLayer) => sceneLayer.layer.bounds)
+        .filter((bounds): bounds is GeoStoryBounds => Array.isArray(bounds) && bounds.length === 4);
+    if (boxes.length === 0) return undefined;
+    return [
+        Math.min(...boxes.map((box) => box[0])),
+        Math.min(...boxes.map((box) => box[1])),
+        Math.max(...boxes.map((box) => box[2])),
+        Math.max(...boxes.map((box) => box[3])),
+    ];
+}
+
+export const SCENE_FIT_PADDING = 40;
+
+/** One MapLibre camera call that brings the map to a scene. */
+export type SceneCameraMove =
+    | {
+        method: "flyTo" | "easeTo" | "jumpTo";
+        options: {
+            center: [number, number];
+            zoom: number;
+            bearing: number;
+            pitch: number;
+            duration?: number;
+        };
+    }
+    | {
+        method: "fitBounds";
+        bounds: [[number, number], [number, number]];
+        options: {
+            padding: number;
+            bearing: number;
+            pitch: number;
+            duration: number;
+        };
+    };
+
+/**
+ * How to move the camera to a scene, or `undefined` to keep the current view.
+ *
+ * @remarks
+ * A captured camera uses the scene's transition (`fly` / `ease` / `jump`). A scene
+ * without a center fits its captured `bounds`, else the union of its layers'
+ * extents; an empty scene without a camera keeps the current view. Reduced
+ * motion always jumps (and fits without animation).
+ */
+export function sceneCameraMove(
+    scene: GeoStoryScene,
+    { reducedMotion = false }: { reducedMotion?: boolean } = {}
+): SceneCameraMove | undefined {
+    const { camera, transition } = scene;
+    const animate = !reducedMotion && transition.type !== "jump";
+    if (camera.center !== null && camera.zoom !== null) {
+        const options = {
+            center: camera.center,
+            zoom: camera.zoom,
+            bearing: camera.bearing,
+            pitch: camera.pitch,
+        };
+        if (!animate) return { method: "jumpTo", options };
+        return {
+            method: transition.type === "ease" ? "easeTo" : "flyTo",
+            options: { ...options, duration: transition.duration_ms },
+        };
+    }
+    const bounds = camera.bounds ?? sceneLayersBounds(scene);
+    if (bounds === undefined) return undefined;
+    return {
+        method: "fitBounds",
+        bounds: [[bounds[0], bounds[1]], [bounds[2], bounds[3]]],
+        options: {
+            padding: SCENE_FIT_PADDING,
+            bearing: camera.bearing,
+            pitch: camera.pitch,
+            duration: animate ? transition.duration_ms : 0,
+        },
+    };
 }
