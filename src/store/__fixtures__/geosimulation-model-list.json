@@ -1,0 +1,16 @@
+{
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": "01a129df-f6de-74a7-b4cf-59fcea471a32",
+      "key": "hamburg-bike-abm",
+      "title": "Hamburg bicycle agent simulation",
+      "summary": "Agent-based simulation of 1,000 cyclists riding from population-weighted origins to Hamburg Hauptbahnhof, with signal timing, queues and construction sites.",
+      "status": "published",
+      "preview_image_url": null,
+      "run_count": 2,
+      "updated_at": "2026-10-11T07:32:15.238703Z"
+    }
+  ]
+}

@@ -28,7 +28,7 @@ describe("MapSideFrame", () => {
 
         const tooltips = wrapper.findAllComponents({ name: "Tooltip" });
 
-        expect(tooltips).toHaveLength(3);
+        expect(tooltips).toHaveLength(4);
         for (const tooltip of tooltips) {
             expect(tooltip.props("ui")).toEqual({ content: "z-[70]" });
         }

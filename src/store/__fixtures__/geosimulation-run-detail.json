@@ -1,0 +1,903 @@
+{
+  "id": "01a129e0-c773-72e6-9b9e-6c93f6c3e727",
+  "model": {
+    "id": "01a129df-f6de-74a7-b4cf-59fcea471a32",
+    "key": "hamburg-bike-abm",
+    "title": "Hamburg bicycle agent simulation"
+  },
+  "key": "population_qgis_surface_schedule_turn_queues_n1000_v2",
+  "title": "1,000 cyclists to Hamburg Hbf — signal schedule, queues, turn-aware junctions",
+  "description_content": {
+    "blocks": []
+  },
+  "status": "published",
+  "execution_state": "imported",
+  "model_version": "0.2.0",
+  "parameters": {
+    "seed": 42,
+    "agents": 1000,
+    "target": {
+      "name": "Hamburg Hauptbahnhof",
+      "latitude": 53.5526,
+      "longitude": 10.0067
+    },
+    "timezone": "Europe/Berlin",
+    "agent_mix": {
+      "bikes": {
+        "cargo": 0.05,
+        "ebike": 0.15,
+        "cargo_ebike": 0.05,
+        "conventional": 0.75
+      },
+      "paces": {
+        "fast": 0.2,
+        "slow": 0.2,
+        "normal": 0.6
+      },
+      "compliance": {
+        "compliant": 0.95,
+        "opportunistic": 0.05
+      },
+      "routing_profiles": {
+        "shortest": 0.2,
+        "protected": 0.2,
+        "comfortable": 0.6
+      },
+      "construction_awareness_probability": 0.8
+    },
+    "algorithm": "astar",
+    "signal_mode": "schedule",
+    "construction": {
+      "enabled": true,
+      "bypass_factor": null,
+      "penalty_factor": 3.0,
+      "reference_date": "2026-09-08",
+      "bypass_offset_m": null,
+      "opportunistic_bypasses": false
+    },
+    "origin_method": "population",
+    "signal_queues": true,
+    "surface_speeds": true,
+    "simulation_date": "2026-09-08",
+    "turn_aware_signals": true,
+    "signal_schedule_seed": 42,
+    "signal_queue_capacity": 1,
+    "simulation_start_hour": 11,
+    "departure_window_minutes": 60.0,
+    "minimum_origin_distance_km": 2.0,
+    "signal_discharge_headway_s": 1.5
+  },
+  "seed": 42,
+  "time": {
+    "start": "2026-09-08T11:00:00+02:00",
+    "end": "2026-09-08T14:14:29+02:00",
+    "timezone": "Europe/Berlin"
+  },
+  "bounds": [
+    9.730131,
+    53.395011,
+    10.325277,
+    53.739437
+  ],
+  "kpis": {
+    "agents": 1000.0,
+    "mean_distance_km": 10.627303916248614,
+    "mean_signal_stops": 3.471,
+    "p90_trip_time_min": 74.34472572918698,
+    "mean_signal_wait_s": 89.2675802592504,
+    "mean_trip_time_min": 44.826428508538044,
+    "median_trip_time_min": 42.5423851817153,
+    "mean_signal_encounters": 7.187,
+    "mean_signal_red_wait_s": 62.2445700754092,
+    "mean_construction_sites": 0.168,
+    "mean_signal_queue_wait_s": 16.242510183841187
+  },
+  "labels": {
+    "bike": {
+      "cargo": {
+        "de": "Lastenrad",
+        "en": "Cargo bike"
+      },
+      "ebike": {
+        "de": "E-Bike",
+        "en": "E-bike"
+      },
+      "cargo_ebike": {
+        "de": "E-Lastenrad",
+        "en": "Electric cargo bike"
+      },
+      "conventional": {
+        "de": "Fahrrad",
+        "en": "Conventional bike"
+      }
+    },
+    "infrastructure_type": {
+      "radweg": {
+        "de": "Radweg",
+        "en": "Cycle track"
+      },
+      "sonstige": {
+        "de": "Sonstige",
+        "en": "Other"
+      },
+      "streifen": {
+        "de": "Radfahrstreifen",
+        "en": "Cycle lane"
+      },
+      "mischverkehr": {
+        "de": "Mischverkehr",
+        "en": "Mixed traffic"
+      },
+      "gruenflaechen": {
+        "de": "Grünflächenweg",
+        "en": "Path through green space"
+      },
+      "fahrradstrasse": {
+        "de": "Fahrradstraße",
+        "en": "Bicycle street"
+      },
+      "schiebestrecke": {
+        "de": "Schiebestrecke",
+        "en": "Dismount section"
+      }
+    }
+  },
+  "outputs": [
+    {
+      "id": "01a129e0-dd43-738e-b86c-f53862397f2c",
+      "role": "bike_flow",
+      "kind": "vector_layer",
+      "title": "Cyclists per segment",
+      "display_order": 0,
+      "url": "http://garage.localhost:3900/tosca-media-public/geosimulations/dcs/01a129e0-c773-72e6-9b9e-6c93f6c3e727/layers/bike_flow.pmtiles?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Signature=fixture",
+      "url_expires_at": "2026-10-11T09:05:51.876404+00:00",
+      "source_layer": "bike_flow",
+      "geometry_type": "LineString",
+      "minzoom": 8,
+      "maxzoom": 15,
+      "bounds": [
+        9.736516,
+        53.398343,
+        10.279689,
+        53.716093
+      ],
+      "features": 16681,
+      "style": [
+        {
+          "id": "bike_flow-line",
+          "type": "line",
+          "paint": {
+            "line-color": [
+              "step",
+              [
+                "to-number",
+                [
+                  "get",
+                  "agent_count"
+                ],
+                0
+              ],
+              "#ffffb2",
+              5,
+              "#fecc5c",
+              20,
+              "#fd8d3c",
+              50,
+              "#f03b20",
+              200,
+              "#bd0026"
+            ],
+            "line-width": [
+              "interpolate",
+              [
+                "linear"
+              ],
+              [
+                "zoom"
+              ],
+              8,
+              [
+                "*",
+                0.5,
+                [
+                  "step",
+                  [
+                    "to-number",
+                    [
+                      "get",
+                      "agent_count"
+                    ],
+                    0
+                  ],
+                  1,
+                  5,
+                  2,
+                  20,
+                  3,
+                  50,
+                  4.5,
+                  200,
+                  6
+                ]
+              ],
+              14,
+              [
+                "*",
+                1.5,
+                [
+                  "step",
+                  [
+                    "to-number",
+                    [
+                      "get",
+                      "agent_count"
+                    ],
+                    0
+                  ],
+                  1,
+                  5,
+                  2,
+                  20,
+                  3,
+                  50,
+                  4.5,
+                  200,
+                  6
+                ]
+              ]
+            ]
+          },
+          "layout": {
+            "line-cap": "round",
+            "line-join": "round",
+            "line-sort-key": [
+              "to-number",
+              [
+                "get",
+                "agent_count"
+              ],
+              0
+            ]
+          },
+          "metadata": {
+            "tosca:legend-label": "Cyclists per segment"
+          }
+        }
+      ],
+      "legend": {
+        "type": "graduated",
+        "items": [
+          {
+            "max": 5,
+            "min": 1,
+            "color": "#ffffb2",
+            "label": "< 5"
+          },
+          {
+            "max": 20,
+            "min": 5,
+            "color": "#fecc5c",
+            "label": "5 – 20"
+          },
+          {
+            "max": 50,
+            "min": 20,
+            "color": "#fd8d3c",
+            "label": "20 – 50"
+          },
+          {
+            "max": 200,
+            "min": 50,
+            "color": "#f03b20",
+            "label": "50 – 200"
+          },
+          {
+            "max": 1000,
+            "min": 200,
+            "color": "#bd0026",
+            "label": "≥ 200"
+          }
+        ],
+        "title": "Cyclists per segment",
+        "geometry": "LineString",
+        "attribute": "agent_count"
+      }
+    },
+    {
+      "id": "01a129e0-de2f-7742-a6f5-c8c9ab67fdc5",
+      "role": "signal_delay",
+      "kind": "vector_layer",
+      "title": "Delay at traffic signals",
+      "display_order": 1,
+      "url": "http://garage.localhost:3900/tosca-media-public/geosimulations/dcs/01a129e0-c773-72e6-9b9e-6c93f6c3e727/layers/signal_delay.pmtiles?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Signature=fixture",
+      "url_expires_at": "2026-10-11T09:05:51.876404+00:00",
+      "source_layer": "signal_delay",
+      "geometry_type": "Point",
+      "minzoom": 8,
+      "maxzoom": 15,
+      "bounds": [
+        9.749263,
+        53.429477,
+        10.226396,
+        53.677188
+      ],
+      "features": 495,
+      "style": [
+        {
+          "id": "signal_delay-circle",
+          "type": "circle",
+          "paint": {
+            "circle-color": "#f03b20",
+            "circle-radius": [
+              "interpolate",
+              [
+                "linear"
+              ],
+              [
+                "sqrt",
+                [
+                  "-",
+                  [
+                    "to-number",
+                    [
+                      "get",
+                      "mean_delay_s"
+                    ],
+                    0.0
+                  ],
+                  0.0
+                ]
+              ],
+              0,
+              3,
+              7.265244255373635,
+              18
+            ],
+            "circle-opacity": 0.75,
+            "circle-stroke-color": "#ffffff",
+            "circle-stroke-width": 1
+          },
+          "layout": {
+            "circle-sort-key": [
+              "-",
+              0,
+              [
+                "to-number",
+                [
+                  "get",
+                  "mean_delay_s"
+                ],
+                0
+              ]
+            ]
+          },
+          "metadata": {
+            "tosca:legend-label": "Delay at traffic signals"
+          }
+        }
+      ],
+      "legend": {
+        "type": "proportional",
+        "color": "#f03b20",
+        "items": [
+          {
+            "size": 3.0,
+            "label": "0",
+            "value": 0.0
+          },
+          {
+            "size": 9.2,
+            "label": "9.02",
+            "value": 9.018330923369563
+          },
+          {
+            "size": 18.0,
+            "label": "52.8",
+            "value": 52.7837740902396
+          }
+        ],
+        "title": "Delay at traffic signals",
+        "geometry": "Point",
+        "attribute": "mean_delay_s"
+      }
+    },
+    {
+      "id": "01a129e0-df0a-7518-a896-0aa46e47dd51",
+      "role": "junction_movements",
+      "kind": "vector_layer",
+      "title": "Movements through signalised junctions",
+      "display_order": 2,
+      "url": "http://garage.localhost:3900/tosca-media-public/geosimulations/dcs/01a129e0-c773-72e6-9b9e-6c93f6c3e727/layers/junction_movements.pmtiles?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Signature=fixture",
+      "url_expires_at": "2026-10-11T09:05:51.876404+00:00",
+      "source_layer": "junction_movements",
+      "geometry_type": "LineString",
+      "minzoom": 8,
+      "maxzoom": 15,
+      "bounds": [
+        9.74896,
+        53.429377,
+        10.226406,
+        53.677353
+      ],
+      "features": 540,
+      "style": [
+        {
+          "id": "junction_movements-line",
+          "type": "line",
+          "paint": {
+            "line-color": [
+              "step",
+              [
+                "to-number",
+                [
+                  "get",
+                  "agent_count"
+                ],
+                0
+              ],
+              "#ffffb2",
+              5,
+              "#fecc5c",
+              10,
+              "#fd8d3c",
+              50,
+              "#f03b20",
+              100,
+              "#bd0026"
+            ],
+            "line-width": [
+              "interpolate",
+              [
+                "linear"
+              ],
+              [
+                "zoom"
+              ],
+              8,
+              [
+                "*",
+                0.5,
+                [
+                  "step",
+                  [
+                    "to-number",
+                    [
+                      "get",
+                      "agent_count"
+                    ],
+                    0
+                  ],
+                  1,
+                  5,
+                  2,
+                  10,
+                  3,
+                  50,
+                  4.5,
+                  100,
+                  6
+                ]
+              ],
+              14,
+              [
+                "*",
+                1.5,
+                [
+                  "step",
+                  [
+                    "to-number",
+                    [
+                      "get",
+                      "agent_count"
+                    ],
+                    0
+                  ],
+                  1,
+                  5,
+                  2,
+                  10,
+                  3,
+                  50,
+                  4.5,
+                  100,
+                  6
+                ]
+              ]
+            ]
+          },
+          "layout": {
+            "line-cap": "round",
+            "line-join": "round",
+            "line-sort-key": [
+              "to-number",
+              [
+                "get",
+                "agent_count"
+              ],
+              0
+            ]
+          },
+          "metadata": {
+            "tosca:legend-label": "Movements through signalised junctions"
+          }
+        }
+      ],
+      "legend": {
+        "type": "graduated",
+        "items": [
+          {
+            "max": 5,
+            "min": 1,
+            "color": "#ffffb2",
+            "label": "< 5"
+          },
+          {
+            "max": 10,
+            "min": 5,
+            "color": "#fecc5c",
+            "label": "5 – 10"
+          },
+          {
+            "max": 50,
+            "min": 10,
+            "color": "#fd8d3c",
+            "label": "10 – 50"
+          },
+          {
+            "max": 100,
+            "min": 50,
+            "color": "#f03b20",
+            "label": "50 – 100"
+          },
+          {
+            "max": 472,
+            "min": 100,
+            "color": "#bd0026",
+            "label": "≥ 100"
+          }
+        ],
+        "title": "Movements through signalised junctions",
+        "geometry": "LineString",
+        "attribute": "agent_count"
+      }
+    },
+    {
+      "id": "01a129e0-e044-706a-ad25-03e65f76a0dd",
+      "role": "origins_by_district",
+      "kind": "vector_layer",
+      "title": "Trip origins by district",
+      "display_order": 3,
+      "url": "http://garage.localhost:3900/tosca-media-public/geosimulations/dcs/01a129e0-c773-72e6-9b9e-6c93f6c3e727/layers/origins_by_district.pmtiles?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Signature=fixture",
+      "url_expires_at": "2026-10-11T09:05:51.876404+00:00",
+      "source_layer": "origins_by_district",
+      "geometry_type": "MultiPolygon",
+      "minzoom": 8,
+      "maxzoom": 15,
+      "bounds": [
+        9.727415,
+        53.394007,
+        10.334316,
+        53.742854
+      ],
+      "features": 99,
+      "style": [
+        {
+          "id": "origins_by_district-fill",
+          "type": "fill",
+          "paint": {
+            "fill-color": [
+              "step",
+              [
+                "to-number",
+                [
+                  "get",
+                  "sample_share_percent"
+                ],
+                0
+              ],
+              "#ffffb2",
+              0.2,
+              "#fecc5c",
+              0.6,
+              "#fd8d3c",
+              1.0,
+              "#f03b20",
+              1.7,
+              "#bd0026"
+            ],
+            "fill-opacity": 0.7
+          },
+          "metadata": {
+            "tosca:legend-label": "Trip origins by district"
+          }
+        },
+        {
+          "id": "origins_by_district-outline",
+          "type": "line",
+          "paint": {
+            "line-color": "#ffffff",
+            "line-width": 0.5,
+            "line-opacity": 0.8
+          },
+          "metadata": {
+            "tosca:legend-label": "Trip origins by district"
+          }
+        }
+      ],
+      "legend": {
+        "type": "graduated",
+        "items": [
+          {
+            "max": 0.2,
+            "min": 0.0,
+            "color": "#ffffb2",
+            "label": "< 0.2"
+          },
+          {
+            "max": 0.6,
+            "min": 0.2,
+            "color": "#fecc5c",
+            "label": "0.2 – 0.6"
+          },
+          {
+            "max": 1.0,
+            "min": 0.6,
+            "color": "#fd8d3c",
+            "label": "0.6 – 1"
+          },
+          {
+            "max": 1.7,
+            "min": 1.0,
+            "color": "#f03b20",
+            "label": "1 – 1.7"
+          },
+          {
+            "max": 4.9,
+            "min": 1.7,
+            "color": "#bd0026",
+            "label": "≥ 1.7"
+          }
+        ],
+        "title": "Trip origins by district",
+        "geometry": "Polygon",
+        "attribute": "sample_share_percent"
+      }
+    },
+    {
+      "id": "01a129e0-e18f-72b2-ab9f-5d0a992b065b",
+      "role": "origins",
+      "kind": "vector_layer",
+      "title": "Trip origins",
+      "display_order": 4,
+      "url": "http://garage.localhost:3900/tosca-media-public/geosimulations/dcs/01a129e0-c773-72e6-9b9e-6c93f6c3e727/layers/origins.pmtiles?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Signature=fixture",
+      "url_expires_at": "2026-10-11T09:05:51.876404+00:00",
+      "source_layer": "origins",
+      "geometry_type": "Point",
+      "minzoom": 8,
+      "maxzoom": 15,
+      "bounds": [
+        9.736516,
+        53.398362,
+        10.277852,
+        53.716087
+      ],
+      "features": 1000,
+      "style": [
+        {
+          "id": "origins-circle",
+          "type": "circle",
+          "paint": {
+            "circle-color": "#2563eb",
+            "circle-radius": 4,
+            "circle-stroke-color": "#ffffff",
+            "circle-stroke-width": 1
+          },
+          "metadata": {
+            "tosca:legend-label": "Trip origins"
+          }
+        }
+      ],
+      "legend": {
+        "type": "simple",
+        "items": [
+          {
+            "color": "#2563eb",
+            "label": "Trip origins"
+          }
+        ],
+        "title": "Trip origins",
+        "geometry": "Point"
+      }
+    },
+    {
+      "id": "01a129e0-e1a1-74f6-9187-d9b333f48773",
+      "role": "replay",
+      "kind": "trips",
+      "title": "Agent replay",
+      "display_order": 5,
+      "url": "http://garage.localhost:3900/tosca-media-public/geosimulations/dcs/01a129e0-c773-72e6-9b9e-6c93f6c3e727/replay/trips.json.gz?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Signature=fixture",
+      "url_expires_at": "2026-10-11T09:05:51.876404+00:00",
+      "size": 2897031,
+      "sha256": "sha256:6e2459f837c44e08c15b21158b1563481b565e445af6c8b6343f108baaf5173e",
+      "metadata": {
+        "agents": 1000,
+        "encoding": "tosca-trips",
+        "encoding_version": 1,
+        "vertices": 324903,
+        "stops": 10659,
+        "time_unit": "s",
+        "time_origin": "run.time.start"
+      }
+    },
+    {
+      "id": "01a129e0-e1a2-7644-8062-9a4582839396",
+      "role": "kpis",
+      "kind": "table",
+      "title": "Key figures",
+      "display_order": 6,
+      "data": {
+        "rows": [
+          [
+            "agents",
+            1000.0,
+            "count"
+          ],
+          [
+            "mean_distance_km",
+            10.627303916248614,
+            "km"
+          ],
+          [
+            "mean_trip_time_min",
+            44.826428508538044,
+            "min"
+          ],
+          [
+            "median_trip_time_min",
+            42.5423851817153,
+            "min"
+          ]
+        ],
+        "columns": [
+          "metric",
+          "value",
+          "unit"
+        ]
+      }
+    },
+    {
+      "id": "01a129e0-e1a3-76e2-9c6a-0e3333b41edb",
+      "role": "summary_by_group",
+      "kind": "table",
+      "title": "Results by agent group",
+      "display_order": 7,
+      "data": {
+        "rows": [
+          [
+            "bike",
+            "cargo",
+            47,
+            11.156918041771128,
+            45.5115150998798,
+            94.46583184569376,
+            65.31195926037819,
+            18.207064074677263,
+            7.297872340425532,
+            3.872340425531915
+          ],
+          [
+            "bike",
+            "cargo_ebike",
+            47,
+            10.66753801864425,
+            44.80357008082192,
+            84.74838462644914,
+            59.02167508412001,
+            15.418198904031254,
+            6.872340425531915,
+            3.297872340425532
+          ],
+          [
+            "bike",
+            "conventional",
+            756,
+            10.621301259378326,
+            44.85532221714903,
+            87.03762769558105,
+            59.95297579566291,
+            16.376318566584796,
+            7.138888888888889,
+            3.414021164021164
+          ],
+          [
+            "bike",
+            "ebike",
+            150,
+            10.479004862127177,
+            44.473306059202656,
+            100.2937703146694,
+            73.84293039797753,
+            15.210839916691864,
+            7.493333333333333,
+            3.6866666666666665
+          ]
+        ],
+        "columns": [
+          "dimension",
+          "category",
+          "agents",
+          "mean_distance_km",
+          "mean_trip_time_min",
+          "mean_signal_wait_s",
+          "mean_signal_red_wait_s",
+          "mean_signal_queue_wait_s",
+          "mean_signal_encounters",
+          "mean_signal_stops"
+        ]
+      }
+    },
+    {
+      "id": "01a129e0-e1a4-7529-9528-cbc46f16ffb3",
+      "role": "signal_movements",
+      "kind": "table",
+      "title": "Signal waits by movement",
+      "display_order": 8,
+      "data": {
+        "rows": [
+          [
+            "left",
+            376,
+            309,
+            17.794947216804275,
+            1.992755750188076,
+            1.5
+          ],
+          [
+            "right",
+            261,
+            223,
+            3.5444369238033953,
+            0.4523857879674993,
+            1.5
+          ],
+          [
+            "straight",
+            6515,
+            997,
+            8.32322072341321,
+            2.3599633662488033,
+            1.5
+          ],
+          [
+            "u_turn",
+            3,
+            3,
+            7.529332907775824,
+            0.0,
+            1.5
+          ]
+        ],
+        "columns": [
+          "movement",
+          "encounters",
+          "agents",
+          "mean_red_wait_s",
+          "mean_queue_wait_s",
+          "mean_service_time_s"
+        ]
+      }
+    },
+    {
+      "id": "01a129e0-e1c6-76e3-8d4e-ea55b1b30e7d",
+      "role": "preview",
+      "kind": "image",
+      "title": "Preview",
+      "display_order": 9,
+      "url": "http://garage.localhost:3900/tosca-media-public/geosimulations/dcs/01a129e0-c773-72e6-9b9e-6c93f6c3e727/preview.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Signature=fixture",
+      "url_expires_at": "2026-10-11T09:05:51.876404+00:00",
+      "mime": "image/png"
+    }
+  ],
+  "created_at": "2026-10-11T07:32:39.414653Z",
+  "updated_at": "2026-10-11T07:32:46.153577Z"
+}

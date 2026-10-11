@@ -109,6 +109,39 @@ const router = createRouter({
             }
         },
         {
+            path: "/geosimulations",
+            name: "geosimulations",
+            components: {
+                default: MapView,
+                geosimulations: async () => await import("../components/Geosimulations/GeoSimulationSidebar.vue")
+            },
+            children: [
+                {
+                    path: "",
+                    name: "geosimulation-list",
+                    component: async () => await import("../components/Geosimulations/GeoSimulationList.vue")
+                },
+                {
+                    // Before ":modelId", so "runs" is never read as a model id.
+                    path: "runs/:runId",
+                    name: "geosimulation-run",
+                    component: async () => await import("../components/Geosimulations/GeoSimulationRunDetail.vue"),
+                    props: true
+                },
+                {
+                    path: ":modelId",
+                    name: "geosimulation-model",
+                    component: async () => await import("../components/Geosimulations/GeoSimulationModel.vue"),
+                    props: true
+                }
+            ],
+            meta: {
+                feature: "geosimulations",
+                sidebar: "geosimulations",
+                sidebarPosition: "left"
+            }
+        },
+        {
             path: "/:footerDocumentSlug",
             name: "footer-document",
             components: {

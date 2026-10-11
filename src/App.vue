@@ -65,6 +65,7 @@ watch(themeMode, (mode) => {
         <RouterView v-if="mapStore.map" name="events"></RouterView>
         <RouterView v-if="mapStore.map" name="geostories"></RouterView>
         <RouterView v-if="mapStore.map" name="urbanStories"></RouterView>
+        <RouterView v-if="mapStore.map" name="geosimulations"></RouterView>
       </main>
       <AppFooter />
       <FooterDocumentModal />

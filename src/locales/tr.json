@@ -70,7 +70,8 @@
       "events": "Etkinlikler",
       "geostories": "Coğrafi Hikâyeler",
       "urbanStories": "Kent Hikâyeleri",
-      "layers": "Katmanlar"
+      "layers": "Katmanlar",
+      "geosimulations": "Simülasyonlar"
     },
     "basemap": {
       "dataviz": "Dataviz",
@@ -774,6 +775,34 @@
       "feed": "Feed: {publisher}, version {version}, valid {start} – {end}.",
       "source": "HVV GTFS timetable via the Hamburg transparency portal.",
       "credits": "Based on hamburgriders (MIT), forked from utrechtriders, inspired by londonriders. Dark basemap © CARTO © OpenStreetMap contributors."
+    }
+  },
+  "geosimulations": {
+    "title": "Simülasyonlar",
+    "unavailable": "Simülasyonlar şu anda kullanılamıyor",
+    "tryAgain": "Tekrar dene",
+    "empty": "Kullanılabilir simülasyon yok",
+    "emptyDescription": "Yayımlanan simülasyonlar burada görünür.",
+    "runCount": "çalıştırma yok | 1 çalıştırma | {count} çalıştırma",
+    "openModel": "Çalıştırmaları göster",
+    "loadMore": "Daha fazla yükle",
+    "backToModels": "Tüm simülasyonlar",
+    "backToRuns": "Çalıştırmalara dön",
+    "modelUnavailable": "Bu simülasyon kullanılamıyor.",
+    "runs": "Çalıştırmalar",
+    "noRuns": "Henüz çalıştırma yok.",
+    "openRun": "Çalıştırmayı aç",
+    "runUnavailable": "Bu çalıştırma kullanılamıyor.",
+    "keyFigures": "Temel göstergeler",
+    "mapLayers": "Harita katmanları",
+    "mapLayersHint": "Katmanları açıp kapatın; her birinin lejantı katman listesinde.",
+    "layerError": "Harita katmanı yüklenemedi.",
+    "parameters": "Parametreler",
+    "modelVersion": "Model sürümü",
+    "status": {
+      "draft": "Taslak",
+      "published": "Yayımlandı",
+      "archived": "Arşivlendi"
     }
   }
 }
