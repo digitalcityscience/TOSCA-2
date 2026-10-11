@@ -22,6 +22,7 @@ import { validateSpriteUrl } from "@helpers/mapStyleBundle";
 import { useToast } from "@helpers/toast";
 import { combineStyleAndUserFilter } from "@helpers/maplibreExpressions";
 import { ChunkedGeoJsonLayer } from "@helpers/deckChunkedGeoJsonLayer";
+import { SimulationReplayLayer } from "@helpers/deckSimulationReplayLayer";
 import type { DeckGeoJsonChunk } from "@helpers/deckGeoJsonChunk";
 
 /**
@@ -172,7 +173,7 @@ export type MapLibreLayerTypes =
   | "hillshade"
   | "background";
 /** MapLibre style-spec types, plus synthetic types for non-MapLibre renderers. */
-export type LayerRenderType = MapLibreLayerTypes | "deckgl-tile3d" | "deckgl-geojson";
+export type LayerRenderType = MapLibreLayerTypes | "deckgl-tile3d" | "deckgl-geojson" | "deckgl-replay";
 
 interface BaseLayerParams {
     sourceType: SourceType;
@@ -347,7 +348,7 @@ export const useMapStore = defineStore("map", () => {
    */
     const layerUiState = ref<Record<string, LayerUiState>>({});
     /** Which deck.gl Layer class renders each entry of `deckLayerProps`. */
-    const deckLayerKinds = new Map<string, "tile3d" | "geojson">();
+    const deckLayerKinds = new Map<string, "tile3d" | "geojson" | "replay">();
     /**
    * Rebuilds every deck.gl Layer instance from `deckLayerProps` and pushes them
    * to the overlay. Called after any add/remove/prop change.
@@ -360,11 +361,12 @@ export const useMapStore = defineStore("map", () => {
         const position = (identifier: string): number => listOrder.get(identifier) ?? Number.MAX_SAFE_INTEGER;
         const entries = Array.from(deckLayerProps.entries())
             .sort(([a], [b]) => position(a) - position(b));
-        const layers = entries.map(([identifier, props]) =>
-            deckLayerKinds.get(identifier) === "geojson"
-                ? new ChunkedGeoJsonLayer(props)
-                : new PickableTile3DLayer(props)
-        );
+        const layers = entries.map(([identifier, props]) => {
+            const kind = deckLayerKinds.get(identifier);
+            if (kind === "geojson") return new ChunkedGeoJsonLayer(props);
+            if (kind === "replay") return new SimulationReplayLayer(props);
+            return new PickableTile3DLayer(props);
+        });
         deckOverlay.value.setProps({ layers });
     }
     /**
@@ -485,6 +487,52 @@ export const useMapStore = defineStore("map", () => {
         };
         add2MapLayerList(layerRecord, index);
         return layersOnMap.value.find((layer) => layer.id === identifier) ?? layerRecord;
+    }
+    /**
+   * Adds an animated GeoSimulation replay (deck.gl `TripsLayer` + signal
+   * stops) and registers a sidebar entry for it. Drive it with
+   * `setDeckLayerProps(identifier, { currentTime })`.
+   */
+    function addDeckReplayLayer(params: {
+        identifier: string
+        displayName?: string
+        props: Record<string, unknown>
+        simulationOutput?: SimulationOutputLayerInfo
+    }): LayerObjectWithAttributes {
+        if (isNullOrEmpty(map.value)) {
+            throw new Error("There is no map to add layer");
+        }
+        const { identifier, displayName, props, simulationOutput } = params;
+        if (identifier === "" || deckLayerProps.has(identifier)) {
+            throw new Error(`Cannot add deck.gl layer ${identifier}`);
+        }
+        initializeDeckOverlay();
+        deckLayerKinds.set(identifier, "replay");
+        deckLayerProps.set(identifier, { id: identifier, opacity: 1, visible: true, pickable: true, ...props });
+        syncDeckOverlay();
+        const layerRecord: LayerObjectWithAttributes = {
+            id: identifier,
+            source: identifier,
+            sourceType: "deckgl",
+            type: "deckgl-replay",
+            renderer: "deckgl",
+            showOnLayerList: true,
+            keepOnTop: false,
+            displayName,
+            simulationOutput,
+        };
+        add2MapLayerList(layerRecord, undefined, { notify: false });
+        return layersOnMap.value.find((layer) => layer.id === identifier) ?? layerRecord;
+    }
+    /**
+   * Merges props into a deck.gl layer and redraws. Cheap enough per animation
+   * frame: deck.gl diffs props, so unchanged data is not re-uploaded.
+   */
+    function setDeckLayerProps(identifier: string, update: Record<string, unknown>): void {
+        const props = deckLayerProps.get(identifier);
+        if (props === undefined) return;
+        deckLayerProps.set(identifier, { ...props, ...update });
+        syncDeckOverlay();
     }
     /** Updates the appearance of a deck.gl GeoJSON layer. */
     function setDeckGeoJsonStyle(identifier: string, update: Partial<DeckGeoJsonStyle>): void {
@@ -1868,6 +1916,8 @@ export const useMapStore = defineStore("map", () => {
         appendDeckGeoJsonChunk,
         clearDeckGeoJsonChunks,
         removeDeckLayer,
+        addDeckReplayLayer,
+        setDeckLayerProps,
         setDeckLayerVisibility,
         setDeckLayerOpacity,
         pickDeckObjects,
@@ -2085,7 +2135,7 @@ function hexToRgb(hex: string): [number, number, number] {
 
 function buildDeckPopupFeature(pick: PickingInfo): PopupAttributeFeature {
     const layerId = pick.layer!.id;
-    if (pick.layer instanceof ChunkedGeoJsonLayer) {
+    if (pick.layer instanceof ChunkedGeoJsonLayer || pick.layer instanceof SimulationReplayLayer) {
         const properties = (pick.object as { properties?: Record<string, unknown> } | undefined)?.properties ?? {};
         return { source: layerId, id: pick.index, properties };
     }

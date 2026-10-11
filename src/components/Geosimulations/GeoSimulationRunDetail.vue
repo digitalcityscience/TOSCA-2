@@ -27,6 +27,8 @@
                 </dl>
             </section>
 
+            <SimulationReplayPanel v-if="tripsOutput" :key="run.id" :run="run" :output="tripsOutput" />
+
             <section v-if="mapOutputs.length > 0" class="grid gap-2">
                 <h3 class="text-sm font-semibold text-highlighted">{{ t("geosimulations.mapLayers") }}</h3>
                 <p class="text-xs text-muted">{{ t("geosimulations.mapLayersHint") }}</p>
@@ -79,9 +81,11 @@
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import EditorJsReadonly from "@components/Base/EditorJsReadonly.vue";
+import SimulationReplayPanel from "./SimulationReplayPanel.vue";
 import { useMapStore } from "@store/map";
 import {
     isTableOutput,
+    isTripsOutput,
     isVectorLayerOutput,
     type SimulationRunDetail,
     type SimulationVectorLayerOutput,
@@ -112,6 +116,7 @@ const pendingOutputId = ref<string>();
 let refreshTimer: ReturnType<typeof setTimeout> | undefined;
 
 const mapOutputs = computed(() => (run.value?.outputs ?? []).filter(isVectorLayerOutput));
+const tripsOutput = computed(() => run.value?.outputs.find(isTripsOutput));
 const kpiRows = computed(() => (run.value ? simulationKpiRows(run.value, locale.value) : []));
 const otherTables = computed(() => (run.value?.outputs ?? []).filter(isTableOutput).filter((table) => table.role !== "kpis"));
 
@@ -138,10 +143,18 @@ async function toggleOutput(output: SimulationVectorLayerOutput, on: boolean): P
     }
 }
 
+/** The open sidebar (38.75rem) overlays the map's left side; keep the run in the visible part. */
+const SIDEBAR_WIDTH_PX = 620;
+
 function fitToRun(detail: SimulationRunDetail): void {
-    if (detail.bounds === null) return;
+    if (detail.bounds === null || mapStore.map === undefined) return;
     const [west, south, east, north] = detail.bounds;
-    mapStore.map?.fitBounds([[west, south], [east, north]], { padding: 40, duration: 800 });
+    const mapWidth = mapStore.map.getContainer().clientWidth as number;
+    const left = Math.min(SIDEBAR_WIDTH_PX, Math.max(0, mapWidth - 320)) + 40;
+    mapStore.map.fitBounds([[west, south], [east, north]], {
+        padding: { top: 40, bottom: 40, right: 40, left },
+        duration: 800,
+    });
 }
 
 /** File URLs are presigned; fetch fresh ones a minute before they expire. */

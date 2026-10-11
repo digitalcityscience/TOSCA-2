@@ -68,3 +68,22 @@ export function formatParameter(value: unknown, locale: string): string {
     if (typeof value === "string") return value;
     return JSON.stringify(value);
 }
+
+/** Wall-clock time of a replay moment (seconds since `start`) in the run's timezone. */
+export function formatReplayClock(start: string | null, seconds: number, timezone: string, locale: string): string {
+    if (start === null) return "";
+    const moment = new Date(Date.parse(start) + seconds * 1000);
+    return new Intl.DateTimeFormat(locale, {
+        timeZone: timezone,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+    }).format(moment);
+}
+
+/** Replay length as `3 h 14 min`. */
+export function formatDuration(seconds: number): string {
+    const minutes = Math.round(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    return hours > 0 ? `${hours} h ${minutes % 60} min` : `${minutes} min`;
+}

@@ -33,7 +33,7 @@
                 <div class="layer-actions">
                     <UButton class="layer-icon-btn" icon="i-lucide-trash-2" color="error" variant="ghost" :aria-label="t('common.delete')"
                         @click="confirmDialogVisibility = true" />
-                    <UButton v-if="props.layer.renderer !== 'deckgl' || props.layer.externalSource?.bbox" class="layer-icon-btn" icon="i-lucide-zoom-in" color="neutral" variant="ghost" :aria-label="t('map.layerItem.zoom')"
+                    <UButton v-if="props.layer.renderer !== 'deckgl' || props.layer.externalSource?.bbox || props.layer.simulationOutput?.bounds" class="layer-icon-btn" icon="i-lucide-zoom-in" color="neutral" variant="ghost" :aria-label="t('map.layerItem.zoom')"
                         @click="zoomToLayer" />
                     <UButton
                         class="layer-icon-btn"

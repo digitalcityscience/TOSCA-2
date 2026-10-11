@@ -803,6 +803,25 @@
       "draft": "Draft",
       "published": "Published",
       "archived": "Archived"
+    },
+    "replay": {
+      "title": "Replay",
+      "agents": "{count} agents",
+      "load": "Play replay",
+      "loading": "Loading replay… {mb} MB",
+      "failed": "The replay couldn't be loaded.",
+      "play": "Play",
+      "pause": "Pause",
+      "position": "Replay position",
+      "speed": "Speed",
+      "colorBy": "Colour by",
+      "colorNone": "One colour",
+      "signalStops": "Signal stops",
+      "stop": {
+        "red_wait": "Waiting at red",
+        "queued": "Queued",
+        "discharging": "Crossing"
+      }
     }
   }
 }
