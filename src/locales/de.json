@@ -583,7 +583,15 @@
       "navLabel": "Kartenszenen",
       "progress": "Szene {current} von {total}",
       "captionLabel": "Beschreibung der Kartenszene",
-      "hideCaption": "Beschreibung ausblenden"
+      "hideCaption": "Beschreibung ausblenden",
+      "replay": {
+        "label": "Simulationswiedergabe",
+        "play": "Wiedergabe starten",
+        "pause": "Wiedergabe anhalten",
+        "loading": "Wiedergabe wird geladen… {mb} MB",
+        "failed": "Die Wiedergabe konnte nicht geladen werden",
+        "rate": "{rate}× Geschwindigkeit"
+      }
     }
   },
   "urbanStories": {

@@ -5,6 +5,7 @@
             <MapContainer></MapContainer>
             <GeoStorySceneCaption></GeoStorySceneCaption>
             <HamburgRidersModule></HamburgRidersModule>
+            <GeoStorySceneReplayControl></GeoStorySceneReplayControl>
         </div>
         <MapSideFrame side="right"></MapSideFrame>
         <WorkspaceListing v-if="datastoresEnabled" :workspaces="geoserverStore.workspaceList"></WorkspaceListing>
@@ -21,6 +22,7 @@ import MapContainer from "@components/Map/MapContainer.vue";
 import MapSideFrame from "@components/Map/MapSideFrame.vue";
 import GeoStorySceneCaption from "@components/Geostories/GeoStorySceneCaption.vue";
 import HamburgRidersModule from "@components/HamburgRiders/HamburgRidersModule.vue";
+import GeoStorySceneReplayControl from "@components/Geostories/GeoStorySceneReplayControl.vue";
 import { reportDeveloperError } from "@helpers/userFacingError";
 import { isFeatureEnabled } from "../config/features";
 const WorkspaceListing = defineAsyncComponent(async () => await import("@components/Data/Workspace/WorkspaceListing.vue"));

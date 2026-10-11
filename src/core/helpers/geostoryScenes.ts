@@ -225,18 +225,30 @@ export function createGeoStorySceneLoader(
     return { manifestFor };
 }
 
-/** Union of the drawn layers' extents, for "fit to layers" scenes. */
-export function sceneLayersBounds(scene: Pick<GeoStoryScene, "layers">): GeoStoryBounds | undefined {
+/**
+ * Union of the drawn layers' extents, for "fit to layers" scenes. A scene with
+ * only a simulation fits the simulation's extent.
+ */
+export function sceneLayersBounds(
+    scene: Pick<GeoStoryScene, "layers" | "simulation">
+): GeoStoryBounds | undefined {
     const boxes = drawnSceneLayers(scene)
         .map((sceneLayer) => sceneLayer.layer.bounds)
-        .filter((bounds): bounds is GeoStoryBounds => Array.isArray(bounds) && bounds.length === 4);
-    if (boxes.length === 0) return undefined;
+        .filter(isBounds);
+    if (boxes.length === 0) {
+        const simulationBounds = scene.simulation?.bounds;
+        return isBounds(simulationBounds) ? simulationBounds : undefined;
+    }
     return [
         Math.min(...boxes.map((box) => box[0])),
         Math.min(...boxes.map((box) => box[1])),
         Math.max(...boxes.map((box) => box[2])),
         Math.max(...boxes.map((box) => box[3])),
     ];
+}
+
+function isBounds(bounds: unknown): bounds is GeoStoryBounds {
+    return Array.isArray(bounds) && bounds.length === 4;
 }
 
 export const SCENE_FIT_PADDING = 40;
@@ -274,7 +286,7 @@ export type SceneCameraMove =
  * motion always jumps (and fits without animation).
  */
 export function sceneCameraMove(
-    scene: Pick<GeoStoryScene, "camera" | "transition" | "layers">,
+    scene: Pick<GeoStoryScene, "camera" | "transition" | "layers" | "simulation">,
     { reducedMotion = false }: { reducedMotion?: boolean } = {}
 ): SceneCameraMove | undefined {
     const { camera, transition } = scene;

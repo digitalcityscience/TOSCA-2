@@ -8,6 +8,7 @@ import {
 } from "@helpers/geostoryScenes";
 import { reportDeveloperError } from "@helpers/userFacingError";
 import { useGeoserverStore } from "./geoserver";
+import { useGeostorySceneSimulationStore } from "./geostorySceneSimulation";
 import { type GeoStoryDetail, type GeoStoryScene, sortedScenes } from "./geostory";
 import { useMapStore } from "./map";
 
@@ -20,10 +21,13 @@ import { useMapStore } from "./map";
  * the new scene's group, removes the previous one, then moves the camera.
  * Requests are serialised: while a switch runs, only the latest requested scene
  * is kept and applied next, so rapid scrolling never stacks map changes.
+ * A scene's GeoSimulation (map layers and replay) is handed to
+ * `useGeostorySceneSimulationStore`, which draws it above the group.
  */
 export const useGeostorySceneStore = defineStore("geostoryScenes", () => {
     const mapStore = useMapStore();
     const geoserverStore = useGeoserverStore();
+    const simulationStore = useGeostorySceneSimulationStore();
 
     const story = shallowRef<GeoStoryDetail>();
     const activeSceneId = ref<string>();
@@ -110,6 +114,13 @@ export const useGeostorySceneStore = defineStore("geostoryScenes", () => {
             }
         }
         await removeGroup(previousRecordId);
+        // Not awaited: its layers wait for the map style, which must not hold up scrolling.
+        simulationStore.show(scene.simulation, {
+            story: story.value?.id,
+            reducedMotion: prefersReducedMotion(),
+        }).catch((error: unknown) => {
+            reportDeveloperError(`Showing the simulation of GeoStory scene ${scene.id}`, error);
+        });
         activeSceneId.value = scene.id;
         moveCamera(scene);
     }
@@ -155,6 +166,7 @@ export const useGeostorySceneStore = defineStore("geostoryScenes", () => {
         activeSceneId.value = undefined;
         targetSceneId.value = undefined;
         loader = undefined;
+        await simulationStore.clear({ removeLayers });
         if (removeLayers) {
             lingeringGroupId = undefined;
             for (const recordId of recordIds) await removeGroup(recordId);
