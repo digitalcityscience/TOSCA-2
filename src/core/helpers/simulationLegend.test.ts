@@ -46,3 +46,25 @@ describe("simulation legend rows", () => {
         expect(row.color).toBe("linear-gradient(90deg, #67a9cf, #b2182b)");
     });
 });
+
+describe("diverging legends", () => {
+    test("render like graduated classes, by geometry", () => {
+        const rows = simulationLegendRows({
+            type: "diverging",
+            title: "Change in waiting at traffic signals",
+            attribute: "total_delay_s_delta",
+            geometry: "Point",
+            items: [
+                { color: "#2166ac", label: "< −200", max: -200 },
+                { color: "#d1d5db", label: "−200 – +200", min: -200, max: 200 },
+                { color: "#b2182b", label: "≥ +200", min: 200 },
+            ],
+        }, "en");
+
+        expect(rows.map((row) => [row.label, row.mark, row.color])).toEqual([
+            ["< −200", "circle", "#2166ac"],
+            ["−200 – +200", "circle", "#d1d5db"],
+            ["≥ +200", "circle", "#b2182b"],
+        ]);
+    });
+});

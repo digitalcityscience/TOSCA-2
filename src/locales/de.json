@@ -830,6 +830,24 @@
         "queued": "In der Warteschlange",
         "discharging": "Überquert"
       }
+    },
+    "comparisons": "Vergleiche",
+    "comparedIn": "Verglichen in",
+    "comparison": {
+      "badge": "Vergleich",
+      "unavailable": "Dieser Vergleich ist nicht verfügbar.",
+      "open": "Vergleich öffnen",
+      "versus": "{baseline} → {candidate}",
+      "runs": "Verglichene Läufe",
+      "baseline": "Basis",
+      "candidate": "Variante",
+      "asBaseline": "als Basis",
+      "asCandidate": "als Variante",
+      "keyFigureChanges": "Veränderung der Kennzahlen",
+      "metric": "Kennzahl",
+      "change": "Veränderung",
+      "differenceLayers": "Differenzebenen",
+      "noDifferenceLayers": "Zwischen den beiden Läufen hat sich keine Kartenebene verändert."
     }
   }
 }

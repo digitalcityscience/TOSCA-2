@@ -830,6 +830,24 @@
         "queued": "Kuyrukta",
         "discharging": "Geçiyor"
       }
+    },
+    "comparisons": "Karşılaştırmalar",
+    "comparedIn": "Karşılaştırıldığı yerler",
+    "comparison": {
+      "badge": "Karşılaştırma",
+      "unavailable": "Bu karşılaştırma kullanılamıyor.",
+      "open": "Karşılaştırmayı aç",
+      "versus": "{baseline} → {candidate}",
+      "runs": "Karşılaştırılan çalıştırmalar",
+      "baseline": "Temel",
+      "candidate": "Aday",
+      "asBaseline": "temel olarak",
+      "asCandidate": "aday olarak",
+      "keyFigureChanges": "Temel göstergelerdeki değişim",
+      "metric": "Gösterge",
+      "change": "Değişim",
+      "differenceLayers": "Fark katmanları",
+      "noDifferenceLayers": "İki çalıştırma arasında hiçbir harita katmanı değişmedi."
     }
   }
 }

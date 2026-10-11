@@ -50,6 +50,12 @@ const backTarget = computed<{ label: string; to: RouteLocationRaw } | undefined>
             ? { label: t("geosimulations.backToModels"), to: { name: "geosimulation-list" } }
             : { label: t("geosimulations.backToRuns"), to: { name: "geosimulation-model", params: { modelId } } };
     }
+    if (route.name === "geosimulation-comparison") {
+        const modelId = geosimulation.selectedComparison?.model.id;
+        return modelId === undefined
+            ? { label: t("geosimulations.backToModels"), to: { name: "geosimulation-list" } }
+            : { label: t("geosimulations.backToRuns"), to: { name: "geosimulation-model", params: { modelId } } };
+    }
     return undefined;
 });
 </script>

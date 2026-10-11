@@ -830,6 +830,24 @@
         "queued": "Queued",
         "discharging": "Crossing"
       }
+    },
+    "comparisons": "Comparisons",
+    "comparedIn": "Compared in",
+    "comparison": {
+      "badge": "Comparison",
+      "unavailable": "This comparison is unavailable.",
+      "open": "Open comparison",
+      "versus": "{baseline} → {candidate}",
+      "runs": "Compared runs",
+      "baseline": "Baseline",
+      "candidate": "Candidate",
+      "asBaseline": "as baseline",
+      "asCandidate": "as candidate",
+      "keyFigureChanges": "Key figure changes",
+      "metric": "Figure",
+      "change": "Change",
+      "differenceLayers": "Difference layers",
+      "noDifferenceLayers": "No map layer changed between the two runs."
     }
   }
 }

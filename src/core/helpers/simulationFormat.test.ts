@@ -7,7 +7,9 @@ import {
     formatReplayClock,
     formatSimulatedTime,
     humanizeMetric,
+    simulationKpiChangeRows,
     simulationKpiRows,
+    unitForMetric,
 } from "./simulationFormat";
 
 const run = runFixture as unknown as SimulationRunDetail;
@@ -48,5 +50,28 @@ describe("simulation formatting", () => {
     test("durations read as hours and minutes", () => {
         expect(formatDuration(11669)).toBe("3 h 14 min");
         expect(formatDuration(600)).toBe("10 min");
+    });
+});
+
+describe("comparison KPI changes", () => {
+    test("units come from the metric name", () => {
+        expect(unitForMetric("mean_trip_time_min")).toBe("min");
+        expect(unitForMetric("mean_signal_wait_s")).toBe("s");
+        expect(unitForMetric("mean_speed_kmh")).toBe("km/h");
+        expect(unitForMetric("agents")).toBe("");
+    });
+
+    test("rows carry signed changes, percentages and a direction", () => {
+        const rows = simulationKpiChangeRows([
+            { metric: "mean_signal_red_wait_s", baseline: 59.47, candidate: 62.24, delta: 2.77, delta_percent: 4.66 },
+            { metric: "mean_signal_queue_wait_s", baseline: 16.98, candidate: 16.24, delta: -0.74, delta_percent: -4.36 },
+            { metric: "agents", baseline: 1000, candidate: 1000, delta: 0, delta_percent: 0 },
+            { metric: "zero_based", baseline: 0, candidate: 2, delta: 2, delta_percent: null },
+        ], "en");
+
+        expect(rows[0]).toMatchObject({ label: "Mean signal red wait", unit: "s", delta: "+2.77", percent: "+4.66 %", direction: "up" });
+        expect(rows[1]).toMatchObject({ delta: "−0.74", percent: "−4.36 %", direction: "down" });
+        expect(rows[2]).toMatchObject({ baseline: "1,000", delta: "0", percent: "", direction: "none" });
+        expect(rows[3]).toMatchObject({ delta: "+2", percent: "" });
     });
 });

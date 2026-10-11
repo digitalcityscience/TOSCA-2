@@ -122,10 +122,16 @@ const router = createRouter({
                     component: async () => await import("../components/Geosimulations/GeoSimulationList.vue")
                 },
                 {
-                    // Before ":modelId", so "runs" is never read as a model id.
+                    // Before ":modelId", so "runs" and "comparisons" are never read as a model id.
                     path: "runs/:runId",
                     name: "geosimulation-run",
                     component: async () => await import("../components/Geosimulations/GeoSimulationRunDetail.vue"),
+                    props: true
+                },
+                {
+                    path: "comparisons/:comparisonId",
+                    name: "geosimulation-comparison",
+                    component: async () => await import("../components/Geosimulations/GeoSimulationComparison.vue"),
                     props: true
                 },
                 {

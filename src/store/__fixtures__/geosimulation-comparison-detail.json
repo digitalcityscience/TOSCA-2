@@ -1,0 +1,526 @@
+{
+  "id": "01a12bf1-eeb5-706a-b2f6-fe3b8b238d26",
+  "model": {
+    "id": "01a129df-f6de-74a7-b4cf-59fcea471a32",
+    "key": "hamburg-bike-abm",
+    "title": "Hamburg bicycle agent simulation"
+  },
+  "key": "queues_vs_turn_queues_n1000_v2",
+  "title": "Turn-aware signal queues vs shared queues",
+  "description_content": {
+    "blocks": []
+  },
+  "status": "published",
+  "baseline": {
+    "id": "01a129e0-a2db-71df-8501-d828c428b32a",
+    "key": "population_qgis_surface_schedule_queues_n1000_v2",
+    "title": "1,000 cyclists to Hamburg Hbf — signal schedule and queues",
+    "status": "published",
+    "execution_state": "imported",
+    "model_version": "0.2.0",
+    "time": {
+      "start": "2026-09-08T11:00:00+02:00",
+      "end": "2026-09-08T14:14:29+02:00",
+      "timezone": "Europe/Berlin"
+    },
+    "created_at": "2026-10-11T07:32:30.045961Z"
+  },
+  "candidate": {
+    "id": "01a129e0-c773-72e6-9b9e-6c93f6c3e727",
+    "key": "population_qgis_surface_schedule_turn_queues_n1000_v2",
+    "title": "1,000 cyclists to Hamburg Hbf — signal schedule, queues, turn-aware junctions",
+    "status": "published",
+    "execution_state": "imported",
+    "model_version": "0.2.0",
+    "time": {
+      "start": "2026-09-08T11:00:00+02:00",
+      "end": "2026-09-08T14:14:29+02:00",
+      "timezone": "Europe/Berlin"
+    },
+    "created_at": "2026-10-11T07:32:39.414653Z"
+  },
+  "bounds": [
+    9.751915,
+    53.431652,
+    10.221541,
+    53.675148
+  ],
+  "labels": {
+    "bike": {
+      "cargo": {
+        "de": "Lastenrad",
+        "en": "Cargo bike"
+      },
+      "ebike": {
+        "de": "E-Bike",
+        "en": "E-bike"
+      },
+      "cargo_ebike": {
+        "de": "E-Lastenrad",
+        "en": "Electric cargo bike"
+      },
+      "conventional": {
+        "de": "Fahrrad",
+        "en": "Conventional bike"
+      }
+    },
+    "pace": {
+      "fast": {
+        "de": "Schnell",
+        "en": "Fast"
+      },
+      "slow": {
+        "de": "Langsam",
+        "en": "Slow"
+      },
+      "normal": {
+        "de": "Normal",
+        "en": "Normal"
+      }
+    },
+    "surface": {
+      "Holz": {
+        "de": "Holz",
+        "en": "Wood"
+      },
+      "Metall": {
+        "de": "Metall",
+        "en": "Metal"
+      },
+      "Treppe": {
+        "de": "Treppe",
+        "en": "Stairs"
+      },
+      "unbefestigt": {
+        "de": "Unbefestigt",
+        "en": "Unpaved"
+      },
+      "Betonplatten": {
+        "de": "Betonplatten",
+        "en": "Concrete slabs"
+      },
+      "Bahnübergang": {
+        "de": "Bahnübergang",
+        "en": "Level crossing"
+      },
+      "Bituminöse Decke": {
+        "de": "Bituminöse Decke",
+        "en": "Asphalt"
+      },
+      "Kunststein-Pflaster": {
+        "de": "Kunststein-Pflaster",
+        "en": "Concrete block paving"
+      },
+      "Naturstein-Pflaster": {
+        "de": "Naturstein-Pflaster",
+        "en": "Natural stone paving"
+      },
+      "Wassergebundene Decke": {
+        "de": "Wassergebundene Decke",
+        "en": "Water-bound gravel"
+      },
+      "befestigt - nicht genauer erkennbar": {
+        "de": "Befestigt (nicht genauer erkennbar)",
+        "en": "Paved (unspecified)"
+      }
+    },
+    "movement": {
+      "left": {
+        "de": "Linksabbieger",
+        "en": "Left turn"
+      },
+      "right": {
+        "de": "Rechtsabbieger",
+        "en": "Right turn"
+      },
+      "u_turn": {
+        "de": "Wenden",
+        "en": "U-turn"
+      },
+      "unknown": {
+        "de": "Unbekannt",
+        "en": "Unknown"
+      },
+      "straight": {
+        "de": "Geradeaus",
+        "en": "Straight"
+      }
+    },
+    "compliance": {
+      "compliant": {
+        "de": "Regelkonform",
+        "en": "Compliant"
+      },
+      "opportunistic": {
+        "de": "Opportunistisch",
+        "en": "Opportunistic"
+      }
+    },
+    "routing_profile": {
+      "shortest": {
+        "de": "Kürzeste",
+        "en": "Shortest"
+      },
+      "protected": {
+        "de": "Geschützt",
+        "en": "Protected"
+      },
+      "comfortable": {
+        "de": "Komfortabel",
+        "en": "Comfortable"
+      }
+    },
+    "infrastructure_type": {
+      "radweg": {
+        "de": "Radweg",
+        "en": "Cycle track"
+      },
+      "sonstige": {
+        "de": "Sonstige",
+        "en": "Other"
+      },
+      "streifen": {
+        "de": "Radfahrstreifen",
+        "en": "Cycle lane"
+      },
+      "mischverkehr": {
+        "de": "Mischverkehr",
+        "en": "Mixed traffic"
+      },
+      "gruenflaechen": {
+        "de": "Grünflächenweg",
+        "en": "Path through green space"
+      },
+      "fahrradstrasse": {
+        "de": "Fahrradstraße",
+        "en": "Bicycle street"
+      },
+      "schiebestrecke": {
+        "de": "Schiebestrecke",
+        "en": "Dismount section"
+      }
+    }
+  },
+  "kpi_changes": [
+    {
+      "metric": "agents",
+      "baseline": 1000.0,
+      "candidate": 1000.0,
+      "delta": 0.0,
+      "delta_percent": 0.0
+    },
+    {
+      "metric": "mean_distance_km",
+      "baseline": 10.627303916248614,
+      "candidate": 10.627303916248614,
+      "delta": 0.0,
+      "delta_percent": 0.0
+    },
+    {
+      "metric": "mean_signal_stops",
+      "baseline": 3.636,
+      "candidate": 3.471,
+      "delta": -0.16500000000000004,
+      "delta_percent": -4.537953795379539
+    },
+    {
+      "metric": "p90_trip_time_min",
+      "baseline": 73.89348969487416,
+      "candidate": 74.34472572918698,
+      "delta": 0.45123603431281367,
+      "delta_percent": 0.61065736125887
+    },
+    {
+      "metric": "mean_signal_wait_s",
+      "baseline": 87.22943418578762,
+      "candidate": 89.2675802592504,
+      "delta": 2.0381460734627694,
+      "delta_percent": 2.3365347860927046
+    },
+    {
+      "metric": "mean_trip_time_min",
+      "baseline": 44.792459407313665,
+      "candidate": 44.826428508538044,
+      "delta": 0.03396910122437902,
+      "delta_percent": 0.07583665124409886
+    },
+    {
+      "metric": "median_trip_time_min",
+      "baseline": 42.458447826319095,
+      "candidate": 42.5423851817153,
+      "delta": 0.08393735539620195,
+      "delta_percent": 0.19769294379190888
+    },
+    {
+      "metric": "mean_signal_encounters",
+      "baseline": 7.187,
+      "candidate": 7.187,
+      "delta": 0.0,
+      "delta_percent": 0.0
+    },
+    {
+      "metric": "mean_signal_red_wait_s",
+      "baseline": 59.47356491415503,
+      "candidate": 62.2445700754092,
+      "delta": 2.7710051612541733,
+      "delta_percent": 4.659221563822315
+    },
+    {
+      "metric": "mean_construction_sites",
+      "baseline": 0.168,
+      "candidate": 0.168,
+      "delta": 0.0,
+      "delta_percent": 0.0
+    },
+    {
+      "metric": "mean_signal_queue_wait_s",
+      "baseline": 16.975369271632612,
+      "candidate": 16.242510183841187,
+      "delta": -0.7328590877914252,
+      "delta_percent": -4.317190843183008
+    }
+  ],
+  "outputs": [
+    {
+      "id": "01a12bf1-f086-77dc-9abe-ba19d101827d",
+      "role": "signal_delay_change",
+      "kind": "vector_layer",
+      "title": "Change in waiting at traffic signals",
+      "display_order": 0,
+      "url": "http://garage.localhost:3900/tosca-media-public/geosimulations/dcs/comparisons/01a12bf1-eeb5-706a-b2f6-fe3b8b238d26/layers/signal_delay_change.pmtiles?X-Amz-Signature=redacted",
+      "url_expires_at": "2026-10-11T18:15:36.832617+00:00",
+      "source_layer": "signal_delay_change",
+      "geometry_type": "Point",
+      "minzoom": 8,
+      "maxzoom": 15,
+      "bounds": [
+        9.749263,
+        53.429477,
+        10.226396,
+        53.677188
+      ],
+      "features": 425,
+      "style": [
+        {
+          "id": "signal_delay_change-circle",
+          "type": "circle",
+          "paint": {
+            "circle-color": [
+              "step",
+              [
+                "to-number",
+                [
+                  "get",
+                  "total_delay_s_delta"
+                ],
+                0
+              ],
+              "#2166ac",
+              -200,
+              "#92c5de",
+              -50,
+              "#d1d5db",
+              50,
+              "#f4a582",
+              200,
+              "#b2182b"
+            ],
+            "circle-radius": [
+              "step",
+              [
+                "to-number",
+                [
+                  "get",
+                  "total_delay_s_delta"
+                ],
+                0
+              ],
+              7,
+              -200,
+              5,
+              -50,
+              3,
+              50,
+              5,
+              200,
+              7
+            ],
+            "circle-stroke-color": "#ffffff",
+            "circle-stroke-width": 1
+          },
+          "layout": {
+            "circle-sort-key": [
+              "abs",
+              [
+                "to-number",
+                [
+                  "get",
+                  "total_delay_s_delta"
+                ],
+                0
+              ]
+            ]
+          },
+          "metadata": {
+            "tosca:legend-label": "Change in waiting at traffic signals"
+          }
+        }
+      ],
+      "legend": {
+        "type": "diverging",
+        "items": [
+          {
+            "max": -200,
+            "color": "#2166ac",
+            "label": "< −200"
+          },
+          {
+            "max": -50,
+            "min": -200,
+            "color": "#92c5de",
+            "label": "−200 – −50"
+          },
+          {
+            "max": 50,
+            "min": -50,
+            "color": "#d1d5db",
+            "label": "−50 – +50"
+          },
+          {
+            "max": 200,
+            "min": 50,
+            "color": "#f4a582",
+            "label": "+50 – +200"
+          },
+          {
+            "min": 200,
+            "color": "#b2182b",
+            "label": "≥ +200"
+          }
+        ],
+        "title": "Change in waiting at traffic signals",
+        "geometry": "Point",
+        "attribute": "total_delay_s_delta"
+      }
+    },
+    {
+      "id": "01a12bf1-f089-724a-878a-4f6cc84615f1",
+      "role": "group_changes",
+      "kind": "table",
+      "title": "Changes by agent group",
+      "display_order": 1,
+      "data": {
+        "rows": [
+          [
+            "bike",
+            "cargo",
+            47,
+            45.348811297125096,
+            45.5115150998798,
+            0.16270380275470586,
+            84.70360368041199,
+            94.46583184569376,
+            9.762228165281769,
+            11.156918041771128,
+            11.156918041771128,
+            0.0
+          ],
+          [
+            "bike",
+            "cargo_ebike",
+            47,
+            44.634182256658235,
+            44.80357008082192,
+            0.16938782416368525,
+            74.58511517662775,
+            84.74838462644914,
+            10.163269449821385,
+            10.66753801864425,
+            10.66753801864425,
+            0.0
+          ],
+          [
+            "bike",
+            "conventional",
+            756,
+            44.853821379598685,
+            44.85532221714903,
+            0.0015008375503455795,
+            86.9475774425606,
+            87.03762769558105,
+            0.09005025302045055,
+            10.621301259378326,
+            10.621301259378326,
+            0.0
+          ],
+          [
+            "bike",
+            "ebike",
+            150,
+            44.358464982061605,
+            44.473306059202656,
+            0.11484107714105107,
+            93.40330568620634,
+            100.2937703146694,
+            6.890464628463064,
+            10.479004862127177,
+            10.479004862127177,
+            0.0
+          ]
+        ],
+        "columns": [
+          "dimension",
+          "category",
+          "agents",
+          "mean_trip_time_min_baseline",
+          "mean_trip_time_min_candidate",
+          "mean_trip_time_min_delta",
+          "mean_signal_wait_s_baseline",
+          "mean_signal_wait_s_candidate",
+          "mean_signal_wait_s_delta",
+          "mean_distance_km_baseline",
+          "mean_distance_km_candidate",
+          "mean_distance_km_delta"
+        ]
+      }
+    },
+    {
+      "id": "01a12bf1-f08b-7722-9c0c-03d50f354ace",
+      "role": "agent_changes",
+      "kind": "table",
+      "title": "Changes for the same agents",
+      "display_order": 2,
+      "data": {
+        "rows": [
+          [
+            "agents_compared",
+            1000,
+            "count"
+          ],
+          [
+            "routes_changed",
+            0,
+            "count"
+          ],
+          [
+            "agents_slower",
+            501,
+            "count"
+          ],
+          [
+            "agents_faster",
+            487,
+            "count"
+          ]
+        ],
+        "columns": [
+          "metric",
+          "value",
+          "unit"
+        ]
+      }
+    }
+  ],
+  "created_at": "2026-10-11T17:10:38.009573Z",
+  "updated_at": "2026-10-11T17:10:38.479427Z"
+}

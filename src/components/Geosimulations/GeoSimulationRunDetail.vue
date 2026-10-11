@@ -29,37 +29,25 @@
 
             <SimulationReplayPanel v-if="tripsOutput" :key="run.id" :run="run" :output="tripsOutput" />
 
-            <section v-if="mapOutputs.length > 0" class="grid gap-2">
-                <h3 class="text-sm font-semibold text-highlighted">{{ t("geosimulations.mapLayers") }}</h3>
-                <p class="text-xs text-muted">{{ t("geosimulations.mapLayersHint") }}</p>
+            <SimulationMapLayerList v-if="mapOutputs.length > 0" :owner="run" :outputs="mapOutputs" />
+
+            <SimulationTable v-for="table in otherTables" :key="table.id" :table="table" />
+
+            <section v-if="comparisons.length > 0" class="grid gap-2">
+                <h3 class="text-sm font-semibold text-highlighted">{{ t("geosimulations.comparedIn") }}</h3>
                 <ul class="grid gap-1">
-                    <li v-for="output in mapOutputs" :key="output.id" class="output-row">
-                        <USwitch
-                            :model-value="isOnMap(output)"
-                            :loading="pendingOutputId === output.id"
-                            :aria-label="output.title"
-                            @update:model-value="(on: boolean) => toggleOutput(output, on)"
-                        />
-                        <span class="min-w-0 truncate text-sm">{{ output.title }}</span>
-                        <span v-if="output.features !== null" class="text-xs text-muted">{{ formatNumber(output.features, locale) }}</span>
+                    <li v-for="comparison in comparisons" :key="comparison.id">
+                        <ULink
+                            class="text-sm text-primary hover:underline"
+                            :to="{ name: 'geosimulation-comparison', params: { comparisonId: comparison.id } }"
+                        >
+                            {{ comparison.title }}
+                        </ULink>
+                        <span class="ml-1 text-xs text-muted">
+                            ({{ comparison.baseline.id === run.id ? t("geosimulations.comparison.asBaseline") : t("geosimulations.comparison.asCandidate") }})
+                        </span>
                     </li>
                 </ul>
-            </section>
-
-            <section v-for="table in otherTables" :key="table.id" class="grid gap-2">
-                <h3 class="text-sm font-semibold text-highlighted">{{ table.title }}</h3>
-                <div class="table-scroll">
-                    <table class="sim-table">
-                        <thead>
-                            <tr><th v-for="column in table.data.columns" :key="column">{{ column.replaceAll("_", " ") }}</th></tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="(row, index) in table.data.rows" :key="index">
-                                <td v-for="(cell, cellIndex) in row" :key="cellIndex">{{ formatCell(cell) }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
             </section>
 
             <details class="parameters">
@@ -82,80 +70,43 @@ import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import EditorJsReadonly from "@components/Base/EditorJsReadonly.vue";
 import SimulationReplayPanel from "./SimulationReplayPanel.vue";
+import SimulationMapLayerList from "./SimulationMapLayerList.vue";
+import SimulationTable from "./SimulationTable.vue";
 import { useMapStore } from "@store/map";
 import {
     isTableOutput,
     isTripsOutput,
     isVectorLayerOutput,
+    type SimulationComparisonSummary,
     type SimulationRunDetail,
-    type SimulationVectorLayerOutput,
     useGeosimulationStore,
 } from "@store/geosimulation";
 import {
     addSimulationOutputLayer,
+    fitToSimulationBounds,
     msUntilRefresh,
     refreshSimulationSourceUrls,
-    removeSimulationOutputLayer,
     removeSimulationRunLayers,
     waitForMapStyle,
 } from "@helpers/geosimulationLayers";
-import { formatNumber, formatParameter, formatSimulatedTime, simulationKpiRows } from "@helpers/simulationFormat";
-import { useToast } from "@helpers/toast";
+import { formatParameter, formatSimulatedTime, simulationKpiRows } from "@helpers/simulationFormat";
 import { reportDeveloperError } from "@helpers/userFacingError";
 
 const props = defineProps<{ runId: string }>();
 const { t, locale } = useI18n();
 const mapStore = useMapStore();
 const geosimulation = useGeosimulationStore();
-const toast = useToast();
 
 const run = ref<SimulationRunDetail>();
 const loading = ref(false);
 const failed = ref(false);
-const pendingOutputId = ref<string>();
+const comparisons = ref<SimulationComparisonSummary[]>([]);
 let refreshTimer: ReturnType<typeof setTimeout> | undefined;
 
 const mapOutputs = computed(() => (run.value?.outputs ?? []).filter(isVectorLayerOutput));
 const tripsOutput = computed(() => run.value?.outputs.find(isTripsOutput));
 const kpiRows = computed(() => (run.value ? simulationKpiRows(run.value, locale.value) : []));
 const otherTables = computed(() => (run.value?.outputs ?? []).filter(isTableOutput).filter((table) => table.role !== "kpis"));
-
-function isOnMap(output: SimulationVectorLayerOutput): boolean {
-    return mapStore.layersOnMap.some((layer) => layer.simulationOutput?.outputId === output.id);
-}
-
-async function toggleOutput(output: SimulationVectorLayerOutput, on: boolean): Promise<void> {
-    if (run.value === undefined) return;
-    pendingOutputId.value = output.id;
-    try {
-        await waitForMapStyle(mapStore.map);
-        if (on) {
-            addSimulationOutputLayer(mapStore, run.value, output);
-        } else {
-            const layer = mapStore.layersOnMap.find((item) => item.simulationOutput?.outputId === output.id);
-            if (layer !== undefined) await removeSimulationOutputLayer(mapStore, layer);
-        }
-    } catch (error) {
-        reportDeveloperError(`Toggling simulation output ${output.role}`, error);
-        toast.add({ severity: "error", summary: t("toast.error"), detail: t("geosimulations.layerError"), life: 4000 });
-    } finally {
-        pendingOutputId.value = undefined;
-    }
-}
-
-/** The open sidebar (38.75rem) overlays the map's left side; keep the run in the visible part. */
-const SIDEBAR_WIDTH_PX = 620;
-
-function fitToRun(detail: SimulationRunDetail): void {
-    if (detail.bounds === null || mapStore.map === undefined) return;
-    const [west, south, east, north] = detail.bounds;
-    const mapWidth = mapStore.map.getContainer().clientWidth as number;
-    const left = Math.min(SIDEBAR_WIDTH_PX, Math.max(0, mapWidth - 320)) + 40;
-    mapStore.map.fitBounds([[west, south], [east, north]], {
-        padding: { top: 40, bottom: 40, right: 40, left },
-        duration: 800,
-    });
-}
 
 /** File URLs are presigned; fetch fresh ones a minute before they expire. */
 function scheduleUrlRefresh(detail: SimulationRunDetail): void {
@@ -187,8 +138,9 @@ async function openRun(runId: string, previousRunId?: string): Promise<void> {
     try {
         const detail = await geosimulation.loadRun(runId);
         run.value = detail;
+        void loadComparisons(runId);
         await waitForMapStyle(mapStore.map);
-        fitToRun(detail);
+        fitToSimulationBounds(mapStore.map, detail.bounds);
         const first = detail.outputs.filter(isVectorLayerOutput).sort((a, b) => a.display_order - b.display_order)[0];
         if (first !== undefined) addSimulationOutputLayer(mapStore, detail, first);
         scheduleUrlRefresh(detail);
@@ -197,6 +149,17 @@ async function openRun(runId: string, previousRunId?: string): Promise<void> {
         reportDeveloperError(`Opening simulation run ${runId}`, error);
     } finally {
         loading.value = false;
+    }
+}
+
+/** Optional: the run page works without its comparisons. */
+async function loadComparisons(runId: string): Promise<void> {
+    comparisons.value = [];
+    try {
+        const results = await geosimulation.loadRunComparisons(runId);
+        if (props.runId === runId) comparisons.value = results;
+    } catch (error) {
+        reportDeveloperError(`Loading comparisons of simulation run ${runId}`, error);
     }
 }
 
@@ -211,11 +174,6 @@ onBeforeUnmount(() => {
     }
     geosimulation.clearRun();
 });
-
-function formatCell(cell: string | number | null): string {
-    if (cell === null) return "—";
-    return typeof cell === "number" ? formatNumber(cell, locale.value) : cell;
-}
 </script>
 
 <style scoped>
@@ -236,37 +194,6 @@ function formatCell(cell: string | number | null): string {
 
 .kpi-card dd {
     margin: 0;
-}
-
-.output-row {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 0.6rem;
-    padding: 0.3rem 0;
-}
-
-.table-scroll {
-    overflow-x: auto;
-}
-
-.sim-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.75rem;
-}
-
-.sim-table th,
-.sim-table td {
-    padding: 0.3rem 0.45rem;
-    border-bottom: 1px solid rgb(148 163 184 / 0.2);
-    text-align: left;
-    white-space: nowrap;
-}
-
-.sim-table th {
-    font-weight: 600;
-    text-transform: capitalize;
 }
 
 .parameter-list {
