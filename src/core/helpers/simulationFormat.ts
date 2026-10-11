@@ -1,4 +1,4 @@
-import type { SimulationRunDetail, SimulationTime } from "@store/geosimulation";
+import type { SimulationKpiChange, SimulationRunDetail, SimulationTime } from "@store/geosimulation";
 
 export interface SimulationKpiRow {
     key: string;
@@ -8,6 +8,28 @@ export interface SimulationKpiRow {
 }
 
 const UNIT_SUFFIXES = ["_min", "_s", "_km", "_m", "_kmh", "_percent"];
+/** Display unit per metric-name suffix (longest suffixes first). */
+const METRIC_UNITS: Array<[string, string]> = [
+    ["_percent", "%"],
+    ["_kmh", "km/h"],
+    ["_min", "min"],
+    ["_km", "km"],
+    ["_s", "s"],
+    ["_m", "m"],
+];
+
+export interface SimulationKpiChangeRow {
+    key: string;
+    label: string;
+    unit: string;
+    baseline: string;
+    candidate: string;
+    /** Signed change, e.g. `+2.77`. */
+    delta: string;
+    /** Signed percentage, e.g. `+4.7 %`, or empty when the baseline is 0. */
+    percent: string;
+    direction: "up" | "down" | "none";
+}
 
 /** `mean_trip_time_min` → `Mean trip time` (the unit is shown separately). */
 export function humanizeMetric(key: string): string {
@@ -45,6 +67,37 @@ export function simulationKpiRows(run: Pick<SimulationRunDetail, "kpis" | "outpu
             label: humanizeMetric(key),
             value: formatNumber(value, locale),
             unit: unit === "count" ? "" : unit,
+        };
+    });
+}
+
+/** Unit implied by a metric name (`mean_trip_time_min` → `min`), or empty. */
+export function unitForMetric(metric: string): string {
+    return METRIC_UNITS.find(([suffix]) => metric.endsWith(suffix))?.[1] ?? "";
+}
+
+function formatSigned(value: number, locale: string): string {
+    const text = formatNumber(Math.abs(value), locale);
+    if (text === formatNumber(0, locale)) return text;
+    return `${value > 0 ? "+" : "−"}${text}`;
+}
+
+/** KPI changes of a comparison as display rows, in the order the backend sends them. */
+export function simulationKpiChangeRows(changes: SimulationKpiChange[], locale: string): SimulationKpiChangeRow[] {
+    return changes.map((change) => {
+        const delta = formatSigned(change.delta, locale);
+        const unchanged = delta === formatNumber(0, locale);
+        return {
+            key: change.metric,
+            label: humanizeMetric(change.metric),
+            unit: unitForMetric(change.metric),
+            baseline: formatNumber(change.baseline, locale),
+            candidate: formatNumber(change.candidate, locale),
+            delta,
+            percent: change.delta_percent === null || unchanged
+                ? ""
+                : `${formatSigned(change.delta_percent, locale)} %`,
+            direction: unchanged ? "none" : change.delta > 0 ? "up" : "down",
         };
     });
 }

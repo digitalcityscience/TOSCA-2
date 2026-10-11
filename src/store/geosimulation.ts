@@ -56,6 +56,51 @@ export interface SimulationModelDetail extends SimulationModelListItem {
     parameter_schema: Record<string, unknown> | null;
     default_parameters: Record<string, unknown>;
     runs: SimulationRunSummary[];
+    /** Comparisons of two of the model's runs; absent from backends before Task 12.10. */
+    comparisons?: SimulationComparisonSummary[];
+}
+
+export interface SimulationRunRef {
+    id: string;
+    key: string;
+    title: string;
+}
+
+export interface SimulationComparisonSummary {
+    id: string;
+    key: string;
+    title: string;
+    status: SimulationStatus;
+    baseline: SimulationRunRef;
+    candidate: SimulationRunRef;
+    created_at: string;
+}
+
+/** One KPI both runs report: `delta = candidate − baseline`; `delta_percent` is null for a zero baseline. */
+export interface SimulationKpiChange {
+    metric: string;
+    baseline: number;
+    candidate: number;
+    delta: number;
+    delta_percent: number | null;
+}
+
+/** Two runs of one model compared; outputs are difference layers and change tables (no replay). */
+export interface SimulationComparisonDetail {
+    id: string;
+    model: { id: string; key: string; title: string };
+    key: string;
+    title: string;
+    description_content: SimulationDescription;
+    status: SimulationStatus;
+    baseline: SimulationRunSummary;
+    candidate: SimulationRunSummary;
+    bounds: SimulationBounds | null;
+    labels: SimulationLabels;
+    kpi_changes: SimulationKpiChange[];
+    outputs: SimulationOutput[];
+    created_at: string;
+    updated_at: string;
 }
 
 export interface SimulationLegendItem {
@@ -68,7 +113,8 @@ export interface SimulationLegendItem {
 }
 
 export interface SimulationLegend {
-    type: "graduated" | "proportional" | "categorical" | "heatmap" | "simple";
+    /** `diverging`: changes around zero (comparisons), rendered like `graduated`. */
+    type: "graduated" | "proportional" | "categorical" | "heatmap" | "diverging" | "simple";
     title: string;
     geometry: string;
     attribute?: string;
@@ -173,6 +219,21 @@ export function buildRunDetailUrl(runId: string): URL {
     return new URL(`${GEOSIMULATIONS_API_PATH}/runs/${encodeURIComponent(runId)}/`, getBackendRootUrl());
 }
 
+export function buildComparisonListUrl(filters: { model?: string; run?: string } = {}): URL {
+    const url = new URL(`${GEOSIMULATIONS_API_PATH}/comparisons/`, getBackendRootUrl());
+    Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined) url.searchParams.set(key, value);
+    });
+    return url;
+}
+
+export function buildComparisonDetailUrl(comparisonId: string): URL {
+    return new URL(
+        `${GEOSIMULATIONS_API_PATH}/comparisons/${encodeURIComponent(comparisonId)}/`,
+        getBackendRootUrl()
+    );
+}
+
 export function isVectorLayerOutput(output: SimulationOutput): output is SimulationVectorLayerOutput {
     return output.kind === "vector_layer";
 }
@@ -213,6 +274,8 @@ export const useGeosimulationStore = defineStore("geosimulation", () => {
     const error = ref("");
     const selectedModel = ref<SimulationModelDetail>();
     const selectedRun = ref<SimulationRunDetail>();
+    const selectedComparison = ref<SimulationComparisonDetail>();
+    const loadingComparison = ref(false);
 
     async function loadModels(): Promise<void> {
         loadingModels.value = true;
@@ -294,6 +357,37 @@ export const useGeosimulationStore = defineStore("geosimulation", () => {
         selectedRun.value = undefined;
     }
 
+    /** Load (or reload, for fresh presigned URLs) a comparison. */
+    async function loadComparison(comparisonId: string): Promise<SimulationComparisonDetail> {
+        loadingComparison.value = true;
+        try {
+            const response = await fetchBackendJson<SimulationComparisonDetail>(
+                buildComparisonDetailUrl(comparisonId),
+                "GeoSimulations"
+            );
+            selectedComparison.value = response;
+            return response;
+        } catch (err) {
+            reportDeveloperError(`Loading simulation comparison ${comparisonId}`, err);
+            throw err;
+        } finally {
+            loadingComparison.value = false;
+        }
+    }
+
+    function clearComparison(): void {
+        selectedComparison.value = undefined;
+    }
+
+    /** Comparisons with this run on either side (first page, newest first). */
+    async function loadRunComparisons(runId: string): Promise<SimulationComparisonSummary[]> {
+        const response = await fetchBackendJson<PaginatedResponse<SimulationComparisonSummary>>(
+            buildComparisonListUrl({ run: runId }),
+            "GeoSimulations"
+        );
+        return response.results;
+    }
+
     return {
         models,
         nextModelsUrl,
@@ -303,11 +397,16 @@ export const useGeosimulationStore = defineStore("geosimulation", () => {
         error,
         selectedModel,
         selectedRun,
+        selectedComparison,
+        loadingComparison,
         loadModels,
         loadMoreModels,
         loadModel,
         loadRun,
         clearRun,
+        loadComparison,
+        clearComparison,
+        loadRunComparisons,
     };
 });
 

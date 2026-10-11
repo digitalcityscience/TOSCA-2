@@ -25,12 +25,36 @@
                     </div>
                 </UCard>
             </section>
+
+            <section v-if="comparisons.length > 0" class="grid gap-3">
+                <h3 class="text-sm font-semibold text-highlighted">{{ t("geosimulations.comparisons") }}</h3>
+                <UCard v-for="comparison in comparisons" :key="comparison.id" :ui="{ body: 'p-4 sm:p-4' }">
+                    <div class="grid gap-2">
+                        <div class="flex items-start justify-between gap-2">
+                            <h4 class="font-semibold leading-tight text-highlighted">{{ comparison.title }}</h4>
+                            <UBadge v-if="comparison.status !== 'published'" color="warning" variant="subtle" :label="t(`geosimulations.status.${comparison.status}`)" />
+                        </div>
+                        <p class="text-xs text-muted">
+                            {{ t("geosimulations.comparison.versus", { baseline: comparison.baseline.title, candidate: comparison.candidate.title }) }}
+                        </p>
+                        <UButton
+                            class="w-fit"
+                            :to="{ name: 'geosimulation-comparison', params: { comparisonId: comparison.id } }"
+                            :label="t('geosimulations.comparison.open')"
+                            icon="i-lucide-git-compare"
+                            size="sm"
+                            color="neutral"
+                            variant="outline"
+                        />
+                    </div>
+                </UCard>
+            </section>
         </template>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import EditorJsReadonly from "@components/Base/EditorJsReadonly.vue";
 import { type SimulationModelDetail, useGeosimulationStore } from "@store/geosimulation";
@@ -42,6 +66,7 @@ const geosimulation = useGeosimulationStore();
 const model = ref<SimulationModelDetail>();
 const loading = ref(false);
 const failed = ref(false);
+const comparisons = computed(() => model.value?.comparisons ?? []);
 
 watch(() => props.modelId, async (modelId) => {
     loading.value = true;

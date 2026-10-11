@@ -1,7 +1,12 @@
 import maplibre, { type AddLayerObject, type VectorSourceSpecification } from "maplibre-gl";
 import { Protocol } from "pmtiles";
 import type { LayerObjectWithAttributes, MapLibreLayerTypes } from "@store/map";
-import type { SimulationRunDetail, SimulationVectorLayerOutput } from "@store/geosimulation";
+import type {
+    SimulationBounds,
+    SimulationOutput,
+    SimulationRunDetail,
+    SimulationVectorLayerOutput,
+} from "@store/geosimulation";
 
 /**
  * GeoSimulation map layers are PMTiles files in object storage, read by MapLibre
@@ -126,15 +131,33 @@ export async function removeSimulationRunLayers(mapStore: SimulationMapStore, ru
 }
 
 /**
- * Point the run's sources at freshly presigned URLs. MapLibre keeps the
- * layers and only re-reads the tile index, so the map does not flicker.
+ * Point a run's (or comparison's) sources at freshly presigned URLs. MapLibre
+ * keeps the layers and only re-reads the tile index, so the map does not flicker.
  */
-export function refreshSimulationSourceUrls(mapStore: SimulationMapStore, run: SimulationRunDetail): void {
-    for (const output of run.outputs) {
+export function refreshSimulationSourceUrls(
+    mapStore: SimulationMapStore,
+    owner: { id: string; outputs: SimulationOutput[] }
+): void {
+    for (const output of owner.outputs) {
         if (output.kind !== "vector_layer") continue;
-        const source = mapStore.map.getSource(simulationSourceId(run.id, output.id));
+        const source = mapStore.map.getSource(simulationSourceId(owner.id, output.id));
         source?.setUrl?.(buildSimulationSource(output).url);
     }
+}
+
+/** The open simulation sidebar (38.75rem) overlays the map's left side. */
+const SIDEBAR_WIDTH_PX = 620;
+
+/** Fit the map to a run's or comparison's extent, in the part the sidebar leaves visible. */
+export function fitToSimulationBounds(map: any, bounds: SimulationBounds | null): void {
+    if (bounds === null || map === undefined) return;
+    const [west, south, east, north] = bounds;
+    const mapWidth = map.getContainer().clientWidth as number;
+    const left = Math.min(SIDEBAR_WIDTH_PX, Math.max(0, mapWidth - 320)) + 40;
+    map.fitBounds([[west, south], [east, north]], {
+        padding: { top: 40, bottom: 40, right: 40, left },
+        duration: 800,
+    });
 }
 
 /** Milliseconds until a URL should be refreshed (one minute before it expires), or undefined. */

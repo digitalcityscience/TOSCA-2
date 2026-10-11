@@ -1,6 +1,8 @@
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import {
+    buildComparisonDetailUrl,
+    buildComparisonListUrl,
     buildModelDetailUrl,
     buildModelListUrl,
     buildRunDetailUrl,
@@ -8,6 +10,7 @@ import {
     isVectorLayerOutput,
     labelForValue,
     resolveSimulationLabel,
+    type SimulationComparisonDetail,
     type SimulationModelDetail,
     type SimulationRunDetail,
     useGeosimulationStore,
@@ -15,10 +18,12 @@ import {
 import runFixture from "./__fixtures__/geosimulation-run-detail.json";
 import modelListFixture from "./__fixtures__/geosimulation-model-list.json";
 import modelFixture from "./__fixtures__/geosimulation-model-detail.json";
+import comparisonFixture from "./__fixtures__/geosimulation-comparison-detail.json";
 
 // Real responses from the seeded dev backend (signatures removed, tables trimmed).
 const run = runFixture as unknown as SimulationRunDetail;
 const model = modelFixture as unknown as SimulationModelDetail;
+const comparison = comparisonFixture as unknown as SimulationComparisonDetail;
 
 function jsonResponse(body: unknown, init?: ResponseInit): Response {
     return new Response(JSON.stringify(body), {
@@ -62,6 +67,35 @@ describe("geosimulation store", () => {
         ]);
         expect(loaded.outputs.find(isTripsOutput)?.metadata.agents).toBe(1000);
         expect(store.selectedRun?.id).toBe(run.id);
+    });
+
+    test("builds comparison URLs with optional filters", () => {
+        expect(buildComparisonListUrl({ run: "r1" }).toString()).toBe(
+            "http://localhost:8000/api/v1/geosimulations/comparisons/?run=r1"
+        );
+        expect(buildComparisonListUrl().toString()).toBe("http://localhost:8000/api/v1/geosimulations/comparisons/");
+        expect(buildComparisonDetailUrl("c1").toString()).toBe(
+            "http://localhost:8000/api/v1/geosimulations/comparisons/c1/"
+        );
+    });
+
+    test("loads a comparison and the comparisons of a run", async () => {
+        const summary = { id: comparison.id, key: comparison.key, title: comparison.title };
+        fetchMock
+            .mockResolvedValueOnce(jsonResponse(comparison))
+            .mockResolvedValueOnce(jsonResponse({ next: null, previous: null, results: [summary] }));
+        const store = useGeosimulationStore();
+
+        const loaded = await store.loadComparison(comparison.id);
+        const ofRun = await store.loadRunComparisons(comparison.baseline.id);
+
+        expect(store.selectedComparison?.id).toBe(comparison.id);
+        expect(loaded.outputs.filter(isVectorLayerOutput).map((output) => output.legend?.type)).toEqual(["diverging"]);
+        expect(loaded.kpi_changes.length).toBeGreaterThan(0);
+        expect(ofRun.map((item) => item.key)).toEqual(["queues_vs_turn_queues_n1000_v2"]);
+        expect(String(fetchMock.mock.calls[1][0])).toContain(`comparisons/?run=${comparison.baseline.id}`);
+        store.clearComparison();
+        expect(store.selectedComparison).toBeUndefined();
     });
 
     test("exposes a user-safe error when the list fails", async () => {
