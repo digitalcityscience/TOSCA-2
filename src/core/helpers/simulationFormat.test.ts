@@ -1,7 +1,14 @@
 import { describe, expect, test } from "vitest";
 import type { SimulationRunDetail } from "@store/geosimulation";
 import runFixture from "@store/__fixtures__/geosimulation-run-detail.json";
-import { formatParameter, formatSimulatedTime, humanizeMetric, simulationKpiRows } from "./simulationFormat";
+import {
+    formatDuration,
+    formatParameter,
+    formatReplayClock,
+    formatSimulatedTime,
+    humanizeMetric,
+    simulationKpiRows,
+} from "./simulationFormat";
 
 const run = runFixture as unknown as SimulationRunDetail;
 
@@ -30,5 +37,16 @@ describe("simulation formatting", () => {
         expect(formatParameter(true, "en")).toBe("✓");
         expect(formatParameter({ cargo: 0.05 }, "en")).toBe("{\"cargo\":0.05}");
         expect(formatParameter(null, "en")).toBe("—");
+    });
+
+    test("replay clock follows the run's timezone", () => {
+        expect(formatReplayClock(run.time.start, 2400.4, "Europe/Berlin", "en-GB")).toBe("11:40:00");
+        expect(formatReplayClock(run.time.start, 0, "UTC", "en-GB")).toBe("09:00:00");
+        expect(formatReplayClock(null, 10, "UTC", "en-GB")).toBe("");
+    });
+
+    test("durations read as hours and minutes", () => {
+        expect(formatDuration(11669)).toBe("3 h 14 min");
+        expect(formatDuration(600)).toBe("10 min");
     });
 });

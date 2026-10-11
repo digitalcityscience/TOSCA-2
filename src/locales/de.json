@@ -803,6 +803,25 @@
       "draft": "Entwurf",
       "published": "Veröffentlicht",
       "archived": "Archiviert"
+    },
+    "replay": {
+      "title": "Wiedergabe",
+      "agents": "{count} Agenten",
+      "load": "Wiedergabe starten",
+      "loading": "Wiedergabe wird geladen… {mb} MB",
+      "failed": "Die Wiedergabe konnte nicht geladen werden.",
+      "play": "Abspielen",
+      "pause": "Pause",
+      "position": "Wiedergabeposition",
+      "speed": "Geschwindigkeit",
+      "colorBy": "Färben nach",
+      "colorNone": "Eine Farbe",
+      "signalStops": "Halte an Ampeln",
+      "stop": {
+        "red_wait": "Wartet bei Rot",
+        "queued": "In der Warteschlange",
+        "discharging": "Überquert"
+      }
     }
   }
 }

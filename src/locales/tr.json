@@ -803,6 +803,25 @@
       "draft": "Taslak",
       "published": "Yayımlandı",
       "archived": "Arşivlendi"
+    },
+    "replay": {
+      "title": "Oynatma",
+      "agents": "{count} ajan",
+      "load": "Oynatmayı başlat",
+      "loading": "Oynatma yükleniyor… {mb} MB",
+      "failed": "Oynatma yüklenemedi.",
+      "play": "Oynat",
+      "pause": "Duraklat",
+      "position": "Oynatma konumu",
+      "speed": "Hız",
+      "colorBy": "Renklendirme",
+      "colorNone": "Tek renk",
+      "signalStops": "Sinyal duruşları",
+      "stop": {
+        "red_wait": "Kırmızıda bekliyor",
+        "queued": "Kuyrukta",
+        "discharging": "Geçiyor"
+      }
     }
   }
 }
