@@ -583,7 +583,15 @@
       "navLabel": "Map scenes",
       "progress": "Scene {current} of {total}",
       "captionLabel": "Map scene caption",
-      "hideCaption": "Hide caption"
+      "hideCaption": "Hide caption",
+      "replay": {
+        "label": "Simulation replay",
+        "play": "Play replay",
+        "pause": "Pause replay",
+        "loading": "Loading replay… {mb} MB",
+        "failed": "The replay could not be loaded",
+        "rate": "{rate}× speed"
+      }
     }
   },
   "urbanStories": {

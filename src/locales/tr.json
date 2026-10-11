@@ -583,7 +583,15 @@
       "navLabel": "Harita sahneleri",
       "progress": "Sahne {current} / {total}",
       "captionLabel": "Harita sahnesi açıklaması",
-      "hideCaption": "Açıklamayı gizle"
+      "hideCaption": "Açıklamayı gizle",
+      "replay": {
+        "label": "Simülasyon oynatma",
+        "play": "Oynatmayı başlat",
+        "pause": "Oynatmayı duraklat",
+        "loading": "Oynatma yükleniyor… {mb} MB",
+        "failed": "Oynatma yüklenemedi",
+        "rate": "{rate}× hız"
+      }
     }
   },
   "urbanStories": {

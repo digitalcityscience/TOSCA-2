@@ -1886,7 +1886,6 @@ export const useMapStore = defineStore("map", () => {
         deleteMapLayer,
         add2MapLayerList,
         removeFromMapLayerList,
-        add2MapLayerList,
         reorderVisibleMapLayer,
         getReorderableVisibleLayersTopToBottom,
         addCompanionLayer,

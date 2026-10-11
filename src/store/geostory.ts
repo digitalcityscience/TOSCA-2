@@ -14,6 +14,13 @@ import type {
     CatalogLayerGroupManifest,
     CatalogProvider,
 } from "./geoserver";
+import type {
+    SimulationBounds,
+    SimulationLabels,
+    SimulationTime,
+    SimulationTripsOutput,
+    SimulationVectorLayerOutput,
+} from "./geosimulation";
 
 export {
     getBackendRootUrl,
@@ -165,6 +172,29 @@ export interface GeoStorySceneLegendEntry {
     graphic_url: string;
 }
 
+/** Looping window of a run's replay, in seconds since `time.start`. */
+export interface GeoStorySceneReplay {
+    output: SimulationTripsOutput;
+    start_s: number;
+    end_s: number;
+    /** Simulated seconds per real second. */
+    playback_rate: number;
+    loop: boolean;
+}
+
+/**
+ * A GeoSimulation run shown in a scene: some of its map layers and an optional
+ * replay window. Outputs have the simulation API's shapes; URLs are presigned.
+ */
+export interface GeoStorySceneSimulation {
+    run: { id: string; title: string; model: { id: string; title: string } };
+    time: SimulationTime;
+    bounds: SimulationBounds | null;
+    labels: SimulationLabels;
+    map_outputs: SimulationVectorLayerOutput[];
+    replay: GeoStorySceneReplay | null;
+}
+
 /**
  * One captured map state of a story.
  *
@@ -185,6 +215,8 @@ export interface GeoStoryScene {
     render_layers: CatalogGroupStyleLayer[];
     /** Top-most layer first. */
     legend: GeoStorySceneLegendEntry[];
+    /** Drawn above the catalog layers; `null` (or absent from older backends) without one. */
+    simulation?: GeoStorySceneSimulation | null;
 }
 
 /** Sources, styles and sprites shared by every scene of a story. */
