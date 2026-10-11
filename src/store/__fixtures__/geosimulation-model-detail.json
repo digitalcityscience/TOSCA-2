@@ -1,0 +1,56 @@
+{
+  "id": "01a129df-f6de-74a7-b4cf-59fcea471a32",
+  "key": "hamburg-bike-abm",
+  "title": "Hamburg bicycle agent simulation",
+  "summary": "Agent-based simulation of 1,000 cyclists riding from population-weighted origins to Hamburg Hauptbahnhof, with signal timing, queues and construction sites.",
+  "status": "published",
+  "preview_image_url": null,
+  "run_count": 2,
+  "updated_at": "2026-10-11T07:32:15.238703Z",
+  "description_content": {
+    "blocks": [
+      {
+        "data": {
+          "text": "Each simulated cyclist combines a bike type (conventional, e-bike, cargo), a pace, a routing preference (shortest, comfortable, protected), traffic compliance and construction awareness. Origins are drawn by the 2025 resident population of each Stadtteil; everyone rides to Hauptbahnhof within a one-hour departure window starting at 11:00."
+        },
+        "type": "paragraph"
+      }
+    ]
+  },
+  "organization": {
+    "slug": "dcs",
+    "name": "DCS"
+  },
+  "parameter_schema": null,
+  "default_parameters": {},
+  "runs": [
+    {
+      "id": "01a129e0-c773-72e6-9b9e-6c93f6c3e727",
+      "key": "population_qgis_surface_schedule_turn_queues_n1000_v2",
+      "title": "1,000 cyclists to Hamburg Hbf — signal schedule, queues, turn-aware junctions",
+      "status": "published",
+      "execution_state": "imported",
+      "model_version": "0.2.0",
+      "time": {
+        "start": "2026-09-08T11:00:00+02:00",
+        "end": "2026-09-08T14:14:29+02:00",
+        "timezone": "Europe/Berlin"
+      },
+      "created_at": "2026-10-11T07:32:39.414653Z"
+    },
+    {
+      "id": "01a129e0-a2db-71df-8501-d828c428b32a",
+      "key": "population_qgis_surface_schedule_queues_n1000_v2",
+      "title": "1,000 cyclists to Hamburg Hbf — signal schedule and queues",
+      "status": "published",
+      "execution_state": "imported",
+      "model_version": "0.2.0",
+      "time": {
+        "start": "2026-09-08T11:00:00+02:00",
+        "end": "2026-09-08T14:14:29+02:00",
+        "timezone": "Europe/Berlin"
+      },
+      "created_at": "2026-10-11T07:32:30.045961Z"
+    }
+  ]
+}

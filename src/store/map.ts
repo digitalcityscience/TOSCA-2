@@ -127,6 +127,20 @@ export interface LayerObjectWithAttributes extends CustomAddLayerObject {
      * details to drive filtering or legends.
      */
     externalSource?: ExternalLayerSourceInfo;
+    /**
+     * Set for a GeoSimulation map-layer output: a PMTiles source read straight
+     * from object storage. No GeoServer details exist; the legend and extent
+     * come from the simulation API.
+     */
+    simulationOutput?: SimulationOutputLayerInfo;
+}
+export interface SimulationOutputLayerInfo {
+    runId: string;
+    outputId: string;
+    role: string;
+    legend: import("./geosimulation").SimulationLegend | null;
+    labels: import("./geosimulation").SimulationLabels;
+    bounds: [number, number, number, number] | null;
 }
 /** Editable appearance of a deck.gl GeoJSON layer (colors as #rrggbb). */
 export interface DeckGeoJsonStyle {
@@ -145,7 +159,7 @@ export interface ExternalLayerSourceInfo {
     /** Extent in CRS84, used to zoom to layers whose data is not in `layerData`. */
     bbox?: number[];
 }
-type SourceType = "geojson" | "geoserver" | "deckgl";
+type SourceType = "geojson" | "geoserver" | "deckgl" | "pmtiles";
 export type LayerRenderer = "maplibre" | "deckgl";
 export type MapLibreLayerTypes =
   | "fill"
@@ -1824,6 +1838,7 @@ export const useMapStore = defineStore("map", () => {
         deleteMapLayer,
         add2MapLayerList,
         removeFromMapLayerList,
+        add2MapLayerList,
         reorderVisibleMapLayer,
         getReorderableVisibleLayersTopToBottom,
         addCompanionLayer,

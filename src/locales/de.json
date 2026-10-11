@@ -70,7 +70,8 @@
       "events": "Veranstaltungen",
       "geostories": "GeoStories",
       "urbanStories": "Urban Stories",
-      "layers": "Ebenen"
+      "layers": "Ebenen",
+      "geosimulations": "Simulationen"
     },
     "basemap": {
       "dataviz": "Dataviz",
@@ -774,6 +775,34 @@
       "feed": "Feed: {publisher}, Version {version}, gültig {start} – {end}.",
       "source": "HVV-GTFS-Fahrplan über das Transparenzportal Hamburg.",
       "credits": "Basierend auf hamburgriders (MIT), Fork von utrechtriders, inspiriert von londonriders. Dunkle Basiskarte © CARTO © OpenStreetMap-Mitwirkende."
+    }
+  },
+  "geosimulations": {
+    "title": "Simulationen",
+    "unavailable": "Simulationen sind gerade nicht verfügbar",
+    "tryAgain": "Erneut versuchen",
+    "empty": "Keine Simulationen verfügbar",
+    "emptyDescription": "Veröffentlichte Simulationen erscheinen hier.",
+    "runCount": "keine Läufe | 1 Lauf | {count} Läufe",
+    "openModel": "Läufe anzeigen",
+    "loadMore": "Mehr laden",
+    "backToModels": "Alle Simulationen",
+    "backToRuns": "Zurück zu den Läufen",
+    "modelUnavailable": "Diese Simulation ist nicht verfügbar.",
+    "runs": "Läufe",
+    "noRuns": "Noch keine Läufe verfügbar.",
+    "openRun": "Lauf öffnen",
+    "runUnavailable": "Dieser Lauf ist nicht verfügbar.",
+    "keyFigures": "Kennzahlen",
+    "mapLayers": "Kartenebenen",
+    "mapLayersHint": "Ebenen ein- und ausschalten; die Legende steht jeweils in der Ebenenliste.",
+    "layerError": "Die Kartenebene konnte nicht geladen werden.",
+    "parameters": "Parameter",
+    "modelVersion": "Modellversion",
+    "status": {
+      "draft": "Entwurf",
+      "published": "Veröffentlicht",
+      "archived": "Archiviert"
     }
   }
 }

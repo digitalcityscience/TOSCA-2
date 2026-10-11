@@ -10,6 +10,10 @@ describe("map feature navigation", () => {
         ["/geostories/story-1", "geostories"],
         ["/urban-stories", "urban-stories"],
         ["/urban-stories/green-spaces", "urban-stories"],
+        ["/geostories/story-1", "geostories"],
+        ["/geosimulations", "geosimulations"],
+        ["/geosimulations/model-1", "geosimulations"],
+        ["/geosimulations/runs/run-1", "geosimulations"]
     ])("classifies %s as %s", (path, expected) => {
         expect(getMapFeatureArea({ path })).toBe(expected);
     });
@@ -23,6 +27,8 @@ describe("map feature navigation", () => {
         ["/geostories", "/urban-stories"],
         ["/urban-stories/green-spaces", "/geostories/story-1"],
         ["/", "/urban-stories/transit-equity"],
+        ["/geostories/story-1", "/geosimulations/runs/run-1"],
+        ["/geosimulations", "/events"],
     ])("cleans the map when switching from %s to %s", (from, to) => {
         expect(isMapFeatureSwitch({ path: to }, { path: from })).toBe(true);
     });
@@ -33,6 +39,8 @@ describe("map feature navigation", () => {
         ["/", "/"],
         ["/urban-stories", "/urban-stories/green-spaces"],
         ["/urban-stories/green-spaces", "/urban-stories/transit-equity"],
+        ["/geosimulations/model-1", "/geosimulations/runs/run-1"],
+        ["/", "/"]
     ])("does not treat %s to %s as a switch between features", (from, to) => {
         expect(isMapFeatureSwitch({ path: to }, { path: from })).toBe(false);
     });

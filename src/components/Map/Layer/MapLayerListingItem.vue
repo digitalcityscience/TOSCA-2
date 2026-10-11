@@ -227,6 +227,7 @@
                         </figure>
                     </div>
                     <MapStyleLegend v-if="mbStyleLegendEntries.length > 0" :entries="mbStyleLegendEntries" />
+                    <SimulationLegend v-if="simulationLegend" :legend="simulationLegend" />
                 </section>
                 <section v-if="hasTimeDimension" class="layer-section">
                     <h4 class="layer-section-title">{{ t('map.layerItem.time') }}</h4>
@@ -261,7 +262,7 @@
                     <AttributeFiltering :layer="props.layer"></AttributeFiltering>
                     <GeometryFiltering :layer="props.layer"></GeometryFiltering>
                 </section>
-                <section v-if="props.layer.type !== 'raster' && !isGroupLayer && props.layer.renderer !== 'deckgl'" class="layer-section">
+                <section v-if="props.layer.type !== 'raster' && !isGroupLayer && props.layer.renderer !== 'deckgl' && !props.layer.simulationOutput" class="layer-section">
                     <h4 class="layer-section-title">{{ t('map.layerItem.data') }}</h4>
                     <MapLayerResultTable :layer="props.layer"></MapLayerResultTable>
                 </section>
@@ -301,6 +302,7 @@ const GeometryFiltering = defineAsyncComponent(async () => await import("@compon
 const MapLayerResultTable = defineAsyncComponent(async () => await import("./MapLayerResultTable.vue"));
 const RasterLayerTimeControl = defineAsyncComponent(async () => await import("./RasterLayerTimeControl.vue"));
 const MapStyleLegend = defineAsyncComponent(async () => await import("./MapStyleLegend.vue"));
+const SimulationLegend = defineAsyncComponent(async () => await import("@components/Geosimulations/SimulationLegend.vue"));
 const OgcLayerQueryControls = defineAsyncComponent(async () => await import("./OgcLayerQueryControls.vue"));
 
 export interface Props {
@@ -549,15 +551,19 @@ const externalFeatureCountLabel = computed(() => {
         ? t("map.layerItem.featureCountUnknown", { shown })
         : t("map.layerItem.featureCount", { shown, total: total.toLocaleString(locale.value) })
 })
+// GeoSimulation outputs carry a legend that says what each class means.
+const simulationLegend = computed(() => props.layer.simulationOutput?.legend ?? undefined)
 const showLegend = computed<boolean>(() => {
     return showCentralGroupLegend.value ||
         showServerLegend.value ||
-        mbStyleLegendEntries.value.length > 0
+        mbStyleLegendEntries.value.length > 0 ||
+        simulationLegend.value !== undefined
 })
 const showFiltering = computed<boolean>(() => {
     if (isGroupLayer.value) return false
     // Attribute/geometry filters are driven by GeoServer feature type details.
     if (props.layer.externalSource !== undefined) return false
+    if (props.layer.simulationOutput !== undefined) return false
     if (props.layer.type === "raster") return false
     if (props.layer.renderer === "deckgl") return false
     return props.layer.filterLayer !== true
@@ -791,6 +797,11 @@ function deleteLayerConfirmation(layer: LayerObjectWithAttributes): void {
     confirmDialogVisibility.value = false
 }
 function zoomToLayer(): void {
+    const simulationBounds = props.layer.simulationOutput?.bounds
+    if (simulationBounds) {
+        mapStore.map.fitBounds([[simulationBounds[0], simulationBounds[1]], [simulationBounds[2], simulationBounds[3]]], { padding: 20 })
+        return
+    }
     if (isGroupLayer.value) {
         const boxes = props.layer.groupManifest?.members.flatMap((member) => {
             const details = member.details

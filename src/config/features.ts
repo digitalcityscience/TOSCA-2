@@ -3,7 +3,7 @@
  * comma-separated list of feature ids; leaving it unset enables every feature
  * except the opt-in ones.
  */
-export const FEATURE_IDS = ["datastores", "events", "geostories", "urbanStories"] as const;
+export const FEATURE_IDS = ["datastores", "events", "geostories", "urbanStories", "geosimulations"] as const;
 
 export type FeatureId = typeof FEATURE_IDS[number];
 

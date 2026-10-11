@@ -70,7 +70,8 @@
       "events": "Events",
       "geostories": "GeoStories",
       "urbanStories": "Urban Stories",
-      "layers": "Layers"
+      "layers": "Layers",
+      "geosimulations": "Simulations"
     },
     "basemap": {
       "dataviz": "Dataviz",
@@ -774,6 +775,34 @@
       "feed": "Feed: {publisher}, version {version}, valid {start} – {end}.",
       "source": "HVV GTFS timetable via the Hamburg transparency portal.",
       "credits": "Based on hamburgriders (MIT), forked from utrechtriders, inspired by londonriders. Dark basemap © CARTO © OpenStreetMap contributors."
+    }
+  },
+  "geosimulations": {
+    "title": "Simulations",
+    "unavailable": "Simulations are unavailable right now",
+    "tryAgain": "Try again",
+    "empty": "No simulations are available",
+    "emptyDescription": "Published simulations will appear here.",
+    "runCount": "no runs | 1 run | {count} runs",
+    "openModel": "Show runs",
+    "loadMore": "Load more",
+    "backToModels": "All simulations",
+    "backToRuns": "Back to runs",
+    "modelUnavailable": "This simulation is unavailable.",
+    "runs": "Runs",
+    "noRuns": "No runs are available yet.",
+    "openRun": "Open run",
+    "runUnavailable": "This run is unavailable.",
+    "keyFigures": "Key figures",
+    "mapLayers": "Map layers",
+    "mapLayersHint": "Switch layers on and off; each one has its legend in the layer list.",
+    "layerError": "The map layer couldn't be loaded.",
+    "parameters": "Parameters",
+    "modelVersion": "Model version",
+    "status": {
+      "draft": "Draft",
+      "published": "Published",
+      "archived": "Archived"
     }
   }
 }
