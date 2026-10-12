@@ -8,6 +8,9 @@ import {
 import { useGeostorySceneStore } from "./geostoryScenes";
 import { useMapStore } from "./map";
 import { useUrbanStoriesStore } from "./urbanStories";
+import { useCatalogFixtureStory } from "../config/urbanStories/__fixtures__/useCatalogFixtureStory";
+
+useCatalogFixtureStory();
 
 const backend = vi.hoisted(() => ({ fetchBackendJson: vi.fn() }));
 vi.mock("./backend", async (importOriginal) => ({

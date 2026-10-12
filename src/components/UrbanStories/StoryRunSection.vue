@@ -99,6 +99,7 @@
 
             <FifteenMinutePanel v-if="showFifteenMinutePanel" />
             <TransitEquityPanel v-if="showTransitEquityPanel" />
+            <GreenSpacesPanel v-if="showGreenSpacesPanel" />
             <ul v-if="['walkability-safety', 'building-walking'].includes(props.story.key) && urbanStories.runMode === 'chapters'" class="grid gap-3" data-testid="walkability-controls">
                 <ExploreLayerEntry
                     v-for="entry in walkEntries"
@@ -157,6 +158,7 @@ import { useGeostorySceneStore } from "@store/geostoryScenes";
 import { useUrbanStoriesStore } from "@store/urbanStories";
 import { localize, type UrbanStoryConfig } from "../../config/urbanStories";
 import FifteenMinutePanel from "./FifteenMinutePanel.vue";
+import GreenSpacesPanel from "./GreenSpacesPanel.vue";
 import TransitEquityPanel from "./TransitEquityPanel.vue";
 import StoryChapter from "./StoryChapter.vue";
 import ExploreLayerEntry from "./ExploreLayerEntry.vue";
@@ -189,6 +191,8 @@ const chapterCaption = computed(() => {
 const showFifteenMinutePanel = computed(() => props.story.key === "fifteen-minute" && urbanStories.activeChapter !== undefined);
 /** Public Transport Equity renders its scene panel (data, selection, controls, legend) under the chapter text. */
 const showTransitEquityPanel = computed(() => props.story.key === "transit-equity" && urbanStories.activeChapter !== undefined);
+/** Green Spaces renders its scene panel (inventory, park detail, access, comparison, explorer, legend) under the chapter text. */
+const showGreenSpacesPanel = computed(() => props.story.key === "green-spaces" && urbanStories.activeChapter !== undefined);
 const relatedCount = computed(() => urbanStories.prioritisedEntries(props.story).related.length);
 
 async function start(): Promise<void> {

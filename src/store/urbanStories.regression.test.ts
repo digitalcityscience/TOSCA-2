@@ -8,6 +8,9 @@ import { addExploreLayer, fakeSceneEngine, publishStoryConfig, storyDetail } fro
 import { useGeostorySceneStore } from "./geostoryScenes";
 import { useMapStore } from "./map";
 import { useUrbanStoriesStore } from "./urbanStories";
+import { useCatalogFixtureStory } from "../config/urbanStories/__fixtures__/useCatalogFixtureStory";
+
+useCatalogFixtureStory();
 
 /**
  * UST-10 regression protection: Urban Stories sits on top of Datastores, the map store and the

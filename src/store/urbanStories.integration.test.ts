@@ -10,6 +10,9 @@ import { URBAN_STORIES, type ExploreEntry, type UrbanStoryConfig } from "../conf
 import { useGeostorySceneStore } from "./geostoryScenes";
 import { type LayerObjectWithAttributes } from "./map";
 import { useUrbanStoriesStore } from "./urbanStories";
+import { useCatalogFixtureStory } from "../config/urbanStories/__fixtures__/useCatalogFixtureStory";
+
+useCatalogFixtureStory();
 
 /**
  * UST-10: the four stories end to end against a mocked catalog, a mocked stories API and a fake map.

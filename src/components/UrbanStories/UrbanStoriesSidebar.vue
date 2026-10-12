@@ -25,7 +25,7 @@
             </p>
 
             <template v-else>
-                <UrbanStoryIntro :story="story" />
+                <UrbanStoryIntro :story="story" :compact="story.key === 'green-spaces'" />
                 <WalkabilityBuildingPanel v-if="story.key === 'building-walking'" />
                 <HamburgRidersStoryPanel v-if="story.key === 'hamburg-riders'" />
 

@@ -109,7 +109,7 @@ describe("UrbanStoriesSidebar", () => {
         expect(useUrbanStoriesStore().activeStoryKey).toBe("green-spaces");
         expect(wrapper.get("button[data-story-key='green-spaces']").attributes("aria-pressed")).toBe("true");
         const intro = wrapper.get("[data-testid='urban-story-intro']");
-        expect(intro.text()).toContain("Hamburg is a green city");
+        expect(intro.text()).toContain("Green on the Map. Accessible in Real Life?");
         expect(intro.text()).toContain("Read before you explore");
         expect(intro.text()).toContain("Union of official polygons; never summed.");
 
@@ -118,8 +118,8 @@ describe("UrbanStoriesSidebar", () => {
         expect(run.find("[data-testid='run-start']").exists()).toBe(true);
 
         const explore = wrapper.get("[data-testid='urban-story-explore']");
-        expect(explore.text()).toContain("9 datasets");
-        expect(explore.findAll("li[data-entry-key]")).toHaveLength(9);
+        expect(explore.text()).toContain("7 datasets");
+        expect(explore.findAll("li[data-entry-key]")).toHaveLength(7);
         const features = explore.get("li[data-entry-key='green-features-polygon']");
         expect(features.text()).toContain("Visible from zoom 14");
         // The mocked catalog reports every layer as not published, so no entry can be added.
@@ -168,12 +168,12 @@ describe("UrbanStoriesSidebar", () => {
 
         i18n.locale = "de";
         await flushPromises();
-        expect(wrapper.get("[data-testid='urban-story-intro']").text()).toContain("Hamburg ist eine grüne Stadt");
+        expect(wrapper.get("[data-testid='urban-story-intro']").text()).toContain("Grün auf der Karte. Auch im echten Leben erreichbar?");
         expect(wrapper.get("button[data-story-key='green-spaces']").text()).toBe("Grünräume");
 
         i18n.locale = "tr";
         await flushPromises();
-        expect(wrapper.get("[data-testid='urban-story-intro']").text()).toContain("Hamburg is a green city");
+        expect(wrapper.get("[data-testid='urban-story-intro']").text()).toContain("Green on the Map. Accessible in Real Life?");
 
         i18n.locale = "en";
     });

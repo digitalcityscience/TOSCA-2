@@ -8,6 +8,9 @@ import { useUrbanStoriesStore } from "@store/urbanStories";
 import { getStoryConfig } from "../../config/urbanStories";
 import { deferred, fakeCameraMap, fakeSceneEngine, publishStoryConfig, storyDetail } from "./__fixtures__/runHarness";
 import StoryRunSection from "./StoryRunSection.vue";
+import { useCatalogFixtureStory } from "../../config/urbanStories/__fixtures__/useCatalogFixtureStory";
+
+useCatalogFixtureStory();
 
 const backend = vi.hoisted(() => ({ fetchBackendJson: vi.fn() }));
 vi.mock("@store/backend", async (importOriginal) => ({

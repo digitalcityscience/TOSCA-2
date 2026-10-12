@@ -23,6 +23,9 @@ import {
     supplementalStylesFor,
     withZoomFloor,
 } from "./urbanStoryLayers";
+import { useCatalogFixtureStory } from "../../config/urbanStories/__fixtures__/useCatalogFixtureStory";
+
+useCatalogFixtureStory();
 
 const PROVIDER = "prov";
 

@@ -3,6 +3,9 @@ import { CATALOG_STYLES_RECORDED_ON, RECORDED_URBAN_STORY_STYLES } from "./catal
 import { URBAN_STORIES } from "./index";
 import { URBAN_STORY_LAYERS } from "./layers";
 import { STYLE_VERIFIED_ON, VERIFIED_METRIC_STYLES } from "./verifiedStyles";
+import { useCatalogFixtureStory } from "./__fixtures__/useCatalogFixtureStory";
+
+useCatalogFixtureStory();
 
 const recorded = (name: string) => RECORDED_URBAN_STORY_STYLES.find((style) => style.name === name);
 

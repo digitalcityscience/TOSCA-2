@@ -4,9 +4,14 @@ import { URBAN_STORY_LAYERS } from "./layers";
 import { CAVEATS, FIFTEEN_MINUTE_CATEGORIES } from "./metrics";
 import type { ExploreEntry, UrbanStoryConfig } from "./types";
 import { findStoryConfigErrors, validateStoryConfigs } from "./validate";
+import { catalogFixtureStory } from "./__fixtures__/catalogFixtureStory";
 
+/**
+ * A copy of the shipped configs for the generic contract rules. The shipped Green Spaces story is frontend-styled; the
+ * catalog-styled fixture stands in for it where a rule is about catalog styles or catalog-styled Explore entries.
+ */
 function cloneStories(): UrbanStoryConfig[] {
-    return structuredClone([...URBAN_STORIES]) as UrbanStoryConfig[];
+    return structuredClone([...URBAN_STORIES].map((story) => (story.key === "green-spaces" ? catalogFixtureStory : story))) as UrbanStoryConfig[];
 }
 
 function entry(stories: UrbanStoryConfig[], storyKey: string, entryKey: string): ExploreEntry {
@@ -95,16 +100,19 @@ describe("urban story configs", () => {
             {
                 story: "green-spaces",
                 explore: [
-                    "green-areas", "green-features-point", "green-features-line", "green-features-polygon",
-                    "park-pois", "buildings-park-access", "stadtteile-green-access", "units-green-access",
-                    "bezirke-green-access",
+                    "stadtteile-green-access", "green-areas", "green-features-polygon", "green-features-line", "green-features-point",
+                    "park-pois", "buildings-green-access",
                 ],
                 chapters: {
-                    "green-inventory": ["green-areas"],
-                    "green-distribution": ["green-features-polygon", "green-features-line", "green-features-point", "green-areas"],
-                    "green-access": ["stadtteile-green-access", "buildings-park-access", "park-pois"],
-                    "neighbourhood-differences": ["stadtteile-green-access", "units-green-access", "bezirke-green-access", "park-pois"],
-                    "green-interpretation": ["stadtteile-green-access", "units-green-access", "bezirke-green-access"],
+                    "what-counts-as-a-park": ["green-areas", "stadtteile-green-access"],
+                    "inside-the-park": ["green-areas", "green-features-polygon", "green-features-line", "green-features-point"],
+                    "park-nearby-how-far": ["stadtteile-green-access", "buildings-green-access", "green-areas"],
+                    "where-can-children-play": ["stadtteile-green-access", "buildings-green-access", "green-areas"],
+                    "park-vs-playground": ["stadtteile-green-access", "buildings-green-access", "green-areas"],
+                    "explore-green-hamburg": [
+                        "green-areas", "stadtteile-green-access", "buildings-green-access", "green-features-polygon",
+                        "green-features-line", "green-features-point", "park-pois",
+                    ],
                 },
             },
             { story: "hamburg-riders", explore: [], chapters: {} },
@@ -122,9 +130,8 @@ describe("urban story configs", () => {
         const styled = allEntries().filter(({ entry: item }) => item.styleSource !== "frontend").flatMap(({ story, entry: item }) => item.metrics
             .filter((option) => option.styleName !== null)
             .map((option) => `${story}/${item.key}/${option.attribute}=${option.styleName}@${option.styleVerifiedOn}`));
-        expect(styled).toEqual([
-            "green-spaces/stadtteile-green-access/grn_mean=urbanstories-green-access@2026-10-11",
-        ]);
+        // Every shipped story owns its styling in the frontend: no catalog style is verified on any entry.
+        expect(styled).toEqual([]);
     });
 
     test("looks stories up by key", () => {

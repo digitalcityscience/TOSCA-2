@@ -7,6 +7,9 @@ import { isHeavyLayer } from "../config/urbanStories/layers";
 import { frontendStylingFor, getStoryConfig, URBAN_STORIES, type UrbanStoryConfig } from "../config/urbanStories";
 import { useGeostorySceneStore } from "./geostoryScenes";
 import { useUrbanStoriesStore } from "./urbanStories";
+import { useCatalogFixtureStory } from "../config/urbanStories/__fixtures__/useCatalogFixtureStory";
+
+useCatalogFixtureStory();
 
 /**
  * M4 acceptance: the four REAL frontend chapter configs (no published test story, no backend ids)

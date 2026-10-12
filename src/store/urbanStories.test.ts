@@ -5,6 +5,9 @@ import { getStoryConfig } from "../config/urbanStories";
 import { resetUrbanStoryProbes } from "@helpers/urbanStoryLayers";
 import { useMapStore, type LayerObjectWithAttributes } from "./map";
 import { useUrbanStoriesStore } from "./urbanStories";
+import { useCatalogFixtureStory } from "../config/urbanStories/__fixtures__/useCatalogFixtureStory";
+
+useCatalogFixtureStory();
 
 const loader = vi.hoisted(() => ({
     resolveCatalogLayer: vi.fn(),

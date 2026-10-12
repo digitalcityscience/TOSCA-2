@@ -10,6 +10,9 @@ import { useUrbanStoriesStore } from "@store/urbanStories";
 import { redirectUnknownUrbanStory, URBAN_STORIES_ROUTE_NAME } from "../../router/urbanStoriesRoute";
 import { addExploreLayer, fakeCameraMap, fakeSceneEngine, publishStoryConfig, storyDetail } from "./__fixtures__/runHarness";
 import UrbanStoriesSidebar from "./UrbanStoriesSidebar.vue";
+import { useCatalogFixtureStory } from "../../config/urbanStories/__fixtures__/useCatalogFixtureStory";
+
+useCatalogFixtureStory();
 
 const backend = vi.hoisted(() => ({ fetchBackendJson: vi.fn() }));
 vi.mock("@store/backend", async (importOriginal) => ({

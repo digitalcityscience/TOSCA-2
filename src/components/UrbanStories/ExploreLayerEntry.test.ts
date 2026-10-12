@@ -7,6 +7,9 @@ import { useMapStore, type LayerObjectWithAttributes } from "@store/map";
 import { useUrbanStoriesStore } from "@store/urbanStories";
 import { getStoryConfig } from "../../config/urbanStories";
 import ExploreLayerEntry from "./ExploreLayerEntry.vue";
+import { useCatalogFixtureStory } from "../../config/urbanStories/__fixtures__/useCatalogFixtureStory";
+
+useCatalogFixtureStory();
 
 const loader = vi.hoisted(() => ({
     resolveCatalogLayer: vi.fn(),

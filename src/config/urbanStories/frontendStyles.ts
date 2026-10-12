@@ -2,6 +2,7 @@ import { resolveFifteenMinuteStyling, type LocalStylingBundle } from "./styles/f
 import type { ExploreEntry } from "./types";
 import { resolveEquityStyling } from "./styles/transitEquity";
 import { resolveWalkabilityStyling } from "./styles/walkabilitySafety";
+import { resolveGreenSpacesStyling } from "./styles/greenSpaces";
 
 /**
  * Local (frontend-owned) styling of Explore entries marked `styleSource: "frontend"`.
@@ -9,7 +10,7 @@ import { resolveWalkabilityStyling } from "./styles/walkabilitySafety";
  */
 export function frontendStylingFor(entry: ExploreEntry): LocalStylingBundle | undefined {
     return entry.styleSource === "frontend"
-        ? resolveWalkabilityStyling(entry.key) ?? resolveEquityStyling(entry.key) ?? resolveFifteenMinuteStyling(entry.key)
+        ? resolveWalkabilityStyling(entry.key) ?? resolveEquityStyling(entry.key) ?? resolveGreenSpacesStyling(entry.key) ?? resolveFifteenMinuteStyling(entry.key)
         : undefined;
 }
 
