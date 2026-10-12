@@ -848,6 +848,43 @@
       "change": "Veränderung",
       "differenceLayers": "Differenzebenen",
       "noDifferenceLayers": "Zwischen den beiden Läufen hat sich keine Kartenebene verändert."
+    },
+    "myRuns": "Meine Läufe",
+    "newRun": {
+      "title": "Lauf starten",
+      "cta": "Selbst rechnen",
+      "ctaHelp": "Parameter wählen; die Simulation läuft auf dem Server und dauert eine Minute oder länger.",
+      "intro": "Parameter festlegen. Die Standardwerte entsprechen dem veröffentlichten Szenario.",
+      "advanced": "Titel und Seed",
+      "runTitle": "Titel des Laufs",
+      "seed": "Zufalls-Seed",
+      "seedHelp": "Gleiche Parameter und gleicher Seed ergeben das gleiche Ergebnis.",
+      "optional": "Optional",
+      "start": "Lauf starten",
+      "reset": "Auf Standardwerte zurücksetzen",
+      "range": "{min} – {max}",
+      "anonymousNote": "Gestartete Läufe werden in diesem Browser unter „Meine Läufe“ gemerkt und nach 30 Tagen gelöscht.",
+      "notRunnable": "Läufe dieser Simulation können hier nicht gestartet werden.",
+      "invalid": "Einige Parameter müssen korrigiert werden.",
+      "quota": "{detail} Bitte in etwa {minutes} Min. erneut versuchen.",
+      "failed": "Der Lauf konnte nicht gestartet werden: {detail}",
+      "problem": {
+        "required": "Pflichtfeld",
+        "number": "Zahl eingeben",
+        "integer": "Ganze Zahl eingeben",
+        "minimum": "Mindestens {limit}",
+        "maximum": "Höchstens {limit}",
+        "option": "Eine der Optionen wählen",
+        "date": "Datum eingeben"
+      }
+    },
+    "progress": {
+      "queued": "Wartet auf den Simulationsserver…",
+      "running": "Simuliert…",
+      "elapsed": "Gestartet vor {duration}",
+      "seconds": "{count} s",
+      "failed": "Der Lauf ist fehlgeschlagen.",
+      "reused": "Ein identischer Lauf existiert bereits und wurde statt eines neuen geöffnet."
     }
   }
 }

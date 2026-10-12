@@ -11,6 +11,31 @@
 
             <EditorJsReadonly v-if="model.description_content.blocks.length > 0" :data="model.description_content" />
 
+            <section v-if="model.runnable" class="start-run">
+                <div class="grid gap-0.5">
+                    <h3 class="text-sm font-semibold text-highlighted">{{ t("geosimulations.newRun.cta") }}</h3>
+                    <p class="text-xs text-muted">{{ t("geosimulations.newRun.ctaHelp") }}</p>
+                </div>
+                <UButton
+                    class="w-fit"
+                    icon="i-lucide-play"
+                    :to="{ name: 'geosimulation-new-run', params: { modelId: model.id } }"
+                    :label="t('geosimulations.newRun.title')"
+                />
+            </section>
+
+            <section v-if="ownRuns.length > 0" class="grid gap-2">
+                <h3 class="text-sm font-semibold text-highlighted">{{ t("geosimulations.myRuns") }}</h3>
+                <ul class="grid gap-1">
+                    <li v-for="ownRun in ownRuns" :key="ownRun.id" class="flex flex-wrap items-baseline gap-x-2">
+                        <ULink class="text-sm text-primary hover:underline" :to="{ name: 'geosimulation-run', params: { runId: ownRun.id } }">
+                            {{ ownRun.title }}
+                        </ULink>
+                        <span class="text-xs text-muted">{{ formatStarted(ownRun.startedAt) }}</span>
+                    </li>
+                </ul>
+            </section>
+
             <section class="grid gap-3">
                 <h3 class="text-sm font-semibold text-highlighted">{{ t("geosimulations.runs") }}</h3>
                 <p v-if="model.runs.length === 0" class="text-sm text-muted">{{ t("geosimulations.noRuns") }}</p>
@@ -59,6 +84,7 @@ import { useI18n } from "vue-i18n";
 import EditorJsReadonly from "@components/Base/EditorJsReadonly.vue";
 import { type SimulationModelDetail, useGeosimulationStore } from "@store/geosimulation";
 import { formatSimulatedTime } from "@helpers/simulationFormat";
+import { myRuns } from "@helpers/simulationMyRuns";
 
 const props = defineProps<{ modelId: string }>();
 const { t, locale } = useI18n();
@@ -67,6 +93,11 @@ const model = ref<SimulationModelDetail>();
 const loading = ref(false);
 const failed = ref(false);
 const comparisons = computed(() => model.value?.comparisons ?? []);
+const ownRuns = computed(() => (model.value ? myRuns(model.value.id) : []));
+
+function formatStarted(iso: string): string {
+    return new Intl.DateTimeFormat(locale.value, { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
+}
 
 watch(() => props.modelId, async (modelId) => {
     loading.value = true;
@@ -80,3 +111,13 @@ watch(() => props.modelId, async (modelId) => {
     }
 }, { immediate: true });
 </script>
+
+<style scoped>
+.start-run {
+    display: grid;
+    gap: 0.6rem;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid rgb(148 163 184 / 0.25);
+    border-radius: 0.5rem;
+}
+</style>

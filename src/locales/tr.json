@@ -848,6 +848,43 @@
       "change": "Değişim",
       "differenceLayers": "Fark katmanları",
       "noDifferenceLayers": "İki çalıştırma arasında hiçbir harita katmanı değişmedi."
+    },
+    "myRuns": "Çalıştırmalarım",
+    "newRun": {
+      "title": "Çalıştırma başlat",
+      "cta": "Kendiniz çalıştırın",
+      "ctaHelp": "Parametreleri seçin; simülasyon sunucuda çalışır ve bir dakika ya da daha uzun sürer.",
+      "intro": "Parametreleri belirleyin. Varsayılanlar yayımlanan senaryoyu üretir.",
+      "advanced": "Başlık ve tohum",
+      "runTitle": "Çalıştırma başlığı",
+      "seed": "Rastgele tohum",
+      "seedHelp": "Aynı parametreler ve tohum aynı sonucu verir.",
+      "optional": "İsteğe bağlı",
+      "start": "Çalıştırmayı başlat",
+      "reset": "Varsayılanlara dön",
+      "range": "{min} – {max}",
+      "anonymousNote": "Başlattığınız çalıştırmalar bu tarayıcıda “Çalıştırmalarım” altında tutulur ve 30 gün sonra silinir.",
+      "notRunnable": "Bu simülasyonun çalıştırmaları burada başlatılamaz.",
+      "invalid": "Bazı parametrelerin düzeltilmesi gerekiyor.",
+      "quota": "{detail} Yaklaşık {minutes} dk sonra tekrar deneyin.",
+      "failed": "Çalıştırma başlatılamadı: {detail}",
+      "problem": {
+        "required": "Zorunlu",
+        "number": "Bir sayı girin",
+        "integer": "Tam sayı girin",
+        "minimum": "En az {limit}",
+        "maximum": "En çok {limit}",
+        "option": "Seçeneklerden birini seçin",
+        "date": "Bir tarih girin"
+      }
+    },
+    "progress": {
+      "queued": "Simülasyon sunucusu bekleniyor…",
+      "running": "Simüle ediliyor…",
+      "elapsed": "{duration} önce başladı",
+      "seconds": "{count} sn",
+      "failed": "Çalıştırma başarısız oldu.",
+      "reused": "Aynı çalıştırma zaten mevcut; yenisi başlatılmak yerine o açıldı."
     }
   }
 }

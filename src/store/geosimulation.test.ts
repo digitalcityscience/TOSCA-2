@@ -2,6 +2,8 @@ import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import {
     buildComparisonDetailUrl,
+    buildStartRunUrl,
+    StartRunError,
     buildComparisonListUrl,
     buildModelDetailUrl,
     buildModelListUrl,
@@ -96,6 +98,31 @@ describe("geosimulation store", () => {
         expect(String(fetchMock.mock.calls[1][0])).toContain(`comparisons/?run=${comparison.baseline.id}`);
         store.clearComparison();
         expect(store.selectedComparison).toBeUndefined();
+    });
+
+    test("starts runs and reports why one could not start", async () => {
+        const queued = { id: "r9", title: "My run", execution_state: "queued", visibility: "link", created_at: "2026-10-12T12:00:00Z", reused: false };
+        fetchMock
+            .mockResolvedValueOnce(jsonResponse(queued, { status: 202 }))
+            .mockResolvedValueOnce(jsonResponse({ parameters: ["agents: 0 is less than the minimum of 1"] }, { status: 400 }))
+            .mockResolvedValueOnce(jsonResponse({ detail: "Runs from your connection: 1 run(s) already in progress; wait until one finishes." }, {
+                status: 429,
+                headers: { "Content-Type": "application/json", "Retry-After": "60" },
+            }));
+        const store = useGeosimulationStore();
+
+        const started = await store.startRun("m1", { parameters: { agents: 5 }, seed: 3 });
+        const invalid = await store.startRun("m1", { parameters: { agents: 0 } }).catch((error: unknown) => error);
+        const quota = await store.startRun("m1", { parameters: {} }).catch((error: unknown) => error);
+
+        expect(started).toMatchObject({ id: "r9", reused: false, visibility: "link" });
+        const [url, init] = fetchMock.mock.calls[0] as [URL, RequestInit];
+        expect(String(url)).toBe(buildStartRunUrl("m1").toString());
+        expect(init.method).toBe("POST");
+        expect(JSON.parse(init.body as string)).toEqual({ parameters: { agents: 5 }, seed: 3 });
+        expect(invalid).toBeInstanceOf(StartRunError);
+        expect(invalid).toMatchObject({ status: 400, parameterErrors: ["agents: 0 is less than the minimum of 1"] });
+        expect(quota).toMatchObject({ status: 429, retryAfterSeconds: 60 });
     });
 
     test("exposes a user-safe error when the list fails", async () => {

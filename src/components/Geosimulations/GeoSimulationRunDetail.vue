@@ -8,10 +8,35 @@
                 <p class="text-xs font-medium uppercase tracking-wide text-muted">{{ run.model.title }}</p>
                 <h2 class="text-xl font-semibold leading-tight text-highlighted">{{ run.title }}</h2>
                 <div class="flex flex-wrap items-center gap-2">
-                    <UBadge color="neutral" variant="subtle" icon="i-lucide-clock" :label="formatSimulatedTime(run.time, locale)" />
+                    <UBadge v-if="simulatedTime" color="neutral" variant="subtle" icon="i-lucide-clock" :label="simulatedTime" />
                     <UBadge v-if="run.status !== 'published'" color="warning" variant="subtle" :label="t(`geosimulations.status.${run.status}`)" />
                 </div>
             </div>
+
+            <UAlert
+                v-if="reused"
+                color="info"
+                variant="subtle"
+                icon="i-lucide-recycle"
+                :title="t('geosimulations.progress.reused')"
+            />
+
+            <section v-if="inProgress" class="run-progress" aria-live="polite">
+                <UIcon name="i-lucide-loader-circle" class="size-5 shrink-0 animate-spin text-primary" aria-hidden="true" />
+                <div class="grid gap-0.5">
+                    <p class="text-sm font-semibold text-highlighted">{{ t(`geosimulations.progress.${run.execution_state}`) }}</p>
+                    <p v-if="run.execution?.message" class="text-xs text-toned">{{ run.execution.message }}</p>
+                    <p class="text-xs text-muted">{{ t("geosimulations.progress.elapsed", { duration: elapsed }) }}</p>
+                </div>
+            </section>
+            <UAlert
+                v-else-if="run.execution_state === 'failed'"
+                color="error"
+                variant="subtle"
+                icon="i-lucide-circle-alert"
+                :title="t('geosimulations.progress.failed')"
+                :description="run.execution?.error || undefined"
+            />
 
             <EditorJsReadonly v-if="run.description_content.blocks.length > 0" :data="run.description_content" />
 
@@ -68,12 +93,14 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { useRoute } from "vue-router";
 import EditorJsReadonly from "@components/Base/EditorJsReadonly.vue";
 import SimulationReplayPanel from "./SimulationReplayPanel.vue";
 import SimulationMapLayerList from "./SimulationMapLayerList.vue";
 import SimulationTable from "./SimulationTable.vue";
 import { useMapStore } from "@store/map";
 import {
+    isRunInProgress,
     isTableOutput,
     isTripsOutput,
     isVectorLayerOutput,
@@ -89,11 +116,16 @@ import {
     removeSimulationRunLayers,
     waitForMapStyle,
 } from "@helpers/geosimulationLayers";
-import { formatParameter, formatSimulatedTime, simulationKpiRows } from "@helpers/simulationFormat";
+import { formatDuration, formatParameter, formatSimulatedTime, simulationKpiRows } from "@helpers/simulationFormat";
+import { forgetRun } from "@helpers/simulationMyRuns";
 import { reportDeveloperError } from "@helpers/userFacingError";
+
+/** While a started run is queued or running, the page polls its detail this often. */
+const POLL_MS = 5000;
 
 const props = defineProps<{ runId: string }>();
 const { t, locale } = useI18n();
+const route = useRoute();
 const mapStore = useMapStore();
 const geosimulation = useGeosimulationStore();
 
@@ -102,6 +134,19 @@ const loading = ref(false);
 const failed = ref(false);
 const comparisons = ref<SimulationComparisonSummary[]>([]);
 let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+let pollTimer: ReturnType<typeof setTimeout> | undefined;
+let clockTimer: ReturnType<typeof setInterval> | undefined;
+const now = ref(Date.now());
+
+const inProgress = computed(() => run.value !== undefined && isRunInProgress(run.value.execution_state));
+const reused = computed(() => route.query.reused === "1");
+const simulatedTime = computed(() => (run.value ? formatSimulatedTime(run.value.time, locale.value) : ""));
+const elapsed = computed(() => {
+    const since = run.value?.execution?.started_at ?? run.value?.created_at;
+    if (since === undefined) return "";
+    const seconds = Math.max(0, (now.value - Date.parse(since)) / 1000);
+    return seconds < 60 ? t("geosimulations.progress.seconds", { count: Math.round(seconds) }) : formatDuration(seconds);
+});
 
 const mapOutputs = computed(() => (run.value?.outputs ?? []).filter(isVectorLayerOutput));
 const tripsOutput = computed(() => run.value?.outputs.find(isTripsOutput));
@@ -131,7 +176,48 @@ async function refreshUrls(runId: string): Promise<void> {
     }
 }
 
+/** Fit the map and show the first map layer of a finished run. */
+async function showOnMap(detail: SimulationRunDetail): Promise<void> {
+    await waitForMapStyle(mapStore.map);
+    fitToSimulationBounds(mapStore.map, detail.bounds);
+    const first = detail.outputs.filter(isVectorLayerOutput).sort((a, b) => a.display_order - b.display_order)[0];
+    if (first !== undefined) addSimulationOutputLayer(mapStore, detail, first);
+    scheduleUrlRefresh(detail);
+}
+
+function stopFollowing(): void {
+    if (pollTimer !== undefined) clearTimeout(pollTimer);
+    if (clockTimer !== undefined) clearInterval(clockTimer);
+    pollTimer = clockTimer = undefined;
+}
+
+/** Poll a queued or running run until it finishes, then show its outputs. */
+function follow(runId: string): void {
+    stopFollowing();
+    now.value = Date.now();
+    clockTimer = setInterval(() => { now.value = Date.now(); }, 1000);
+    const poll = async (): Promise<void> => {
+        try {
+            const fresh = await geosimulation.loadRun(runId);
+            if (props.runId !== runId) return;
+            run.value = fresh;
+            if (isRunInProgress(fresh.execution_state)) {
+                pollTimer = setTimeout(() => { void poll(); }, POLL_MS);
+                return;
+            }
+            stopFollowing();
+            if (fresh.execution_state === "succeeded") await showOnMap(fresh);
+        } catch (error) {
+            // Keep following through network hiccups.
+            reportDeveloperError(`Following simulation run ${runId}`, error);
+            pollTimer = setTimeout(() => { void poll(); }, POLL_MS * 2);
+        }
+    };
+    pollTimer = setTimeout(() => { void poll(); }, POLL_MS);
+}
+
 async function openRun(runId: string, previousRunId?: string): Promise<void> {
+    stopFollowing();
     if (previousRunId !== undefined) await removeSimulationRunLayers(mapStore, previousRunId);
     loading.value = true;
     failed.value = false;
@@ -139,13 +225,12 @@ async function openRun(runId: string, previousRunId?: string): Promise<void> {
         const detail = await geosimulation.loadRun(runId);
         run.value = detail;
         void loadComparisons(runId);
-        await waitForMapStyle(mapStore.map);
-        fitToSimulationBounds(mapStore.map, detail.bounds);
-        const first = detail.outputs.filter(isVectorLayerOutput).sort((a, b) => a.display_order - b.display_order)[0];
-        if (first !== undefined) addSimulationOutputLayer(mapStore, detail, first);
-        scheduleUrlRefresh(detail);
+        if (isRunInProgress(detail.execution_state)) follow(runId);
+        else await showOnMap(detail);
     } catch (error) {
         failed.value = true;
+        // A remembered run that no longer exists (retention) is dropped from "My runs".
+        if (String(error).includes("(404")) forgetRun(runId);
         reportDeveloperError(`Opening simulation run ${runId}`, error);
     } finally {
         loading.value = false;
@@ -168,6 +253,7 @@ watch(() => props.runId, (runId, previousRunId) => {
 }, { immediate: true });
 
 onBeforeUnmount(() => {
+    stopFollowing();
     if (refreshTimer !== undefined) clearTimeout(refreshTimer);
     if (run.value !== undefined && mapStore.map !== undefined) {
         void removeSimulationRunLayers(mapStore, run.value.id);
@@ -177,6 +263,15 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.run-progress {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid rgb(148 163 184 / 0.25);
+    border-radius: 0.5rem;
+}
+
 .kpi-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
