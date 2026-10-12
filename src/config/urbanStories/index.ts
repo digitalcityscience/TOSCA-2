@@ -1,6 +1,7 @@
 import { buildingWalkingStory } from "./buildingWalking";
 import { fifteenMinuteStory } from "./fifteenMinute";
 import { greenSpacesStory } from "./greenSpaces";
+import { hamburgRidersStory } from "./hamburgRiders";
 import { transitEquityStory } from "./transitEquity";
 import { URBAN_STORY_KEYS, type Localized, type UrbanStoryConfig, type UrbanStoryKey } from "./types";
 import { walkabilitySafetyStory } from "./walkabilitySafety";
@@ -14,6 +15,7 @@ export const URBAN_STORIES: readonly UrbanStoryConfig[] = [
     buildingWalkingStory,
     transitEquityStory,
     greenSpacesStory,
+    hamburgRidersStory,
 ];
 
 export function isUrbanStoryKey(value: unknown): value is UrbanStoryKey {

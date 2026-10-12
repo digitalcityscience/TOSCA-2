@@ -117,6 +117,7 @@ describe("urban story configs", () => {
                     "green-interpretation": ["stadtteile-green-access", "units-green-access", "bezirke-green-access"],
                 },
             },
+            { story: "hamburg-riders", explore: [], chapters: {} },
         ]);
     });
 

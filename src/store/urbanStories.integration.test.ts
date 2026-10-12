@@ -75,7 +75,7 @@ afterEach(() => {
 });
 
 // 15-Minute City is frontend-styled (no catalog style path); it is covered by urbanStories.fifteenMinute.*.test.ts.
-const CATALOG_STORIES = URBAN_STORIES.filter((story) => !story.explore.some((entry) => entry.styleSource === "frontend"));
+const CATALOG_STORIES = URBAN_STORIES.filter((story) => story.explore.length > 0 && !story.explore.some((entry) => entry.styleSource === "frontend"));
 
 describe.each(CATALOG_STORIES.map((story) => [story.key, story] as [string, UrbanStoryConfig]))("%s: Explore against the mocked catalog", (_key, story) => {
     test("every entry probes as available with its default style; only verified metrics are selectable", async () => {

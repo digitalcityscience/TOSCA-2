@@ -738,5 +738,65 @@
       },
       "notOnMap": "Bina katmanı henüz haritada değil."
     }
+  },
+  "hamburgRiders": {
+    "story": {
+      "loading": "Loading the timetable (about 30 MB, parsed in the background)…",
+      "error": "The timetable could not be loaded: {message}",
+      "retry": "Try again",
+      "ready": "Timetable ready.",
+      "serviceNote": "Scheduled service of {date} (HVV GTFS timetable, not live data).",
+      "overview": "Back to Hamburg overview",
+      "reopen": "Show Riders controls",
+      "hint": "Choose lines in the Layers panel on the right. The Riders controls close independently of the map; closing this story removes everything it added and restores your basemap.",
+      "explore": {
+        "title": "Explore Data",
+        "hint": "Add single HamburgRiders layers to the map as data, without the dark basemap or the Riders controls. They stay until you remove them.",
+        "add": "Add as layer",
+        "remove": "Remove",
+        "added": "On the map"
+      },
+      "start": "Start HamburgRiders",
+      "stop": "Stop HamburgRiders",
+      "stopped": "HamburgRiders is stopped. Start it to see the network, vehicles and timeline."
+    },
+    "controls": {
+      "reopen": "HamburgRiders controls",
+      "close": "Close Riders controls",
+      "collapse": "Collapse",
+      "expand": "Expand"
+    },
+    "statistics": {
+      "title": "Statistics",
+      "active": "Active trips",
+      "cumulative": "Cumulative today",
+      "total": "Total trips",
+      "scope": "Counts follow the selected lines."
+    },
+    "layers": {
+      "title": "Layers",
+      "all": "All",
+      "empty": "The timetable is still loading.",
+      "modes": {
+        "s-bahn": "S-Bahn",
+        "u-bahn": "U-Bahn",
+        "bus": "Bus",
+        "regional": "Regional"
+      }
+    },
+    "timeline": {
+      "label": "HamburgRiders timeline",
+      "play": "Play",
+      "pause": "Pause",
+      "time": "Time of day",
+      "speed": "Speed",
+      "service": "Timetable of {date} · not live"
+    },
+    "about": {
+      "title": "About this data",
+      "feed": "Feed: {publisher}, version {version}, valid {start} – {end}.",
+      "source": "HVV GTFS timetable via the Hamburg transparency portal.",
+      "credits": "Based on hamburgriders (MIT), forked from utrechtriders, inspired by londonriders. Dark basemap © CARTO © OpenStreetMap contributors."
+    }
   }
 }

@@ -738,5 +738,65 @@
       },
       "notOnMap": "Die Gebäudeebene ist noch nicht auf der Karte."
     }
+  },
+  "hamburgRiders": {
+    "story": {
+      "loading": "Fahrplan wird geladen (ca. 30 MB, Verarbeitung im Hintergrund) …",
+      "error": "Der Fahrplan konnte nicht geladen werden: {message}",
+      "retry": "Erneut versuchen",
+      "ready": "Fahrplan bereit.",
+      "serviceNote": "Fahrplan-Betriebstag {date} (HVV-GTFS-Fahrplan, keine Echtzeitdaten).",
+      "overview": "Zurück zur Hamburg-Übersicht",
+      "reopen": "Riders-Steuerung anzeigen",
+      "hint": "Wählen Sie rechts im Panel Ebenen die Linien aus. Die Riders-Steuerung lässt sich unabhängig von der Karte schließen; beim Schließen dieser Story wird alles Hinzugefügte entfernt und Ihre Basiskarte wiederhergestellt.",
+      "explore": {
+        "title": "Daten erkunden",
+        "hint": "Einzelne HamburgRiders-Ebenen als Daten auf die Karte legen, ohne dunkle Basiskarte und ohne Riders-Steuerung. Sie bleiben, bis Sie sie entfernen.",
+        "add": "Als Ebene hinzufügen",
+        "remove": "Entfernen",
+        "added": "Auf der Karte"
+      },
+      "start": "HamburgRiders starten",
+      "stop": "HamburgRiders beenden",
+      "stopped": "HamburgRiders ist beendet. Starten Sie es, um Netz, Fahrzeuge und Zeitleiste zu sehen."
+    },
+    "controls": {
+      "reopen": "HamburgRiders-Steuerung",
+      "close": "Riders-Steuerung schließen",
+      "collapse": "Einklappen",
+      "expand": "Ausklappen"
+    },
+    "statistics": {
+      "title": "Statistik",
+      "active": "Aktive Fahrten",
+      "cumulative": "Kumuliert heute",
+      "total": "Fahrten gesamt",
+      "scope": "Die Zahlen folgen den ausgewählten Linien."
+    },
+    "layers": {
+      "title": "Ebenen",
+      "all": "Alle",
+      "empty": "Der Fahrplan wird noch geladen.",
+      "modes": {
+        "s-bahn": "S-Bahn",
+        "u-bahn": "U-Bahn",
+        "bus": "Bus",
+        "regional": "Regional"
+      }
+    },
+    "timeline": {
+      "label": "HamburgRiders-Zeitleiste",
+      "play": "Abspielen",
+      "pause": "Pause",
+      "time": "Tageszeit",
+      "speed": "Geschwindigkeit",
+      "service": "Fahrplan vom {date} · nicht live"
+    },
+    "about": {
+      "title": "Über diese Daten",
+      "feed": "Feed: {publisher}, Version {version}, gültig {start} – {end}.",
+      "source": "HVV-GTFS-Fahrplan über das Transparenzportal Hamburg.",
+      "credits": "Basierend auf hamburgriders (MIT), Fork von utrechtriders, inspiriert von londonriders. Dunkle Basiskarte © CARTO © OpenStreetMap-Mitwirkende."
+    }
   }
 }

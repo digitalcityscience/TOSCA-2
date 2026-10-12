@@ -93,10 +93,10 @@ describe("UrbanStoriesSidebar", () => {
         const { wrapper } = await mountAt("/urban-stories");
 
         expect(storyCards(wrapper).map((card) => card.attributes("data-story-key"))).toEqual([
-            "fifteen-minute", "walkability-safety", "building-walking", "transit-equity", "green-spaces",
+            "fifteen-minute", "walkability-safety", "building-walking", "transit-equity", "green-spaces", "hamburg-riders",
         ]);
         expect(storyCards(wrapper).map((card) => card.text())).toEqual([
-            "15-Minute City", "Street comfort & safety", "Walking around your building", "Public Transport Equity", "Green Spaces",
+            "15-Minute City", "Street comfort & safety", "Walking around your building", "Public Transport Equity", "Green Spaces", "HamburgRiders",
         ]);
         expect(wrapper.find("[data-testid='urban-stories-empty']").exists()).toBe(true);
         expect(wrapper.find("[data-testid='urban-story-intro']").exists()).toBe(false);

@@ -50,7 +50,8 @@ afterEach(() => {
     vi.restoreAllMocks();
 });
 
-const STORIES = URBAN_STORIES.map((story) => [story.key, story] as [string, UrbanStoryConfig]);
+// HamburgRiders is an interactive experience without catalog entries or chapters; its own tests live in hamburgRiders.*.test.ts.
+const STORIES = URBAN_STORIES.filter((story) => story.chapters.length > 0).map((story) => [story.key, story] as [string, UrbanStoryConfig]);
 
 describe.each(STORIES)("%s: authored chapters", (_key, story) => {
     test("authored chapters have en/de title and narrative, a camera and valid show references", () => {
@@ -174,7 +175,7 @@ describe.each(STORIES)("%s: frontend chapter run", (_key, story) => {
         await vi.waitFor(() => expect(urban.addedByStory[story.key]).toBeDefined());
         expect(mapStore.layersOnMap.length).toBe(layerCount);
 
-        const other = URBAN_STORIES.find((candidate) => candidate.key !== story.key)!;
+        const other = URBAN_STORIES.find((candidate) => candidate.key !== story.key && candidate.chapters.length > 0)!;
         urban.selectStory(other.key);
         await vi.waitFor(() => expect(urban.runState).toBe("idle"));
         expect(backend.fetchBackendJson).not.toHaveBeenCalled();

@@ -47,5 +47,6 @@ const STORY_ICONS: Record<UrbanStoryKey, string> = {
     "walkability-safety": "i-lucide-footprints",
     "transit-equity": "i-lucide-tram-front",
     "green-spaces": "i-lucide-trees",
+    "hamburg-riders": "i-lucide-train-front",
 };
 </script>

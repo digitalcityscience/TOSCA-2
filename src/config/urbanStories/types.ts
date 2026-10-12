@@ -14,6 +14,7 @@ export const URBAN_STORY_KEYS = [
     "building-walking",
     "transit-equity",
     "green-spaces",
+    "hamburg-riders",
 ] as const;
 
 export type UrbanStoryKey = typeof URBAN_STORY_KEYS[number];

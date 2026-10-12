@@ -27,8 +27,10 @@
             <template v-else>
                 <UrbanStoryIntro :story="story" />
                 <WalkabilityBuildingPanel v-if="story.key === 'building-walking'" />
+                <HamburgRidersStoryPanel v-if="story.key === 'hamburg-riders'" />
 
                 <UAccordion
+                    v-if="story.key !== 'hamburg-riders'"
                     type="multiple"
                     :items="sections"
                     :model-value="openSections"
@@ -57,6 +59,7 @@ import { useUrbanStoriesStore } from "@store/urbanStories";
 import { reportDeveloperError } from "@helpers/userFacingError";
 import { isUrbanStoryKey, URBAN_STORIES, type UrbanStoryKey } from "../../config/urbanStories";
 import { URBAN_STORIES_ROUTE_NAME } from "../../router/urbanStoriesRoute";
+import HamburgRidersStoryPanel from "@components/HamburgRiders/HamburgRidersStoryPanel.vue";
 import WalkabilityBuildingPanel from "./WalkabilityBuildingPanel.vue";
 import StoryExploreSection from "./StoryExploreSection.vue";
 import StoryRunSection from "./StoryRunSection.vue";
