@@ -1,0 +1,103 @@
+{
+  "parameter_schema": {
+    "type": "object",
+    "title": "Hamburg bicycle agent simulation",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "x-order": [
+      "agents",
+      "origin_method",
+      "departure_window_minutes",
+      "simulation_date",
+      "simulation_start_hour",
+      "signal_mode",
+      "signal_queues",
+      "turn_aware_signals",
+      "surface_speeds",
+      "construction"
+    ],
+    "properties": {
+      "agents": {
+        "type": "integer",
+        "title": "Cyclists",
+        "default": 100,
+        "maximum": 5000,
+        "minimum": 1
+      },
+      "signal_mode": {
+        "enum": [
+          "schedule",
+          "stochastic"
+        ],
+        "title": "Traffic signals",
+        "default": "schedule",
+        "description": "schedule: one shared signal clock; stochastic: random waits"
+      },
+      "construction": {
+        "type": "boolean",
+        "title": "Construction sites",
+        "default": true,
+        "description": "Sites active on the date slow cyclists who know them"
+      },
+      "origin_method": {
+        "enum": [
+          "population",
+          "uniform"
+        ],
+        "title": "Where trips start",
+        "default": "population",
+        "description": "population: weighted by district population; uniform: anywhere"
+      },
+      "signal_queues": {
+        "type": "boolean",
+        "title": "Queues at signals",
+        "default": true
+      },
+      "surface_speeds": {
+        "type": "boolean",
+        "title": "Surface speed limits",
+        "default": true
+      },
+      "simulation_date": {
+        "type": "string",
+        "title": "Date",
+        "format": "date",
+        "default": "2026-09-08",
+        "description": "Selects the construction sites active that day"
+      },
+      "turn_aware_signals": {
+        "type": "boolean",
+        "title": "Turn-aware signals",
+        "default": false,
+        "description": "Separate signal phases and queues per movement (straight, left, right)"
+      },
+      "simulation_start_hour": {
+        "type": "integer",
+        "title": "Start hour",
+        "default": 11,
+        "maximum": 23,
+        "minimum": 0
+      },
+      "departure_window_minutes": {
+        "type": "number",
+        "title": "Departure window (minutes)",
+        "default": 60,
+        "maximum": 180,
+        "minimum": 1
+      }
+    },
+    "additionalProperties": false
+  },
+  "default_parameters": {
+    "agents": 100,
+    "signal_mode": "schedule",
+    "construction": true,
+    "origin_method": "population",
+    "signal_queues": true,
+    "surface_speeds": true,
+    "simulation_date": "2026-09-08",
+    "turn_aware_signals": false,
+    "simulation_start_hour": 11,
+    "departure_window_minutes": 60
+  },
+  "runnable": true
+}

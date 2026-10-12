@@ -848,6 +848,43 @@
       "change": "Change",
       "differenceLayers": "Difference layers",
       "noDifferenceLayers": "No map layer changed between the two runs."
+    },
+    "myRuns": "My runs",
+    "newRun": {
+      "title": "Start a run",
+      "cta": "Run it yourself",
+      "ctaHelp": "Choose the parameters and the simulation runs on the server; it takes a minute or more.",
+      "intro": "Set the parameters. Defaults reproduce the published scenario.",
+      "advanced": "Title and seed",
+      "runTitle": "Run title",
+      "seed": "Random seed",
+      "seedHelp": "The same parameters and seed give the same result.",
+      "optional": "Optional",
+      "start": "Start run",
+      "reset": "Reset to defaults",
+      "range": "{min} – {max}",
+      "anonymousNote": "Runs you start are kept in this browser under “My runs” and deleted after 30 days.",
+      "notRunnable": "Runs of this simulation can't be started here.",
+      "invalid": "Some parameters need fixing.",
+      "quota": "{detail} Try again in about {minutes} min.",
+      "failed": "The run couldn't be started: {detail}",
+      "problem": {
+        "required": "Required",
+        "number": "Enter a number",
+        "integer": "Enter a whole number",
+        "minimum": "At least {limit}",
+        "maximum": "At most {limit}",
+        "option": "Choose one of the options",
+        "date": "Enter a date"
+      }
+    },
+    "progress": {
+      "queued": "Waiting for the simulation server…",
+      "running": "Simulating…",
+      "elapsed": "Started {duration} ago",
+      "seconds": "{count} s",
+      "failed": "The run failed.",
+      "reused": "An identical run already exists, so it was opened instead of starting a new one."
     }
   }
 }

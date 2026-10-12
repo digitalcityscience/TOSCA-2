@@ -135,6 +135,12 @@ const router = createRouter({
                     props: true
                 },
                 {
+                    path: ":modelId/new",
+                    name: "geosimulation-new-run",
+                    component: async () => await import("../components/Geosimulations/GeoSimulationRunForm.vue"),
+                    props: true
+                },
+                {
                     path: ":modelId",
                     name: "geosimulation-model",
                     component: async () => await import("../components/Geosimulations/GeoSimulationModel.vue"),

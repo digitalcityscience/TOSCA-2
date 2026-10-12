@@ -39,11 +39,15 @@ export interface SimulationModelListItem {
     updated_at: string;
 }
 
+/** `private`: only the user who started it; `organization`: the model's organization; `link`: anonymous, readable by id. */
+export type SimulationVisibility = "private" | "organization" | "link";
+
 export interface SimulationRunSummary {
     id: string;
     key: string;
     title: string;
     status: SimulationStatus;
+    visibility?: SimulationVisibility;
     execution_state: SimulationExecutionState;
     model_version: string;
     time: SimulationTime;
@@ -55,6 +59,8 @@ export interface SimulationModelDetail extends SimulationModelListItem {
     organization: { slug: string; name: string };
     parameter_schema: Record<string, unknown> | null;
     default_parameters: Record<string, unknown>;
+    /** Visitors can start runs (`POST …/{id}/runs/`); absent before backend Task 12.12. */
+    runnable?: boolean;
     runs: SimulationRunSummary[];
     /** Comparisons of two of the model's runs; absent from backends before Task 12.10. */
     comparisons?: SimulationComparisonSummary[];
@@ -181,6 +187,14 @@ export type SimulationOutput =
     | SimulationTableOutput
     | SimulationImageOutput;
 
+/** Progress of a started run, for its starter (and anyone holding an anonymous run's id). */
+export interface SimulationRunExecution {
+    message: string;
+    error: string;
+    started_at: string | null;
+    finished_at: string | null;
+}
+
 export interface SimulationRunDetail {
     id: string;
     model: { id: string; key: string; title: string };
@@ -188,7 +202,10 @@ export interface SimulationRunDetail {
     title: string;
     description_content: SimulationDescription;
     status: SimulationStatus;
+    visibility?: SimulationVisibility;
+    is_owner?: boolean;
     execution_state: SimulationExecutionState;
+    execution?: SimulationRunExecution | null;
     model_version: string;
     parameters: Record<string, unknown>;
     seed: number | null;
@@ -217,6 +234,39 @@ export function buildModelDetailUrl(modelId: string): URL {
 
 export function buildRunDetailUrl(runId: string): URL {
     return new URL(`${GEOSIMULATIONS_API_PATH}/runs/${encodeURIComponent(runId)}/`, getBackendRootUrl());
+}
+
+export function buildStartRunUrl(modelId: string): URL {
+    return new URL(`${GEOSIMULATIONS_API_PATH}/${encodeURIComponent(modelId)}/runs/`, getBackendRootUrl());
+}
+
+export interface StartRunRequest {
+    parameters: Record<string, unknown>;
+    seed?: number | null;
+    title?: string;
+    visibility?: Exclude<SimulationVisibility, "link">;
+}
+
+export interface StartRunResponse extends SimulationRunSummary {
+    /** An identical run the caller can read was returned instead of starting a new one. */
+    reused: boolean;
+}
+
+/** A run could not be started: invalid parameters (400), no runner (409) or a quota (429). */
+export class StartRunError extends Error {
+    constructor(
+        message: string,
+        readonly status: number,
+        readonly parameterErrors: string[] = [],
+        readonly retryAfterSeconds: number | null = null
+    ) {
+        super(message);
+    }
+}
+
+/** Runs that are still being computed. */
+export function isRunInProgress(state: SimulationExecutionState): boolean {
+    return state === "queued" || state === "running";
 }
 
 export function buildComparisonListUrl(filters: { model?: string; run?: string } = {}): URL {
@@ -379,6 +429,36 @@ export const useGeosimulationStore = defineStore("geosimulation", () => {
         selectedComparison.value = undefined;
     }
 
+    /**
+     * Start a run (anonymous visitors allowed while the backend permits it).
+     * Resolves for a new run (202) and for a reused identical run (200, `reused`).
+     */
+    async function startRun(modelId: string, body: StartRunRequest): Promise<StartRunResponse> {
+        let response: Response;
+        try {
+            response = await fetch(buildStartRunUrl(modelId), {
+                method: "POST",
+                headers: new Headers({ "Content-Type": "application/json", Accept: "application/json" }),
+                body: JSON.stringify(body),
+            });
+        } catch (err) {
+            reportDeveloperError("Starting a simulation run", err);
+            throw new StartRunError(serviceUnavailableMessage("GeoSimulations"), 0);
+        }
+        const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
+        if (response.ok) return payload as unknown as StartRunResponse;
+        const parameterErrors = Array.isArray(payload.parameters) ? payload.parameters.map(String) : [];
+        const visibilityErrors = Array.isArray(payload.visibility) ? payload.visibility.map(String) : [];
+        const detail = typeof payload.detail === "string" ? payload.detail : visibilityErrors[0] ?? response.statusText;
+        const retryAfter = Number(response.headers.get("Retry-After"));
+        throw new StartRunError(
+            detail,
+            response.status,
+            parameterErrors,
+            Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : null
+        );
+    }
+
     /** Comparisons with this run on either side (first page, newest first). */
     async function loadRunComparisons(runId: string): Promise<SimulationComparisonSummary[]> {
         const response = await fetchBackendJson<PaginatedResponse<SimulationComparisonSummary>>(
@@ -404,6 +484,7 @@ export const useGeosimulationStore = defineStore("geosimulation", () => {
         loadModel,
         loadRun,
         clearRun,
+        startRun,
         loadComparison,
         clearComparison,
         loadRunComparisons,
