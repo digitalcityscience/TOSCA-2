@@ -71,6 +71,7 @@ import { useI18n } from "vue-i18n";
 import { activateHamburgRiders, deactivateHamburgRiders } from "@helpers/hamburgRiders/ridersApi";
 import { RIDERS_CAMERA } from "@helpers/hamburgRiders/ridersConfig";
 import { standaloneClaim } from "@helpers/hamburgRiders/ridersState";
+import { reducedMotion, viewInsets } from "@helpers/urbanStoryCamera";
 import HamburgRidersExploreSection from "./HamburgRidersExploreSection.vue";
 import { useHamburgRidersStore } from "@store/hamburgRiders";
 import { useMapStore } from "@store/map";
@@ -90,18 +91,6 @@ const serviceNote = computed(() => (
         : t("hamburgRiders.story.serviceNote", { date: riders.dataset.meta.dateLabel })
 ));
 
-/** The open left sidebar covers the map; its width becomes map padding so the overview centres on the visible part. */
-function leftInset(): number {
-    const canvas = mapStore.map?.getCanvas().getBoundingClientRect();
-    if (canvas === undefined) return 0;
-    let left = 0;
-    document.querySelectorAll<HTMLElement>("section[data-position='left']").forEach((section) => {
-        const rect = section.getBoundingClientRect();
-        if (rect.width > 0 && rect.height > 0) left = Math.max(left, rect.right - canvas.left);
-    });
-    return Math.max(0, Math.round(left));
-}
-
 let paddedMap: typeof mapStore.map;
 
 function releasePadding(): void {
@@ -116,8 +105,8 @@ function releasePadding(): void {
 function flyToOverview(): void {
     const map = mapStore.map;
     if (map === undefined || map === null) return;
-    const reduced = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const padding = { left: leftInset(), right: 0, top: 0, bottom: 0 };
+    const reduced = reducedMotion();
+    const padding = viewInsets(map);
     map.setPadding(padding);
     paddedMap = map;
     const target = { center: RIDERS_CAMERA.center, zoom: RIDERS_CAMERA.zoom, bearing: 0, pitch: 0, padding };

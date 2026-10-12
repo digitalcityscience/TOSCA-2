@@ -4,6 +4,7 @@ import { computed, ref, shallowRef, watch } from "vue";
 import { sceneCameraMove } from "@helpers/geostoryScenes";
 import { activateHamburgRiders, deactivateHamburgRiders, getRidersState, type RidersMode } from "@helpers/hamburgRiders/ridersApi";
 import { logOnce } from "@helpers/urbanStoryLayers";
+import { flyToAdminArea, flyToBounds, flyToPoint, reducedMotion, viewInsets } from "@helpers/urbanStoryCamera";
 import {
     citywideOutside,
     fetchAgreementCounts,
@@ -496,21 +497,22 @@ export const useTransitEquityStore = defineStore("urbanStoriesTransitEquity", ()
         await sync();
     }
 
-    function flyToBounds(bounds: [number, number, number, number], options: { maxZoom?: number } = {}): void {
+    function flyToBoundsInView(bounds: [number, number, number, number], options: { maxZoom?: number } = {}): void {
         const map = mapStore.map;
         if (map === undefined || map === null) return;
-        const reduced = typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        map.fitBounds(bounds, { padding: 48, maxZoom: options.maxZoom ?? 15, duration: reduced ? 0 : 1500 });
+        flyToBounds(map, bounds, { maxZoom: options.maxZoom ?? 15 });
     }
 
     function flyToBuilding(example: VerifiedBuilding, zoom = 16.5): void {
         const map = mapStore.map;
         if (map === undefined || map === null) return;
-        map.flyTo({ center: example.center, zoom, duration: 1200 });
+        flyToPoint(map, example.center, { zoom, duration: reducedMotion() ? 0 : 1200 });
     }
 
     function flyToArea(area: VerifiedArea): void {
-        flyToBounds(area.bounds, { maxZoom: 13.5 });
+        const map = mapStore.map;
+        if (map === undefined || map === null) return;
+        flyToAdminArea(map, area.bounds, "stadtteil");
     }
 
     function setCriteria(patch: Partial<Criteria>): void {
@@ -531,7 +533,7 @@ export const useTransitEquityStore = defineStore("urbanStoriesTransitEquity", ()
     function setAreaFilter(id: string | null): void {
         setCriteria({ area: id });
         const row = id === null ? undefined : rowOf(id);
-        if (row !== undefined) flyToBounds(row.bounds, { maxZoom: 13.5 });
+        if (row !== undefined) flyToArea(row);
     }
 
     async function refreshCounts(): Promise<void> {
@@ -580,16 +582,6 @@ export const useTransitEquityStore = defineStore("urbanStoriesTransitEquity", ()
      */
     let paddedMap: MapLike | undefined;
 
-    function leftInset(map: MapLike): number {
-        const canvas = map.getCanvas().getBoundingClientRect();
-        let left = 0;
-        document.querySelectorAll<HTMLElement>("section[data-position='left']").forEach((section) => {
-            const rect = section.getBoundingClientRect();
-            if (rect.width > 0 && rect.height > 0) left = Math.max(left, rect.right - canvas.left);
-        });
-        return Math.max(0, Math.round(left));
-    }
-
     function frameScene(): void {
         const map = mapStore.map;
         const index = sceneKey.value === undefined ? -1 : SCENE_KEYS.indexOf(sceneKey.value);
@@ -603,10 +595,10 @@ export const useTransitEquityStore = defineStore("urbanStoriesTransitEquity", ()
     }
 
     function frameMap(map: MapLike, camera: OverviewCamera): void {
-        const padding = { left: leftInset(map), right: 0, top: 0, bottom: 0 };
+        const padding = viewInsets(map);
         map.setPadding(padding);
         paddedMap = map;
-        const reduced = typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const reduced = reducedMotion();
         const move = sceneCameraMove({
             camera: { center: camera.center, zoom: camera.zoom, bearing: camera.bearing ?? 0, pitch: camera.pitch ?? 0, bounds: null },
             transition: { type: "fly", duration_ms: 1500 },
@@ -717,7 +709,7 @@ export const useTransitEquityStore = defineStore("urbanStoriesTransitEquity", ()
         selectArea,
         flyToArea,
         flyToBuilding,
-        flyToBounds,
+        flyToBounds: flyToBoundsInView,
         setCriteria,
         resetCriteria,
         setAreaFilter,
