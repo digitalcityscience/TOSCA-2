@@ -11,6 +11,7 @@ import {
 } from "@helpers/fifteenMinuteData";
 import { FifteenMinuteOverlays, type AreaOutline } from "@helpers/fifteenMinuteOverlays";
 import { logOnce } from "@helpers/urbanStoryLayers";
+import { flyToAdminArea, flyToPoint, reducedMotion, viewInsets } from "@helpers/urbanStoryCamera";
 import { i18n } from "../core/i18n";
 import { useMapStore, type LayerObjectWithAttributes } from "./map";
 import { useUrbanStoriesStore } from "./urbanStories";
@@ -427,10 +428,6 @@ export const useFifteenMinuteStore = defineStore("urbanStoriesFifteenMinute", ()
 
     // --- camera -----------------------------------------------------------------------------------
 
-    const reducedMotion = (): boolean => (
-        typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    );
-
     /**
      * TOSCA's sidebars cover the map instead of shrinking it. While the story runs, the map is padded by the open left
      * sidebar so every scene camera centres on the part of the map the reader can see; the padding is removed when
@@ -438,18 +435,8 @@ export const useFifteenMinuteStore = defineStore("urbanStoriesFifteenMinute", ()
      */
     let paddedMap: MapLike | undefined;
 
-    function leftInset(map: MapLike): number {
-        const canvas = map.getCanvas().getBoundingClientRect();
-        let left = 0;
-        document.querySelectorAll<HTMLElement>("section[data-position='left']").forEach((section) => {
-            const rect = section.getBoundingClientRect();
-            if (rect.width > 0 && rect.height > 0) left = Math.max(left, rect.right - canvas.left);
-        });
-        return Math.max(0, Math.round(left));
-    }
-
     function frameMap(map: MapLike, camera: OverviewCamera): void {
-        const padding = { left: leftInset(map), right: 0, top: 0, bottom: 0 };
+        const padding = viewInsets(map);
         map.setPadding(padding);
         paddedMap = map;
         const move = sceneCameraMove({
@@ -485,14 +472,13 @@ export const useFifteenMinuteStore = defineStore("urbanStoriesFifteenMinute", ()
     function flyToBuilding(building: VerifiedBuilding, targetZoom = 16.4, pitch = 55): void {
         const map = mapStore.map;
         if (map === undefined || map === null) return;
-        map.flyTo({ center: building.center, zoom: targetZoom, pitch, duration: reducedMotion() ? 0 : 1400, padding: { left: leftInset(map), right: 0, top: 0, bottom: 0 } });
+        flyToPoint(map, building.center, { zoom: targetZoom, pitch });
     }
 
     function flyToArea(area: VerifiedArea): void {
         const map = mapStore.map;
         if (map === undefined || map === null) return;
-        const inset = leftInset(map);
-        map.fitBounds(area.bounds, { padding: { left: inset + 40, right: 40, top: 40, bottom: 40 }, maxZoom: 14, pitch: 0, duration: reducedMotion() ? 0 : 1400 });
+        flyToAdminArea(map, area.bounds, "stadtteil");
     }
 
     // --- user actions -----------------------------------------------------------------------

@@ -110,6 +110,7 @@ function setup() {
         getCanvas: () => canvas,
         setPadding: vi.fn(),
         fitBounds: vi.fn(),
+        cameraForBounds: vi.fn(() => ({ zoom: 12 })),
         flyTo: vi.fn(),
         on: vi.fn(),
         off: vi.fn(),
