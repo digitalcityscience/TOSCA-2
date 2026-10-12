@@ -49,6 +49,7 @@ export function fakeCameraMap() {
         getZoom: () => 11,
         getBearing: () => 0,
         getPitch: () => 0,
+        getCanvas: () => ({ getBoundingClientRect: () => ({ left: 0, width: 1200 }) }),
         flyTo: vi.fn(),
         jumpTo: vi.fn(),
         fitBounds: vi.fn(),

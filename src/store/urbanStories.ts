@@ -15,6 +15,7 @@ import {
     withZoomFloor,
     type EntryReadiness,
 } from "@helpers/urbanStoryLayers";
+import { reducedMotion, viewInsets } from "@helpers/urbanStoryCamera";
 import { reportDeveloperError } from "@helpers/userFacingError";
 import { fetchBackendJson } from "./backend";
 import { buildStoryDetailUrl, type GeoStoryDetail } from "./geostory";
@@ -68,12 +69,6 @@ interface RunSnapshot {
 const HIDDEN_STORY_ERROR = /\((401|403|404) /;
 
 const CHAPTER_FLY_MS = 1500;
-
-function prefersReducedMotion(): boolean {
-    return typeof window !== "undefined" &&
-        typeof window.matchMedia === "function" &&
-        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
 
 export type AddEntryResult =
     | { status: "added" | "exists"; runtimeId: string }
@@ -453,17 +448,19 @@ export const useUrbanStoriesStore = defineStore("urbanStories", () => {
     }
 
     /** Move the map with the GeoStory scene engine's own camera logic (transition types, reduced motion). */
-    function moveCamera(camera: OverviewCamera | undefined): void {
+    function moveCamera(camera: OverviewCamera | undefined, options: { avoidSidebar?: boolean } = {}): void {
         const map = mapStore.map;
         if (camera === undefined || map === undefined || map === null) return;
         const move = sceneCameraMove({
             camera: { center: camera.center, zoom: camera.zoom, bearing: camera.bearing ?? 0, pitch: camera.pitch ?? 0, bounds: null },
             transition: { type: "fly", duration_ms: CHAPTER_FLY_MS },
             layers: [],
-        }, { reducedMotion: prefersReducedMotion() });
+        }, { reducedMotion: reducedMotion() });
         if (move === undefined || move.method === "fitBounds") return;
         try {
-            map[move.method](move.options);
+            // A chapter centres on the part of the map the open sidebar leaves visible; leaving the run clears that padding.
+            const padding = options.avoidSidebar === true ? viewInsets(map) : { left: 0, right: 0, top: 0, bottom: 0 };
+            map[move.method]({ ...move.options, padding } as never);
         } catch (error) {
             reportDeveloperError("Moving the map camera for a story run", error);
         }
@@ -601,7 +598,7 @@ export const useUrbanStoriesStore = defineStore("urbanStories", () => {
     async function applyChapter(config: UrbanStoryConfig, index: number, generation: number): Promise<void> {
         const chapter = config.chapters[index];
         if (chapter === undefined) return;
-        moveCamera(chapter.camera);
+        moveCamera(chapter.camera, { avoidSidebar: true });
         if (chapter.show === undefined) return;
         const keep = new Set<string>();
         for (const shown of chapter.show) {
