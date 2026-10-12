@@ -69,6 +69,7 @@
       "participation": "Participation",
       "events": "Events",
       "geostories": "GeoStories",
+      "urbanStories": "Urban Stories",
       "layers": "Layers"
     },
     "basemap": {
@@ -582,6 +583,160 @@
       "progress": "Scene {current} of {total}",
       "captionLabel": "Map scene caption",
       "hideCaption": "Hide caption"
+    }
+  },
+  "urbanStories": {
+    "title": "Urban Stories",
+    "selector": {
+      "label": "Choose a story"
+    },
+    "empty": "Choose a story to see its introduction, the data caveats and its datasets.",
+    "intro": {
+      "caveatsTitle": "Read before you explore"
+    },
+    "sections": {
+      "run": "Run GeoStory",
+      "explore": "Explore Data"
+    },
+    "run": {
+      "start": "Start story",
+      "starting": "Loading story…",
+      "startHint": "Plays the guided story on the map with its chapters.",
+      "retry": "Try again",
+      "chapterOf": "Chapter {current} of {total}",
+      "chapterTitle": "Chapter",
+      "previous": "Previous chapter",
+      "next": "Next chapter",
+      "backToExplore": "Back to Explore Data",
+      "overview": "Return to overview",
+      "introTitle": "Introduction",
+      "noNarrative": "This chapter has no text. The map caption describes the scene.",
+      "layerWarningTitle": "Some map layers have limited details",
+      "layerWarning": "Popups and filters are unavailable for: {layers}.",
+      "relatedHint": "{count} related datasets in Explore Data",
+      "showRelated": "Show them",
+      "focusLabel": "Focus on story",
+      "focusHelp": "Hides the layers you added while the story plays. Leaving the story restores them exactly as they were before it started, even if you changed them meanwhile.",
+      "issues": {
+        "unpublishedTitle": "Story not published",
+        "unpublished": "This story exists but is not published, or you cannot see it yet. Nothing is played.",
+        "fetchFailedTitle": "Story not available right now",
+        "fetchFailed": "The story service could not be reached or returned an error. Try again in a moment.",
+        "emptyTitle": "Story has no scenes",
+        "empty": "The story is published but contains no map scenes yet.",
+        "mapNotReadyTitle": "Map is not ready",
+        "mapNotReady": "Wait for the map to finish loading, then start the story again."
+      }
+    },
+    "explore": {
+      "datasetCount": "{count} datasets",
+      "groups": {
+        "building": "Buildings",
+        "street": "Streets",
+        "admin": "Areas",
+        "poi": "Destinations",
+        "green": "Green"
+      },
+      "mvt": {
+        "verified": "Vector tiles ready",
+        "pending": "Tiles pending",
+        "unavailable": "Tiles unavailable"
+      },
+      "refresh": "Refresh status",
+      "addedTitle": "Layers added from Urban Stories",
+      "addedEmpty": "No layers added yet. Use “Add as layer” on a dataset above.",
+      "addedFrom": "From {story}",
+      "visibleFromZoom": "Visible from zoom {zoom}",
+      "add": "Add as layer",
+      "adding": "Adding…",
+      "showSettings": "Show settings",
+      "hideSettings": "Hide settings",
+      "remove": "Remove",
+      "metric": "Metric",
+      "defaultStyle": "Default style",
+      "metricPending": "{label} (style pending)",
+      "metricAttributesMissing": "{label} (data missing)",
+      "caveats": "Data caveats",
+      "status": {
+        "available": "Ready",
+        "unstyled": "Default style",
+        "attributes-missing": "Data incomplete",
+        "temporarily-unavailable": "Temporarily unavailable",
+        "tiles-unavailable": "Tiles unavailable",
+        "error": "Status unknown"
+      },
+      "attributesMissing": "Missing columns: {columns}",
+      "pendingReason": {
+        "no-style-name": "No style has been assigned to this metric yet.",
+        "style-not-in-catalog": "The catalog does not list this style yet.",
+        "style-not-applicable": "The catalog has this style, but it does not fit this layer and metric.",
+        "not-mbstyle": "The assigned style is not a usable MBStyle."
+      },
+      "addError": "The layer could not be added. Try again or refresh the status.",
+      "metricError": "The metric could not be applied.",
+      "tilesError": "Vector tiles failed to load for this layer.",
+      "mapNotReady": "The map is not ready yet.",
+      "noZoomFloor": "Style has no zoom floor",
+      "ariaMetric": "Choose a metric for {title}",
+      "unavailableHint": "This dataset is not published on the map server yet.",
+      "relatedTitle": "Related to this chapter: {chapter}",
+      "othersTitle": "More layers in this story",
+      "inChapter": "In this chapter"
+    },
+    "fifteenMinute": {
+      "controlsTitle": "Map controls",
+      "category": {
+        "label": "Everyday need",
+        "overall": "All nine (overall count)",
+        "help": "Choose a category to colour buildings by whether it is reachable within 15 minutes.",
+        "unavailable": "Not published in the tile data"
+      },
+      "gap": {
+        "title": "Accessibility gaps",
+        "enable": "Show only buildings with few categories",
+        "threshold": "At most this many of 9 categories",
+        "thresholdOption": "{count} of 9",
+        "missingOnly": "Only buildings without access to the selected category",
+        "missingNeedsCategory": "Select a category to use this filter.",
+        "help": "The starting threshold is an illustrative value you can change. It is not a standard, and no area is ranked."
+      },
+      "selection": {
+        "title": "Selected building",
+        "hint": "Click a building on the map to select it.",
+        "clear": "Clear selection",
+        "id": "Building",
+        "idMissing": "No building identifier is published in the tile data.",
+        "score": "Categories reached within 15 min",
+        "noScore": "No score (not computable)",
+        "decay": "Decay-weighted score (0–100)",
+        "confidence": "Score confidence",
+        "accessible": "Reachable",
+        "inaccessible": "Not reachable",
+        "unknown": "Unknown",
+        "places": "{count} within 15 min",
+        "walk": "{minutes} min walk to the nearest",
+        "categories": "The nine categories",
+        "tilesNote": "Values are those of the map tiles; a category missing from the tiles is shown as unknown."
+      },
+      "admin": {
+        "title": "Neighbourhood context",
+        "level": "Area level",
+        "stadtteile": "Neighbourhoods (Stadtteile)",
+        "bezirke": "Districts (Bezirke)",
+        "metric": "Aggregate",
+        "explain": "Building-level values are counts (0–9). Area values summarise the residential buildings inside each area; the 0–100 decay-weighted mean is a different measure and is not the mean of the 0–9 count.",
+        "zoomHint": "Zoom in past level 12 to return to individual buildings."
+      },
+      "legend": {
+        "title": "Legend",
+        "noData": "No data",
+        "buildingNote": "Buildings appear from zoom level 8 and become 3D from zoom 12."
+      },
+      "unavailable": {
+        "title": "Building tiles are unavailable",
+        "description": "GeoServer currently does not deliver the building vector tiles (HTTP 400). The 15-Minute City needs building-level data, so no other layer is shown in its place. The local styling is ready and applies as soon as the tiles load."
+      },
+      "notOnMap": "The building layer is not on the map yet."
     }
   }
 }

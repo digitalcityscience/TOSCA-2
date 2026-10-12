@@ -733,3 +733,215 @@ describe("standalone MBStyle conversion", () => {
         );
     });
 });
+
+describe("shared layer UI state (UST-09)", () => {
+    function fakeMap(initial: Record<string, { visibility?: string; opacity?: number }> = {}) {
+        const layout: Record<string, string | undefined> = {};
+        const paint: Record<string, number | undefined> = {};
+        Object.entries(initial).forEach(([id, value]) => {
+            layout[id] = value.visibility;
+            paint[`${id}|fill-opacity`] = value.opacity;
+        });
+        return {
+            getLayer: (id: string) => ({ id, type: "fill" }),
+            getLayoutProperty: (id: string) => layout[id],
+            setLayoutProperty: (id: string, _property: string, value: string) => { layout[id] = value; },
+            getPaintProperty: (id: string, property: string) => paint[`${id}|${property}`],
+            setPaintProperty: (id: string, property: string, value: number) => { paint[`${id}|${property}`] = value; },
+            layout,
+            paint,
+        };
+    }
+
+    beforeEach(() => {
+        setActivePinia(createPinia());
+    });
+
+    test("is initialised from the map when a layer is listed", () => {
+        const mapStore = useMapStore();
+        mapStore.map = fakeMap({ hidden: { visibility: "none", opacity: 0.4 }, shown: { opacity: 0.8 }, plain: {} });
+        ["hidden", "shown", "plain"].forEach((id) => mapStore.add2MapLayerList(createLayer(id)));
+        expect(mapStore.getLayerUiState("hidden")).toEqual({ visible: false, opacity: 0.4 });
+        expect(mapStore.getLayerUiState("shown")).toEqual({ visible: true, opacity: 0.8 });
+        expect(mapStore.getLayerUiState("plain")).toEqual({ visible: true, opacity: 1 });
+    });
+
+    test("is updated by the logical visibility and opacity actions", () => {
+        const mapStore = useMapStore();
+        mapStore.map = fakeMap({ roads: { opacity: 1 } });
+        const layer = createLayer("roads");
+        mapStore.add2MapLayerList(layer);
+        mapStore.setLogicalLayerVisibility(layer, false);
+        mapStore.setLogicalLayerOpacity(layer, 0.3);
+        expect(mapStore.layerUiState.roads).toEqual({ visible: false, opacity: 0.3 });
+        mapStore.setLogicalLayerVisibility(layer, true);
+        expect(mapStore.layerUiState.roads).toEqual({ visible: true, opacity: 0.3 });
+    });
+
+    test("a group is visible while any member is visible", () => {
+        const mapStore = useMapStore();
+        mapStore.map = fakeMap();
+        const group = createLayer("group:1", {
+            logicalKind: "group",
+            groupMemberLayerIds: { a: ["a1"], b: ["b1"] },
+        });
+        mapStore.add2MapLayerList(group);
+        expect(mapStore.layerUiState["group:1"].visible).toBe(true);
+        mapStore.setGroupMemberVisibility(group, "a", false);
+        expect(mapStore.layerUiState["group:1"].visible).toBe(true);
+        mapStore.setGroupMemberVisibility(group, "b", false);
+        expect(mapStore.layerUiState["group:1"].visible).toBe(false);
+        mapStore.setGroupMemberVisibility(group, "a", true);
+        expect(mapStore.layerUiState["group:1"].visible).toBe(true);
+    });
+
+    test("is removed on delete and reset", async () => {
+        const mapStore = useMapStore();
+        const map = { ...fakeMap(), removeLayer: vi.fn(), removeSource: vi.fn(), getSource: () => undefined };
+        mapStore.map = map;
+        mapStore.add2MapLayerList(createLayer("a"));
+        mapStore.add2MapLayerList(createLayer("b"));
+        await mapStore.deleteMapLayer("a");
+        expect(mapStore.getLayerUiState("a")).toBeUndefined();
+        expect(mapStore.getLayerUiState("b")).toBeDefined();
+        await mapStore.resetMapData();
+        expect(mapStore.layerUiState).toEqual({});
+    });
+
+    test("is re-read from the map after a style swap", async () => {
+        const rendered: Array<Record<string, any>> = [{ id: "districts", type: "fill", source: "districts" }];
+        const base = fakeMap({ districts: { opacity: 1 } });
+        const mapStore = useMapStore();
+        mapStore.map = {
+            ...base,
+            getStyle: () => ({ layers: rendered }),
+            getLayer: (id: string) => rendered.find((layer) => layer.id === id),
+            removeLayer: (id: string) => { rendered.splice(rendered.findIndex((layer) => layer.id === id), 1); },
+            addLayer: (specification: Record<string, any>) => {
+                rendered.push(specification);
+                base.paint["districts|fill-opacity"] = specification.paint?.["fill-opacity"];
+            },
+        };
+        mapStore.add2MapLayerList(createLayer("districts", {
+            source: "districts",
+            activeStyleId: "a",
+            availableStyles: [
+                { id: "a", name: "a", layers: [{ id: "a1", type: "fill" }] },
+                { id: "b", name: "b", layers: [{ id: "b1", type: "fill", paint: { "fill-opacity": 0.25 } }] },
+            ],
+        }));
+        await mapStore.setStandaloneLayerStyle("districts", "b");
+        expect(mapStore.layerUiState.districts.opacity).toBe(0.25);
+    });
+
+    test("deck.gl layers start visible at full opacity and follow their setters", () => {
+        const mapStore = useMapStore();
+        mapStore.map = fakeMap();
+        mapStore.add2MapLayerList(createLayer("deck", { renderer: "deckgl", type: "deckgl-tile3d" }));
+        expect(mapStore.layerUiState.deck).toEqual({ visible: true, opacity: 1 });
+    });
+});
+
+describe("style switch keeps user opacity and filters (UST-12)", () => {
+    type Spec = Record<string, any>;
+
+    function setup(options: { failOnAdd?: boolean } = {}) {
+        const rendered: Spec[] = [{ id: "roads", type: "fill", source: "roads", "source-layer": "roads", paint: { "fill-opacity": 0.8 }, filter: ["==", ["get", "kind"], "old"] }];
+        let failuresLeft = options.failOnAdd === true ? 1 : 0;
+        const setFilter = vi.fn((id: string, filter: unknown) => {
+            const found = rendered.find((layer) => layer.id === id);
+            if (found !== undefined) found.filter = filter;
+        });
+        const mapStore = useMapStore();
+        mapStore.map = {
+            getStyle: () => ({ layers: rendered }),
+            getLayer: (id: string) => rendered.find((layer) => layer.id === id),
+            getLayoutProperty: () => undefined,
+            setLayoutProperty: vi.fn(),
+            getPaintProperty: (id: string, property: string) => rendered.find((layer) => layer.id === id)?.paint?.[property],
+            setPaintProperty: (id: string, property: string, value: number) => {
+                const found = rendered.find((layer) => layer.id === id);
+                if (found !== undefined) found.paint = { ...(found.paint ?? {}), [property]: value };
+            },
+            removeLayer: (id: string) => { rendered.splice(rendered.findIndex((layer) => layer.id === id), 1); },
+            addLayer: (specification: Spec) => {
+                // Only the swap fails; the rollback must be able to re-add the old layer.
+                if (failuresLeft > 0) { failuresLeft -= 1; throw new Error("addLayer failed"); }
+                rendered.push({ ...specification });
+            },
+            setFilter,
+        };
+        mapStore.add2MapLayerList(createLayer("roads", {
+            sourceType: "geoserver",
+            source: "roads",
+            "source-layer": "roads",
+            activeStyleId: "a",
+            mbStyleLayers: [{ id: "a1", type: "fill", paint: { "fill-opacity": 0.8 } }],
+            availableStyles: [
+                { id: "a", name: "a", layers: [{ id: "a1", type: "fill", paint: { "fill-opacity": 0.8 } }] },
+                { id: "b", name: "b", layers: [
+                    { id: "b1", type: "fill", paint: { "fill-opacity": 0.5 }, filter: ["==", ["get", "kind"], "park"] },
+                    { id: "b2", type: "line", paint: { "line-opacity": 0.9 } },
+                ] },
+            ],
+        }));
+        return { mapStore, rendered, setFilter };
+    }
+
+    beforeEach(() => {
+        setActivePinia(createPinia());
+    });
+
+    test("an opacity the user changed is re-applied to every render pass of the new style", async () => {
+        const { mapStore, rendered } = setup();
+        mapStore.setLogicalLayerOpacity(mapStore.layersOnMap[0], 0.3);
+        await mapStore.setStandaloneLayerStyle("roads", "b");
+        expect(rendered.find((layer) => layer.id === "roads")?.paint["fill-opacity"]).toBe(0.3);
+        expect(rendered.find((layer) => layer.id === "roads:style:1")?.paint["line-opacity"]).toBe(0.3);
+        expect(mapStore.layerUiState.roads.opacity).toBe(0.3);
+    });
+
+    test("an untouched opacity follows the new style", async () => {
+        const { mapStore, rendered } = setup();
+        await mapStore.setStandaloneLayerStyle("roads", "b");
+        expect(rendered.find((layer) => layer.id === "roads")?.paint["fill-opacity"]).toBe(0.5);
+        expect(mapStore.layerUiState.roads.opacity).toBe(0.5);
+    });
+
+    test("the user's attribute filter is combined with the new style's filter", async () => {
+        const { mapStore, rendered } = setup();
+        const filterStore = (await import("./filter")).useFilterStore();
+        await filterStore.addAttributeFilter("roads", {
+            attribute: { name: "score", binding: "java.lang.Double" } as never,
+            operand: ">",
+            value: "5",
+        });
+        await mapStore.setStandaloneLayerStyle("roads", "b");
+        expect(rendered.find((layer) => layer.id === "roads")?.filter).toEqual([
+            "all", ["==", ["get", "kind"], "park"], [">", ["get", "score"], 5],
+        ]);
+        // A pass without its own style filter gets just the user's filter.
+        expect(rendered.find((layer) => layer.id === "roads:style:1")?.filter).toEqual(["all", [">", ["get", "score"], 5]]);
+        // The filter store is untouched, so the filter UI keeps listing the same filter.
+        expect(filterStore.appliedFiltersList).toHaveLength(1);
+        expect(filterStore.appliedFiltersList[0].attributeFilters).toHaveLength(1);
+    });
+
+    test("without a user filter the style filter is left as the style defines it", async () => {
+        const { mapStore, rendered, setFilter } = setup();
+        await mapStore.setStandaloneLayerStyle("roads", "b");
+        expect(setFilter).not.toHaveBeenCalled();
+        expect(rendered.find((layer) => layer.id === "roads")?.filter).toEqual(["==", ["get", "kind"], "park"]);
+    });
+
+    test("a failed swap leaves layers, opacity and filters as they were", async () => {
+        const { mapStore, rendered, setFilter } = setup({ failOnAdd: true });
+        mapStore.setLogicalLayerOpacity(mapStore.layersOnMap[0], 0.3);
+        await expect(mapStore.setStandaloneLayerStyle("roads", "b")).rejects.toThrow("addLayer failed");
+        expect(rendered.map((layer) => layer.id)).toEqual(["roads"]);
+        expect(rendered[0].filter).toEqual(["==", ["get", "kind"], "old"]);
+        expect(mapStore.layersOnMap[0].activeStyleId).toBe("a");
+        expect(setFilter).not.toHaveBeenCalled();
+        expect(mapStore.layerUiState.roads.opacity).toBe(0.3);
+    });
+});

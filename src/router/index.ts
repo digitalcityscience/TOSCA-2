@@ -4,6 +4,7 @@ import { useParticipationStore } from "@store/participation"
 import { useMapStore } from "@store/map"
 import { isMapFeatureSwitch } from "./mapFeatureNavigation"
 import { isFeatureEnabled, type FeatureId } from "../config/features"
+import { redirectUnknownUrbanStory, URBAN_STORIES_ROUTE_NAME } from "./urbanStoriesRoute"
 
 declare module "vue-router" {
     interface RouteMeta {
@@ -95,6 +96,19 @@ const router = createRouter({
             }
         },
         {
+            path: "/urban-stories/:storyKey?",
+            name: URBAN_STORIES_ROUTE_NAME,
+            components: {
+                default: MapView,
+                urbanStories: async () => await import("../components/UrbanStories/UrbanStoriesSidebar.vue")
+            },
+            meta: {
+                feature: "urbanStories",
+                sidebar: "urbanStories",
+                sidebarPosition: "left"
+            }
+        },
+        {
             path: "/:footerDocumentSlug",
             name: "footer-document",
             components: {
@@ -114,6 +128,10 @@ const router = createRouter({
 router.beforeEach(async (to, from) => {
     if (to.meta.feature !== undefined && !isFeatureEnabled(to.meta.feature)) {
         return { path: "/", replace: true }
+    }
+    const urbanStoryRedirect = redirectUnknownUrbanStory(to)
+    if (urbanStoryRedirect !== undefined) {
+        return urbanStoryRedirect
     }
     if (isMapFeatureSwitch(to, from)) {
         const mapStore = useMapStore()

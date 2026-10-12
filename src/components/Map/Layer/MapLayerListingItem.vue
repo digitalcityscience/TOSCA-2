@@ -305,6 +305,8 @@ const OgcLayerQueryControls = defineAsyncComponent(async () => await import("./O
 
 export interface Props {
     layer: LayerObjectWithAttributes
+    /** Follow the shared store state (Urban Stories embeds a second instance of the same layer). */
+    syncWithStore?: boolean
 }
 const props = defineProps<Props>()
 const { t, locale } = useI18n();
@@ -559,6 +561,13 @@ const showFiltering = computed<boolean>(() => {
     if (props.layer.type === "raster") return false
     if (props.layer.renderer === "deckgl") return false
     return props.layer.filterLayer !== true
+})
+// Opt-in: another instance (or the panel) changed visibility/opacity in the map store.
+watch(() => (props.syncWithStore === true ? mapStore.layerUiState[props.layer.id] : undefined), (state) => {
+    if (state === undefined) return
+    checked.value = state.visible
+    opacity.value = state.opacity
+    if (isGroupLayer.value && props.layer.renderer !== "deckgl") syncGroupMemberVisibility()
 })
 onMounted(() => {
     // deck.gl layers have no MapLibre paint/layout properties to read back —

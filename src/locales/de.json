@@ -69,6 +69,7 @@
       "participation": "Beteiligung",
       "events": "Veranstaltungen",
       "geostories": "GeoStories",
+      "urbanStories": "Urban Stories",
       "layers": "Ebenen"
     },
     "basemap": {
@@ -582,6 +583,160 @@
       "progress": "Szene {current} von {total}",
       "captionLabel": "Beschreibung der Kartenszene",
       "hideCaption": "Beschreibung ausblenden"
+    }
+  },
+  "urbanStories": {
+    "title": "Urban Stories",
+    "selector": {
+      "label": "Geschichte auswählen"
+    },
+    "empty": "Wählen Sie eine Geschichte, um Einführung, Datenhinweise und Datensätze zu sehen.",
+    "intro": {
+      "caveatsTitle": "Vor dem Erkunden lesen"
+    },
+    "sections": {
+      "run": "GeoStory abspielen",
+      "explore": "Daten erkunden"
+    },
+    "run": {
+      "start": "Geschichte starten",
+      "starting": "Geschichte wird geladen …",
+      "startHint": "Spielt die geführte Geschichte mit ihren Kapiteln auf der Karte ab.",
+      "retry": "Erneut versuchen",
+      "chapterOf": "Kapitel {current} von {total}",
+      "chapterTitle": "Kapitel",
+      "previous": "Vorheriges Kapitel",
+      "next": "Nächstes Kapitel",
+      "backToExplore": "Zurück zu Daten erkunden",
+      "overview": "Zurück zur Übersicht",
+      "introTitle": "Einleitung",
+      "noNarrative": "Dieses Kapitel hat keinen Text. Die Kartenbeschreibung erklärt die Szene.",
+      "layerWarningTitle": "Einige Kartenebenen haben eingeschränkte Details",
+      "layerWarning": "Popups und Filter sind nicht verfügbar für: {layers}.",
+      "relatedHint": "{count} zugehörige Datensätze in Daten erkunden",
+      "showRelated": "Anzeigen",
+      "focusLabel": "Fokus auf die Geschichte",
+      "focusHelp": "Blendet Ihre hinzugefügten Ebenen aus, solange die Geschichte läuft. Beim Beenden werden sie genau wie vor dem Start wiederhergestellt, auch wenn Sie sie zwischenzeitlich geändert haben.",
+      "issues": {
+        "unpublishedTitle": "Geschichte nicht veröffentlicht",
+        "unpublished": "Diese Geschichte existiert, ist aber nicht veröffentlicht oder für Sie noch nicht sichtbar. Es wird nichts abgespielt.",
+        "fetchFailedTitle": "Geschichte derzeit nicht verfügbar",
+        "fetchFailed": "Der Geschichten-Dienst ist nicht erreichbar oder hat einen Fehler gemeldet. Bitte gleich noch einmal versuchen.",
+        "emptyTitle": "Geschichte ohne Szenen",
+        "empty": "Die Geschichte ist veröffentlicht, enthält aber noch keine Kartenszenen.",
+        "mapNotReadyTitle": "Karte noch nicht bereit",
+        "mapNotReady": "Warten Sie, bis die Karte geladen ist, und starten Sie die Geschichte erneut."
+      }
+    },
+    "explore": {
+      "datasetCount": "{count} Datensätze",
+      "groups": {
+        "building": "Gebäude",
+        "street": "Straßen",
+        "admin": "Gebiete",
+        "poi": "Ziele",
+        "green": "Grün"
+      },
+      "mvt": {
+        "verified": "Vektorkacheln bereit",
+        "pending": "Kacheln ausstehend",
+        "unavailable": "Kacheln nicht verfügbar"
+      },
+      "refresh": "Status aktualisieren",
+      "addedTitle": "Aus Urban Stories hinzugefügte Ebenen",
+      "addedEmpty": "Noch keine Ebenen hinzugefügt. Nutzen Sie oben „Als Ebene hinzufügen“.",
+      "addedFrom": "Aus {story}",
+      "visibleFromZoom": "Sichtbar ab Zoomstufe {zoom}",
+      "add": "Als Ebene hinzufügen",
+      "adding": "Wird hinzugefügt …",
+      "showSettings": "Einstellungen anzeigen",
+      "hideSettings": "Einstellungen ausblenden",
+      "remove": "Entfernen",
+      "metric": "Kennzahl",
+      "defaultStyle": "Standardstil",
+      "metricPending": "{label} (Stil ausstehend)",
+      "metricAttributesMissing": "{label} (Daten fehlen)",
+      "caveats": "Datenhinweise",
+      "status": {
+        "available": "Bereit",
+        "unstyled": "Standardstil",
+        "attributes-missing": "Daten unvollständig",
+        "temporarily-unavailable": "Vorübergehend nicht verfügbar",
+        "tiles-unavailable": "Kacheln nicht verfügbar",
+        "error": "Status unbekannt"
+      },
+      "attributesMissing": "Fehlende Spalten: {columns}",
+      "pendingReason": {
+        "no-style-name": "Dieser Kennzahl ist noch kein Stil zugewiesen.",
+        "style-not-in-catalog": "Der Katalog führt diesen Stil noch nicht.",
+        "style-not-applicable": "Der Katalog führt diesen Stil, er passt aber nicht zu dieser Ebene und Kennzahl.",
+        "not-mbstyle": "Der zugewiesene Stil ist kein verwendbarer MBStyle."
+      },
+      "addError": "Die Ebene konnte nicht hinzugefügt werden. Erneut versuchen oder Status aktualisieren.",
+      "metricError": "Die Kennzahl konnte nicht angewendet werden.",
+      "tilesError": "Vektorkacheln dieser Ebene konnten nicht geladen werden.",
+      "mapNotReady": "Die Karte ist noch nicht bereit.",
+      "noZoomFloor": "Stil ohne Mindest-Zoomstufe",
+      "ariaMetric": "Kennzahl für {title} wählen",
+      "unavailableHint": "Dieser Datensatz ist auf dem Kartenserver noch nicht veröffentlicht.",
+      "relatedTitle": "Zu diesem Kapitel: {chapter}",
+      "othersTitle": "Weitere Ebenen dieser Geschichte",
+      "inChapter": "In diesem Kapitel"
+    },
+    "fifteenMinute": {
+      "controlsTitle": "Kartensteuerung",
+      "category": {
+        "label": "Alltagsbedarf",
+        "overall": "Alle neun (Gesamtanzahl)",
+        "help": "Wählen Sie eine Kategorie, um Gebäude danach einzufärben, ob sie in 15 Minuten erreichbar ist.",
+        "unavailable": "In den Kacheldaten nicht veröffentlicht"
+      },
+      "gap": {
+        "title": "Erreichbarkeitslücken",
+        "enable": "Nur Gebäude mit wenigen Kategorien zeigen",
+        "threshold": "Höchstens so viele von 9 Kategorien",
+        "thresholdOption": "{count} von 9",
+        "missingOnly": "Nur Gebäude ohne Zugang zur gewählten Kategorie",
+        "missingNeedsCategory": "Wählen Sie eine Kategorie, um diesen Filter zu nutzen.",
+        "help": "Der Startwert ist ein veranschaulichender Wert, den Sie ändern können. Er ist kein Standard, und kein Gebiet wird bewertet."
+      },
+      "selection": {
+        "title": "Ausgewähltes Gebäude",
+        "hint": "Klicken Sie ein Gebäude auf der Karte an, um es auszuwählen.",
+        "clear": "Auswahl aufheben",
+        "id": "Gebäude",
+        "idMissing": "In den Kacheldaten ist keine Gebäudekennung veröffentlicht.",
+        "score": "In 15 Min. erreichte Kategorien",
+        "noScore": "Kein Score (nicht berechenbar)",
+        "decay": "Distanzgewichteter Score (0–100)",
+        "confidence": "Verlässlichkeit des Scores",
+        "accessible": "Erreichbar",
+        "inaccessible": "Nicht erreichbar",
+        "unknown": "Unbekannt",
+        "places": "{count} innerhalb von 15 Min.",
+        "walk": "{minutes} Min. Fußweg zum nächsten",
+        "categories": "Die neun Kategorien",
+        "tilesNote": "Die Werte stammen aus den Kacheln der Karte; eine Kategorie, die in den Kacheln fehlt, gilt als unbekannt."
+      },
+      "admin": {
+        "title": "Kontext der Stadtteile",
+        "level": "Gebietsebene",
+        "stadtteile": "Stadtteile",
+        "bezirke": "Bezirke",
+        "metric": "Aggregat",
+        "explain": "Gebäudewerte sind Anzahlen (0–9). Gebietswerte fassen die Wohngebäude jedes Gebiets zusammen; das distanzgewichtete 0–100-Mittel ist ein anderes Maß und nicht das Mittel der 0–9-Anzahl.",
+        "zoomHint": "Zoomen Sie über Stufe 12, um zu einzelnen Gebäuden zurückzukehren."
+      },
+      "legend": {
+        "title": "Legende",
+        "noData": "Keine Daten",
+        "buildingNote": "Gebäude erscheinen ab Zoomstufe 8 und werden ab Zoomstufe 12 dreidimensional."
+      },
+      "unavailable": {
+        "title": "Gebäudekacheln sind nicht verfügbar",
+        "description": "GeoServer liefert die Vektorkacheln der Gebäude derzeit nicht (HTTP 400). Die 15-Minuten-Stadt braucht Gebäudedaten, daher wird keine andere Ebene stattdessen gezeigt. Die lokale Darstellung ist bereit und greift, sobald die Kacheln laden."
+      },
+      "notOnMap": "Die Gebäudeebene ist noch nicht auf der Karte."
     }
   }
 }

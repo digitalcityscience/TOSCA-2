@@ -69,6 +69,7 @@
       "participation": "Katılım",
       "events": "Etkinlikler",
       "geostories": "Coğrafi Hikâyeler",
+      "urbanStories": "Kent Hikâyeleri",
       "layers": "Katmanlar"
     },
     "basemap": {
@@ -582,6 +583,160 @@
       "progress": "Sahne {current} / {total}",
       "captionLabel": "Harita sahnesi açıklaması",
       "hideCaption": "Açıklamayı gizle"
+    }
+  },
+  "urbanStories": {
+    "title": "Kent Hikâyeleri",
+    "selector": {
+      "label": "Bir hikâye seçin"
+    },
+    "empty": "Girişi, veri uyarılarını ve veri setlerini görmek için bir hikâye seçin.",
+    "intro": {
+      "caveatsTitle": "Keşfetmeden önce okuyun"
+    },
+    "sections": {
+      "run": "Coğrafi Hikâyeyi oynat",
+      "explore": "Verileri keşfet"
+    },
+    "run": {
+      "start": "Hikâyeyi başlat",
+      "starting": "Hikâye yükleniyor…",
+      "startHint": "Rehberli hikâyeyi bölümleriyle birlikte haritada oynatır.",
+      "retry": "Tekrar dene",
+      "chapterOf": "Bölüm {current} / {total}",
+      "chapterTitle": "Bölüm",
+      "previous": "Önceki bölüm",
+      "next": "Sonraki bölüm",
+      "backToExplore": "Verileri keşfet’e dön",
+      "overview": "Genel görünüme dön",
+      "introTitle": "Giriş",
+      "noNarrative": "Bu bölümün metni yok. Harita açıklaması sahneyi anlatır.",
+      "layerWarningTitle": "Bazı harita katmanlarının ayrıntıları sınırlı",
+      "layerWarning": "Şunlar için açılır pencereler ve filtreler kullanılamıyor: {layers}.",
+      "relatedHint": "Verileri keşfet’te {count} ilgili veri kümesi",
+      "showRelated": "Göster",
+      "focusLabel": "Hikâyeye odaklan",
+      "focusHelp": "Hikâye oynarken eklediğiniz katmanları gizler. Hikâyeden çıkınca, arada değiştirmiş olsanız bile, başlamadan önceki hâline döner.",
+      "issues": {
+        "unpublishedTitle": "Hikâye yayımlanmadı",
+        "unpublished": "Bu hikâye var ancak yayımlanmamış ya da henüz göremiyorsunuz. Hiçbir şey oynatılmıyor.",
+        "fetchFailedTitle": "Hikâye şu anda kullanılamıyor",
+        "fetchFailed": "Hikâye servisine ulaşılamadı ya da hata döndü. Biraz sonra tekrar deneyin.",
+        "emptyTitle": "Hikâyede sahne yok",
+        "empty": "Hikâye yayımlanmış ancak henüz harita sahnesi içermiyor.",
+        "mapNotReadyTitle": "Harita hazır değil",
+        "mapNotReady": "Haritanın yüklenmesini bekleyin, sonra hikâyeyi yeniden başlatın."
+      }
+    },
+    "explore": {
+      "datasetCount": "{count} veri seti",
+      "groups": {
+        "building": "Binalar",
+        "street": "Sokaklar",
+        "admin": "Bölgeler",
+        "poi": "Hedefler",
+        "green": "Yeşil"
+      },
+      "mvt": {
+        "verified": "Vektör karolar hazır",
+        "pending": "Karolar bekleniyor",
+        "unavailable": "Karolar kullanılamıyor"
+      },
+      "refresh": "Durumu yenile",
+      "addedTitle": "Kent Hikâyelerinden eklenen katmanlar",
+      "addedEmpty": "Henüz katman eklenmedi. Yukarıdaki veri setlerinde “Katman olarak ekle” düğmesini kullanın.",
+      "addedFrom": "{story} hikâyesinden",
+      "visibleFromZoom": "{zoom}. yakınlaştırma düzeyinden itibaren görünür",
+      "add": "Katman olarak ekle",
+      "adding": "Ekleniyor…",
+      "showSettings": "Ayarları göster",
+      "hideSettings": "Ayarları gizle",
+      "remove": "Kaldır",
+      "metric": "Gösterge",
+      "defaultStyle": "Varsayılan stil",
+      "metricPending": "{label} (stil bekleniyor)",
+      "metricAttributesMissing": "{label} (veri eksik)",
+      "caveats": "Veri uyarıları",
+      "status": {
+        "available": "Hazır",
+        "unstyled": "Varsayılan stil",
+        "attributes-missing": "Veri eksik",
+        "temporarily-unavailable": "Geçici olarak kullanılamıyor",
+        "tiles-unavailable": "Karolar kullanılamıyor",
+        "error": "Durum bilinmiyor"
+      },
+      "attributesMissing": "Eksik sütunlar: {columns}",
+      "pendingReason": {
+        "no-style-name": "Bu göstergeye henüz bir stil atanmadı.",
+        "style-not-in-catalog": "Katalog bu stili henüz listelemiyor.",
+        "style-not-applicable": "Katalogda bu stil var ancak bu katman ve ölçütle uyuşmuyor.",
+        "not-mbstyle": "Atanan stil kullanılabilir bir MBStyle değil."
+      },
+      "addError": "Katman eklenemedi. Yeniden deneyin veya durumu yenileyin.",
+      "metricError": "Gösterge uygulanamadı.",
+      "tilesError": "Bu katmanın vektör karoları yüklenemedi.",
+      "mapNotReady": "Harita henüz hazır değil.",
+      "noZoomFloor": "Stilde alt yakınlaştırma sınırı yok",
+      "ariaMetric": "{title} için gösterge seçin",
+      "unavailableHint": "Bu veri seti harita sunucusunda henüz yayımlanmadı.",
+      "relatedTitle": "Bu bölümle ilgili: {chapter}",
+      "othersTitle": "Bu hikâyedeki diğer katmanlar",
+      "inChapter": "Bu bölümde"
+    },
+    "fifteenMinute": {
+      "controlsTitle": "Harita kontrolleri",
+      "category": {
+        "label": "Günlük ihtiyaç",
+        "overall": "Dokuzu birden (toplam sayı)",
+        "help": "Binaları, seçilen kategoriye 15 dakikada ulaşılıp ulaşılamamasına göre renklendirmek için bir kategori seçin.",
+        "unavailable": "Karo verisinde yayımlanmıyor"
+      },
+      "gap": {
+        "title": "Erişilebilirlik boşlukları",
+        "enable": "Yalnızca az kategoriye erişen binaları göster",
+        "threshold": "En fazla bu kadar kategori (9 üzerinden)",
+        "thresholdOption": "9 kategoriden {count}",
+        "missingOnly": "Yalnızca seçilen kategoriye erişimi olmayan binalar",
+        "missingNeedsCategory": "Bu filtreyi kullanmak için bir kategori seçin.",
+        "help": "Başlangıç eşiği değiştirebileceğiniz örnek bir değerdir. Bir standart değildir ve hiçbir bölge sıralanmaz."
+      },
+      "selection": {
+        "title": "Seçilen bina",
+        "hint": "Seçmek için haritada bir binaya tıklayın.",
+        "clear": "Seçimi kaldır",
+        "id": "Bina",
+        "idMissing": "Karo verisinde bina kimliği yayımlanmıyor.",
+        "score": "15 dakikada ulaşılan kategoriler",
+        "noScore": "Skor yok (hesaplanamıyor)",
+        "decay": "Mesafe ağırlıklı skor (0–100)",
+        "confidence": "Skor güvenilirliği",
+        "accessible": "Ulaşılabilir",
+        "inaccessible": "Ulaşılamaz",
+        "unknown": "Bilinmiyor",
+        "places": "15 dk içinde {count}",
+        "walk": "En yakına {minutes} dk yürüyüş",
+        "categories": "Dokuz kategori",
+        "tilesNote": "Değerler harita karolarındandır; karolarda bulunmayan kategori bilinmiyor olarak gösterilir."
+      },
+      "admin": {
+        "title": "Mahalle bağlamı",
+        "level": "Bölge düzeyi",
+        "stadtteile": "Mahalleler (Stadtteile)",
+        "bezirke": "İlçeler (Bezirke)",
+        "metric": "Toplulaştırma",
+        "explain": "Bina değerleri sayıdır (0–9). Bölge değerleri her bölgedeki konut binalarını özetler; 0–100 mesafe ağırlıklı ortalama farklı bir ölçüdür ve 0–9 sayısının ortalaması değildir.",
+        "zoomHint": "Tek tek binalara dönmek için 12. seviyenin üzerine yakınlaştırın."
+      },
+      "legend": {
+        "title": "Gösterge",
+        "noData": "Veri yok",
+        "buildingNote": "Binalar 8. yakınlaştırma seviyesinden itibaren görünür, 12'den itibaren 3 boyutlu olur."
+      },
+      "unavailable": {
+        "title": "Bina karoları kullanılamıyor",
+        "description": "GeoServer şu anda bina vektör karolarını sunmuyor (HTTP 400). 15 Dakikalık Şehir bina düzeyinde veri gerektirir; bu nedenle yerine başka bir katman gösterilmez. Yerel stil hazırdır ve karolar yüklenir yüklenmez uygulanır."
+      },
+      "notOnMap": "Bina katmanı henüz haritada değil."
     }
   }
 }

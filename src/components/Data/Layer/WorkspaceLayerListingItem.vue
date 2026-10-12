@@ -22,31 +22,23 @@
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 import {
-    catalogLayerStyleReferences,
-    selectCatalogStyleLayers,
-    type CatalogGroupStyleLayer,
-    type CatalogStyleListItem,
     type GeoserverLayerInfo,
     type GeoserverLayerListItem,
     type WorkspaceListItem,
     useGeoserverStore,
 } from "@store/geoserver";
-import type { MapLayerStyleOption } from "@store/map";
 import { useToast } from "@helpers/toast";
-import { reportDeveloperError } from "@helpers/userFacingError";
+import { loadCatalogLayerStyling, type LayerStylingBundle } from "@helpers/catalogLayerLoader";
 import WorkspaceRasterLayerListingItem from "./WorkspaceRasterLayerListingItem.vue";
 import WorkspaceVectorLayerListingItem from "./WorkspaceVectorLayerListingItem.vue";
 
+export type { LayerStylingBundle };
 export interface Props {
     item: GeoserverLayerListItem
     workspace: WorkspaceListItem
 }
 export interface LayerStylingPaint {
     paint: object
-}
-export interface LayerStylingBundle {
-    styles: MapLayerStyleOption[];
-    defaultStyleId: string;
 }
 const props = defineProps<Props>()
 const { t } = useI18n();
@@ -61,71 +53,12 @@ async function loadLayerInformation(): Promise<void> {
     try {
         const response = await geoserver.getLayerInformation(props.item, props.workspace)
         layerInformation.value = response.layer
-        try {
-            let catalogStyles: CatalogStyleListItem[] = []
-            try {
-                catalogStyles = await geoserver.getStyleList(props.workspace.provider.id)
-            } catch (styleListError) {
-                reportDeveloperError(
-                    `Loading style catalog for provider ${props.workspace.provider.id}`,
-                    styleListError
-                )
-            }
-            const references = catalogLayerStyleReferences(
-                response.layer,
-                catalogStyles,
-                props.workspace.provider.id,
-                props.workspace.name
-            )
-            const loadedStyles = await Promise.all(references.map(async (reference, index) => {
-                try {
-                    const style = await geoserver.getLayerStyling(reference.href)
-                    if (!Array.isArray(style?.layers) || style.layers.length === 0) return undefined
-                    const selectedLayers = selectCatalogStyleLayers(
-                        style.layers as CatalogGroupStyleLayer[],
-                        reference,
-                        props.item.name
-                    )
-                    const optionId = reference.id ?? reference.assignmentId ?? reference.href
-                    return {
-                        id: optionId,
-                        name: reference.name,
-                        title: reference.title ?? reference.name,
-                        isDefault: index === 0,
-                        layers: selectedLayers.map((layer: CatalogGroupStyleLayer) => ({ ...layer })),
-                        attributes: reference.attributes ?? style.metadata?.["tosca:attributes"],
-                        ...(typeof style.sprite === "string" ? { spriteUrl: style.sprite } : {}),
-                    } satisfies MapLayerStyleOption
-                } catch (styleError) {
-                    reportDeveloperError(
-                        `Loading optional style ${reference.name} for ${props.workspace.name}:${props.item.name}`,
-                        styleError
-                    )
-                    return undefined
-                }
-            }))
-            const availableStyles: MapLayerStyleOption[] = loadedStyles.flatMap(
-                (style) => style === undefined ? [] : [style]
-            )
-            if (availableStyles.length > 0) {
-                // The reference flagged isDefault may have failed to load and
-                // been dropped above; fall back to the first survivor so one
-                // option is always marked default.
-                if (!availableStyles.some((style) => style.isDefault)) {
-                    availableStyles[0].isDefault = true
-                }
-                const defaultStyle = availableStyles.find((style) => style.isDefault) ?? availableStyles[0]
-                layerStyling.value = {
-                    styles: availableStyles,
-                    defaultStyleId: defaultStyle.id,
-                }
-            }
-        } catch (styleError) {
-            reportDeveloperError(
-                `Loading optional style for ${props.workspace.name}:${props.item.name}`,
-                styleError
-            )
-        }
+        layerStyling.value = await loadCatalogLayerStyling(
+            response.layer,
+            props.workspace.name,
+            props.workspace.provider.id,
+            props.item.name
+        )
     } catch (err) {
         loadError.value = t("workspace.layerItem.loadError")
         toast.add({ severity: "error", summary: t("toast.error"), detail: err, life: 3000 });

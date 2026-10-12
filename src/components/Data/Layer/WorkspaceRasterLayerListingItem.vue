@@ -51,7 +51,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { type GeoserverRasterTypeLayerDetail, type GeoserverLayerInfo, type GeoserverLayerListItem, getTimeDimension, resolveTimeDomain, useGeoserverStore } from "@store/geoserver";
-import { createMapRuntimeId, type GeoServerSourceParams, type LayerParams, useMapStore } from "@store/map";
+import { useMapStore } from "@store/map";
+import { addCatalogRasterLayer } from "@helpers/catalogLayerLoader";
 import { isNullOrEmpty } from "../../../core/helpers/functions";
 import { useToast } from "@helpers/toast";
 import { openSlideoverSidebar } from "@helpers/slideoverSidebarRegistry";
@@ -140,36 +141,13 @@ async function add2Map(withTime: boolean): Promise<void> {
             toast.add({ severity: "warn", summary: t("workspace.layerItem.timeDomainTitle"), detail: t("workspace.layerItem.timeDomainError"), life: 3000 })
         }
     }
-    const resourceKey = `${layerDetail.value!.catalog?.provider.id ?? "provider"}:${props.workspace}:${layerDetail.value!.coverage.name}`
-    const runtimeId = createMapRuntimeId("layer", resourceKey)
-    const sourceParams: GeoServerSourceParams = {
-        sourceType: "geoserver",
-        identifier: runtimeId,
-        isFilterLayer: false,
-        workspaceName: props.workspace,
-        layer: layerDetail.value!,
-        sourceDataType: "raster",
-        sourceProtocol: "wms",
-        time: initialTime,
-    }
     try {
-        await mapStore.addMapDataSource(sourceParams)
-        const layerParams: LayerParams = {
-            sourceType: "geoserver",
-            identifier: runtimeId,
-            sourceIdentifier: runtimeId,
-            layerType: "raster",
-            geoserverLayerDetails: layerDetail.value!,
-            sourceLayer: `${layerDetail.value!.coverage.name}`,
-            displayName: layerDetail.value?.coverage.title ?? undefined,
-            sourceDataType: "raster",
-            sourceProtocol: "wms",
-            workspaceName: props.workspace,
+        const runtimeId = await addCatalogRasterLayer({
+            detail: layerDetail.value!,
+            workspace: props.workspace,
+            attributes: props.layerInformation.defaultStyle.attributes,
             time: initialTime,
-        }
-        await mapStore.addMapLayer(layerParams)
-        const logicalLayer = mapStore.layersOnMap.find((layer) => layer.id === layerParams.identifier)
-        if (logicalLayer !== undefined) logicalLayer.attributes = props.layerInformation.defaultStyle.attributes
+        })
         mapStore.requestLayerPanelExpansion(runtimeId)
         openSlideoverSidebar("maplayerListing")
     } catch (error) {

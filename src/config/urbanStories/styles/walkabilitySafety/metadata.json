@@ -1,0 +1,560 @@
+{
+  "has_sidewalk": {
+    "description": "Sidewalk along a carriageway from OSM sidewalk=*; separate = mapped as its own way; not_applicable = the segment is itself a pedestrian way. NULL = not tagged.",
+    "unit": "none (identifier, code, flag, count or text)",
+    "contract_type": "string",
+    "null_semantics": "NULL = no sidewalk tag (has_sidewalk_source = missing); 'not_applicable' is a value for pedestrian ways, not NULL",
+    "documented_codes": [
+      "yes",
+      "no",
+      "separate",
+      "not_applicable"
+    ],
+    "measured": {
+      "null_count": 298486,
+      "observed_codes": [
+        "no",
+        "not_applicable",
+        "separate",
+        "yes"
+      ],
+      "status": "verified"
+    },
+    "source": "export/hamburg_mobility/hamburg_mobility/metadata.yaml",
+    "layer": "hamburg_mobility"
+  },
+  "has_sidewalk_source": {
+    "description": "Where has_sidewalk comes from.",
+    "unit": "none (identifier, code, flag, count or text)",
+    "contract_type": "string",
+    "null_semantics": "never NULL (contract nullable: false)",
+    "documented_codes": [
+      "osm",
+      "inferred",
+      "missing",
+      "not_applicable"
+    ],
+    "measured": {
+      "null_count": 0,
+      "observed_codes": [
+        "missing",
+        "not_applicable",
+        "osm"
+      ],
+      "status": "verified"
+    },
+    "source": "export/hamburg_mobility/hamburg_mobility/metadata.yaml",
+    "layer": "hamburg_mobility"
+  },
+  "slope_dem_abs_mean_pct": {
+    "description": "Length-weighted mean absolute grade over <=10 m pieces.",
+    "unit": "%",
+    "contract_type": "float64",
+    "null_semantics": "NULL exactly where slope_dem_pct is NULL",
+    "documented_range": {
+      "min": 0,
+      "max": "no upper bound documented",
+      "status": "repo_documented"
+    },
+    "measured": {
+      "null_count": 495633,
+      "min": 0.0,
+      "max": 138.77,
+      "status": "verified"
+    },
+    "source": "export/hamburg_mobility/hamburg_mobility/metadata.yaml",
+    "layer": "hamburg_mobility"
+  },
+  "slope_dem_note": {
+    "description": "Why no slope was derived: deck/tunnel not on the terrain model, segment < 5 m, or outside the DEM (buffer area).",
+    "unit": "none (identifier, code, flag, count or text)",
+    "contract_type": "string",
+    "null_semantics": "NULL when a slope was derived (slope_dem_source = dem); otherwise bridge_tunnel | too_short | outside_dem",
+    "documented_codes": [
+      "bridge_tunnel",
+      "too_short",
+      "outside_dem"
+    ],
+    "measured": {
+      "null_count": 306937,
+      "observed_codes": [
+        "bridge_tunnel",
+        "outside_dem",
+        "too_short"
+      ],
+      "status": "verified"
+    },
+    "source": "export/hamburg_mobility/hamburg_mobility/metadata.yaml",
+    "layer": "hamburg_mobility"
+  },
+  "comfort_score": {
+    "description": "Modelled, not measured. Pedestrian comfort 0-100: weighted mean of the components that have a value (weights surface 0.2, slope 0.2, lighting 0.15, shade 0.1, street 0.25, crossing 0.1; design choice, config/scoring/comfort.yml); steps capped at 35. NULL = comfort_null_reason.",
+    "unit": "points",
+    "contract_type": "float64",
+    "null_semantics": "NULL = not scored (comfort_null_reason = insufficient_components); NOT zero comfort",
+    "documented_range": {
+      "min": 0,
+      "max": 100,
+      "status": "repo_documented"
+    },
+    "measured": {
+      "null_count": 61604,
+      "min": 0.0,
+      "max": 100.0,
+      "status": "verified"
+    },
+    "source": "export/hamburg_mobility/hamburg_mobility/metadata.yaml",
+    "layer": "hamburg_mobility"
+  },
+  "comfort_confidence": {
+    "description": "Modelled, not measured. 0-1: weight-share of the applicable components that have a value, with inferred values counted at half (observed 1, inferred 0.5, missing 0).",
+    "unit": "share",
+    "contract_type": "float64",
+    "null_semantics": "never NULL (contract nullable: false)",
+    "documented_range": {
+      "min": 0,
+      "max": 1,
+      "status": "repo_documented"
+    },
+    "measured": {
+      "null_count": 0,
+      "min": 0.067,
+      "max": 1.0,
+      "status": "verified"
+    },
+    "source": "export/hamburg_mobility/hamburg_mobility/metadata.yaml",
+    "layer": "hamburg_mobility"
+  },
+  "comfort_class": {
+    "description": "comfort_score class: very_low < 20 <= low < 40 <= moderate < 60 <= good < 80 <= very_good. NULL when not scored.",
+    "unit": "none (identifier, code, flag, count or text)",
+    "contract_type": "string",
+    "null_semantics": "NULL exactly where comfort_score is NULL",
+    "documented_codes": [
+      "very_low",
+      "low",
+      "moderate",
+      "good",
+      "very_good"
+    ],
+    "measured": {
+      "null_count": 61604,
+      "observed_codes": [
+        "good",
+        "low",
+        "moderate",
+        "very_good",
+        "very_low"
+      ],
+      "status": "verified"
+    },
+    "source": "export/hamburg_mobility/hamburg_mobility/metadata.yaml",
+    "layer": "hamburg_mobility"
+  },
+  "comfort_null_reason": {
+    "description": "Why comfort_score is NULL: insufficient_components = the components with a value carry less than 40 % of the applicable weight. NULL when scored.",
+    "unit": "none (identifier, code, flag, count or text)",
+    "contract_type": "string",
+    "null_semantics": "NULL when comfort_score exists; insufficient_components when the available components carry < 40 % of the applicable weight",
+    "documented_codes": [
+      "insufficient_components"
+    ],
+    "measured": {
+      "null_count": 740966,
+      "observed_codes": [
+        "insufficient_components"
+      ],
+      "status": "verified"
+    },
+    "source": "export/hamburg_mobility/hamburg_mobility/metadata.yaml",
+    "layer": "hamburg_mobility"
+  },
+  "comfort_surface": {
+    "description": "Modelled, not measured. Surface comfort from OSM surface=* (asphalt/concrete best, soft or rough worst; table in config/scoring/comfort.yml). NULL = surface unknown or value not in the table. Weight 0.2.",
+    "unit": "points",
+    "contract_type": "float64",
+    "null_semantics": "NULL = surface unknown or value not in the scoring table; component dropped (comfort_surface_basis = missing)",
+    "documented_range": {
+      "min": 0,
+      "max": 100,
+      "status": "repo_documented"
+    },
+    "measured": {
+      "null_count": 97980,
+      "min": 5.0,
+      "max": 100.0,
+      "status": "verified"
+    },
+    "source": "export/hamburg_mobility/hamburg_mobility/metadata.yaml",
+    "layer": "hamburg_mobility"
+  },
+  "comfort_slope": {
+    "description": "Modelled, not measured. Slope comfort from the DEM grade (slope_dem_abs_mean_pct), piecewise linear: 0 % = 100, 6 % = 60 (DIN 18040 ramp limit), 15 % = 0. NULL = no DEM slope (bridge/tunnel, < 5 m, outside DEM) or steps (not applicable). Weight 0.2.",
+    "unit": "points",
+    "contract_type": "float64",
+    "null_semantics": "NULL = no DEM slope or steps (not applicable); component dropped",
+    "documented_range": {
+      "min": 0,
+      "max": 100,
+      "status": "repo_documented"
+    },
+    "measured": {
+      "null_count": 499304,
+      "min": 0.0,
+      "max": 100.0,
+      "status": "verified"
+    },
+    "source": "export/hamburg_mobility/hamburg_mobility/metadata.yaml",
+    "layer": "hamburg_mobility"
+  },
+  "comfort_lighting": {
+    "description": "Modelled, not measured. Lighting comfort from OSM lit=* (lit 100, limited/partial 60, unlit 20). NULL = lit unknown (also when the tag is not understood). Weight 0.15.",
+    "unit": "points",
+    "contract_type": "float64",
+    "null_semantics": "NULL = lit unknown or tag not understood; component dropped",
+    "documented_range": {
+      "min": 0,
+      "max": 100,
+      "status": "repo_documented"
+    },
+    "measured": {
+      "null_count": 386986,
+      "min": 20.0,
+      "max": 100.0,
+      "status": "verified"
+    },
+    "source": "export/hamburg_mobility/hamburg_mobility/metadata.yaml",
+    "layer": "hamburg_mobility"
+  },
+  "comfort_shade": {
+    "description": "Modelled, not measured. Shade proxy from street-tree density within 30 m per hectare of the segment corridor (saturates at 40 trees/ha), raised to an ALKIS land-use floor in forest/copse/cemetery. A proxy for canopy, not measured shade; tunnels not applicable; NULL outside the tree cadastre (Hamburg only). Weight 0.1.",
+    "unit": "points",
+    "contract_type": "float64",
+    "null_semantics": "NULL outside the tree cadastre (Hamburg only) or tunnels (not applicable); component dropped",
+    "documented_range": {
+      "min": 0,
+      "max": 100,
+      "status": "repo_documented"
+    },
+    "measured": {
+      "null_count": 451618,
+      "min": 0.0,
+      "max": 100.0,
+      "status": "verified"
+    },
+    "source": "export/hamburg_mobility/hamburg_mobility/metadata.yaml",
+    "layer": "hamburg_mobility"
+  },
+  "comfort_shade_basis": {
+    "description": "Provenance of comfort_shade: observed = derived from a source dataset; inferred = class/geometry rule or absence of evidence (modelled); missing = no value, component dropped and confidence lowered; not_applicable = does not exist for this segment type, left out of score and confidence.",
+    "unit": "none (identifier, code, flag, count or text)",
+    "contract_type": "string",
+    "null_semantics": "never NULL (contract nullable: false)",
+    "documented_codes": [
+      "observed",
+      "inferred",
+      "missing",
+      "not_applicable"
+    ],
+    "measured": {
+      "null_count": 0,
+      "observed_codes": [
+        "inferred",
+        "missing",
+        "not_applicable",
+        "observed"
+      ],
+      "status": "verified"
+    },
+    "source": "export/hamburg_mobility/hamburg_mobility/metadata.yaml",
+    "layer": "hamburg_mobility"
+  },
+  "comfort_street": {
+    "description": "Modelled, not measured. Street environment: pedestrian ways by class (pedestrian > footway > path > track), minus a penalty when next to a busy road; carriageways by speed and sidewalk presence (tagged, or inferred from a parallel mapped footway). Crossings not applicable. Weight 0.25.",
+    "unit": "points",
+    "contract_type": "float64",
+    "null_semantics": "NULL for crossings (not applicable) or when no street-environment input exists; component dropped",
+    "documented_range": {
+      "min": 0,
+      "max": 100,
+      "status": "repo_documented"
+    },
+    "measured": {
+      "null_count": 15025,
+      "min": 0.0,
+      "max": 100.0,
+      "status": "verified"
+    },
+    "source": "export/hamburg_mobility/hamburg_mobility/metadata.yaml",
+    "layer": "hamburg_mobility"
+  },
+  "comfort_crossing": {
+    "description": "Modelled, not measured. Crossing comfort by OSM crossing=* type (signals/zebra best, unmarked/informal worst). Only for crossing segments; all other segments not applicable. Weight 0.1.",
+    "unit": "points",
+    "contract_type": "float64",
+    "null_semantics": "NULL for every segment that is not a crossing (not applicable)",
+    "documented_range": {
+      "min": 0,
+      "max": 100,
+      "status": "repo_documented"
+    },
+    "measured": {
+      "null_count": 787545,
+      "min": 20.0,
+      "max": 95.0,
+      "status": "verified"
+    },
+    "source": "export/hamburg_mobility/hamburg_mobility/metadata.yaml",
+    "layer": "hamburg_mobility"
+  },
+  "n_accidents_ped_5y": {
+    "description": "Destatis Unfallatlas accidents in the five selected non-pandemic years (2019, 2022-2025) with IstFuss=1, assigned once to this segment within 30 m. Count, not an exposure-adjusted risk.",
+    "unit": "none (identifier, code, flag, count or text)",
+    "contract_type": "int32",
+    "null_semantics": "never NULL (contract nullable: false)",
+    "measured": {
+      "null_count": 0,
+      "status": "verified"
+    },
+    "source": "export/hamburg_mobility/hamburg_mobility/metadata.yaml",
+    "layer": "hamburg_mobility"
+  },
+  "n_accidents_bike_5y": {
+    "description": "Destatis Unfallatlas accidents in the five selected non-pandemic years (2019, 2022-2025) with IstRad=1, assigned once to this segment within 30 m. Count, not an exposure-adjusted risk.",
+    "unit": "none (identifier, code, flag, count or text)",
+    "contract_type": "int32",
+    "null_semantics": "never NULL (contract nullable: false)",
+    "measured": {
+      "null_count": 0,
+      "status": "verified"
+    },
+    "source": "export/hamburg_mobility/hamburg_mobility/metadata.yaml",
+    "layer": "hamburg_mobility"
+  },
+  "n_accidents_vru_5y": {
+    "description": "Unique Unfallatlas accidents in the five selected non-pandemic years (2019, 2022-2025) involving a person walking or cycling, assigned once to the nearest segment within 30 m. A crash involving both modes is counted once. Count, not an exposure-adjusted risk.",
+    "unit": "count",
+    "contract_type": "int32",
+    "null_semantics": "never NULL (contract nullable: false)",
+    "measured": {
+      "null_count": 0,
+      "status": "verified"
+    },
+    "source": "export/hamburg_mobility/hamburg_mobility/metadata.yaml",
+    "layer": "hamburg_mobility"
+  },
+  "accident_rate_smoothed": {
+    "description": "Modelled, not measured. Gamma-Poisson empirical-Bayes vulnerable-road-user accident rate per km over the selected five non-pandemic years: (count + Hamburg-wide rate * 0.25 km) / (length + 0.25 km). NULL outside Hamburg accident coverage.",
+    "unit": "accidents per km / 5 years",
+    "contract_type": "float64",
+    "null_semantics": "NULL outside Hamburg accident coverage (safety_null_reason = outside_accident_coverage); NOT zero accidents",
+    "documented_range": {
+      "min": 0,
+      "max": "no upper bound documented",
+      "status": "repo_documented"
+    },
+    "measured": {
+      "null_count": 446543,
+      "min": 1.5234358293483505,
+      "max": 66.5705886178674,
+      "status": "verified"
+    },
+    "source": "export/hamburg_mobility/hamburg_mobility/metadata.yaml",
+    "layer": "hamburg_mobility"
+  },
+  "safety_index": {
+    "description": "Modelled crash-concentration index, 0-100 (higher = lower modelled concentration): 100 * 2^(-accident_rate_smoothed / 8). This is not exposure-adjusted risk. NULL outside Hamburg accident coverage.",
+    "unit": "points",
+    "contract_type": "float64",
+    "null_semantics": "NULL = no safety score (outside Hamburg accident coverage); NOT zero safety and NOT a safe segment",
+    "documented_range": {
+      "min": 0,
+      "max": 100,
+      "status": "repo_documented"
+    },
+    "measured": {
+      "null_count": 446543,
+      "min": 0.3126309710963894,
+      "max": 87.63448017073327,
+      "status": "verified"
+    },
+    "source": "export/hamburg_mobility/hamburg_mobility/metadata.yaml",
+    "layer": "hamburg_mobility"
+  },
+  "safety_null_reason": {
+    "description": "Why safety fields are NULL: outside_accident_coverage = segment lies in the routing buffer outside Hamburg. NULL when calculated.",
+    "unit": "none (identifier, code, flag, count or text)",
+    "contract_type": "string",
+    "null_semantics": "NULL when the safety index was calculated (inside Hamburg accident coverage); outside_accident_coverage in the 20 km buffer",
+    "documented_codes": [
+      "outside_accident_coverage"
+    ],
+    "measured": {
+      "null_count": 356027,
+      "observed_codes": [
+        "outside_accident_coverage"
+      ],
+      "status": "verified"
+    },
+    "source": "export/hamburg_mobility/hamburg_mobility/metadata.yaml",
+    "layer": "hamburg_mobility"
+  },
+  "origin_quality": {
+    "description": "Network origin quality from TICKET-00 (D-004): good <= 50 m, fair <= 100 m, poor > 100 m (scored, flagged), none = no main-network edge within 500 m (not computable).",
+    "unit": "none (identifier, code, flag or count)",
+    "contract_type": "string",
+    "null_semantics": "never NULL (contract nullable: false)",
+    "documented_codes": [
+      "good",
+      "fair",
+      "poor",
+      "none"
+    ],
+    "measured": {
+      "null_count": 0,
+      "observed_codes": [
+        "fair",
+        "good",
+        "none",
+        "poor"
+      ],
+      "status": "verified"
+    },
+    "source": "export/hamburg_buildings/hamburg_buildings/metadata.yaml",
+    "layer": "hamburg_buildings"
+  },
+  "score_null_reason": {
+    "description": "Why the building has no score (origin_quality = none). NULL when scores exist. A NULL walk_min_<category> on a scored building means 'no POI within 15 minutes', not 'not computable'.",
+    "unit": "none (identifier, code, flag or count)",
+    "contract_type": "string",
+    "null_semantics": "NULL when scores exist; the reason code when the building has no origin (origin_quality = none)",
+    "documented_codes": [
+      "no_edge_within_500m",
+      "only_disconnected_edges_within_500m"
+    ],
+    "measured": {
+      "null_count": 381721,
+      "observed_codes": [
+        "no_edge_within_500m",
+        "only_disconnected_edges_within_500m"
+      ],
+      "status": "verified"
+    },
+    "source": "export/hamburg_buildings/hamburg_buildings/metadata.yaml",
+    "layer": "hamburg_buildings"
+  },
+  "comfort_mean_400m": {
+    "description": "Modelled, not measured. Mean pedestrian comfort (walk_segments comfort_score, 0-100) of the street network within 400 m of walking distance from the building origin (connector included), weighted by the length of each segment inside the radius; unscored segments are left out (TICKET-02, D-011). NULL = see score_null_reason (no origin) or comfort_null_reason_400m.",
+    "unit": "points",
+    "contract_type": "float64",
+    "null_semantics": "NULL when the building has no main-network origin (origin_quality = none; reason in score_null_reason), or when the *_null_reason_400m column gives the reason (connector longer than 400 m, or nothing scored within the radius)",
+    "documented_range": {
+      "min": 0,
+      "max": 100,
+      "status": "repo_documented"
+    },
+    "measured": {
+      "null_count": 357,
+      "min": 35.91,
+      "max": 90.99,
+      "status": "verified"
+    },
+    "source": "export/hamburg_buildings/hamburg_buildings/metadata.yaml",
+    "layer": "hamburg_buildings"
+  },
+  "comfort_scored_share_400m": {
+    "description": "Share of the network length within 400 m that carries a comfort_score (the rest is unscored).",
+    "unit": "share",
+    "contract_type": "float64",
+    "null_semantics": "NULL when the building has no main-network origin (origin_quality = none; reason in score_null_reason), or when the *_null_reason_400m column gives the reason (connector longer than 400 m, or nothing scored within the radius)",
+    "documented_range": {
+      "min": 0,
+      "max": 1,
+      "status": "repo_documented"
+    },
+    "measured": {
+      "null_count": 357,
+      "min": 0.044,
+      "max": 1.0,
+      "status": "verified"
+    },
+    "source": "export/hamburg_buildings/hamburg_buildings/metadata.yaml",
+    "layer": "hamburg_buildings"
+  },
+  "comfort_null_reason_400m": {
+    "description": "Why comfort_mean_400m is NULL on a building with an origin: connector_exceeds_radius = the building-to-network connector is longer than 400 m; no_scored_segments = nothing scored within the radius. NULL when computed or when there is no origin.",
+    "unit": "none (identifier, code, flag or count)",
+    "contract_type": "string",
+    "null_semantics": "NULL when comfort_mean_400m was computed or when the building has no origin; otherwise the reason code",
+    "documented_codes": [
+      "connector_exceeds_radius",
+      "no_scored_segments"
+    ],
+    "measured": {
+      "null_count": 381922,
+      "observed_codes": [
+        "connector_exceeds_radius"
+      ],
+      "status": "verified"
+    },
+    "source": "export/hamburg_buildings/hamburg_buildings/metadata.yaml",
+    "layer": "hamburg_buildings"
+  },
+  "safety_index_400m": {
+    "description": "Modelled, not measured. Length-weighted safety_index of walking-network segments reachable within 400 m from the existing building origin (connector included). Higher = lower modelled recorded-crash concentration. NULL for no origin (see score_null_reason) or safety_null_reason_400m.",
+    "unit": "points",
+    "contract_type": "float64",
+    "null_semantics": "NULL when the building has no main-network origin (origin_quality = none; reason in score_null_reason), or when the *_null_reason_400m column gives the reason (connector longer than 400 m, or nothing scored within the radius)",
+    "documented_range": {
+      "min": 0,
+      "max": 100,
+      "status": "repo_documented"
+    },
+    "measured": {
+      "null_count": 357,
+      "min": 0.0,
+      "max": 86.92,
+      "status": "verified"
+    },
+    "source": "export/hamburg_buildings/hamburg_buildings/metadata.yaml",
+    "layer": "hamburg_buildings"
+  },
+  "safety_covered_len_400m_m": {
+    "description": "Length of safety-scored walking network used for safety_index_400m.",
+    "unit": "m",
+    "contract_type": "float64",
+    "null_semantics": "NULL when the building has no main-network origin (origin_quality = none; reason in score_null_reason), or when the *_null_reason_400m column gives the reason (connector longer than 400 m, or nothing scored within the radius)",
+    "documented_range": {
+      "min": 0,
+      "max": "no upper bound documented",
+      "status": "repo_documented"
+    },
+    "measured": {
+      "null_count": 279,
+      "min": 0.0,
+      "max": 23204.4,
+      "status": "verified"
+    },
+    "source": "export/hamburg_buildings/hamburg_buildings/metadata.yaml",
+    "layer": "hamburg_buildings"
+  },
+  "safety_null_reason_400m": {
+    "description": "Why safety_index_400m is NULL on a building with an origin: connector_exceeds_radius or no_covered_segments. NULL when calculated or when there is no origin.",
+    "unit": "none (identifier, code, flag or count)",
+    "contract_type": "string",
+    "null_semantics": "NULL when safety_index_400m was calculated or when the building has no origin; otherwise the reason code",
+    "documented_codes": [
+      "connector_exceeds_radius",
+      "no_covered_segments"
+    ],
+    "measured": {
+      "null_count": 381922,
+      "observed_codes": [
+        "connector_exceeds_radius"
+      ],
+      "status": "verified"
+    },
+    "source": "export/hamburg_buildings/hamburg_buildings/metadata.yaml",
+    "layer": "hamburg_buildings"
+  }
+}

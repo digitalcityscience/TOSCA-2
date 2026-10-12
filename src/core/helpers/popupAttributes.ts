@@ -62,7 +62,8 @@ export function withPopupAttributes(feature: PopupAttributeFeature, owners: Laye
  * contribution. Missing metadata contributes nothing when any participant defines
  * a list. All properties are shown only when every participant omits metadata.
  *
- * Missing properties, null, undefined, and empty strings are skipped; zero and
+ * Missing properties, null, undefined, and empty strings are skipped unless an explicit
+ * local nullLabel requests a no-data row; optional descriptions accompany those rows. Zero and
  * false remain visible. If no configured fields have values, the returned empty
  * array lets the modal show its empty-attributes message without exposing
  * unrelated fields. The caller can recompute rows on locale changes.
@@ -71,7 +72,7 @@ export function withPopupAttributes(feature: PopupAttributeFeature, owners: Laye
  * @param locale - Current UI locale, such as `de-DE`.
  * @returns Ordered rows with raw names, resolved labels, and formatted values.
  */
-export function popupPropertyRows(feature: PopupAttributeFeature, locale: string): Array<{ name: string; label: string; value: string }> {
+export function popupPropertyRows(feature: PopupAttributeFeature, locale: string): Array<{ name: string; label: string; value: string; description?: string }> {
     const definitions = new Map<string, PopupAttributeDefinition>();
     const contributions = feature.attributeContributions;
     for (const contribution of [...(contributions ?? [])].sort((a, b) => a.order - b.order)) {
@@ -81,19 +82,24 @@ export function popupPropertyRows(feature: PopupAttributeFeature, locale: string
             for (const [language, label] of Object.entries(attribute.labels ?? {})) {
                 if (label.trim() !== "" && !labels[language]?.trim()) labels[language] = label;
             }
-            definitions.set(attribute.name, { name: attribute.name, labels });
+            definitions.set(attribute.name, { ...attribute, ...previous, name: attribute.name, labels });
         }
     }
     const fields = contributions === undefined ? Object.keys(feature.properties) : [...definitions.keys()];
     return fields.flatMap((name) => {
-        if (!Object.prototype.hasOwnProperty.call(feature.properties, name)) return [];
+        const definition = definitions.get(name);
+        const translate = (texts?: Record<string, string>): string | undefined => [locale, locale.split("-")[0], "en"].map((language) => texts?.[language]).find((value) => value?.trim());
+        const nullLabel = translate(definition?.nullLabel);
+        if (!Object.prototype.hasOwnProperty.call(feature.properties, name) && nullLabel === undefined) return [];
         const value = feature.properties[name];
-        if (value === undefined || value === null || value === "") return [];
+        const empty = value === undefined || value === null || value === "";
+        if (empty && nullLabel === undefined) return [];
         const labels = definitions.get(name)?.labels;
         const label = [locale, locale.split("-")[0], "en"].map((language) => labels?.[language]).find((value) => value?.trim());
         const displayValue = typeof value === "string" || typeof value === "number" || typeof value === "boolean" || typeof value === "bigint"
             ? String(value)
             : JSON.stringify(value) ?? "";
-        return [{ name, label: label ?? name, value: displayValue }];
+        const description = translate(definition?.description);
+        return [{ name, label: label ?? name, value: empty ? nullLabel! : displayValue, ...(description === undefined ? {} : { description }) }];
     });
 }
