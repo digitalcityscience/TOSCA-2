@@ -28,12 +28,12 @@
         <div class="flex flex-wrap gap-2">
             <UButton
                 size="sm"
-                :color="running ? 'neutral' : 'primary'"
-                :variant="running ? 'outline' : 'solid'"
-                :icon="running ? 'i-lucide-square' : 'i-lucide-play'"
+                :color="isPlaying ? 'neutral' : 'primary'"
+                :variant="isPlaying ? 'outline' : 'solid'"
+                :icon="isPlaying ? 'i-lucide-pause' : 'i-lucide-play'"
                 data-testid="riders-story-start"
-                @click="running ? stop() : start()"
-            >{{ running ? t("hamburgRiders.story.stop") : t("hamburgRiders.story.start") }}</UButton>
+                @click="togglePlay"
+            >{{ isPlaying ? t("hamburgRiders.timeline.pause") : t("hamburgRiders.timeline.play") }}</UButton>
             <UButton
                 v-if="running && !riders.controlsOpen"
                 size="sm"
@@ -66,7 +66,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted } from "vue";
+import { computed, onBeforeUnmount } from "vue";
 import { useI18n } from "vue-i18n";
 import { activateHamburgRiders, deactivateHamburgRiders } from "@helpers/hamburgRiders/ridersApi";
 import { RIDERS_CAMERA } from "@helpers/hamburgRiders/ridersConfig";
@@ -78,8 +78,7 @@ import { HAMBURG_RIDERS_STORY_CONSUMER } from "../../config/urbanStories/hamburg
 
 /**
  * Left-panel body of the standalone HamburgRiders story. Mounted by the Urban Stories sidebar only while the
- * story is selected: mounting claims the full Riders experience (network, S-/U-Bahn vehicles, timeline, dark
- * basemap, controls) as one consumer, and unmounting withdraws exactly that claim.
+ * story is selected: mounting claims the full Riders experience (network, S-/U-Bahn vehicles, timeline, controls) as one consumer, and unmounting withdraws exactly that claim.
  */
 const { t } = useI18n();
 const riders = useHamburgRidersStore();
@@ -91,11 +90,39 @@ const serviceNote = computed(() => (
         : t("hamburgRiders.story.serviceNote", { date: riders.dataset.meta.dateLabel })
 ));
 
+/** The open left sidebar covers the map; its width becomes map padding so the overview centres on the visible part. */
+function leftInset(): number {
+    const canvas = mapStore.map?.getCanvas().getBoundingClientRect();
+    if (canvas === undefined) return 0;
+    let left = 0;
+    document.querySelectorAll<HTMLElement>("section[data-position='left']").forEach((section) => {
+        const rect = section.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) left = Math.max(left, rect.right - canvas.left);
+    });
+    return Math.max(0, Math.round(left));
+}
+
+let paddedMap: typeof mapStore.map;
+
+function releasePadding(): void {
+    try {
+        paddedMap?.setPadding({ left: 0, right: 0, top: 0, bottom: 0 });
+    } catch {
+        // the map may already be gone
+    }
+    paddedMap = undefined;
+}
+
 function flyToOverview(): void {
+    const map = mapStore.map;
+    if (map === undefined || map === null) return;
     const reduced = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const target = { center: RIDERS_CAMERA.center, zoom: RIDERS_CAMERA.zoom, bearing: 0, pitch: 0 };
-    if (reduced) mapStore.map?.jumpTo(target);
-    else mapStore.map?.flyTo({ ...target, duration: 1500 });
+    const padding = { left: leftInset(), right: 0, top: 0, bottom: 0 };
+    map.setPadding(padding);
+    paddedMap = map;
+    const target = { center: RIDERS_CAMERA.center, zoom: RIDERS_CAMERA.zoom, bearing: 0, pitch: 0, padding };
+    if (reduced) map.jumpTo(target);
+    else map.flyTo({ ...target, duration: 1500 });
 }
 
 const running = computed(() => riders.consumers.includes(HAMBURG_RIDERS_STORY_CONSUMER));
@@ -114,11 +141,23 @@ function start(): void {
     flyToOverview();
 }
 
-function stop(): void {
-    deactivateHamburgRiders(HAMBURG_RIDERS_STORY_CONSUMER);
+const isPlaying = computed(() => running.value && riders.playing);
+
+// Nothing is loaded until the first Play, like "Start story" elsewhere; afterwards it pauses and resumes.
+function togglePlay(): void {
+    if (!running.value) {
+        start();
+        riders.setPlaying(true);
+        return;
+    }
+    riders.setPlaying(!riders.playing);
 }
 
-// Opening the story starts it; the button starts it again after Stop. Leaving the story always stops it.
-onMounted(start);
+function stop(): void {
+    deactivateHamburgRiders(HAMBURG_RIDERS_STORY_CONSUMER);
+    releasePadding();
+}
+
+// Opening the story loads nothing; Play loads it. Leaving the story withdraws whatever it claimed.
 onBeforeUnmount(stop);
 </script>

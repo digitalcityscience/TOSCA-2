@@ -87,7 +87,6 @@ export function standaloneClaim(): RidersClaim {
         vehicleModes: ["s-bahn", "u-bahn"],
         vehicleGroups: [],
         timeline: true,
-        basemap: "dark",
         controls: true,
     };
 }

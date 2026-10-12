@@ -4,7 +4,7 @@ import { resetUrbanStoryProbes } from "@helpers/urbanStoryLayers";
 import { createFakeCatalog, fakeRegistryMap, wireMapStore, type FakeCatalog } from "../components/UrbanStories/__fixtures__/catalogHarness";
 import { fakeSceneEngine } from "../components/UrbanStories/__fixtures__/runHarness";
 import { isHeavyLayer } from "../config/urbanStories/layers";
-import { getStoryConfig, URBAN_STORIES, type UrbanStoryConfig } from "../config/urbanStories";
+import { frontendStylingFor, getStoryConfig, URBAN_STORIES, type UrbanStoryConfig } from "../config/urbanStories";
 import { useGeostorySceneStore } from "./geostoryScenes";
 import { useUrbanStoriesStore } from "./urbanStories";
 
@@ -56,7 +56,8 @@ const STORIES = URBAN_STORIES.filter((story) => story.chapters.length > 0).map((
 describe.each(STORIES)("%s: authored chapters", (_key, story) => {
     test("authored chapters have en/de title and narrative, a camera and valid show references", () => {
         expect(story.geostory.id).toBeNull();
-        expect(story.chapters).toHaveLength(5);
+        // Public Transport Equity and the 15-Minute City are connected stories in six scenes; the others have five chapters.
+        expect(story.chapters).toHaveLength(["transit-equity", "fifteen-minute"].includes(story.key) ? 6 : 5);
         for (const chapter of story.chapters) {
             for (const text of [chapter.title, chapter.narrative!]) {
                 expect(text.en.length, chapter.chapterKey).toBeGreaterThan(10);
@@ -78,7 +79,8 @@ describe.each(STORIES)("%s: authored chapters", (_key, story) => {
                     const metric = entry!.metrics.find((option) => option.key === shown.metricKey);
                     if (entry!.styleSource === "frontend") {
                         // Frontend-owned styling: a local style name and no catalog verification.
-                        expect(metric?.styleName, `${chapter.chapterKey}/${shown.metricKey}`).toMatch(["walkability-safety", "building-walking"].includes(story.key) ? /^frontend:walkability:/ : /^frontend:15min:/);
+                        const prefix = ["walkability-safety", "building-walking"].includes(story.key) ? /^frontend:walkability:/ : story.key === "transit-equity" ? /^frontend:equity:/ : /^frontend:15min:/;
+                        expect(metric?.styleName, `${chapter.chapterKey}/${shown.metricKey}`).toMatch(prefix);
                         expect(metric?.styleVerifiedOn).toBeUndefined();
                     } else {
                         expect(metric?.styleName, `${chapter.chapterKey}/${shown.metricKey}`).toMatch(/^urbanstories-/);
@@ -93,9 +95,14 @@ describe.each(STORIES)("%s: authored chapters", (_key, story) => {
         for (const chapter of story.chapters) {
             for (const shown of chapter.show!) {
                 const entry = story.explore.find((candidate) => candidate.key === shown.entryKey)!;
-                if (isHeavyLayer(entry.layer)) {
-                    expect(chapter.camera!.zoom, `${chapter.chapterKey}/${entry.key}`).toBeGreaterThanOrEqual(entry.minZoom!);
-                }
+                if (!isHeavyLayer(entry.layer)) continue;
+                if (chapter.camera!.zoom >= entry.minZoom!) continue;
+                // A frontend-styled layer may be staged below its floor (it adapts to zoom) only when every one of its own
+                // style layers carries that floor, so no tile is requested early.
+                expect(entry.styleSource, `${chapter.chapterKey}/${entry.key}`).toBe("frontend");
+                const layers = frontendStylingFor(entry)!.styles.flatMap((style) => style.layers);
+                expect(layers.length).toBeGreaterThan(0);
+                for (const layer of layers) expect(layer.minzoom, `${chapter.chapterKey}/${entry.key}/${layer.id}`).toBeGreaterThanOrEqual(entry.minZoom!);
             }
         }
     });

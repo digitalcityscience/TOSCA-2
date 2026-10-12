@@ -682,61 +682,6 @@
       "relatedTitle": "Zu diesem Kapitel: {chapter}",
       "othersTitle": "Weitere Ebenen dieser Geschichte",
       "inChapter": "In diesem Kapitel"
-    },
-    "fifteenMinute": {
-      "controlsTitle": "Kartensteuerung",
-      "category": {
-        "label": "Alltagsbedarf",
-        "overall": "Alle neun (Gesamtanzahl)",
-        "help": "Wählen Sie eine Kategorie, um Gebäude danach einzufärben, ob sie in 15 Minuten erreichbar ist.",
-        "unavailable": "In den Kacheldaten nicht veröffentlicht"
-      },
-      "gap": {
-        "title": "Erreichbarkeitslücken",
-        "enable": "Nur Gebäude mit wenigen Kategorien zeigen",
-        "threshold": "Höchstens so viele von 9 Kategorien",
-        "thresholdOption": "{count} von 9",
-        "missingOnly": "Nur Gebäude ohne Zugang zur gewählten Kategorie",
-        "missingNeedsCategory": "Wählen Sie eine Kategorie, um diesen Filter zu nutzen.",
-        "help": "Der Startwert ist ein veranschaulichender Wert, den Sie ändern können. Er ist kein Standard, und kein Gebiet wird bewertet."
-      },
-      "selection": {
-        "title": "Ausgewähltes Gebäude",
-        "hint": "Klicken Sie ein Gebäude auf der Karte an, um es auszuwählen.",
-        "clear": "Auswahl aufheben",
-        "id": "Gebäude",
-        "idMissing": "In den Kacheldaten ist keine Gebäudekennung veröffentlicht.",
-        "score": "In 15 Min. erreichte Kategorien",
-        "noScore": "Kein Score (nicht berechenbar)",
-        "decay": "Distanzgewichteter Score (0–100)",
-        "confidence": "Verlässlichkeit des Scores",
-        "accessible": "Erreichbar",
-        "inaccessible": "Nicht erreichbar",
-        "unknown": "Unbekannt",
-        "places": "{count} innerhalb von 15 Min.",
-        "walk": "{minutes} Min. Fußweg zum nächsten",
-        "categories": "Die neun Kategorien",
-        "tilesNote": "Die Werte stammen aus den Kacheln der Karte; eine Kategorie, die in den Kacheln fehlt, gilt als unbekannt."
-      },
-      "admin": {
-        "title": "Kontext der Stadtteile",
-        "level": "Gebietsebene",
-        "stadtteile": "Stadtteile",
-        "bezirke": "Bezirke",
-        "metric": "Aggregat",
-        "explain": "Gebäudewerte sind Anzahlen (0–9). Gebietswerte fassen die Wohngebäude jedes Gebiets zusammen; das distanzgewichtete 0–100-Mittel ist ein anderes Maß und nicht das Mittel der 0–9-Anzahl.",
-        "zoomHint": "Zoomen Sie über Stufe 12, um zu einzelnen Gebäuden zurückzukehren."
-      },
-      "legend": {
-        "title": "Legende",
-        "noData": "Keine Daten",
-        "buildingNote": "Gebäude erscheinen ab Zoomstufe 8 und werden ab Zoomstufe 12 dreidimensional."
-      },
-      "unavailable": {
-        "title": "Gebäudekacheln sind nicht verfügbar",
-        "description": "GeoServer liefert die Vektorkacheln der Gebäude derzeit nicht (HTTP 400). Die 15-Minuten-Stadt braucht Gebäudedaten, daher wird keine andere Ebene stattdessen gezeigt. Die lokale Darstellung ist bereit und greift, sobald die Kacheln laden."
-      },
-      "notOnMap": "Die Gebäudeebene ist noch nicht auf der Karte."
     }
   },
   "hamburgRiders": {

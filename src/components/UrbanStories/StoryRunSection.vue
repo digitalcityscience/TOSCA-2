@@ -97,7 +97,8 @@
                 </UButton>
             </div>
 
-            <FifteenMinuteControls v-if="showFifteenMinuteControls" />
+            <FifteenMinutePanel v-if="showFifteenMinutePanel" />
+            <TransitEquityPanel v-if="showTransitEquityPanel" />
             <ul v-if="['walkability-safety', 'building-walking'].includes(props.story.key) && urbanStories.runMode === 'chapters'" class="grid gap-3" data-testid="walkability-controls">
                 <ExploreLayerEntry
                     v-for="entry in walkEntries"
@@ -155,7 +156,8 @@ import GeoStorySceneProgress from "@components/Geostories/GeoStorySceneProgress.
 import { useGeostorySceneStore } from "@store/geostoryScenes";
 import { useUrbanStoriesStore } from "@store/urbanStories";
 import { localize, type UrbanStoryConfig } from "../../config/urbanStories";
-import FifteenMinuteControls from "./FifteenMinuteControls.vue";
+import FifteenMinutePanel from "./FifteenMinutePanel.vue";
+import TransitEquityPanel from "./TransitEquityPanel.vue";
 import StoryChapter from "./StoryChapter.vue";
 import ExploreLayerEntry from "./ExploreLayerEntry.vue";
 
@@ -183,10 +185,10 @@ const chapterCaption = computed(() => {
     if (urbanStories.runMode === "chapters") return chapter?.narrative === undefined ? "" : localize(chapter.narrative, locale.value);
     return sceneStore.activeScene?.caption.trim() ?? "";
 });
-/** Chapters with an `interaction` get the map controls of their story (today: 15-Minute City). */
-const showFifteenMinuteControls = computed(() => (
-    props.story.key === "fifteen-minute" && urbanStories.activeChapter?.interaction !== undefined
-));
+/** The 15-Minute City renders its scene panel (data, examples, controls, legend) under the chapter text. */
+const showFifteenMinutePanel = computed(() => props.story.key === "fifteen-minute" && urbanStories.activeChapter !== undefined);
+/** Public Transport Equity renders its scene panel (data, selection, controls, legend) under the chapter text. */
+const showTransitEquityPanel = computed(() => props.story.key === "transit-equity" && urbanStories.activeChapter !== undefined);
 const relatedCount = computed(() => urbanStories.prioritisedEntries(props.story).related.length);
 
 async function start(): Promise<void> {

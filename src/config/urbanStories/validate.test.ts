@@ -46,25 +46,14 @@ describe("urban story configs", () => {
         expect(keys).toEqual([
             {
                 story: "fifteen-minute",
-                explore: [
-                    "buildings-15min", "stadtteile-15min", "bezirke-15min",
-                    "poi-food", "poi-health", "poi-education", "poi-restaurant", "poi-culture",
-                    "poi-bank-post", "poi-sport", "poi-park", "poi-pt-stops",
-                ],
+                explore: ["buildings-15min", "stadtteile-15min"],
                 chapters: {
-                    "building-accessibility": ["buildings-15min"],
-                    "everyday-needs": [
-                        "buildings-15min",
-                        "poi-food", "poi-health", "poi-education", "poi-restaurant", "poi-culture",
-                        "poi-bank-post", "poi-sport", "poi-park", "poi-pt-stops",
-                    ],
-                    "inspect-building": ["buildings-15min"],
-                    "buildings-to-neighbourhoods": ["stadtteile-15min", "bezirke-15min", "buildings-15min"],
-                    "where-needs-are-missing": [
-                        "buildings-15min",
-                        "poi-food", "poi-health", "poi-education", "poi-restaurant", "poi-culture",
-                        "poi-bank-post", "poi-sport", "poi-park", "poi-pt-stops",
-                    ],
+                    "passes-the-test": ["stadtteile-15min", "buildings-15min"],
+                    "same-score-different-neighbourhood": ["stadtteile-15min", "buildings-15min"],
+                    "the-weakest-link": ["stadtteile-15min", "buildings-15min"],
+                    "accessible-but-comfortable": ["stadtteile-15min", "buildings-15min"],
+                    "accessible-but-safe": ["stadtteile-15min", "buildings-15min"],
+                    "explore-beyond-the-score": ["stadtteile-15min", "buildings-15min"],
                 },
             },
             {
@@ -93,13 +82,14 @@ describe("urban story configs", () => {
             },
             {
                 story: "transit-equity",
-                explore: ["buildings-pt", "pt-stops", "stadtteile-pt", "units-pt", "bezirke-pt"],
+                explore: ["buildings-pt", "stadtteile-pt", "units-pt"],
                 chapters: {
-                    "pt-overview": ["bezirke-pt", "stadtteile-pt", "units-pt"],
-                    "coverage-differences": ["units-pt", "stadtteile-pt", "buildings-pt"],
-                    "access-to-stops": ["pt-stops", "units-pt", "buildings-pt"],
-                    "potential-underserved": ["units-pt", "stadtteile-pt", "buildings-pt"],
-                    "pt-interpretation": ["units-pt", "stadtteile-pt", "bezirke-pt"],
+                    "who-is-covered": ["stadtteile-pt", "buildings-pt", "units-pt"],
+                    "where-are-the-gaps": ["stadtteile-pt", "buildings-pt", "units-pt"],
+                    "stop-is-not-service": ["stadtteile-pt", "buildings-pt", "units-pt"],
+                    "coverage-vs-walking": ["stadtteile-pt", "buildings-pt", "units-pt"],
+                    "averages-hide-differences": ["stadtteile-pt", "buildings-pt", "units-pt"],
+                    "explore-the-gaps": ["stadtteile-pt", "buildings-pt", "units-pt"],
                 },
             },
             {
@@ -133,7 +123,6 @@ describe("urban story configs", () => {
             .filter((option) => option.styleName !== null)
             .map((option) => `${story}/${item.key}/${option.attribute}=${option.styleName}@${option.styleVerifiedOn}`));
         expect(styled).toEqual([
-            "transit-equity/units-pt/pt_in_catchment_share=urbanstories-public-transport-equity@2026-10-11",
             "green-spaces/stadtteile-green-access/grn_mean=urbanstories-green-access@2026-10-11",
         ]);
     });
@@ -211,26 +200,25 @@ describe("story config validation", () => {
 
     test("rejects review flag metrics on Bezirke", () => {
         const stories = cloneStories();
-        const bezirke = entry(stories, "transit-equity", "bezirke-pt");
-        const flag = structuredClone(entry(stories, "transit-equity", "stadtteile-pt").metrics
-            .find((option) => option.attribute === "ptr_coverage_gap_flag")!);
+        const bezirke = entry(stories, "green-spaces", "bezirke-green-access");
+        const flag = { ...structuredClone(bezirke.metrics[0]), key: "ptr_coverage_gap_flag", attribute: "ptr_coverage_gap_flag" };
         bezirke.metrics.push(flag);
         bezirke.requiredAttributes.push(flag.attribute);
 
         expect(findStoryConfigErrors(stories)).toEqual([
-            "transit-equity/bezirke-pt: Bezirke have no review column \"ptr_coverage_gap_flag\"",
+            "green-spaces/bezirke-green-access: Bezirke have no review column \"ptr_coverage_gap_flag\"",
         ]);
     });
 
     test("rejects any rendering other than vector tiles and a missing mvt status", () => {
         const stories = cloneStories();
-        const target = entry(stories, "fifteen-minute", "poi-food") as unknown as Record<string, unknown>;
+        const target = entry(stories, "fifteen-minute", "stadtteile-15min") as unknown as Record<string, unknown>;
         target.rendering = "wms";
         delete target.mvt;
 
         expect(findStoryConfigErrors(stories)).toEqual([
-            "fifteen-minute/poi-food: rendering must be \"vector-tiles\", got \"wms\"",
-            "fifteen-minute/poi-food: missing or invalid mvt status",
+            "fifteen-minute/stadtteile-15min: rendering must be \"vector-tiles\", got \"wms\"",
+            "fifteen-minute/stadtteile-15min: missing or invalid mvt status",
         ]);
     });
 
@@ -313,21 +301,23 @@ describe("caveat rules", () => {
 
     test("label the building count and the two area aggregates as distinct measures", () => {
         const buildings = entry([...URBAN_STORIES], "fifteen-minute", "buildings-15min");
-        expect(buildings.metrics.find((option) => option.key === "score_15min")?.label.en).toBe("Categories reached (0–9)");
+        // The overall score is the time-weighted 0–100 score (`score_15min_decay`), never the 0–9 category count.
+        expect(buildings.metrics.find((option) => option.key === "access")?.attribute).toBe("score_15min_decay");
         const areas = entry([...URBAN_STORIES], "fifteen-minute", "stadtteile-15min");
-        expect(areas.metrics.find((option) => option.key === "m15_categories_mean")?.label.en).toBe("Mean categories reached");
-        expect(areas.metrics.find((option) => option.key === "m15_decay_mean")?.label.en).toBe("Mean decay-weighted score");
+        expect(areas.metrics.find((option) => option.key === "access")?.attribute).toBe("m15_decay_mean");
+        expect(areas.metrics.find((option) => option.key === "comfort")?.attribute).toBe("cmf_mean");
+        expect(areas.metrics.find((option) => option.key === "safety")?.attribute).toBe("saf_mean");
+        expect(areas.metrics.find((option) => option.key === "green")?.attribute).toBe("grn_mean");
     });
 
-    test("15-Minute City opens on HafenCity in every chapter and in its overview", () => {
+    test("15-Minute City flies to Hamburg places in every chapter and in its overview", () => {
         const story = getStoryConfig("fifteen-minute")!;
         for (const camera of [story.overviewCamera, ...story.chapters.map((chapter) => chapter.camera!)]) {
-            expect(camera.center[0]).toBeGreaterThan(9.98);
-            expect(camera.center[0]).toBeLessThan(10.01);
-            expect(camera.center[1]).toBeGreaterThan(53.535);
-            expect(camera.center[1]).toBeLessThan(53.548);
+            expect(camera.center[0]).toBeGreaterThan(9.7);
+            expect(camera.center[0]).toBeLessThan(10.3);
+            expect(camera.center[1]).toBeGreaterThan(53.4);
+            expect(camera.center[1]).toBeLessThan(53.75);
         }
-        expect(getStoryConfig("green-spaces")!.overviewCamera.center).not.toEqual(story.overviewCamera.center);
     });
 
     test("15-Minute City is frontend-styled: local style names only, no catalog verification", () => {
@@ -351,13 +341,12 @@ describe("caveat rules", () => {
         expect(adminMetrics.filter((option) => !has(option.caveats, CAVEATS.adminAggregate))).toEqual([]);
     });
 
-    test("legacy PT metrics on Stadtteile and units carry the legacy caveat, Bezirke do not", () => {
+    test("the legacy-assignment PT shares on Stadtteile and units carry the legacy caveat", () => {
         for (const key of ["stadtteile-pt", "units-pt"]) {
             const ptMetrics = entry([...URBAN_STORIES], "transit-equity", key).metrics;
+            expect(ptMetrics.length).toBeGreaterThan(0);
             expect(ptMetrics.filter((option) => !has(option.caveats, CAVEATS.legacyPtAssignment))).toEqual([]);
         }
-        const bezirke = entry([...URBAN_STORIES], "transit-equity", "bezirke-pt").metrics;
-        expect(bezirke.some((option) => has(option.caveats, CAVEATS.legacyPtAssignment))).toBe(false);
     });
 
     test("departure sums are marked as a lower bound", () => {

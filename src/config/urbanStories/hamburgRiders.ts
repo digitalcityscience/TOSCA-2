@@ -15,7 +15,7 @@ export const hamburgRidersStory: UrbanStoryConfig = {
     intro: {
         en: "Hamburg's public transport as a scheduled-service animation on a dark map: S-Bahn, U-Bahn, regional trains and "
             + "buses are drawn as a glowing network of stops, with vehicles moving along their timetables. Use the panel on "
-            + "the right to choose lines and the timeline at the bottom to play, pause or jump to a time of day.",
+            + "the right to choose lines and the timeline at the bottom to start, pause or jump to a time of day.",
         de: "Der Hamburger Nahverkehr als Fahrplan-Animation auf einer dunklen Karte: S-Bahn, U-Bahn, Regionalzüge und Busse "
             + "erscheinen als leuchtendes Netz aus Haltestellen, die Fahrzeuge bewegen sich nach Fahrplan. Wählen Sie im "
             + "Panel rechts Linien aus und steuern Sie unten mit der Zeitleiste Wiedergabe, Pause und Tageszeit.",

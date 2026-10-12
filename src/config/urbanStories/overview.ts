@@ -36,9 +36,3 @@ export const CHAPTER_CAMERAS = {
     STREETS: atZoom(15.5),
     STREETS_CLOSE: atZoom(16.5),
 } as const satisfies Record<string, OverviewCamera>;
-
-/**
- * HafenCity Hamburg (Elbphilharmonie 9.984, 53.541; Überseequartier 9.997, 53.541): the opening place of the
- * 15-Minute City story, a place the user named. Only this story uses it; the other stories keep the TOSCA start view.
- */
-export const HAFENCITY_CENTER: [number, number] = [9.9937, 53.541];

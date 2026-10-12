@@ -682,61 +682,6 @@
       "relatedTitle": "Bu bölümle ilgili: {chapter}",
       "othersTitle": "Bu hikâyedeki diğer katmanlar",
       "inChapter": "Bu bölümde"
-    },
-    "fifteenMinute": {
-      "controlsTitle": "Harita kontrolleri",
-      "category": {
-        "label": "Günlük ihtiyaç",
-        "overall": "Dokuzu birden (toplam sayı)",
-        "help": "Binaları, seçilen kategoriye 15 dakikada ulaşılıp ulaşılamamasına göre renklendirmek için bir kategori seçin.",
-        "unavailable": "Karo verisinde yayımlanmıyor"
-      },
-      "gap": {
-        "title": "Erişilebilirlik boşlukları",
-        "enable": "Yalnızca az kategoriye erişen binaları göster",
-        "threshold": "En fazla bu kadar kategori (9 üzerinden)",
-        "thresholdOption": "9 kategoriden {count}",
-        "missingOnly": "Yalnızca seçilen kategoriye erişimi olmayan binalar",
-        "missingNeedsCategory": "Bu filtreyi kullanmak için bir kategori seçin.",
-        "help": "Başlangıç eşiği değiştirebileceğiniz örnek bir değerdir. Bir standart değildir ve hiçbir bölge sıralanmaz."
-      },
-      "selection": {
-        "title": "Seçilen bina",
-        "hint": "Seçmek için haritada bir binaya tıklayın.",
-        "clear": "Seçimi kaldır",
-        "id": "Bina",
-        "idMissing": "Karo verisinde bina kimliği yayımlanmıyor.",
-        "score": "15 dakikada ulaşılan kategoriler",
-        "noScore": "Skor yok (hesaplanamıyor)",
-        "decay": "Mesafe ağırlıklı skor (0–100)",
-        "confidence": "Skor güvenilirliği",
-        "accessible": "Ulaşılabilir",
-        "inaccessible": "Ulaşılamaz",
-        "unknown": "Bilinmiyor",
-        "places": "15 dk içinde {count}",
-        "walk": "En yakına {minutes} dk yürüyüş",
-        "categories": "Dokuz kategori",
-        "tilesNote": "Değerler harita karolarındandır; karolarda bulunmayan kategori bilinmiyor olarak gösterilir."
-      },
-      "admin": {
-        "title": "Mahalle bağlamı",
-        "level": "Bölge düzeyi",
-        "stadtteile": "Mahalleler (Stadtteile)",
-        "bezirke": "İlçeler (Bezirke)",
-        "metric": "Toplulaştırma",
-        "explain": "Bina değerleri sayıdır (0–9). Bölge değerleri her bölgedeki konut binalarını özetler; 0–100 mesafe ağırlıklı ortalama farklı bir ölçüdür ve 0–9 sayısının ortalaması değildir.",
-        "zoomHint": "Tek tek binalara dönmek için 12. seviyenin üzerine yakınlaştırın."
-      },
-      "legend": {
-        "title": "Gösterge",
-        "noData": "Veri yok",
-        "buildingNote": "Binalar 8. yakınlaştırma seviyesinden itibaren görünür, 12'den itibaren 3 boyutlu olur."
-      },
-      "unavailable": {
-        "title": "Bina karoları kullanılamıyor",
-        "description": "GeoServer şu anda bina vektör karolarını sunmuyor (HTTP 400). 15 Dakikalık Şehir bina düzeyinde veri gerektirir; bu nedenle yerine başka bir katman gösterilmez. Yerel stil hazırdır ve karolar yüklenir yüklenmez uygulanır."
-      },
-      "notOnMap": "Bina katmanı henüz haritada değil."
     }
   },
   "hamburgRiders": {

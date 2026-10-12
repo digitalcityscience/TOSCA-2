@@ -205,21 +205,25 @@ describe.each(CATALOG_STORIES.map((story) => [story.key, story] as [string, Urba
 });
 
 describe("four stories together", () => {
-    test("a catalog layer shared by several stories is added once and recognised from every story", async () => {
+    test("a catalog-styled layer is added once and recognised again; frontend-styled stories never share it", async () => {
         const { urban } = setup();
-        const first = await urban.addEntry("transit-equity", "buildings-pt");
+        const first = await urban.addEntry("green-spaces", "buildings-park-access");
         expect(first.status).toBe("added");
         const runtimeId = (first as { runtimeId: string }).runtimeId;
 
-        for (const [storyKey, entryKey] of [["transit-equity", "buildings-pt"], ["green-spaces", "buildings-park-access"]] as const) {
-            expect(await urban.addEntry(storyKey, entryKey), `${storyKey}/${entryKey}`).toEqual({ status: "exists", runtimeId });
-        }
+        expect(await urban.addEntry("green-spaces", "buildings-park-access")).toEqual({ status: "exists", runtimeId });
         expect(urban.trackedLayers).toHaveLength(1);
+
+        // Public Transport Equity owns the styling of the same building layer, so it gets a layer of its own.
+        const equity = await urban.addEntry("transit-equity", "buildings-pt");
+        expect(equity.status).toBe("added");
+        expect((equity as { runtimeId: string }).runtimeId).not.toBe(runtimeId);
+        expect(urban.trackedLayers).toHaveLength(2);
     });
 
     test("the 15-Minute City building layer is its own, frontend-styled layer and never shares or replaces a catalog-styled one", async () => {
         const { urban, mapStore } = setup();
-        const catalogStyled = await urban.addEntry("transit-equity", "buildings-pt");
+        const catalogStyled = await urban.addEntry("green-spaces", "buildings-park-access");
         const frontendStyled = await urban.addEntry("fifteen-minute", "buildings-15min");
         expect(catalogStyled.status).toBe("added");
         expect(frontendStyled.status).toBe("added");
@@ -228,7 +232,7 @@ describe("four stories together", () => {
         expect(styleNames(record(mapStore, ids[0]))).not.toContain("frontend:15min:building:overall");
         expect(styleNames(record(mapStore, ids[1])).every((name) => name.startsWith("frontend:15min:"))).toBe(true);
         // Each story finds only its own kind again.
-        expect(await urban.addEntry("transit-equity", "buildings-pt")).toEqual({ status: "exists", runtimeId: ids[0] });
+        expect(await urban.addEntry("green-spaces", "buildings-park-access")).toEqual({ status: "exists", runtimeId: ids[0] });
         expect(await urban.addEntry("fifteen-minute", "buildings-15min")).toEqual({ status: "exists", runtimeId: ids[1] });
     });
 
@@ -247,7 +251,6 @@ describe("four stories together", () => {
         }
         expect([...names.entries()].sort()).toEqual([
             ["hamburg_stadtteile/grn_mean", "urbanstories-green-access"],
-            ["hamburg_statistical_units/pt_in_catchment_share", "urbanstories-public-transport-equity"],
         ]);
         // The two styles that do not show a configured metric are never offered.
         const offered = new Set((urban.trackedLayers).flatMap((tracked) => styleNames(tracked.record)));
@@ -257,11 +260,11 @@ describe("four stories together", () => {
 
     test("assigning the styles as alternates later changes nothing for the panel", async () => {
         const { urban, mapStore } = setup({ assignAlternates: true });
-        const added = await urban.addEntry("transit-equity", "units-pt");
+        const added = await urban.addEntry("green-spaces", "stadtteile-green-access");
         const layer = record(mapStore, (added as { runtimeId: string }).runtimeId);
-        expect(styleNames(layer).filter((name) => name === "urbanstories-public-transport-equity")).toHaveLength(1);
-        expect(await urban.applyMetric("transit-equity", "units-pt", "pt_in_catchment_share")).toMatchObject({ status: "applied" });
-        expect(activeStyleName(layer)).toBe("urbanstories-public-transport-equity");
+        expect(styleNames(layer).filter((name) => name === "urbanstories-green-access")).toHaveLength(1);
+        expect(await urban.applyMetric("green-spaces", "stadtteile-green-access", "grn_mean")).toMatchObject({ status: "applied" });
+        expect(activeStyleName(layer)).toBe("urbanstories-green-access");
     });
 });
 
@@ -272,34 +275,34 @@ describe("style integration: refusals keep the metric pending with an exact reas
 
     test("a style document that targets another layer is refused", async () => {
         const wrong = {
-            metadata: { "tosca:metric": "pt_in_catchment_share" },
+            metadata: { "tosca:metric": "grn_mean" },
             layers: [{ id: "x", type: "fill", source: "hamburg_bezirke", "source-layer": "hamburg_bezirke", paint: {} }],
         };
-        const { urban } = setup({ documents: { "urbanstories-public-transport-equity": wrong } });
-        const result = await urban.loadReadiness("transit-equity", entry("transit-equity", "units-pt"));
-        expect(result.metrics.pt_in_catchment_share).toMatchObject({ readiness: "metric-style-pending", reason: "style-not-applicable" });
+        const { urban } = setup({ documents: { "urbanstories-green-access": wrong } });
+        const result = await urban.loadReadiness("green-spaces", entry("green-spaces", "stadtteile-green-access"));
+        expect(result.metrics.grn_mean).toMatchObject({ readiness: "metric-style-pending", reason: "style-not-applicable" });
         expect(result.readiness).toBe("available");
     });
 
     test("a style that declares another metric is refused", async () => {
         const wrong = {
             metadata: { "tosca:metric": "safety_index" },
-            layers: [{ id: "x", type: "fill", source: "hamburg_statistical_units", "source-layer": "hamburg_statistical_units", paint: {} }],
+            layers: [{ id: "x", type: "fill", source: "hamburg_stadtteile", "source-layer": "hamburg_stadtteile", paint: {} }],
         };
-        const { urban } = setup({ documents: { "urbanstories-public-transport-equity": wrong } });
-        const result = await urban.loadReadiness("transit-equity", entry("transit-equity", "units-pt"));
-        expect(result.metrics.pt_in_catchment_share).toMatchObject({ readiness: "metric-style-pending", reason: "style-not-applicable" });
+        const { urban } = setup({ documents: { "urbanstories-green-access": wrong } });
+        const result = await urban.loadReadiness("green-spaces", entry("green-spaces", "stadtteile-green-access"));
+        expect(result.metrics.grn_mean).toMatchObject({ readiness: "metric-style-pending", reason: "style-not-applicable" });
     });
 
     test("a style request that fails leaves the layer addable with its default style", async () => {
-        const { urban, mapStore } = setup({ failingStyles: { "urbanstories-public-transport-equity": new Error("Catalog style request failed (500)") } });
-        const result = await urban.loadReadiness("transit-equity", entry("transit-equity", "units-pt"));
+        const { urban, mapStore } = setup({ failingStyles: { "urbanstories-green-access": new Error("Catalog style request failed (500)") } });
+        const result = await urban.loadReadiness("green-spaces", entry("green-spaces", "stadtteile-green-access"));
         expect(result.readiness).toBe("available");
-        expect(result.metrics.pt_in_catchment_share.readiness).toBe("metric-style-pending");
+        expect(result.metrics.grn_mean.readiness).toBe("metric-style-pending");
 
-        const added = await urban.addEntry("transit-equity", "units-pt", "pt_in_catchment_share");
+        const added = await urban.addEntry("green-spaces", "stadtteile-green-access", "grn_mean");
         expect(added.status).toBe("added");
-        expect(activeStyleName(record(mapStore, (added as { runtimeId: string }).runtimeId))).toBe("default-hamburg_statistical_units");
+        expect(activeStyleName(record(mapStore, (added as { runtimeId: string }).runtimeId))).toBe("default-hamburg_stadtteile");
     });
 
     test("an unpublished layer is reported as temporarily unavailable and is never added", async () => {
@@ -312,9 +315,9 @@ describe("style integration: refusals keep the metric pending with an exact reas
 
     test("a metric picked before the layer exists is applied by the add", async () => {
         const { urban, mapStore } = setup();
-        const added = await urban.applyMetric("transit-equity", "units-pt", "pt_in_catchment_share");
+        const added = await urban.applyMetric("green-spaces", "stadtteile-green-access", "grn_mean");
         expect(added.status).toBe("applied");
-        expect(activeStyleName(record(mapStore, (added as { runtimeId: string }).runtimeId))).toBe("urbanstories-public-transport-equity");
+        expect(activeStyleName(record(mapStore, (added as { runtimeId: string }).runtimeId))).toBe("urbanstories-green-access");
     });
 });
 
@@ -355,7 +358,7 @@ describe("focus mode restores the exact map state", () => {
         const datastores = addExploreLayer(map, "datastores:layer");
         const readerStory = storyDetail(2, { id: "reader-story" });
         urban.selectStory("transit-equity");
-        const explore = (await urban.addEntry("transit-equity", "pt-stops")) as { runtimeId: string };
+        const explore = (await urban.addEntry("transit-equity", "units-pt")) as { runtimeId: string };
         urban.setFocusEnabled(true);
 
         await urban.startStory("transit-equity");

@@ -1,67 +1,79 @@
 import { defineStore } from "pinia";
+import { Popup, type MapMouseEvent } from "maplibre-gl";
 import { computed, ref, shallowRef, watch } from "vue";
+import { sceneCameraMove } from "@helpers/geostoryScenes";
+import {
+    fetchBuilding,
+    fetchStadtteilGeometry,
+    fetchStadtteilRows,
+    summariseStadtteile,
+    type StadtteilRow,
+} from "@helpers/fifteenMinuteData";
+import { FifteenMinuteOverlays, type AreaOutline } from "@helpers/fifteenMinuteOverlays";
 import { logOnce } from "@helpers/urbanStoryLayers";
+import { i18n } from "../core/i18n";
 import { useMapStore, type LayerObjectWithAttributes } from "./map";
 import { useUrbanStoriesStore } from "./urbanStories";
-import { frontendStylingFor, getStoryConfig, type ChapterInteraction, type ExploreEntry } from "../config/urbanStories";
+import { frontendStylingFor, getStoryConfig, type ExploreEntry, type OverviewCamera } from "../config/urbanStories";
+import { FIFTEEN_MINUTE_STORY_KEY } from "../config/urbanStories/fifteenMinute";
 import {
+    LANGENBEK,
+    SCENE_EXAMPLES,
+    WILHELMSBURG,
+    type SceneExample,
+    type VerifiedArea,
+    type VerifiedBuilding,
+} from "../config/urbanStories/fifteenMinuteLocations";
+import {
+    ENTRY_BUILDINGS,
+    ENTRY_STADTTEILE,
+    adminField,
     buildBuildingProfile,
-    BUILDING_HEIGHT_FIELD,
-    BUILDING_SCORE_FIELD,
-    buildingStyleOptionId,
-    CATEGORY_FIELDS,
-    FIFTEEN_MINUTE_CATEGORY_IDS,
-    NO_GAP_FILTER,
-    type AdministrativeLevel,
-    type AdministrativeMetric,
-    type FifteenMinuteCategoryId,
-    type GapFilterSelection,
+    categoryMeasure,
+    formatMeasureValue,
+    measureInfo,
+    styleNameOf,
+    type BuildingProfile,
+    type CategoryId,
+    type GreenMeasure,
+    type MeasureId,
+    type ThemeId,
 } from "../config/urbanStories/styles/fifteenMinute";
-import { categoryMetricKey } from "../config/urbanStories/fifteenMinute";
 
 /**
- * Interaction state of the 15-Minute City story: category selection, accessibility-gap filter,
- * building selection and the building-to-neighbourhood transition.
+ * Scene state of the 15-Minute City story: which measure the map shows, the selected building or Stadtteil, the data
+ * each scene reads, and the overlays (selection, compared places) next to the catalog layers.
  *
  * @remarks
- * This store owns no layers. It decides what the existing layers should look like and drives them
- * through the Urban Stories store (`addEntry`, `applyMetric`) and the map store
- * (`setStandaloneLayerStyle`, visibility). All thematic styling comes from the local
- * `config/urbanStories/styles/fifteenMinute` module; no GeoServer style is read or applied.
- *
- * Map changes go through one coalescing `sync()`: whatever the user did last wins, and two style
- * swaps of the same layer never overlap, so fast category or chapter switching cannot leave the map
- * and the panel disagreeing.
+ * This store owns no catalog layer. Chapters stage the Stadtteil and building layers through the Urban Stories store;
+ * this store only decides which measure both layers show (a style swap through `setStandaloneLayerStyle`, which keeps
+ * the camera, the selection and the layer state), draws its own `fm-*` overlays and reads attribute data from the
+ * existing WFS. Every number in the panel comes from that data at runtime. Map changes go through one coalescing `sync()`.
  */
 
-export const FIFTEEN_MINUTE_STORY_KEY = "fifteen-minute" as const;
-export const BUILDINGS_ENTRY_KEY = "buildings-15min";
-const ADMIN_ENTRY_KEYS: Record<AdministrativeLevel, string> = {
-    stadtteile: "stadtteile-15min",
-    bezirke: "bezirke-15min",
-};
+export const SCENE_KEYS = [
+    "passes-the-test",
+    "same-score-different-neighbourhood",
+    "the-weakest-link",
+    "accessible-but-comfortable",
+    "accessible-but-safe",
+    "explore-beyond-the-score",
+] as const;
+export type SceneKey = typeof SCENE_KEYS[number];
 
-/** Illustrative starting threshold of the gap filter (chapter 5); users change it. Not a standard. */
-export const DEFAULT_GAP_MAX_SCORE = 3;
+export type ComfortView = "access" | "comfort";
+export type SafetyView = "access" | "safety";
 
-export const SELECTION_SOURCE_ID = "urban-stories-15min-selection";
-export const SELECTION_FILL_LAYER_ID = `${SELECTION_SOURCE_ID}-fill`;
-export const SELECTION_LINE_LAYER_ID = `${SELECTION_SOURCE_ID}-line`;
-const SELECTION_COLOR = "#ff6f00";
-
-const CATEGORY_MODES: readonly ChapterInteraction[] = ["category", "gaps"];
-const SELECTION_MODES: readonly ChapterInteraction[] = ["building", "gaps"];
+/** Scenes in which a click on a Stadtteil selects it (the others keep their two compared places). */
+const AREA_CLICK_SCENES: readonly SceneKey[] = ["passes-the-test", "explore-beyond-the-score"];
+const HOVER_SCENES: readonly SceneKey[] = ["passes-the-test", "explore-beyond-the-score"];
 
 export interface SelectedBuilding {
-    /** The tile feature id when GeoServer encodes one; the building key `gml_id` is not a published attribute. */
-    featureId: string | number | null;
-    properties: Record<string, unknown>;
+    profile: BuildingProfile;
     geometry: GeoJSON.Geometry;
 }
 
-interface ClickEvent {
-    point: unknown;
-}
+type DataStatus = "idle" | "loading" | "ready" | "error";
 
 interface RenderedFeature {
     id?: string | number;
@@ -69,170 +81,236 @@ interface RenderedFeature {
     geometry: GeoJSON.Geometry;
 }
 
+/** The category with the lowest published share in a Stadtteil: the weakest link of its score. */
+export function weakestCategory(row: StadtteilRow | undefined): CategoryId | undefined {
+    if (row === undefined) return undefined;
+    let weakest: CategoryId | undefined;
+    for (const [id, share] of Object.entries(row.shares) as [CategoryId, number | null][]) {
+        if (share === null) continue;
+        if (weakest === undefined || share < (row.shares[weakest] as number)) weakest = id;
+    }
+    return weakest;
+}
+
 export const useFifteenMinuteStore = defineStore("urbanStoriesFifteenMinute", () => {
     const urbanStories = useUrbanStoriesStore();
     const mapStore = useMapStore();
-
-    const category = ref<FifteenMinuteCategoryId | null>(null);
-    const gapEnabled = ref(false);
-    const gapMaxScore = ref(DEFAULT_GAP_MAX_SCORE);
-    const gapMissingCategoryOnly = ref(false);
-    const adminLevel = ref<AdministrativeLevel>("stadtteile");
-    const adminMetric = ref<AdministrativeMetric>("m15_categories_mean");
-    const selection = shallowRef<SelectedBuilding>();
-
-    // --- derived state --------------------------------------------------------------------
+    const localeCode = (): string => String(i18n.global.locale.value ?? i18n.global.locale);
 
     const storyConfig = getStoryConfig(FIFTEEN_MINUTE_STORY_KEY);
-    function entryOf(key: string): ExploreEntry | undefined {
-        return storyConfig?.explore.find((entry) => entry.key === key);
-    }
-    const buildingsEntry = entryOf(BUILDINGS_ENTRY_KEY);
+    const entryOf = (key: string): ExploreEntry | undefined => storyConfig?.explore.find((entry) => entry.key === key);
 
-    /** The interaction of the active chapter; `undefined` unless this story is running. */
-    const mode = computed<ChapterInteraction | undefined>(() => (
-        urbanStories.runState === "running" && urbanStories.runningStoryKey === FIFTEEN_MINUTE_STORY_KEY
-            ? urbanStories.activeChapter?.interaction
-            : undefined
-    ));
+    // --- scene ------------------------------------------------------------------------------
 
-    const buildingsReadiness = computed(() => (
-        buildingsEntry === undefined ? undefined : urbanStories.readinessOf(FIFTEEN_MINUTE_STORY_KEY, buildingsEntry)
-    ));
+    const running = computed(() => urbanStories.runState === "running" && urbanStories.runningStoryKey === FIFTEEN_MINUTE_STORY_KEY);
+    const sceneKey = computed<SceneKey | undefined>(() => {
+        const key = running.value ? urbanStories.activeChapter?.chapterKey : undefined;
+        return (SCENE_KEYS as readonly string[]).includes(key ?? "") ? key as SceneKey : undefined;
+    });
+    const sceneNumber = computed(() => (sceneKey.value === undefined ? 0 : SCENE_KEYS.indexOf(sceneKey.value) + 1));
 
-    /** True when a category's attribute is published; unknown readiness counts as available. */
-    function categoryAvailable(id: FifteenMinuteCategoryId): boolean {
-        const metric = buildingsReadiness.value?.metrics[categoryMetricKey(id)];
-        return metric === undefined || metric.readiness !== "attributes-missing";
-    }
+    // --- what the reader chose ----------------------------------------------------------------
 
-    const categoryOptions = computed(() => FIFTEEN_MINUTE_CATEGORY_IDS.map((id) => ({
-        id,
-        label: CATEGORY_FIELDS[id].label,
-        available: categoryAvailable(id),
-    })));
+    const category = ref<CategoryId>("culture");
+    const focusAreaId = ref<string>(LANGENBEK.id);
+    const comfortView = ref<ComfortView>("access");
+    const safetyView = ref<SafetyView>("access");
+    const theme = ref<ThemeId>("access");
+    const greenMeasure = ref<GreenMeasure>("green");
 
-    /** The category the map actually shows: the selection, if this chapter offers it and its field is published. */
-    const effectiveCategory = computed<FifteenMinuteCategoryId | null>(() => (
-        mode.value !== undefined && CATEGORY_MODES.includes(mode.value)
-        && category.value !== null && categoryAvailable(category.value)
-            ? category.value
-            : null
-    ));
-
-    const effectiveGap = computed<GapFilterSelection>(() => {
-        if (mode.value !== "gaps") return NO_GAP_FILTER;
-        return {
-            maxScore: gapEnabled.value ? gapMaxScore.value : null,
-            missingCategory: gapMissingCategoryOnly.value ? effectiveCategory.value : null,
-        };
+    /** The measure both map layers show in the active scene. */
+    const measure = computed<MeasureId | undefined>(() => {
+        switch (sceneKey.value) {
+            case "passes-the-test":
+            case "same-score-different-neighbourhood":
+                return "access";
+            case "the-weakest-link":
+                return categoryMeasure(category.value);
+            case "accessible-but-comfortable":
+                return comfortView.value === "comfort" ? "comfort" : "access";
+            case "accessible-but-safe":
+                return safetyView.value === "safety" ? "safety" : "access";
+            case "explore-beyond-the-score":
+                if (theme.value === "category") return categoryMeasure(category.value);
+                if (theme.value === "green") return greenMeasure.value;
+                return theme.value;
+            default:
+                return undefined;
+        }
     });
 
-    const selectionEnabled = computed(() => mode.value !== undefined && SELECTION_MODES.includes(mode.value));
-    const profile = computed(() => (selection.value === undefined ? undefined : buildBuildingProfile(selection.value.properties)));
+    // --- data -------------------------------------------------------------------------------
 
-    const buildingRuntimeId = computed(() => (
-        buildingsEntry === undefined ? undefined : urbanStories.runtimeIdFor(FIFTEEN_MINUTE_STORY_KEY, buildingsEntry)
-    ));
+    const rows = shallowRef<StadtteilRow[]>([]);
+    const dataStatus = ref<DataStatus>("idle");
+    const summary = computed(() => summariseStadtteile(rows.value));
+    const rowOf = (id: string): StadtteilRow | undefined => rows.value.find((row) => row.id === id);
 
-    /** `tiles-unavailable` once the building tiles reported an error; no substitute layer is ever shown. */
-    const buildingsState = computed<"ready" | "tiles-unavailable" | "not-on-map">(() => {
-        if (buildingsReadiness.value?.readiness === "tiles-unavailable") return "tiles-unavailable";
-        return buildingRuntimeId.value === undefined ? "not-on-map" : "ready";
+    /** Map zoom, to show the legend of the layer that is drawn (Stadtteile below the footprint zoom, buildings above). */
+    const zoom = ref(0);
+
+    const selection = shallowRef<SelectedBuilding>();
+    const selectedAreaId = ref<string>();
+    const selectedArea = computed(() => (selectedAreaId.value === undefined ? undefined : rowOf(selectedAreaId.value)));
+    const examples = shallowRef<Record<string, SelectedBuilding>>({});
+
+    /** Late answers of an older scene are dropped. */
+    let sceneToken = 0;
+
+    async function loadRows(): Promise<void> {
+        if (dataStatus.value === "ready" || dataStatus.value === "loading") return;
+        dataStatus.value = "loading";
+        try {
+            rows.value = await fetchStadtteilRows();
+            dataStatus.value = "ready";
+        } catch (error) {
+            dataStatus.value = "error";
+            logOnce("15min-stadtteile", "Reading the Stadtteil attributes", error);
+        }
+    }
+
+    async function loadExample(example: VerifiedBuilding): Promise<SelectedBuilding | undefined> {
+        const known = examples.value[example.id];
+        if (known !== undefined) return known;
+        try {
+            const detail = await fetchBuilding(example.id);
+            if (detail === undefined) return undefined;
+            const loaded: SelectedBuilding = { profile: buildBuildingProfile(detail.properties), geometry: detail.geometry };
+            examples.value = { ...examples.value, [example.id]: loaded };
+            return loaded;
+        } catch (error) {
+            logOnce(`15min-example:${example.id}`, `Reading building ${example.id}`, error);
+            return undefined;
+        }
+    }
+
+    /** The worked examples of the active scene (empty when the scene has none). */
+    const sceneExamples = computed<readonly SceneExample[]>(() => {
+        switch (sceneKey.value) {
+            case "the-weakest-link": return SCENE_EXAMPLES.weakest;
+            case "accessible-but-comfortable": return SCENE_EXAMPLES.comfort;
+            case "accessible-but-safe": return SCENE_EXAMPLES.safety;
+            default: return [];
+        }
     });
 
-    // --- the one place that changes the map ------------------------------------------------
+    // --- the map ----------------------------------------------------------------------------
 
-    /** Entry keys of layers this store made visible, so it only ever hides what it showed. */
-    const shownByController = new Set<string>();
+    type MapLike = NonNullable<typeof mapStore.map>;
+
+    let overlays: FifteenMinuteOverlays | undefined;
+    let overlayMap: unknown;
+    let popup: Popup | undefined;
+    let listening: (() => void) | undefined;
+
+    function ensureOverlays(): FifteenMinuteOverlays | undefined {
+        const map = mapStore.map;
+        if (map === undefined || map === null) return undefined;
+        if (overlays !== undefined && overlayMap !== map) overlays = undefined;
+        if (overlays === undefined) {
+            overlays = new FifteenMinuteOverlays(map);
+            overlayMap = map;
+        }
+        return overlays;
+    }
+
+    const recordOf = (runtimeId: string | undefined): LayerObjectWithAttributes | undefined => urbanStories.recordOf(runtimeId);
+    function runtimeIdOf(entryKey: string): string | undefined {
+        const entry = entryOf(entryKey);
+        return entry === undefined ? undefined : urbanStories.runtimeIdFor(FIFTEEN_MINUTE_STORY_KEY, entry);
+    }
+    function layerIdsOf(entryKey: string): string[] {
+        const map = mapStore.map;
+        const record = recordOf(runtimeIdOf(entryKey));
+        if (record === undefined || map === undefined || map === null) return [];
+        return [record.id, ...(record.companionLayerIds ?? [])].filter((id) => map.getLayer(id) !== undefined);
+    }
+
     let syncing: Promise<void> | undefined;
     let dirty = false;
 
-    function recordOf(runtimeId: string | undefined): LayerObjectWithAttributes | undefined {
-        return urbanStories.recordOf(runtimeId);
-    }
-
-    async function syncBuildingStyle(): Promise<void> {
-        const record = recordOf(buildingRuntimeId.value);
-        if (buildingsEntry === undefined || record === undefined) return;
-        const metricKey = effectiveCategory.value === null ? BUILDING_SCORE_FIELD : categoryMetricKey(effectiveCategory.value);
-        const metric = buildingsEntry.metrics.find((option) => option.key === metricKey);
-        const bundle = frontendStylingFor(buildingsEntry, effectiveGap.value);
-        if (metric?.styleName == null || bundle === undefined) return;
-        const targetId = buildingStyleOptionId(metric.styleName, effectiveGap.value);
+    /** Swap one layer to the style of the active measure. The style id is the style name. */
+    async function syncStyle(entryKey: string, level: "building" | "admin", wanted: MeasureId): Promise<void> {
+        const entry = entryOf(entryKey);
+        const record = recordOf(runtimeIdOf(entryKey));
+        const bundle = entry === undefined ? undefined : frontendStylingFor(entry);
+        if (record === undefined || bundle === undefined) return;
+        const targetId = styleNameOf(level, wanted);
         if (record.activeStyleId === targetId) return;
-        // The gap filter lives inside the local style layers, so the swap carries it and the
-        // existing style-swap code keeps visibility, opacity and the user's attribute filters.
         record.availableStyles = bundle.styles;
         try {
             await mapStore.setStandaloneLayerStyle(record.id, targetId);
         } catch (error) {
-            logOnce(`15min-style:${record.id}:${targetId}`, `Switching the 15-minute building style to ${targetId}`, error);
+            logOnce(`15min-style:${targetId}`, `Switching the ${level} layer to ${targetId}`, error);
         }
     }
 
-    async function showEntry(entryKey: string, metricKey?: string, track = true): Promise<void> {
-        const requestedMode = mode.value;
-        const result = metricKey === undefined
-            ? await urbanStories.addEntry(FIFTEEN_MINUTE_STORY_KEY, entryKey)
-            : await urbanStories.applyMetric(FIFTEEN_MINUTE_STORY_KEY, entryKey, metricKey);
-        const runtimeId = "runtimeId" in result ? result.runtimeId : undefined;
-        const record = recordOf(runtimeId);
-        if (record === undefined || mode.value === undefined || mode.value !== requestedMode) return;
-        if (track) shownByController.add(entryKey);
-        if (mapStore.getLayerUiState(record.id)?.visible === false) mapStore.setLogicalLayerVisibility(record, true);
-    }
-
-    function hideEntry(entryKey: string): void {
-        const entry = entryOf(entryKey);
-        const record = entry === undefined ? undefined : recordOf(urbanStories.runtimeIdFor(FIFTEEN_MINUTE_STORY_KEY, entry));
-        shownByController.delete(entryKey);
-        if (record !== undefined && mapStore.getLayerUiState(record.id)?.visible !== false) {
-            mapStore.setLogicalLayerVisibility(record, false);
-        }
-    }
-
-    async function syncOverlays(): Promise<void> {
-        const wantedPoi = effectiveCategory.value === null ? undefined : CATEGORY_FIELDS[effectiveCategory.value].poiEntryKey;
-        for (const id of FIFTEEN_MINUTE_CATEGORY_IDS) {
-            const key = CATEGORY_FIELDS[id].poiEntryKey;
-            if (key !== wantedPoi && shownByController.has(key)) hideEntry(key);
-        }
-        if (wantedPoi !== undefined) await showEntry(wantedPoi);
-
-        // The transition chapter keeps the building layer on: zooming past level 14 returns to single buildings.
-        // It is the story's main layer, so it is never part of what the controller puts away again.
-        if (mode.value === "neighbourhoods") await showEntry(BUILDINGS_ENTRY_KEY, undefined, false);
-
-        const wantedAdmin = mode.value === "neighbourhoods" ? ADMIN_ENTRY_KEYS[adminLevel.value] : undefined;
-        for (const key of Object.values(ADMIN_ENTRY_KEYS)) {
-            if (key !== wantedAdmin && (shownByController.has(key) || wantedAdmin !== undefined)) hideEntry(key);
-        }
-        if (wantedAdmin !== undefined) await showEntry(wantedAdmin, adminMetric.value);
-    }
-
-    /** While a chapter inspects buildings in the side panel, the generic attribute popup stays closed for them. */
     function syncPopupSuppression(): void {
-        const record = recordOf(buildingRuntimeId.value);
-        if (record !== undefined && record.attributePopupSuppressed !== selectionEnabled.value) {
-            record.attributePopupSuppressed = selectionEnabled.value;
+        for (const key of [ENTRY_BUILDINGS, ENTRY_STADTTEILE]) {
+            const record = recordOf(runtimeIdOf(key));
+            if (record !== undefined && record.attributePopupSuppressed !== running.value) record.attributePopupSuppressed = running.value;
         }
+    }
+
+    const outlineGeometry = new Map<string, GeoJSON.Geometry | undefined>();
+    async function geometryOf(id: string): Promise<GeoJSON.Geometry | undefined> {
+        if (!outlineGeometry.has(id)) outlineGeometry.set(id, await fetchStadtteilGeometry(id).catch(() => undefined));
+        return outlineGeometry.get(id);
+    }
+
+    /** The Stadtteile outlined in the active scene: the compared places, or the selected one. */
+    function wantedOutlines(): { id: string; name: string; tone: AreaOutline["tone"] }[] {
+        switch (sceneKey.value) {
+            case "same-score-different-neighbourhood":
+                return [{ id: WILHELMSBURG.id, name: WILHELMSBURG.name, tone: "a" }, { id: LANGENBEK.id, name: LANGENBEK.name, tone: "b" }];
+            case "the-weakest-link": {
+                const focus = focusAreaId.value === WILHELMSBURG.id ? WILHELMSBURG : LANGENBEK;
+                return [{ id: focus.id, name: focus.name, tone: "focus" }];
+            }
+            case "accessible-but-comfortable":
+            case "accessible-but-safe":
+                return sceneExamples.value.map((example) => ({ id: example.area.id, name: example.area.name, tone: example.tone }));
+            case "passes-the-test":
+            case "explore-beyond-the-score":
+                return selectedArea.value === undefined ? [] : [{ id: selectedArea.value.id, name: selectedArea.value.name, tone: "focus" }];
+            default:
+                return [];
+        }
+    }
+
+    let outlineKey: string | undefined;
+    async function syncOutlines(bound: FifteenMinuteOverlays): Promise<void> {
+        const wanted = wantedOutlines();
+        const key = wanted.map((area) => `${area.id}:${area.tone}`).join("|");
+        if (key === outlineKey) return;
+        outlineKey = key;
+        const outlines: AreaOutline[] = [];
+        for (const area of wanted) {
+            const geometry = await geometryOf(area.id);
+            if (geometry !== undefined) outlines.push({ geometry, tone: area.tone, name: area.name });
+        }
+        if (key !== outlineKey) return;
+        bound.setAreaOutlines(outlines);
     }
 
     async function syncOnce(): Promise<void> {
         syncPopupSuppression();
-        if (mode.value === undefined) {
-            // Not running: put away what this store showed, drop the selection, leave the layers on the map.
-            for (const key of [...shownByController]) hideEntry(key);
-            clearSelection();
+        const bound = ensureOverlays();
+        const wanted = measure.value;
+        if (sceneKey.value === undefined || wanted === undefined || bound === undefined) {
+            teardownOverlays();
             return;
         }
-        await syncBuildingStyle();
-        await syncOverlays();
-        if (!selectionEnabled.value || buildingRuntimeId.value === undefined) clearSelection();
+        await Promise.all([syncStyle(ENTRY_STADTTEILE, "admin", wanted), syncStyle(ENTRY_BUILDINGS, "building", wanted)]);
+        await syncOutlines(bound);
+        bound.setSelectedBuilding(selection.value === undefined ? undefined : {
+            geometry: selection.value.geometry,
+            height: selection.value.profile.heightM ?? 0,
+        });
+        bound.raise();
+        attachListeners();
     }
 
-    /** Apply the current state to the map. Overlapping calls coalesce; the last state wins. */
     function sync(): Promise<void> {
         dirty = true;
         if (syncing === undefined) {
@@ -254,182 +332,306 @@ export const useFifteenMinuteStore = defineStore("urbanStoriesFifteenMinute", ()
         return syncing;
     }
 
-    // --- user actions ----------------------------------------------------------------------
-
-    function selectCategory(id: FifteenMinuteCategoryId | null): Promise<void> {
-        category.value = id;
-        if (id === null) gapMissingCategoryOnly.value = false;
-        return sync();
+    function teardownOverlays(): void {
+        detachListeners();
+        popup?.remove();
+        popup = undefined;
+        overlays?.dispose();
+        overlays = undefined;
+        outlineKey = undefined;
     }
 
-    function setGapEnabled(enabled: boolean): Promise<void> {
-        gapEnabled.value = enabled;
-        return sync();
-    }
+    // --- pointer handling ---------------------------------------------------------------------
 
-    function setGapMaxScore(maxScore: number): Promise<void> {
-        gapMaxScore.value = Math.min(8, Math.max(0, Math.trunc(maxScore)));
-        return sync();
-    }
-
-    function setGapMissingCategoryOnly(only: boolean): Promise<void> {
-        gapMissingCategoryOnly.value = only && category.value !== null;
-        return sync();
-    }
-
-    function setAdminLevel(level: AdministrativeLevel): Promise<void> {
-        adminLevel.value = level;
-        return sync();
-    }
-
-    function setAdminMetric(metric: AdministrativeMetric): Promise<void> {
-        adminMetric.value = metric;
-        return sync();
-    }
-
-    // --- building selection -----------------------------------------------------------------
-
-    function ensureSelectionOverlay(): boolean {
+    function attachListeners(): void {
         const map = mapStore.map;
-        if (map === undefined || map === null) return false;
-        if (map.getSource(SELECTION_SOURCE_ID) === undefined) {
-            map.addSource(SELECTION_SOURCE_ID, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-        }
-        if (map.getLayer(SELECTION_FILL_LAYER_ID) === undefined) {
-            // Same height as the selected building, a little above it, so the highlight is not hidden inside the 3D building.
-            map.addLayer({
-                id: SELECTION_FILL_LAYER_ID,
-                type: "fill-extrusion",
-                source: SELECTION_SOURCE_ID,
-                paint: {
-                    "fill-extrusion-color": SELECTION_COLOR,
-                    "fill-extrusion-height": ["+", ["coalesce", ["get", "height"], 0], 0.5],
-                    "fill-extrusion-base": 0,
-                    "fill-extrusion-opacity": 0.85,
-                },
-            });
-        }
-        if (map.getLayer(SELECTION_LINE_LAYER_ID) === undefined) {
-            map.addLayer({
-                id: SELECTION_LINE_LAYER_ID,
-                type: "line",
-                source: SELECTION_SOURCE_ID,
-                paint: { "line-color": SELECTION_COLOR, "line-width": 3 },
-            });
-        }
-        return true;
-    }
-
-    function setOverlayData(geometry: GeoJSON.Geometry | undefined, height?: number): void {
-        const map = mapStore.map;
-        if (map === undefined || map === null) return;
-        const source = map.getSource(SELECTION_SOURCE_ID) as { setData?: (data: unknown) => void } | undefined;
-        source?.setData?.({
-            type: "FeatureCollection",
-            features: geometry === undefined ? [] : [{ type: "Feature", geometry, properties: { height: height ?? 0 } }],
-        });
-    }
-
-    function removeSelectionOverlay(): void {
-        const map = mapStore.map;
-        if (map === undefined || map === null) return;
-        for (const id of [SELECTION_LINE_LAYER_ID, SELECTION_FILL_LAYER_ID]) {
-            if (map.getLayer(id) !== undefined) map.removeLayer(id);
-        }
-        if (map.getSource(SELECTION_SOURCE_ID) !== undefined) map.removeSource(SELECTION_SOURCE_ID);
-    }
-
-    /** Select a rendered building feature: highlight it with the local selection style and keep it. */
-    function selectBuilding(feature: RenderedFeature): void {
-        selection.value = {
-            featureId: feature.id ?? null,
-            properties: { ...(feature.properties ?? {}) },
-            geometry: feature.geometry,
+        if (listening !== undefined || map === undefined || map === null) return;
+        const click = (event: MapMouseEvent): void => onMapClick(event);
+        const move = (event: MapMouseEvent): void => onMapMove(event);
+        const leave = (): void => { popup?.remove(); };
+        const track = (): void => { zoom.value = map.getZoom(); };
+        track();
+        map.on("click", click);
+        map.on("mousemove", move);
+        map.on("zoom", track);
+        map.getCanvas().addEventListener("mouseleave", leave);
+        listening = () => {
+            map.off("click", click);
+            map.off("mousemove", move);
+            map.off("zoom", track);
+            map.getCanvas().removeEventListener("mouseleave", leave);
         };
-        const height = feature.properties?.[BUILDING_HEIGHT_FIELD];
-        if (ensureSelectionOverlay()) setOverlayData(feature.geometry, typeof height === "number" && height > 0 ? height : 0);
+    }
+
+    function detachListeners(): void {
+        listening?.();
+        listening = undefined;
+    }
+
+    function queryAt(event: MapMouseEvent, layers: string[]): RenderedFeature[] {
+        const map = mapStore.map;
+        const existing = layers.filter((id) => map?.getLayer(id) !== undefined);
+        if (map === undefined || map === null || existing.length === 0) return [];
+        return map.queryRenderedFeatures(event.point, { layers: existing }) as unknown as RenderedFeature[];
+    }
+
+    /** The Stadtteil of a tile feature, resolved to its published row. */
+    function areaOfFeature(feature: RenderedFeature): StadtteilRow | undefined {
+        const id = feature.properties?.stadtteil_id;
+        return typeof id === "string" ? rowOf(id) : undefined;
+    }
+
+    function onMapClick(event: MapMouseEvent): void {
+        const scene = sceneKey.value;
+        if (scene === undefined) return;
+        const building = queryAt(event, layerIdsOf(ENTRY_BUILDINGS))[0];
+        if (building !== undefined) {
+            selection.value = { profile: buildBuildingProfile(building.properties), geometry: building.geometry };
+            void sync();
+            return;
+        }
+        if (!AREA_CLICK_SCENES.includes(scene)) return;
+        const area = queryAt(event, layerIdsOf(ENTRY_STADTTEILE)).map(areaOfFeature).find((candidate) => candidate !== undefined);
+        if (area !== undefined) {
+            selectedAreaId.value = area.id;
+            void sync();
+        }
+    }
+
+    function onMapMove(event: MapMouseEvent): void {
+        const scene = sceneKey.value;
+        const map = mapStore.map;
+        const active = measure.value;
+        if (scene === undefined || active === undefined || map === undefined || map === null) return;
+        const overBuilding = queryAt(event, layerIdsOf(ENTRY_BUILDINGS)).length > 0;
+        const hit = HOVER_SCENES.includes(scene) && !overBuilding
+            ? queryAt(event, layerIdsOf(ENTRY_STADTTEILE))[0]
+            : undefined;
+        map.getCanvas().style.cursor = overBuilding || hit !== undefined ? "pointer" : "";
+        if (hit === undefined) {
+            popup?.remove();
+            return;
+        }
+        const row = areaOfFeature(hit);
+        const raw = hit.properties?.[adminField(active)];
+        const value = typeof raw === "number" ? formatMeasureValue(active, raw, "admin", localeCode()) : "–";
+        const tileName = hit.properties?.stadtteil_name;
+        const name = row?.name ?? (typeof tileName === "string" ? tileName : "");
+        popup ??= new Popup({ closeButton: false, closeOnClick: false, className: "fifteen-hover", offset: 12 });
+        popup.setLngLat(event.lngLat).setHTML(`<strong>${escapeHtml(name)}</strong><br>${escapeHtml(measureInfo(active).label[localeCode() === "de" ? "de" : "en"])}: ${escapeHtml(value)}`).addTo(map);
+    }
+
+    function escapeHtml(text: string): string {
+        return text.replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" })[char] ?? char);
+    }
+
+    // --- camera -----------------------------------------------------------------------------------
+
+    const reducedMotion = (): boolean => (
+        typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    );
+
+    /**
+     * TOSCA's sidebars cover the map instead of shrinking it. While the story runs, the map is padded by the open left
+     * sidebar so every scene camera centres on the part of the map the reader can see; the padding is removed when
+     * the run ends.
+     */
+    let paddedMap: MapLike | undefined;
+
+    function leftInset(map: MapLike): number {
+        const canvas = map.getCanvas().getBoundingClientRect();
+        let left = 0;
+        document.querySelectorAll<HTMLElement>("section[data-position='left']").forEach((section) => {
+            const rect = section.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) left = Math.max(left, rect.right - canvas.left);
+        });
+        return Math.max(0, Math.round(left));
+    }
+
+    function frameMap(map: MapLike, camera: OverviewCamera): void {
+        const padding = { left: leftInset(map), right: 0, top: 0, bottom: 0 };
+        map.setPadding(padding);
+        paddedMap = map;
+        const move = sceneCameraMove({
+            camera: { center: camera.center, zoom: camera.zoom, bearing: camera.bearing ?? 0, pitch: camera.pitch ?? 0, bounds: null },
+            transition: { type: "fly", duration_ms: 1500 },
+            layers: [],
+        }, { reducedMotion: reducedMotion() });
+        if (move === undefined || move.method === "fitBounds") return;
+        map[move.method]({ ...move.options, padding } as never);
+    }
+
+    function frameScene(): void {
+        const map = mapStore.map;
+        const index = sceneKey.value === undefined ? -1 : SCENE_KEYS.indexOf(sceneKey.value);
+        const camera = storyConfig?.chapters[index]?.camera;
+        if (map === undefined || map === null || camera === undefined) return;
+        try {
+            frameMap(map, camera);
+        } catch (error) {
+            logOnce("15min-frame", "Framing the 15-Minute City scene", error);
+        }
+    }
+
+    function releasePadding(): void {
+        try {
+            paddedMap?.setPadding({ left: 0, right: 0, top: 0, bottom: 0 });
+        } catch (error) {
+            logOnce("15min-padding", "Removing the 15-Minute City map padding", error);
+        }
+        paddedMap = undefined;
+    }
+
+    function flyToBuilding(building: VerifiedBuilding, targetZoom = 16.4, pitch = 55): void {
+        const map = mapStore.map;
+        if (map === undefined || map === null) return;
+        map.flyTo({ center: building.center, zoom: targetZoom, pitch, duration: reducedMotion() ? 0 : 1400, padding: { left: leftInset(map), right: 0, top: 0, bottom: 0 } });
+    }
+
+    function flyToArea(area: VerifiedArea): void {
+        const map = mapStore.map;
+        if (map === undefined || map === null) return;
+        const inset = leftInset(map);
+        map.fitBounds(area.bounds, { padding: { left: inset + 40, right: 40, top: 40, bottom: 40 }, maxZoom: 14, pitch: 0, duration: reducedMotion() ? 0 : 1400 });
+    }
+
+    // --- user actions -----------------------------------------------------------------------
+
+    function setComfortView(view: ComfortView): void {
+        comfortView.value = view;
+        void sync();
+    }
+
+    function setSafetyView(view: SafetyView): void {
+        safetyView.value = view;
+        void sync();
+    }
+
+    function setTheme(next: ThemeId): void {
+        theme.value = next;
+        void sync();
+    }
+
+    function setCategory(next: CategoryId): void {
+        category.value = next;
+        void sync();
+    }
+
+    function setGreenMeasure(next: GreenMeasure): void {
+        greenMeasure.value = next;
+        void sync();
+    }
+
+    function setFocusArea(area: VerifiedArea): void {
+        focusAreaId.value = area.id;
+        const weakest = weakestCategory(rowOf(area.id));
+        if (weakest !== undefined) category.value = weakest;
+        flyToArea(area);
+        void sync();
     }
 
     function clearSelection(): void {
-        if (selection.value === undefined) return;
         selection.value = undefined;
-        setOverlayData(undefined);
+        selectedAreaId.value = undefined;
+        void sync();
     }
 
-    function onMapClick(event: ClickEvent): void {
-        const map = mapStore.map;
-        const record = recordOf(buildingRuntimeId.value);
-        if (!selectionEnabled.value || map === undefined || map === null || record === undefined) return;
-        const layerIds = [record.id, ...(record.companionLayerIds ?? [])].filter((id) => map.getLayer(id) !== undefined);
-        if (layerIds.length === 0) return;
-        const hit = (map.queryRenderedFeatures(event.point as never, { layers: layerIds }) as RenderedFeature[])[0];
-        if (hit !== undefined) selectBuilding(hit);
+    /** Show a verified example building: highlight it on the map and read it in the panel. */
+    async function selectExample(example: VerifiedBuilding, fly = false): Promise<void> {
+        const token = sceneToken;
+        const loaded = await loadExample(example);
+        if (loaded === undefined || token !== sceneToken) return;
+        selection.value = loaded;
+        if (fly) flyToBuilding(example);
+        await sync();
     }
 
-    // The click handler exists only while a chapter offers selection.
-    let clickMap: { on: (type: string, listener: unknown) => void; off: (type: string, listener: unknown) => void } | undefined;
-    function detachClick(): void {
-        clickMap?.off("click", onMapClick);
-        clickMap = undefined;
+    // --- scene changes ------------------------------------------------------------------------
+
+    /** Each scene starts from its own state: no selection or view of the previous scene survives. */
+    function resetForScene(): void {
+        sceneToken += 1;
+        selection.value = undefined;
+        selectedAreaId.value = undefined;
+        comfortView.value = "access";
+        safetyView.value = "access";
+        theme.value = "access";
+        greenMeasure.value = "green";
+        focusAreaId.value = LANGENBEK.id;
+        category.value = "culture";
+        outlineKey = undefined;
+        popup?.remove();
     }
-    watch([selectionEnabled, () => mapStore.map], ([enabled, map]) => {
-        detachClick();
-        if (!enabled || map === undefined || map === null) return;
-        clickMap = map as unknown as typeof clickMap;
-        clickMap?.on("click", onMapClick);
+
+    async function enterScene(scene: SceneKey, token: number): Promise<void> {
+        await loadRows();
+        if (token !== sceneToken) return;
+        if (scene === "the-weakest-link") {
+            const weakest = weakestCategory(rowOf(LANGENBEK.id));
+            if (weakest !== undefined) category.value = weakest;
+        }
+        const first = sceneExamples.value[0];
+        const loads = sceneExamples.value.map((example) => loadExample(example.building));
+        void sync();
+        await Promise.allSettled(loads);
+        if (token !== sceneToken || first === undefined) return;
+        await selectExample(first.building);
+    }
+
+    watch(() => [running.value, sceneKey.value] as const, ([isRunning, scene]) => {
+        resetForScene();
+        if (!isRunning || scene === undefined) {
+            releasePadding();
+            void sync();
+            return;
+        }
+        frameScene();
+        void sync();
+        void enterScene(scene, sceneToken);
+        // The panel creates this store after the run has started, so the first scene is handled right away.
     }, { immediate: true });
 
-    // --- chapter changes --------------------------------------------------------------------
-
-    /** Each chapter starts from its own defaults; the selection never carries over. */
-    function resetForChapter(interaction: ChapterInteraction | undefined): void {
-        category.value = null;
-        gapMissingCategoryOnly.value = false;
-        gapMaxScore.value = DEFAULT_GAP_MAX_SCORE;
-        gapEnabled.value = interaction === "gaps";
-        adminLevel.value = "stadtteile";
-        adminMetric.value = "m15_categories_mean";
-        clearSelection();
-    }
-
-    watch(() => [urbanStories.runState, urbanStories.runningStoryKey, urbanStories.activeChapter?.chapterKey] as const, () => {
-        resetForChapter(mode.value);
-        if (mode.value === undefined) removeSelectionOverlay();
-        void sync();
-    });
-
-    // A layer added or removed later (a chapter finishing its add, "Remove" in the panel) re-syncs.
+    // A layer added or removed later (a scene finishing its add) re-syncs.
     watch(() => urbanStories.trackedLayers.map((tracked) => tracked.runtimeId).join("|"), () => {
-        if (mode.value !== undefined) void sync();
+        if (sceneKey.value !== undefined) void sync();
     });
-    // Attributes found missing after a probe turn a selected category back into the overall view.
-    watch(effectiveCategory, () => { void sync(); });
+
+    // The compared values are re-read from the rows once they arrive.
+    watch(() => dataStatus.value, () => {
+        if (sceneKey.value !== undefined) void sync();
+    });
 
     return {
-        category,
-        gapEnabled,
-        gapMaxScore,
-        gapMissingCategoryOnly,
-        adminLevel,
-        adminMetric,
+        running,
+        sceneKey,
+        sceneNumber,
+        measure,
+        zoom,
+        rows,
+        dataStatus,
+        summary,
         selection,
-        mode,
-        effectiveCategory,
-        effectiveGap,
-        categoryOptions,
-        selectionEnabled,
-        profile,
-        buildingRuntimeId,
-        buildingsState,
+        selectedArea,
+        examples,
+        sceneExamples,
+        category,
+        focusAreaId,
+        comfortView,
+        safetyView,
+        theme,
+        greenMeasure,
+        rowOf,
         sync,
-        selectCategory,
-        setGapEnabled,
-        setGapMaxScore,
-        setGapMissingCategoryOnly,
-        setAdminLevel,
-        setAdminMetric,
-        selectBuilding,
+        selectExample,
         clearSelection,
+        setComfortView,
+        setSafetyView,
+        setTheme,
+        setCategory,
+        setGreenMeasure,
+        setFocusArea,
+        flyToArea,
+        flyToBuilding,
         onMapClick,
     };
 });

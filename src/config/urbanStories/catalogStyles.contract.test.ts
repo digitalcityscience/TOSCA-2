@@ -53,6 +53,12 @@ describe("configured catalog styles match the recorded catalog", () => {
         expect(recorded("urbanstories-15-minute-city")).toBeDefined();
     });
 
+    test("the recorded Public Transport Equity catalog style is used by no story: that story's styling is frontend-owned", () => {
+        const used = new Set(URBAN_STORIES.flatMap((story) => story.explore).flatMap((entry) => entry.metrics.map((option) => option.styleName)));
+        expect(used.has("urbanstories-public-transport-equity")).toBe(false);
+        expect(recorded("urbanstories-public-transport-equity")).toBeDefined();
+    });
+
     test("the same attribute on another layer never borrows a style written for a different layer", () => {
         const other = URBAN_STORIES.flatMap((story) => story.explore)
             .filter((entry) => entry.layer.layerName !== "hamburg_stadtteile")

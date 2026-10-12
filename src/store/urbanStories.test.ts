@@ -22,8 +22,8 @@ vi.mock("@helpers/toast", () => ({ useToast: () => ({ add: vi.fn() }) }));
 const ADMIN_ATTRIBUTES = ["m15_decay_mean", "m15_decay_median", "m15_categories_mean", "m15_n", "m15_share_low_confidence",
     "m15_share_food", "m15_share_health", "m15_share_education", "m15_share_restaurant", "m15_share_culture",
     "m15_share_bank_post", "m15_share_sport", "m15_share_park", "m15_share_stop_any", "grn_x",
-    // The generic store tests use the catalog-styled Transit Equity Stadtteile entry.
-    ...getStoryConfig("transit-equity")!.explore.flatMap((entry) => entry.requiredAttributes)];
+    // The generic store tests use the catalog-styled Green Spaces Stadtteile entry.
+    ...getStoryConfig("green-spaces")!.explore.flatMap((entry) => entry.requiredAttributes)];
 
 function catalogLayer(attributes: string[], styles?: unknown) {
     return {
@@ -81,14 +81,14 @@ afterEach(() => {
 describe("urbanStories store: adding layers", () => {
     test("adds an entry once and tracks only the runtime id", async () => {
         const store = useUrbanStoriesStore();
-        const result = await store.addEntry("transit-equity", "stadtteile-pt");
+        const result = await store.addEntry("green-spaces", "stadtteile-green-access");
         expect(result.status).toBe("added");
         expect(store.addedByStory).toEqual({
-            "transit-equity": { "stadtteile-pt": expect.stringMatching(/^layer:/) },
+            "green-spaces": { "stadtteile-green-access": expect.stringMatching(/^layer:/) },
         });
         // Only ids are kept: no layer state of any kind.
-        expect(Object.values(store.addedByStory["transit-equity"] ?? {}).every((value) => typeof value === "string")).toBe(true);
-        expect((await store.addEntry("transit-equity", "stadtteile-pt")).status).toBe("exists");
+        expect(Object.values(store.addedByStory["green-spaces"] ?? {}).every((value) => typeof value === "string")).toBe(true);
+        expect((await store.addEntry("green-spaces", "stadtteile-green-access")).status).toBe("exists");
         expect(loader.addCatalogVectorLayer).toHaveBeenCalledTimes(1);
         expect(store.trackedLayers).toHaveLength(1);
     });
@@ -105,7 +105,7 @@ describe("urbanStories store: adding layers", () => {
 
     test("the same catalog layer from two stories yields one record", async () => {
         const store = useUrbanStoriesStore();
-        const first = await store.addEntry("transit-equity", "stadtteile-pt");
+        const first = await store.addEntry("green-spaces", "stadtteile-green-access");
         const second = await store.addEntry("green-spaces", "stadtteile-green-access");
         expect(first.status).toBe("added");
         expect(second.status).toBe("exists");
@@ -119,7 +119,7 @@ describe("urbanStories store: adding layers", () => {
     test("concurrent adds of one layer do not create a duplicate", async () => {
         const store = useUrbanStoriesStore();
         const [a, b] = await Promise.all([
-            store.addEntry("transit-equity", "stadtteile-pt"),
+            store.addEntry("green-spaces", "stadtteile-green-access"),
             store.addEntry("green-spaces", "stadtteile-green-access"),
         ]);
         expect([a.status, b.status].sort()).toEqual(["added", "busy"]);
@@ -128,29 +128,29 @@ describe("urbanStories store: adding layers", () => {
 
     test("layers stay tracked when the story changes", async () => {
         const store = useUrbanStoriesStore();
-        store.selectStory("transit-equity");
-        await store.addEntry("transit-equity", "stadtteile-pt");
         store.selectStory("green-spaces");
-        store.selectStory("transit-equity");
+        await store.addEntry("green-spaces", "stadtteile-green-access");
+        store.selectStory("green-spaces");
+        store.selectStory("green-spaces");
         expect(store.trackedLayers).toHaveLength(1);
-        expect(store.trackedLayers[0].storyKey).toBe("transit-equity");
+        expect(store.trackedLayers[0].storyKey).toBe("green-spaces");
     });
 
     test("a layer removed outside the panel reverts the entry to addable", async () => {
         const store = useUrbanStoriesStore();
-        const result = await store.addEntry("transit-equity", "stadtteile-pt");
+        const result = await store.addEntry("green-spaces", "stadtteile-green-access");
         const runtimeId = result.status === "added" ? result.runtimeId : "";
         useMapStore().removeFromMapLayerList(runtimeId);
         await nextTick();
         expect(store.addedByStory).toEqual({});
         expect(store.trackedLayers).toHaveLength(0);
-        expect((await store.addEntry("transit-equity", "stadtteile-pt")).status).toBe("added");
+        expect((await store.addEntry("green-spaces", "stadtteile-green-access")).status).toBe("added");
     });
 
     test("removeEntry deletes the layer from the map", async () => {
         const store = useUrbanStoriesStore();
-        await store.addEntry("transit-equity", "stadtteile-pt");
-        await store.removeEntry("transit-equity", "stadtteile-pt");
+        await store.addEntry("green-spaces", "stadtteile-green-access");
+        await store.removeEntry("green-spaces", "stadtteile-green-access");
         expect(map.removeLayer).toHaveBeenCalled();
         expect(useMapStore().layersOnMap).toHaveLength(0);
         expect(store.addedByStory).toEqual({});
@@ -172,18 +172,18 @@ describe("urbanStories store: unavailable layers", () => {
     test("a layer published after a cached 404 can be added without a manual refresh", async () => {
         loader.resolveCatalogLayer.mockResolvedValueOnce({ ok: false, reason: "not-found" });
         const store = useUrbanStoriesStore();
-        await store.addEntry("transit-equity", "stadtteile-pt");
+        await store.addEntry("green-spaces", "stadtteile-green-access");
         loader.resolveCatalogLayer.mockResolvedValue(catalogLayer(ADMIN_ATTRIBUTES));
-        expect((await store.addEntry("transit-equity", "stadtteile-pt")).status).toBe("added");
+        expect((await store.addEntry("green-spaces", "stadtteile-green-access")).status).toBe("added");
     });
 
     test("an entry without verified tiles is never requested", async () => {
-        const entry = getStoryConfig("transit-equity")!.explore.find((candidate) => candidate.key === "stadtteile-pt")!;
+        const entry = getStoryConfig("green-spaces")!.explore.find((candidate) => candidate.key === "stadtteile-green-access")!;
         const original = entry.mvt;
         entry.mvt = "pending";
         try {
             const store = useUrbanStoriesStore();
-            expect((await store.addEntry("transit-equity", "stadtteile-pt")).status).toBe("tiles-unavailable");
+            expect((await store.addEntry("green-spaces", "stadtteile-green-access")).status).toBe("tiles-unavailable");
             expect(loader.resolveCatalogLayer).not.toHaveBeenCalled();
             expect(loader.addCatalogVectorLayer).not.toHaveBeenCalled();
         } finally {
@@ -193,17 +193,17 @@ describe("urbanStories store: unavailable layers", () => {
 
     test("a MapLibre error on the layer's source marks tiles unavailable and keeps Remove possible", async () => {
         const store = useUrbanStoriesStore();
-        const result = await store.addEntry("transit-equity", "stadtteile-pt");
+        const result = await store.addEntry("green-spaces", "stadtteile-green-access");
         const runtimeId = result.status === "added" ? result.runtimeId : "";
         expect(map.on).toHaveBeenCalledWith("error", expect.any(Function));
         map.listeners.error.forEach((listener) => listener({ sourceId: runtimeId, error: new Error("tile 500") }));
-        const entry = getStoryConfig("transit-equity")!.explore.find((candidate) => candidate.key === "stadtteile-pt")!;
+        const entry = getStoryConfig("green-spaces")!.explore.find((candidate) => candidate.key === "stadtteile-green-access")!;
         expect(store.readinessOf("transit-equity", entry)?.readiness).toBe("tiles-unavailable");
         expect(store.runtimeIdFor("transit-equity", entry)).toBe(runtimeId);
         // Errors of unrelated sources are ignored.
         map.listeners.error.forEach((listener) => listener({ sourceId: "basemap" }));
         expect(Object.keys(store.tileErrorIds)).toEqual([runtimeId]);
-        await store.removeEntry("transit-equity", "stadtteile-pt");
+        await store.removeEntry("green-spaces", "stadtteile-green-access");
         await nextTick();
         expect(store.tileErrorIds).toEqual({});
     });
@@ -211,14 +211,14 @@ describe("urbanStories store: unavailable layers", () => {
     test("a loader failure becomes an error status, not an exception", async () => {
         loader.addCatalogVectorLayer.mockRejectedValueOnce(new Error("boom"));
         const store = useUrbanStoriesStore();
-        expect((await store.addEntry("transit-equity", "stadtteile-pt")).status).toBe("error");
+        expect((await store.addEntry("green-spaces", "stadtteile-green-access")).status).toBe("error");
         expect(Object.values(store.layerStatus)).toEqual(["error"]);
-        expect((await store.addEntry("transit-equity", "stadtteile-pt")).status).toBe("added");
+        expect((await store.addEntry("green-spaces", "stadtteile-green-access")).status).toBe("added");
     });
 
     test("no map yet is reported, not thrown", async () => {
         useMapStore().map = undefined as never;
-        expect((await useUrbanStoriesStore().addEntry("transit-equity", "stadtteile-pt")).status).toBe("map-not-ready");
+        expect((await useUrbanStoriesStore().addEntry("green-spaces", "stadtteile-green-access")).status).toBe("map-not-ready");
     });
 });
 
@@ -227,7 +227,7 @@ describe("urbanStories store: metrics", () => {
     const STYLE_B = { id: "style-b", name: "urbanstories-b", layers: [{ id: "b", type: "fill" }] };
 
     function stylableEntry() {
-        const entry = getStoryConfig("transit-equity")!.explore.find((candidate) => candidate.key === "stadtteile-pt")!;
+        const entry = getStoryConfig("green-spaces")!.explore.find((candidate) => candidate.key === "stadtteile-green-access")!;
         const originals = entry.metrics.map((metric) => metric.styleName);
         entry.metrics[0].styleName = "urbanstories-a";
         entry.metrics[1].styleName = "urbanstories-b";
@@ -241,7 +241,7 @@ describe("urbanStories store: metrics", () => {
             const store = useUrbanStoriesStore();
             const mapStore = useMapStore();
             const switchStyle = vi.spyOn(mapStore, "setStandaloneLayerStyle").mockResolvedValue();
-            const added = await store.applyMetric("transit-equity", entry.key, entry.metrics[0].key);
+            const added = await store.applyMetric("green-spaces", entry.key, entry.metrics[0].key);
             expect(added.status).toBe("applied");
             expect(loader.addCatalogVectorLayer).toHaveBeenCalledWith(expect.objectContaining({ preferredStyleName: "urbanstories-a" }));
             expect(switchStyle).not.toHaveBeenCalled();
@@ -250,9 +250,9 @@ describe("urbanStories store: metrics", () => {
             const record = mapStore.layersOnMap.find((layer) => layer.id === runtimeId)!;
             record.availableStyles = [STYLE_A, STYLE_B];
             record.activeStyleId = "style-a";
-            expect(store.activeMetricOf("transit-equity", entry)).toBe(entry.metrics[0].key);
+            expect(store.activeMetricOf("green-spaces", entry)).toBe(entry.metrics[0].key);
 
-            const switched = await store.applyMetric("transit-equity", entry.key, entry.metrics[1].key);
+            const switched = await store.applyMetric("green-spaces", entry.key, entry.metrics[1].key);
             expect(switched).toEqual({ status: "applied", runtimeId });
             expect(switchStyle).toHaveBeenCalledWith(runtimeId, "style-b");
         } finally {
@@ -262,11 +262,11 @@ describe("urbanStories store: metrics", () => {
 
     test("a metric without a verified catalog style is not applied and no style is guessed", async () => {
         const store = useUrbanStoriesStore();
-        const entry = getStoryConfig("transit-equity")!.explore.find((candidate) => candidate.key === "stadtteile-pt")!;
+        const entry = getStoryConfig("green-spaces")!.explore.find((candidate) => candidate.key === "stadtteile-green-access")!;
         const mapStore = useMapStore();
         const switchStyle = vi.spyOn(mapStore, "setStandaloneLayerStyle").mockResolvedValue();
-        await store.addEntry("transit-equity", entry.key);
-        const result = await store.applyMetric("transit-equity", entry.key, entry.metrics[0].key);
+        await store.addEntry("green-spaces", entry.key);
+        const result = await store.applyMetric("green-spaces", entry.key, entry.metrics[0].key);
         expect(result.status).toBe("metric-unavailable");
         expect(switchStyle).not.toHaveBeenCalled();
     });
@@ -276,12 +276,12 @@ describe("urbanStories store: metrics", () => {
         try {
             const store = useUrbanStoriesStore();
             const mapStore = useMapStore();
-            await store.addEntry("transit-equity", entry.key);
+            await store.addEntry("green-spaces", entry.key);
             const record = mapStore.layersOnMap[0];
             record.availableStyles = [STYLE_A, STYLE_B];
             record.activeStyleId = "style-a";
             vi.spyOn(mapStore, "setStandaloneLayerStyle").mockRejectedValue(new Error("boom"));
-            expect((await store.applyMetric("transit-equity", entry.key, entry.metrics[1].key)).status).toBe("error");
+            expect((await store.applyMetric("green-spaces", entry.key, entry.metrics[1].key)).status).toBe("error");
         } finally {
             restore();
         }

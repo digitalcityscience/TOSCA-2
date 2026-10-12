@@ -86,7 +86,7 @@ describe("urbanStories lifecycle: story switching keeps Explore layers (D1)", ()
         urban.selectStory("green-spaces");
         trackGreenLayers(urban);
         const pt = addExploreLayer(map, "layer:pt");
-        urban.addedByStory = { ...urban.addedByStory, "transit-equity": { "pt-stops": pt.id } };
+        urban.addedByStory = { ...urban.addedByStory, "transit-equity": { "units-pt": pt.id } };
 
         await urban.startStory("green-spaces");
         urban.selectStory("transit-equity");

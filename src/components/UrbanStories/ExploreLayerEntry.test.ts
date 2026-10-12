@@ -60,8 +60,8 @@ const stubs = {
 const ADMIN_ATTRIBUTES = ["m15_decay_mean", "m15_decay_median", "m15_categories_mean", "m15_n", "m15_share_low_confidence",
     "m15_share_food", "m15_share_health", "m15_share_education", "m15_share_restaurant", "m15_share_culture",
     "m15_share_bank_post", "m15_share_sport", "m15_share_park", "m15_share_stop_any",
-    // These tests use the catalog-styled Transit Equity entries (15-Minute City is frontend-styled).
-    ...getStoryConfig("transit-equity")!.explore.flatMap((entry) => entry.requiredAttributes)];
+    // These tests use the catalog-styled Green Spaces entries (15-Minute City is frontend-styled).
+    ...getStoryConfig("green-spaces")!.explore.flatMap((entry) => entry.requiredAttributes)];
 
 function catalogLayer(attributes: string[]) {
     return {
@@ -71,7 +71,7 @@ function catalogLayer(attributes: string[]) {
     };
 }
 
-function mountEntry(storyKey: "transit-equity" | "green-spaces" | "walkability-safety", entryKey: string) {
+function mountEntry(storyKey: "green-spaces" | "walkability-safety", entryKey: string) {
     const entry = getStoryConfig(storyKey)!.explore.find((candidate) => candidate.key === entryKey)!;
     return mount(ExploreLayerEntry, { props: { storyKey, entry }, global: { stubs } });
 }
@@ -92,7 +92,7 @@ beforeEach(() => {
 
 describe("ExploreLayerEntry", () => {
     test("idle: shows Add as layer, no settings", async () => {
-        const wrapper = mountEntry("transit-equity", "stadtteile-pt");
+        const wrapper = mountEntry("green-spaces", "stadtteile-green-access");
         await flushPromises();
         expect(wrapper.attributes("data-state")).toBe("idle");
         expect(wrapper.get("[data-testid='add-layer']").text()).toBe("Add as layer");
@@ -107,7 +107,7 @@ describe("ExploreLayerEntry", () => {
             useMapStore().add2MapLayerList({ id: "layer:x:1", source: "layer:x:1", sourceType: "geoserver", type: "fill", showOnLayerList: true } as LayerObjectWithAttributes, undefined, { notify: false });
             return { runtimeId: "layer:x:1", minZoomWarning: false };
         });
-        const wrapper = mountEntry("transit-equity", "stadtteile-pt");
+        const wrapper = mountEntry("green-spaces", "stadtteile-green-access");
         await flushPromises();
         void wrapper.get("[data-testid='add-layer']").trigger("click");
         await vi.waitFor(() => expect(wrapper.attributes("data-state")).toBe("adding"));
@@ -119,7 +119,7 @@ describe("ExploreLayerEntry", () => {
     });
 
     test("added: shows settings (inline item), hide/show and remove; remove reverts to Add as layer", async () => {
-        const wrapper = mountEntry("transit-equity", "stadtteile-pt");
+        const wrapper = mountEntry("green-spaces", "stadtteile-green-access");
         await flushPromises();
         await wrapper.get("[data-testid='add-layer']").trigger("click");
         await flushPromises();
@@ -136,7 +136,7 @@ describe("ExploreLayerEntry", () => {
 
     test("an entry whose layer another story already added shows Show settings, not Add", async () => {
         const store = useUrbanStoriesStore();
-        await store.addEntry("transit-equity", "stadtteile-pt");
+        await store.addEntry("green-spaces", "stadtteile-green-access");
         const wrapper = mountEntry("green-spaces", "stadtteile-green-access");
         await flushPromises();
         expect(wrapper.find("[data-testid='add-layer']").exists()).toBe(false);
@@ -145,7 +145,7 @@ describe("ExploreLayerEntry", () => {
 
     test("unavailable: a catalog 404 disables the button with the reason and shows no error alert", async () => {
         loader.resolveCatalogLayer.mockResolvedValue({ ok: false, reason: "not-found" });
-        const wrapper = mountEntry("transit-equity", "buildings-pt");
+        const wrapper = mountEntry("green-spaces", "buildings-park-access");
         await flushPromises();
         expect(wrapper.attributes("data-state")).toBe("unavailable");
         expect(wrapper.get("[data-testid='add-layer']").text()).toBe("Temporarily unavailable");
@@ -163,14 +163,14 @@ describe("ExploreLayerEntry", () => {
 
     test("attributes-missing lists the missing columns", async () => {
         loader.resolveCatalogLayer.mockResolvedValue(catalogLayer(["fid", "geom", "name"]));
-        const wrapper = mountEntry("transit-equity", "stadtteile-pt");
+        const wrapper = mountEntry("green-spaces", "stadtteile-green-access");
         await flushPromises();
         expect(wrapper.get("[data-testid='entry-status']").text()).toBe("Data incomplete");
-        expect(wrapper.get("[data-testid='missing-attributes']").text()).toContain("pt_in_catchment_share");
+        expect(wrapper.get("[data-testid='missing-attributes']").text()).toContain("grn_mean");
     });
 
     test("metrics without a verified style are listed but disabled, with the reason", async () => {
-        const wrapper = mountEntry("transit-equity", "stadtteile-pt");
+        const wrapper = mountEntry("green-spaces", "units-green-access");
         await flushPromises();
         const options = wrapper.findAll("[data-testid='metric-select'] option");
         expect(options.length).toBeGreaterThan(1);
@@ -181,7 +181,7 @@ describe("ExploreLayerEntry", () => {
 
     test("an add error shows an inline message and allows another try", async () => {
         loader.addCatalogVectorLayer.mockRejectedValueOnce(new Error("boom"));
-        const wrapper = mountEntry("transit-equity", "stadtteile-pt");
+        const wrapper = mountEntry("green-spaces", "stadtteile-green-access");
         await flushPromises();
         await wrapper.get("[data-testid='add-layer']").trigger("click");
         await flushPromises();
@@ -190,7 +190,7 @@ describe("ExploreLayerEntry", () => {
     });
 
     test("caveats are collapsed behind a details element and not repeated", async () => {
-        const wrapper = mountEntry("transit-equity", "stadtteile-pt");
+        const wrapper = mountEntry("green-spaces", "stadtteile-green-access");
         await flushPromises();
         const items = wrapper.findAll("[data-testid='entry-caveats'] li").map((item) => item.text());
         expect(new Set(items).size).toBe(items.length);

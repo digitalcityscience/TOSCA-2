@@ -1,206 +1,203 @@
 import { describe, expect, test } from "vitest";
-import { frontendStylingFor } from "../../frontendStyles";
-import { fifteenMinuteStory } from "../../fifteenMinute";
 import {
-    BUILDING_MIN_ZOOM,
-    buildBuildingProfile,
+    ACCESS_SCALE,
+    ALL_MEASURES,
     BUILDING_3D_FULL_ZOOM,
     BUILDING_3D_START_ZOOM,
+    BUILDING_MIN_ZOOM,
+    COMFORT_SCALE,
+    ENTRY_BUILDINGS,
+    ENTRY_STADTTEILE,
+    GREEN_SCALE,
+    NONE_COLOR,
+    NO_DATA_COLOR,
+    RAMPS,
+    SAFETY_SCALE,
+    SHARE_SCALE,
+    adminColor,
+    adminField,
+    adminStyleOptions,
+    buildBuildingProfile,
+    buildingColor,
     buildingExtrusionHeightExpression,
-    buildingHeightExpression,
-    buildingGapFilter,
-    buildingStyleOptionId,
     buildingStyleOptions,
-    CATEGORY_FIELDS,
-    FIFTEEN_MINUTE_CATEGORY_IDS,
-    FRONTEND_STYLE_PREFIX,
-    gapSignature,
-    NO_GAP_FILTER,
+    categoryMeasure,
+    legendFor,
+    measureInfo,
+    outlineColor,
     resolveFifteenMinuteStyling,
-    STYLE_NAMES,
+    selectionExtrusionHeightExpression,
+    styleNameOf,
+    type MeasureId,
 } from "./index";
-import { numberAt, passesFilter, styleErrors } from "./__fixtures__/evaluate";
+import { colorAt, numberAt, styleErrors } from "./__fixtures__/evaluate";
 
-describe("local style resolver", () => {
-    test("every Explore entry of the story resolves to a local styling, with local names only", () => {
-        for (const entry of fifteenMinuteStory.explore) {
-            const bundle = resolveFifteenMinuteStyling(entry.key);
-            expect(bundle, entry.key).toBeDefined();
-            expect(bundle!.styles.every((style) => style.name.startsWith(FRONTEND_STYLE_PREFIX)), entry.key).toBe(true);
-            expect(bundle!.styles.some((style) => style.id === bundle!.defaultStyleId), entry.key).toBe(true);
-            expect(frontendStylingFor(entry)?.defaultStyleId).toBe(bundle!.defaultStyleId);
-        }
-    });
+const BUILDING_FIELD: Record<string, string> = {
+    access: "score_15min_decay",
+    comfort: "comfort_mean_400m",
+    safety: "safety_index_400m",
+    green: "score_green",
+};
 
-    test("an unknown entry key has no styling", () => {
-        expect(resolveFifteenMinuteStyling("buildings-comfort-safety")).toBeUndefined();
-    });
-
-    test("no style references a catalog style, a GeoServer style name or a style endpoint", () => {
-        const everything = JSON.stringify(fifteenMinuteStory.explore.map((entry) => resolveFifteenMinuteStyling(entry.key)));
-        expect(everything).not.toMatch(/urbanstories-/);
-        expect(everything).not.toMatch(/default-hamburg/);
-        expect(everything).not.toMatch(/\/styles\//);
-        expect(everything).not.toMatch(/tosca:metric|tosca:frontend-style-driven/);
-    });
-
-    test("every metric of the story names a style that its entry's styling provides", () => {
-        for (const entry of fifteenMinuteStory.explore) {
-            const names = new Set(resolveFifteenMinuteStyling(entry.key)!.styles.map((style) => style.name));
-            for (const metric of entry.metrics) expect(names.has(metric.styleName!), `${entry.key}/${metric.key}`).toBe(true);
-        }
-    });
-
-    test("every generated style layer is valid against the MapLibre style spec", () => {
-        for (const entry of fifteenMinuteStory.explore) {
-            for (const style of resolveFifteenMinuteStyling(entry.key)!.styles) {
-                expect(styleErrors(style.layers, [entry.layer.layerName]), `${entry.key}/${style.name}`).toEqual([]);
+describe("styles", () => {
+    test("every measure has a valid building and Stadtteil style with a local name", () => {
+        for (const [level, options] of [["building", buildingStyleOptions()], ["admin", adminStyleOptions()]] as const) {
+            expect(options.map((option) => option.name)).toEqual(ALL_MEASURES.map((measure) => styleNameOf(level, measure)));
+            for (const option of options) {
+                expect(option.name.startsWith("frontend:15min:")).toBe(true);
+                expect(styleErrors(option.layers, [])).toEqual([]);
             }
         }
     });
 
-    test("the building styles keep the zoom floor on every pass and a numeric opacity for the layer controls", () => {
-        for (const style of buildingStyleOptions()) {
-            for (const layer of style.layers) expect(layer.minzoom, `${style.name}/${layer.id}`).toBe(BUILDING_MIN_ZOOM);
-            const fill = style.layers[0];
-            expect(fill.type).toBe("fill-extrusion");
-            expect(typeof fill.paint?.["fill-extrusion-opacity"]).toBe("number");
-            expect(fill.paint?.["fill-extrusion-height"]).toEqual(buildingExtrusionHeightExpression());
-            expect(fill["source-layer"]).toBe("hamburg_buildings");
-        }
+    test("the resolver serves the two entries of the story and nothing else", () => {
+        expect(resolveFifteenMinuteStyling(ENTRY_BUILDINGS)?.styles).toHaveLength(ALL_MEASURES.length);
+        expect(resolveFifteenMinuteStyling(ENTRY_STADTTEILE)?.styles).toHaveLength(ALL_MEASURES.length);
+        expect(resolveFifteenMinuteStyling("poi-food")).toBeUndefined();
     });
 
-    test("one overall and nine category styles per building bundle", () => {
-        const names = buildingStyleOptions().map((style) => style.name);
-        expect(names).toEqual([STYLE_NAMES.overall, ...FIFTEEN_MINUTE_CATEGORY_IDS.map((id) => STYLE_NAMES.category(id))]);
-        expect(new Set(names).size).toBe(10);
+    test("buildings keep one layer from footprint to 3D and appear from the neighbourhood scale", () => {
+        const [first] = buildingStyleOptions();
+        const fill = first.layers.find((layer) => layer.type === "fill-extrusion")!;
+        expect(first.layers.filter((layer) => layer.type === "fill-extrusion")).toHaveLength(1);
+        expect(fill.minzoom).toBe(BUILDING_MIN_ZOOM);
+        expect(BUILDING_MIN_ZOOM).toBeGreaterThanOrEqual(11);
+        const height = (zoom: number, props: Record<string, unknown>): number => numberAt(buildingExtrusionHeightExpression(), props, zoom);
+        expect(height(BUILDING_3D_START_ZOOM, { building_height_m: 20 })).toBe(0);
+        expect(height(BUILDING_3D_FULL_ZOOM, { building_height_m: 20 })).toBe(20);
+        expect(height(BUILDING_3D_START_ZOOM + 0.75, { building_height_m: 20 })).toBeGreaterThan(0);
+        expect(height(BUILDING_3D_START_ZOOM + 0.75, { building_height_m: 20 })).toBeLessThan(20);
     });
 
-    test("the category styles read their own access field", () => {
-        for (const style of buildingStyleOptions().slice(1)) {
-            const id = FIFTEEN_MINUTE_CATEGORY_IDS.find((candidate) => style.name === STYLE_NAMES.category(candidate))!;
-            expect(JSON.stringify(style.layers[0].paint?.["fill-extrusion-color"])).toContain(CATEGORY_FIELDS[id].accessField);
-        }
-    });
-});
-
-describe("3D extrusion height", () => {
-    const height = buildingHeightExpression();
-
-    test("extrudes by building_height_m in metres", () => {
-        expect(numberAt(height, { building_height_m: 12.34 })).toBe(12.34);
-        expect(numberAt(height, { building_height_m: 158.47 })).toBe(158.47);
+    test("the extrusion height is the building's own height, never a score", () => {
+        const at = (props: Record<string, unknown>): number => numberAt(buildingExtrusionHeightExpression(), props, 17);
+        expect(at({ building_height_m: 12.5, score_15min_decay: 99, comfort_mean_400m: 90 })).toBe(12.5);
+        expect(at({ score_15min_decay: 99 })).toBe(0);
+        expect(at({ building_height_m: 0, score_15min_decay: 99 })).toBe(0);
+        expect(at({ building_height_m: "12" })).toBe(0);
+        expect(numberAt(selectionExtrusionHeightExpression(), { height: 10 }, 17)).toBe(10.5);
     });
 
-    test("NULL, missing, zero, negative and non-numeric heights stay flat: no height is estimated", () => {
-        for (const properties of [{}, { building_height_m: null }, { building_height_m: 0 }, { building_height_m: -3 }, { building_height_m: "12" }]) {
-            expect(numberAt(height, properties), JSON.stringify(properties)).toBe(0);
-        }
-    });
-
-    test("buildings are flat at low zoom and reach their full height from the 3D zoom on", () => {
-        const zoomed = buildingExtrusionHeightExpression();
-        const properties = { building_height_m: 20 };
-        expect(numberAt(zoomed, properties, BUILDING_3D_START_ZOOM - 1)).toBe(0);
-        expect(numberAt(zoomed, properties, BUILDING_3D_START_ZOOM)).toBe(0);
-        expect(numberAt(zoomed, properties, (BUILDING_3D_START_ZOOM + BUILDING_3D_FULL_ZOOM) / 2)).toBe(10);
-        expect(numberAt(zoomed, properties, BUILDING_3D_FULL_ZOOM)).toBe(20);
-        expect(numberAt(zoomed, properties, 18)).toBe(20);
-        expect(numberAt(zoomed, {}, 18)).toBe(0);
-    });
-
-    test("the thematic colour does not depend on the height", () => {
-        expect(JSON.stringify(buildingStyleOptions()[0].layers[0].paint?.["fill-extrusion-color"])).not.toContain("building_height_m");
+    test("a low-confidence building gets its own outline colour", () => {
+        expect(colorAt(outlineColor(), { score_confidence: "low" })).not.toBe(colorAt(outlineColor(), { score_confidence: "high" }));
+        expect(colorAt(outlineColor(), {})).toBe(colorAt(outlineColor(), { score_confidence: "medium" }));
     });
 });
 
-describe("gap filter inside the building styles", () => {
-    test("no gap means no filter on any pass", () => {
-        for (const style of buildingStyleOptions(NO_GAP_FILTER)) {
-            expect(style.layers.every((layer) => layer.filter === undefined)).toBe(true);
-        }
-        expect(buildingGapFilter(NO_GAP_FILTER)).toBeUndefined();
-        expect(gapSignature(NO_GAP_FILTER)).toBe("");
-    });
+describe("colours and legends agree", () => {
+    const scaleMeasures: [MeasureId, typeof ACCESS_SCALE][] = [
+        ["access", ACCESS_SCALE], ["comfort", COMFORT_SCALE], ["safety", SAFETY_SCALE], ["green", GREEN_SCALE],
+    ];
 
-    test("a gap puts the same filter on every pass of every style, and changes the option ids but not the names", () => {
-        const gap = { maxScore: 3, missingCategory: "health" as const };
-        const plain = buildingStyleOptions();
-        const filtered = buildingStyleOptions(gap);
-        expect(filtered.map((style) => style.name)).toEqual(plain.map((style) => style.name));
-        expect(filtered.every((style, index) => style.id !== plain[index].id)).toBe(true);
-        expect(filtered[0].id).toBe(buildingStyleOptionId(STYLE_NAMES.overall, gap));
-        for (const style of filtered) {
-            for (const layer of style.layers) expect(layer.filter).toEqual(buildingGapFilter(gap));
-        }
-    });
-
-    test("score and missing-category operands combine with AND and ignore unknown buildings", () => {
-        const filter = buildingGapFilter({ maxScore: 2, missingCategory: "food" })!;
-        expect(passesFilter(filter, { score_15min: 2, n_food_15min: 0 })).toBe(true);
-        expect(passesFilter(filter, { score_15min: 3, n_food_15min: 0 })).toBe(false);
-        expect(passesFilter(filter, { score_15min: 1, n_food_15min: 2 })).toBe(false);
-        expect(passesFilter(filter, { score_15min: 1 })).toBe(false);
-        expect(passesFilter(filter, { n_food_15min: 0 })).toBe(false);
-        const scoreOnly = buildingGapFilter({ maxScore: 0, missingCategory: null })!;
-        expect(passesFilter(scoreOnly, { score_15min: 0 })).toBe(true);
-        expect(passesFilter(scoreOnly, {})).toBe(false);
-    });
-
-    test("the filtered layers are still valid against the style spec", () => {
-        for (const style of buildingStyleOptions({ maxScore: 4, missingCategory: "park" })) {
-            expect(styleErrors(style.layers, ["hamburg_buildings"]), style.name).toEqual([]);
-        }
-    });
-});
-
-describe("POI styles", () => {
-    test("each category has a POI entry with its own local circle or area style", () => {
-        for (const id of FIFTEEN_MINUTE_CATEGORY_IDS) {
-            const entry = fifteenMinuteStory.explore.find((item) => item.key === CATEGORY_FIELDS[id].poiEntryKey);
-            expect(entry, id).toBeDefined();
-            const bundle = resolveFifteenMinuteStyling(entry!.key)!;
-            expect(bundle.styles).toHaveLength(1);
-            expect(bundle.styles[0].name).toBe(STYLE_NAMES.poi(id));
-            expect(bundle.styles[0].layers[0].type).toBe(id === "park" ? "fill" : "circle");
-            expect(bundle.styles[0].layers[0]["source-layer"]).toBe(entry!.layer.layerName);
-        }
-    });
-
-    test("the nine POI colours are distinct", () => {
-        const colors = FIFTEEN_MINUTE_CATEGORY_IDS.map((id) => {
-            const layer = resolveFifteenMinuteStyling(CATEGORY_FIELDS[id].poiEntryKey)!.styles[0].layers[0];
-            return String(layer.paint?.["circle-color"] ?? layer.paint?.["fill-color"]);
+    test.each(scaleMeasures)("%s: each class colour is drawn inside its class limits", (measure, scale) => {
+        const field = BUILDING_FIELD[measure];
+        const inside = (index: number): number => {
+            const lower = index === 0 ? scale.limits[0] - 5 : scale.limits[index - 1];
+            const upper = index === scale.colors.length - 1 ? scale.limits[scale.limits.length - 1] + 5 : scale.limits[index];
+            return (lower + upper) / 2 + (index === 0 && measure === "green" ? 0 : 0);
+        };
+        scale.colors.forEach((color, index) => {
+            expect(colorAt(buildingColor(measure), { [field]: inside(index) })).toBe(color);
         });
-        expect(new Set(colors).size).toBe(9);
+        // The lower limit belongs to the upper class.
+        scale.limits.forEach((limit, index) => {
+            expect(colorAt(buildingColor(measure), { [field]: limit })).toBe(scale.colors[index + 1]);
+        });
+    });
+
+    test.each(ALL_MEASURES.map((measure) => [measure]))("%s: missing and non-numeric values are never drawn as the lowest class", (measure) => {
+        const info = measureInfo(measure);
+        expect(colorAt(buildingColor(measure), {})).toBe(NO_DATA_COLOR);
+        expect(colorAt(buildingColor(measure), { [info.field]: null })).toBe(NO_DATA_COLOR);
+        expect(colorAt(buildingColor(measure), { [info.field]: "12" })).toBe(NO_DATA_COLOR);
+        expect(colorAt(adminColor(measure), {})).toBe(NO_DATA_COLOR);
+        expect(colorAt(adminColor(measure), { [adminField(measure)]: null })).toBe(NO_DATA_COLOR);
+    });
+
+    test("a real zero of the green score is its own class; no value is not zero", () => {
+        expect(colorAt(buildingColor("green"), { score_green: 0 })).toBe(NONE_COLOR);
+        expect(colorAt(buildingColor("green"), { score_green: 0.5 })).toBe(RAMPS.green[0]);
+        expect(colorAt(buildingColor("green"), {})).toBe(NO_DATA_COLOR);
+        const legend = legendFor("building", "green");
+        expect(legend.items[0].color).toBe(NONE_COLOR);
+        expect(legend.items).toHaveLength(GREEN_SCALE.colors.length + 1);
+    });
+
+    test("category colours separate none within 15 minutes from not computable", () => {
+        const colour = (props: Record<string, unknown>): string => colorAt(buildingColor(categoryMeasure("culture")), props);
+        expect(colour({ n_culture_15min: 0 })).toBe(NONE_COLOR);
+        expect(colour({})).toBe(NO_DATA_COLOR);
+        expect(colour({ n_culture_15min: 3, walk_min_culture: 4.9 })).toBe(RAMPS.minutes[0]);
+        expect(colour({ n_culture_15min: 3, walk_min_culture: 5 })).toBe(RAMPS.minutes[0]);
+        expect(colour({ n_culture_15min: 3, walk_min_culture: 5.01 })).toBe(RAMPS.minutes[1]);
+        expect(colour({ n_culture_15min: 3, walk_min_culture: 10 })).toBe(RAMPS.minutes[1]);
+        expect(colour({ n_culture_15min: 3, walk_min_culture: 14.9 })).toBe(RAMPS.minutes[2]);
+        const legend = legendFor("building", categoryMeasure("culture"));
+        expect(legend.items.map((item) => item.color)).toEqual([...RAMPS.minutes, NONE_COLOR]);
+    });
+
+    test("the share of buildings reaching a category: zero is its own class", () => {
+        const colour = (value: unknown): string => colorAt(adminColor(categoryMeasure("culture")), { m15_share_culture: value });
+        expect(colour(0)).toBe(NONE_COLOR);
+        expect(colour(0.05)).toBe(SHARE_SCALE.colors[0]);
+        expect(colour(0.2)).toBe(SHARE_SCALE.colors[1]);
+        expect(colour(1)).toBe(SHARE_SCALE.colors[4]);
+        expect(legendFor("admin", categoryMeasure("culture")).items).toHaveLength(SHARE_SCALE.colors.length + 1);
+    });
+
+    test("official park minutes use five classes without a cut-off", () => {
+        const colour = (value: number): string => colorAt(buildingColor("green-park"), { walk_min_dgp_park: value });
+        expect([3, 8, 12, 20, 104].map(colour)).toEqual([...RAMPS.greenMinutes]);
+        expect(legendFor("building", "green-park").items.map((item) => item.color)).toEqual([...RAMPS.greenMinutes]);
+    });
+
+    test.each(ALL_MEASURES.map((measure) => [measure]))("%s: legend rows use the colours the expression can draw", (measure) => {
+        for (const level of ["building", "admin"] as const) {
+            const legend = legendFor(level, measure);
+            expect(legend.styleName).toBe(styleNameOf(level, measure));
+            expect(legend.items.length).toBeGreaterThan(2);
+            expect(new Set(legend.items.map((item) => item.color)).size).toBe(legend.items.length);
+            expect(legend.items.map((item) => item.color)).not.toContain(legend.noData.color);
+        }
+    });
+
+    test("a higher comfort, safety or accessibility value is never lighter than a lower one", () => {
+        const luminance = (hex: string): number => {
+            const channel = (offset: number): number => {
+                const value = parseInt(hex.slice(offset, offset + 2), 16) / 255;
+                return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+            };
+            return 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+        };
+        for (const colors of [ACCESS_SCALE.colors, COMFORT_SCALE.colors, SAFETY_SCALE.colors, RAMPS.teal, RAMPS.green]) {
+            for (let index = 1; index < colors.length; index++) expect(luminance(colors[index])).toBeLessThan(luminance(colors[index - 1]));
+        }
     });
 });
 
 describe("building profile", () => {
-    const full: Record<string, unknown> = { score_15min: 7, score_15min_decay: 81.25, score_confidence: "high" };
-    FIFTEEN_MINUTE_CATEGORY_IDS.forEach((id, index) => {
-        full[CATEGORY_FIELDS[id].accessField] = index < 7 ? index + 1 : 0;
-        if (index < 7) full[CATEGORY_FIELDS[id].walkMinField] = 4.5;
+    test("reads values, keeps missing values missing and tells none from unknown", () => {
+        const profile = buildBuildingProfile({
+            gml_id: "DEHHALKAP0000rWE", is_residential: true, score_15min: 9, score_15min_decay: 72.79, comfort_mean_400m: 59.08,
+            comfort_scored_share_400m: 1, safety_index_400m: 30.42, score_green: 0, n_culture_15min: 0, walk_min_culture: null,
+            n_food_15min: 4, walk_min_food: 3.5, building_height_m: 9.77,
+        });
+        expect(profile.id).toBe("DEHHALKAP0000rWE");
+        expect(profile.count).toBe(9);
+        expect(profile.decay).toBe(72.79);
+        expect(profile.green).toBe(0);
+        expect(profile.comfort).toBe(59.08);
+        expect(profile.dgpPark).toBeNull();
+        expect(profile.categories.find((item) => item.id === "culture")?.state).toBe("none");
+        expect(profile.categories.find((item) => item.id === "food")).toMatchObject({ state: "within", walkMinutes: 3.5 });
+        expect(profile.categories.find((item) => item.id === "sport")?.state).toBe("unknown");
     });
 
-    test("distinguishes accessible, inaccessible and unknown for each of the nine categories", () => {
-        const { [CATEGORY_FIELDS.sport.accessField]: _removed, ...withoutSport } = full;
-        const profile = buildBuildingProfile(withoutSport);
-        expect(profile.categories).toHaveLength(9);
-        expect(profile.categories.find((item) => item.id === "food")).toMatchObject({ state: "accessible", places: 1, walkMinutes: 4.5 });
-        expect(profile.categories.find((item) => item.id === "park")).toMatchObject({ state: "inaccessible", places: 0, walkMinutes: null });
-        expect(profile.categories.find((item) => item.id === "sport")).toMatchObject({ state: "unknown", places: null });
-        expect(profile.score).toBe(7);
-        expect(profile.decayScore).toBe(81.25);
-        expect(profile.confidence).toBe("high");
-    });
-
-    test("missing properties give no score and unknown categories, never zeros", () => {
-        const profile = buildBuildingProfile({});
-        expect(profile.score).toBeNull();
-        expect(profile.decayScore).toBeNull();
-        expect(profile.categories.every((item) => item.state === "unknown" && item.places === null)).toBe(true);
-        expect(buildBuildingProfile(undefined).score).toBeNull();
-        expect(buildBuildingProfile({ score_15min: 12 }).score).toBeNull();
+    test("reads WFS records the same way (nulls and strings)", () => {
+        const profile = buildBuildingProfile({ gml_id: "x", is_residential: "false", score_15min: null, comfort_mean_400m: null, comfort_null_reason_400m: "connector_exceeds_radius" });
+        expect(profile.residential).toBe(false);
+        expect(profile.count).toBeNull();
+        expect(profile.comfort).toBeNull();
+        expect(profile.comfortReason).toBe("connector_exceeds_radius");
     });
 });

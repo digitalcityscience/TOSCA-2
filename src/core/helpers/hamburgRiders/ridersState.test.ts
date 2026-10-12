@@ -40,7 +40,7 @@ describe("ridersState", () => {
     test("vehicles bring the timeline; the dark basemap and controls come only from a claim that asks", () => {
         expect(computeEffective({ a: claim({ vehicleModes: ["s-bahn"] }) }, emptyUserState(), lookup)).toMatchObject({ timeline: true, darkBasemap: false, controls: false });
         expect(computeEffective({ a: claim({ network: ["bus"] }) }, emptyUserState(), lookup).timeline).toBe(false);
-        expect(computeEffective({ a: standaloneClaim() }, emptyUserState(), lookup)).toMatchObject({ darkBasemap: true, controls: true, timeline: true });
+        expect(computeEffective({ a: standaloneClaim() }, emptyUserState(), lookup)).toMatchObject({ darkBasemap: false, controls: true, timeline: true });
     });
 
     test("unresolvable route references show nothing", () => {

@@ -1,4 +1,5 @@
 import { FRONTEND_STYLE_PREFIX } from "./styles/fifteenMinute/types";
+import { EQUITY_STYLE_PREFIX } from "./styles/transitEquity/constants";
 import { isBezirkeLayer, isHeavyLayer } from "./layers";
 import { URBAN_STORY_KEYS, type ExploreEntry, type UrbanStoryConfig } from "./types";
 
@@ -34,7 +35,7 @@ function validateEntry(story: string, entry: ExploreEntry): string[] {
     }
     for (const option of entry.metrics) {
         if (entry.styleSource === "frontend") {
-            const prefix = ["walkability-safety", "building-walking"].includes(story) ? "frontend:walkability:" : FRONTEND_STYLE_PREFIX;
+            const prefix = ["walkability-safety", "building-walking"].includes(story) ? "frontend:walkability:" : story === "transit-equity" ? EQUITY_STYLE_PREFIX : FRONTEND_STYLE_PREFIX;
             if (option.styleName === null || !option.styleName.startsWith(prefix) || option.styleVerifiedOn !== undefined) {
                 errors.push(`${at}: metric "${option.key}" of a frontend-styled entry needs a local "${FRONTEND_STYLE_PREFIX}" style name and no catalog verification`);
             }

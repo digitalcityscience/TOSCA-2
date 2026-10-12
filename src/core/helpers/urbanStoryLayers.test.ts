@@ -253,7 +253,8 @@ describe("supplementalStylesFor", () => {
         expect(supplementalStylesFor(ref("hamburg_bezirke"))).toEqual([]);
         expect(supplementalStylesFor({ providerId: PROVIDER, workspace: "HAMBURG-BUILDINGS", layerName: "hamburg_buildings" }).map((request) => request.name))
             .not.toContain("urbanstories-15-minute-city");
-        expect(supplementalStylesFor(ref("hamburg_statistical_units"))).toEqual([{ name: "urbanstories-public-transport-equity", attribute: "pt_in_catchment_share" }]);
+        // Public Transport Equity owns the styling of statistical units as well.
+        expect(supplementalStylesFor(ref("hamburg_statistical_units"))).toEqual([]);
     });
 
     test("is empty for layers without a verified style and for layers the configs do not use", () => {

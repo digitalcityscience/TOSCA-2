@@ -78,7 +78,7 @@ const sections = computed(() => [
     { label: t("urbanStories.sections.explore"), icon: "i-lucide-layers", value: "explore", slot: "explore" as const },
 ]);
 
-const openSections = ref<string[]>(["run", "explore"]);
+const openSections = ref<string[]>(["run"]);
 
 function showExplore(): void {
     if (!openSections.value.includes("explore")) openSections.value = [...openSections.value, "explore"];

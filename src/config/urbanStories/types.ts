@@ -108,13 +108,6 @@ export interface ExploreEntry {
     styleSource?: "frontend";
 }
 
-/**
- * What the user can do on the map in a chapter of a story with interactive chapters (15-Minute City).
- * `overall`: building score only. `category`: pick one of the nine categories. `building`: select and
- * inspect a building. `neighbourhoods`: building-to-area transition. `gaps`: low-score filter + category.
- */
-export type ChapterInteraction = "overall" | "category" | "building" | "neighbourhoods" | "gaps";
-
 /** An Explore entry a chapter puts on the map when it becomes active. */
 export interface ChapterLayer {
     /** `ExploreEntry.key` of the same story. */
@@ -147,8 +140,6 @@ export interface StoryChapter {
     scene: { id: string | null; order: number };
     /** ExploreEntry.key values of the same story. */
     relatedExploreEntries: string[];
-    /** Map interaction the story panel offers while the chapter is active. Absent = none. */
-    interaction?: ChapterInteraction;
 }
 
 export interface OverviewCamera {

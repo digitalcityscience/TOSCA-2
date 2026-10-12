@@ -3,16 +3,16 @@ import type { Localized, MetricOption } from "./types";
 /** Caveat texts required by UST-01. Shared so the same rule always reads the same way. */
 export const CAVEATS = {
     adminAggregate: {
-        en: "Residential buildings, building-weighted, not population; NULL when fewer than 5 buildings.",
-        de: "Wohngebäude, gebäudegewichtet, nicht bevölkerungsgewichtet; NULL bei weniger als 5 Gebäuden.",
+        en: "Counts residential buildings, not residents. Areas with fewer than 5 buildings show no value.",
+        de: "Gezählt werden Wohngebäude, nicht Einwohner. Gebiete mit weniger als 5 Gebäuden zeigen keinen Wert.",
     },
     legacyPtAssignment: {
-        en: "Legacy assignment; not directly comparable with strict-id m15_*/cmf_* values (border buildings are assigned differently).",
-        de: "Alte Zuordnung; nicht direkt vergleichbar mit m15_*/cmf_*-Werten nach strikter ID (Grenzgebäude werden anders zugeordnet).",
+        en: "Buildings on an area border are assigned to areas differently here than in the 15-minute city and comfort stories, so numbers can differ slightly between stories.",
+        de: "Gebäude an Gebietsgrenzen werden hier anders zugeordnet als in den Geschichten zur 15-Minuten-Stadt und zum Komfort; die Zahlen können daher leicht abweichen.",
     },
     departuresLowerBound: {
-        en: "Lower bound where pt_departures_complete = false; incomplete is not zero service.",
-        de: "Untergrenze, wo pt_departures_complete = false; unvollständig heißt nicht kein Angebot.",
+        en: "Where departure data is incomplete, the number is a minimum. Missing data does not mean no service.",
+        de: "Bei unvollständigen Abfahrtsdaten ist die Zahl ein Mindestwert. Fehlende Daten bedeuten nicht, dass nichts fährt.",
     },
     modelled: {
         en: "Modelled, not measured.",
@@ -23,7 +23,7 @@ export const CAVEATS = {
         de: "Vereinigung der amtlichen Flächen; nie aufsummiert.",
     },
     buildingsNotPeople: {
-        en: "Counts and shares refer to buildings, not people.",
+        en: "Counts and shares are about buildings, not people.",
         de: "Anzahlen und Anteile beziehen sich auf Gebäude, nicht auf Personen.",
     },
 } satisfies Record<string, Localized>;

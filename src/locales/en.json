@@ -682,61 +682,6 @@
       "relatedTitle": "Related to this chapter: {chapter}",
       "othersTitle": "More layers in this story",
       "inChapter": "In this chapter"
-    },
-    "fifteenMinute": {
-      "controlsTitle": "Map controls",
-      "category": {
-        "label": "Everyday need",
-        "overall": "All nine (overall count)",
-        "help": "Choose a category to colour buildings by whether it is reachable within 15 minutes.",
-        "unavailable": "Not published in the tile data"
-      },
-      "gap": {
-        "title": "Accessibility gaps",
-        "enable": "Show only buildings with few categories",
-        "threshold": "At most this many of 9 categories",
-        "thresholdOption": "{count} of 9",
-        "missingOnly": "Only buildings without access to the selected category",
-        "missingNeedsCategory": "Select a category to use this filter.",
-        "help": "The starting threshold is an illustrative value you can change. It is not a standard, and no area is ranked."
-      },
-      "selection": {
-        "title": "Selected building",
-        "hint": "Click a building on the map to select it.",
-        "clear": "Clear selection",
-        "id": "Building",
-        "idMissing": "No building identifier is published in the tile data.",
-        "score": "Categories reached within 15 min",
-        "noScore": "No score (not computable)",
-        "decay": "Decay-weighted score (0–100)",
-        "confidence": "Score confidence",
-        "accessible": "Reachable",
-        "inaccessible": "Not reachable",
-        "unknown": "Unknown",
-        "places": "{count} within 15 min",
-        "walk": "{minutes} min walk to the nearest",
-        "categories": "The nine categories",
-        "tilesNote": "Values are those of the map tiles; a category missing from the tiles is shown as unknown."
-      },
-      "admin": {
-        "title": "Neighbourhood context",
-        "level": "Area level",
-        "stadtteile": "Neighbourhoods (Stadtteile)",
-        "bezirke": "Districts (Bezirke)",
-        "metric": "Aggregate",
-        "explain": "Building-level values are counts (0–9). Area values summarise the residential buildings inside each area; the 0–100 decay-weighted mean is a different measure and is not the mean of the 0–9 count.",
-        "zoomHint": "Zoom in past level 12 to return to individual buildings."
-      },
-      "legend": {
-        "title": "Legend",
-        "noData": "No data",
-        "buildingNote": "Buildings appear from zoom level 8 and become 3D from zoom 12."
-      },
-      "unavailable": {
-        "title": "Building tiles are unavailable",
-        "description": "GeoServer currently does not deliver the building vector tiles (HTTP 400). The 15-Minute City needs building-level data, so no other layer is shown in its place. The local styling is ready and applies as soon as the tiles load."
-      },
-      "notOnMap": "The building layer is not on the map yet."
     }
   },
   "hamburgRiders": {

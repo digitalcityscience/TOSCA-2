@@ -112,7 +112,7 @@ export const useHamburgRidersStore = defineStore("hamburgRiders", () => {
     const loadError = ref<string>();
     const controlsOpen = ref(false);
     const time = ref(DEFAULT_START);
-    const playing = ref(true);
+    const playing = ref(false);
     const speed = ref(DEFAULT_SPEED);
     const stats = ref({ active: 0, cumulative: 0, total: 0 });
 
@@ -268,7 +268,7 @@ export const useHamburgRidersStore = defineStore("hamburgRiders", () => {
         controlsOpen.value = false;
         stats.value = { active: 0, cumulative: 0, total: 0 };
         time.value = DEFAULT_START;
-        playing.value = true;
+        playing.value = false;
         speed.value = DEFAULT_SPEED;
         visibleGroups = new Set();
     }
