@@ -587,6 +587,38 @@
   },
   "urbanStories": {
     "title": "Urban Stories",
+    "about": {
+      "title": "About Urban Stories",
+      "attribution": "Developed as a proof of concept (PoC) by the SUMO-15 / NGCN Engineering Team at HafenCity University Hamburg.",
+      "disclaimer": "These scenarios are research demonstrations based on available geospatial datasets. Results may contain uncertainties, omissions or outdated information and do not constitute official assessments or operational guidance."
+    },
+    "credits": {
+      "title": "Data Sources & Credits",
+      "intro": "Sources used across the stories. Licence and attribution text follows the source records.",
+      "license": "Licence",
+      "modified": "Data were processed, aggregated and combined for these demonstrations; derived values are the project's own and not those of the publishers.",
+      "groups": {
+        "hamburg": "Freie und Hansestadt Hamburg",
+        "mobility": "Mobility & safety",
+        "community": "OpenStreetMap & basemap",
+        "other": "Other"
+      },
+      "items": {
+        "alkis": "Building footprints, ALKIS attributes, land use",
+        "admin": "Districts, neighbourhoods and statistical areas",
+        "dgp": "Public green areas",
+        "feinkartierung": "Detailed green objects",
+        "trees": "Street trees near walking routes",
+        "dgm1": "Terrain slope for walking times",
+        "hvvCatchments": "Official stop catchments",
+        "hvvGtfs": "Stops, service frequency and the HamburgRiders timetable demo",
+        "unfallatlas": "Accident data behind the safety index (merged copy of the yearly releases)",
+        "osm": "Pedestrian network, destinations, park entrances",
+        "carto": "Dark basemap of HamburgRiders",
+        "coloringCities": "Building heights; publisher and licence not yet confirmed",
+        "riders": "Open-source basis of the HamburgRiders module"
+      }
+    },
     "selector": {
       "label": "Choose a story"
     },

@@ -14,6 +14,8 @@
         </template>
 
         <div class="grid gap-4">
+            <UrbanStoriesAbout />
+
             <UrbanStorySelector
                 :stories="URBAN_STORIES"
                 :active-key="urbanStories.activeStoryKey"
@@ -63,6 +65,7 @@ import HamburgRidersStoryPanel from "@components/HamburgRiders/HamburgRidersStor
 import WalkabilityBuildingPanel from "./WalkabilityBuildingPanel.vue";
 import StoryExploreSection from "./StoryExploreSection.vue";
 import StoryRunSection from "./StoryRunSection.vue";
+import UrbanStoriesAbout from "./UrbanStoriesAbout.vue";
 import UrbanStoryIntro from "./UrbanStoryIntro.vue";
 import UrbanStorySelector from "./UrbanStorySelector.vue";
 

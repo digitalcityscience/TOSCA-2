@@ -587,6 +587,38 @@
   },
   "urbanStories": {
     "title": "Urban Stories",
+    "about": {
+      "title": "Über Urban Stories",
+      "attribution": "Als Proof of Concept (PoC) vom SUMO-15 / NGCN Engineering Team an der HafenCity Universität Hamburg entwickelt.",
+      "disclaimer": "Diese Szenarien sind Forschungsdemonstrationen auf Basis verfügbarer Geodaten. Die Ergebnisse können Unsicherheiten, Lücken oder veraltete Angaben enthalten und stellen keine amtlichen Bewertungen oder Handlungsempfehlungen dar."
+    },
+    "credits": {
+      "title": "Datenquellen & Nachweise",
+      "intro": "In den Stories verwendete Quellen. Lizenz- und Quellenvermerke folgen den Angaben der Datenquellen.",
+      "license": "Lizenz",
+      "modified": "Die Daten wurden für diese Demonstrationen verarbeitet, aggregiert und kombiniert; abgeleitete Werte stammen vom Projekt und nicht von den Datenherausgebern.",
+      "groups": {
+        "hamburg": "Freie und Hansestadt Hamburg",
+        "mobility": "Mobilität & Sicherheit",
+        "community": "OpenStreetMap & Basiskarte",
+        "other": "Weitere"
+      },
+      "items": {
+        "alkis": "Gebäudegrundrisse, ALKIS-Attribute, Flächennutzung",
+        "admin": "Bezirke, Stadtteile und statistische Gebiete",
+        "dgp": "Öffentliche Grünflächen",
+        "feinkartierung": "Detaillierte Grünobjekte",
+        "trees": "Straßenbäume entlang der Gehwege",
+        "dgm1": "Geländeneigung für Gehzeiten",
+        "hvvCatchments": "Offizielle Haltestelleneinzugsbereiche",
+        "hvvGtfs": "Haltestellen, Taktung und die HamburgRiders-Fahrplandemo",
+        "unfallatlas": "Unfalldaten hinter dem Sicherheitsindex (zusammengeführte Kopie der Jahresdaten)",
+        "osm": "Fußwegenetz, Ziele, Parkeingänge",
+        "carto": "Dunkle Basiskarte von HamburgRiders",
+        "coloringCities": "Gebäudehöhen; Herausgeber und Lizenz noch nicht bestätigt",
+        "riders": "Open-Source-Grundlage des HamburgRiders-Moduls"
+      }
+    },
     "selector": {
       "label": "Geschichte auswählen"
     },

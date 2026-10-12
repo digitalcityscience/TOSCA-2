@@ -587,6 +587,38 @@
   },
   "urbanStories": {
     "title": "Kent Hikâyeleri",
+    "about": {
+      "title": "Urban Stories Hakkında",
+      "attribution": "SUMO-15 / NGCN Engineering Team tarafından HafenCity Üniversitesi Hamburg'da kavram kanıtı (PoC) olarak geliştirilmiştir.",
+      "disclaimer": "Bu senaryolar, mevcut coğrafi veri setlerine dayanan araştırma gösterimleridir. Sonuçlar belirsizlikler, eksiklikler veya güncel olmayan bilgiler içerebilir; resmî değerlendirme ya da operasyonel yönlendirme niteliği taşımaz."
+    },
+    "credits": {
+      "title": "Veri Kaynakları ve Katkılar",
+      "intro": "Hikâyelerde kullanılan kaynaklar. Lisans ve atıf metinleri kaynak kayıtlarını izler.",
+      "license": "Lisans",
+      "modified": "Veriler bu gösterimler için işlenmiş, birleştirilmiş ve türetilmiştir; türetilen değerler projeye aittir, veri yayıncılarına ait değildir.",
+      "groups": {
+        "hamburg": "Freie und Hansestadt Hamburg",
+        "mobility": "Ulaşım ve güvenlik",
+        "community": "OpenStreetMap ve altlık harita",
+        "other": "Diğer"
+      },
+      "items": {
+        "alkis": "Bina ayak izleri, ALKIS nitelikleri, arazi kullanımı",
+        "admin": "İlçeler, mahalleler ve istatistik bölgeleri",
+        "dgp": "Kamusal yeşil alanlar",
+        "feinkartierung": "Ayrıntılı yeşil nesneler",
+        "trees": "Yürüyüş yollarındaki sokak ağaçları",
+        "dgm1": "Yürüme süreleri için arazi eğimi",
+        "hvvCatchments": "Resmî durak etki alanları",
+        "hvvGtfs": "Duraklar, sefer sıklığı ve HamburgRiders tarife demosu",
+        "unfallatlas": "Güvenlik endeksinin dayandığı kaza verisi (yıllık verilerin birleştirilmiş kopyası)",
+        "osm": "Yaya ağı, hedefler, park girişleri",
+        "carto": "HamburgRiders koyu altlık haritası",
+        "coloringCities": "Bina yükseklikleri; yayıncı ve lisans henüz doğrulanmadı",
+        "riders": "HamburgRiders modülünün açık kaynak temeli"
+      }
+    },
     "selector": {
       "label": "Bir hikâye seçin"
     },
