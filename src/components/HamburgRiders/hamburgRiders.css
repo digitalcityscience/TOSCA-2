@@ -1,0 +1,258 @@
+/*
+ * HamburgRiders panels. Adapted from hamburgriders `style.css` (MIT, see core/helpers/hamburgRiders/NOTICE.md):
+ * the original dark panels are kept as they are, whatever TOSCA theme is active, because they sit on the dark map.
+ * Every selector is prefixed `hr-` / `hamburgriders-` so nothing leaks into the rest of TOSCA.
+ */
+.hr-root {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 5;
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    font-size: 13px;
+    color: #e0e0e0;
+}
+.hr-root > * { pointer-events: auto; }
+
+.hr-side {
+    position: absolute;
+    top: 12px;
+    right: var(--hr-side-right, 12px);
+    width: 276px;
+    max-width: calc(100% - 24px);
+    max-height: calc(100% - 96px);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+}
+.hr-side > * { pointer-events: auto; }
+
+.hr-panel {
+    position: relative;
+    flex: 0 0 auto;
+    background: rgba(8, 10, 12, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.32);
+    backdrop-filter: blur(8px);
+    min-height: 0;
+}
+.hr-panel-layers { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 120px; }
+
+.hr-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 42px;
+    padding: 9px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(22, 25, 28, 0.92);
+    cursor: pointer;
+}
+.hr-panel-header h3 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #a8b0b7;
+    margin: 0;
+    line-height: 1;
+    font-weight: 600;
+}
+.hr-collapsed .hr-panel-header { border-bottom: 0; }
+.hr-collapsed .hr-panel-body,
+.hr-collapsed .hr-layer-controls { display: none; }
+
+.hr-header-actions { display: flex; align-items: center; gap: 8px; }
+.hr-layer-controls label {
+    font-size: 11px;
+    color: #b8c0c7;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.hr-panel input[type="checkbox"] { accent-color: #4fc3f7; cursor: pointer; }
+.hr-layer-controls input[type="checkbox"] { width: 13px; height: 13px; }
+
+.hr-icon-btn {
+    background: rgba(30, 30, 30, 0.85);
+    border: 1px solid #444;
+    color: #ccc;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.hr-icon-btn:hover { background: #333; color: #fff; }
+.hr-icon-btn:focus-visible, .hr-play:focus-visible, .hr-reopen:focus-visible { outline: 2px solid #4fc3f7; outline-offset: 2px; }
+
+/* Statistics */
+.hr-stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    min-height: 32px;
+    padding: 7px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.hr-stat-row:last-of-type { border-bottom: 0; }
+.hr-stat-label { color: #b8c0c7; }
+.hr-stat-value { color: #fff; font-weight: 700; font-variant-numeric: tabular-nums; }
+.hr-note { padding: 6px 12px 8px; font-size: 11px; color: #7d868e; line-height: 1.4; }
+.hr-about { border-top: 1px solid rgba(255, 255, 255, 0.06); }
+.hr-about summary { padding: 7px 12px; font-size: 11px; color: #8d969e; cursor: pointer; }
+.hr-about p { padding: 0 12px 8px; font-size: 11px; line-height: 1.45; color: #8d969e; margin: 0; }
+
+/* Layers */
+.hr-layers-body { overflow-y: auto; padding: 6px 0; min-height: 0; }
+.hr-layers-body::-webkit-scrollbar { width: 6px; }
+.hr-layers-body::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+.hr-empty { padding: 10px 12px; color: #8d969e; }
+
+.hr-type-group { border-bottom: 1px solid rgba(255, 255, 255, 0.07); }
+.hr-type-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 36px;
+    padding: 8px 12px;
+    cursor: pointer;
+    user-select: none;
+    background: rgba(255, 255, 255, 0.03);
+    transition: background 0.15s;
+}
+.hr-type-header:hover { background: rgba(255, 255, 255, 0.07); }
+.hr-type-header input[type="checkbox"] { width: 13px; height: 13px; flex-shrink: 0; }
+.hr-type-icon { font-size: 14px; width: 20px; text-align: center; flex-shrink: 0; }
+.hr-type-name { flex: 1; font-weight: 600; font-size: 13px; color: #ddd; }
+.hr-type-count { font-size: 11px; color: #666; }
+.hr-type-arrow { font-size: 10px; color: #666; transition: transform 0.15s; flex-shrink: 0; }
+.hr-type-group.hr-collapsed .hr-type-arrow { transform: rotate(-90deg); }
+
+.hr-type-routes { max-height: 400px; overflow: hidden; transition: max-height 0.25s ease; }
+.hr-type-group.hr-collapsed .hr-type-routes { max-height: 0; }
+
+.hr-route-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 28px;
+    padding: 4px 12px 4px 40px;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+.hr-route-item:hover { background: rgba(255, 255, 255, 0.06); }
+.hr-route-item input[type="checkbox"] { width: 12px; height: 12px; flex-shrink: 0; }
+.hr-route-color { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+.hr-bus-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    height: 15px;
+    border: 1px solid currentColor;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.04);
+    font-size: 9px;
+    line-height: 1;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+.hr-route-name { flex: 1; font-size: 12px; color: #ccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hr-route-trips { font-size: 10px; color: #555; flex-shrink: 0; }
+
+/* Timeline */
+.hr-timeline {
+    position: absolute;
+    left: var(--hr-left, 108px);
+    right: var(--hr-right, 76px);
+    bottom: 30px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid #222;
+    border-radius: 8px;
+    flex-wrap: wrap;
+}
+.hr-timeline-main { display: flex; align-items: center; gap: 10px; flex: 1 1 320px; min-width: 0; }
+.hr-play {
+    background: #333;
+    border: 1px solid #555;
+    color: #fff;
+    border-radius: 4px;
+    padding: 4px 12px;
+    cursor: pointer;
+    font-size: 14px;
+    min-width: 76px;
+}
+.hr-play:hover { background: #444; }
+.hr-time { font-size: 14px; font-weight: 600; color: #fff; min-width: 52px; text-align: center; font-variant-numeric: tabular-nums; }
+.hr-slider { flex: 1; min-width: 80px; accent-color: #4fc3f7; cursor: pointer; }
+.hr-speed-label { font-size: 12px; color: #888; }
+.hr-speed {
+    background: #222;
+    border: 1px solid #444;
+    color: #ccc;
+    border-radius: 4px;
+    padding: 3px 6px;
+    font-size: 13px;
+    cursor: pointer;
+}
+.hr-service { font-size: 11px; color: #8d969e; white-space: nowrap; }
+
+.hr-reopen {
+    position: absolute;
+    top: 12px;
+    right: var(--hr-side-right, 12px);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(8, 10, 12, 0.88);
+    color: #e0e0e0;
+    font-size: 12px;
+    cursor: pointer;
+}
+.hr-reopen:hover { background: rgba(30, 33, 36, 0.95); }
+
+@media (max-width: 700px) {
+    .hr-side { width: min(276px, calc(100% - 24px)); }
+    .hr-timeline { padding: 6px 10px; }
+    .hr-speed-label, .hr-service { display: none; }
+}
+
+/* Popups (only those the module creates) */
+.hamburgriders-popup .maplibregl-popup-content {
+    background: rgba(15, 15, 15, 0.92);
+    color: #e0e0e0;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 12px;
+    min-width: 160px;
+}
+.hamburgriders-popup.maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.hamburgriders-popup.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.hamburgriders-popup.maplibregl-popup-anchor-top-right .maplibregl-popup-tip { border-bottom-color: rgba(15, 15, 15, 0.92); }
+.hamburgriders-popup.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.hamburgriders-popup.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.hamburgriders-popup.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip { border-top-color: rgba(15, 15, 15, 0.92); }
+.hamburgriders-popup .popup-title { font-weight: 700; color: #fff; margin-bottom: 4px; font-size: 13px; }
+.hamburgriders-popup .popup-row { display: flex; gap: 6px; margin-bottom: 2px; }
+.hamburgriders-popup .popup-key { color: #888; }
+.hamburgriders-popup .popup-val { color: #ccc; }
+.hamburgriders-popup .popup-color-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
