@@ -847,7 +847,17 @@
       "metric": "Kennzahl",
       "change": "Veränderung",
       "differenceLayers": "Differenzebenen",
-      "noDifferenceLayers": "Zwischen den beiden Läufen hat sich keine Kartenebene verändert."
+      "noDifferenceLayers": "Zwischen den beiden Läufen hat sich keine Kartenebene verändert.",
+      "reused": "Ein identischer Vergleich existiert bereits und wurde stattdessen geöffnet.",
+      "waitingForRuns": "Beide Läufe werden simuliert…",
+      "comparing": "Läufe werden verglichen…",
+      "progressHelp": "Diese Seite aktualisiert sich selbst; der Vergleich erscheint, wenn beide Läufe fertig sind.",
+      "failed": "Der Vergleich ist fehlgeschlagen.",
+      "runState": {
+        "queued": "Wartet",
+        "running": "Läuft",
+        "failed": "Fehlgeschlagen"
+      }
     },
     "myRuns": "Meine Läufe",
     "newRun": {
@@ -876,7 +886,11 @@
         "maximum": "Höchstens {limit}",
         "option": "Eine der Optionen wählen",
         "date": "Datum eingeben"
-      }
+      },
+      "constructionTitle": "Einfluss von Baustellen",
+      "constructionHelp": "Dieselben Radfahrenden zweimal simulieren, ohne und mit den an diesem Tag aktiven Baustellen, und vergleichen, wer umfährt und wo sich Verkehr verlagert.",
+      "constructionCompare": "Mit und ohne Baustellen vergleichen",
+      "constructionRunTitle": "Mit vs. ohne Baustellen — {agents} Radfahrende"
     },
     "progress": {
       "queued": "Wartet auf den Simulationsserver…",

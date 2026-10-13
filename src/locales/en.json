@@ -847,7 +847,17 @@
       "metric": "Figure",
       "change": "Change",
       "differenceLayers": "Difference layers",
-      "noDifferenceLayers": "No map layer changed between the two runs."
+      "noDifferenceLayers": "No map layer changed between the two runs.",
+      "reused": "An identical comparison already exists, so it was opened instead.",
+      "waitingForRuns": "Simulating both runs…",
+      "comparing": "Comparing the runs…",
+      "progressHelp": "This page updates by itself; the comparison appears when both runs are done.",
+      "failed": "The comparison failed.",
+      "runState": {
+        "queued": "Queued",
+        "running": "Running",
+        "failed": "Failed"
+      }
     },
     "myRuns": "My runs",
     "newRun": {
@@ -876,7 +886,11 @@
         "maximum": "At most {limit}",
         "option": "Choose one of the options",
         "date": "Enter a date"
-      }
+      },
+      "constructionTitle": "Construction impact",
+      "constructionHelp": "Run the same cyclists twice, without and with the construction sites active on the date, and compare who reroutes and where traffic shifts.",
+      "constructionCompare": "Compare with and without construction",
+      "constructionRunTitle": "With vs without construction — {agents} cyclists"
     },
     "progress": {
       "queued": "Waiting for the simulation server…",
