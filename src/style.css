@@ -138,6 +138,39 @@ html, body {
   width: 100%;
   height: 100%;
 }
+
+  /* Hover popups are created directly by the Urban Stories stores, outside of
+     Nuxt UI. Give them the same colour tokens as the application chrome so
+     their MapLibre default white surface cannot override dark mode. */
+  .maplibregl-popup:is(.fifteen-hover, .green-hover, .equity-hover) .maplibregl-popup-content {
+    padding: 0.625rem 0.75rem;
+    border: 1px solid var(--tosca-map-frame-border);
+    border-radius: 0.5rem;
+    background: var(--tosca-popup-shell-bg);
+    color: var(--tosca-app-chrome-text);
+    box-shadow: 0 12px 28px var(--tosca-popup-shadow);
+  }
+
+  .maplibregl-popup:is(.fifteen-hover, .green-hover, .equity-hover).maplibregl-popup-anchor-top .maplibregl-popup-tip,
+  .maplibregl-popup:is(.fifteen-hover, .green-hover, .equity-hover).maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+  .maplibregl-popup:is(.fifteen-hover, .green-hover, .equity-hover).maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
+    border-bottom-color: var(--tosca-popup-tip-bg);
+  }
+
+  .maplibregl-popup:is(.fifteen-hover, .green-hover, .equity-hover).maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+  .maplibregl-popup:is(.fifteen-hover, .green-hover, .equity-hover).maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+  .maplibregl-popup:is(.fifteen-hover, .green-hover, .equity-hover).maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip {
+    border-top-color: var(--tosca-popup-tip-bg);
+  }
+
+  .maplibregl-popup:is(.fifteen-hover, .green-hover, .equity-hover).maplibregl-popup-anchor-left .maplibregl-popup-tip {
+    border-right-color: var(--tosca-popup-tip-bg);
+  }
+
+  .maplibregl-popup:is(.fifteen-hover, .green-hover, .equity-hover).maplibregl-popup-anchor-right .maplibregl-popup-tip {
+    border-left-color: var(--tosca-popup-tip-bg);
+  }
+
   .maplibregl-popup.tosca-map-popup {
     max-width: min(38rem, calc(100vw - (var(--tosca-map-frame-width) * 2) - 3rem)) !important;
     z-index: 50;

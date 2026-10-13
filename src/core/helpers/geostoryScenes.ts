@@ -35,7 +35,7 @@ export interface SceneManifestInputs {
 }
 
 /** Scene layers that are actually drawn (layers without a style have no render layers). */
-export function drawnSceneLayers(scene: GeoStoryScene): GeoStorySceneLayer[] {
+export function drawnSceneLayers(scene: Pick<GeoStoryScene, "layers">): GeoStorySceneLayer[] {
     return scene.layers.filter((sceneLayer) => {
         return sceneLayer.source_key !== null && sceneLayer.style_assignment !== null;
     });
@@ -226,7 +226,7 @@ export function createGeoStorySceneLoader(
 }
 
 /** Union of the drawn layers' extents, for "fit to layers" scenes. */
-export function sceneLayersBounds(scene: GeoStoryScene): GeoStoryBounds | undefined {
+export function sceneLayersBounds(scene: Pick<GeoStoryScene, "layers">): GeoStoryBounds | undefined {
     const boxes = drawnSceneLayers(scene)
         .map((sceneLayer) => sceneLayer.layer.bounds)
         .filter((bounds): bounds is GeoStoryBounds => Array.isArray(bounds) && bounds.length === 4);
@@ -274,7 +274,7 @@ export type SceneCameraMove =
  * motion always jumps (and fits without animation).
  */
 export function sceneCameraMove(
-    scene: GeoStoryScene,
+    scene: Pick<GeoStoryScene, "camera" | "transition" | "layers">,
     { reducedMotion = false }: { reducedMotion?: boolean } = {}
 ): SceneCameraMove | undefined {
     const { camera, transition } = scene;

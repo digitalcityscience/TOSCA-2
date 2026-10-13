@@ -9,6 +9,7 @@ import { h, nextTick, onMounted, ref, render } from "vue";
 import { useI18n } from "vue-i18n";
 import { useMapStore } from "@store/map";
 import { withPopupAttributes } from "../../core/helpers/popupAttributes"
+import { highlightWalkabilitySelection } from "../../core/helpers/walkabilitySelection"
 import MapAttributeDialog from "./MapAttributeDialog.vue"
 import { useDrawStore } from "@store/draw";
 import { BaseMapControl, type BaseMapControlOptions } from "@helpers/baseMapControl";
@@ -161,7 +162,7 @@ async function showAttributePopup(event: MapMouseEvent): Promise<void> {
         layers: interactiveLayers,
     }) as PopupAttributeFeature[]
     const matchedFeatures = renderedFeatures.filter((feature) =>
-        mapStore.layersOnMap.some((layer) => mapStore.layerOwnsSource(layer, feature.source))
+        mapStore.layersOnMap.some((layer) => mapStore.layerOwnsSource(layer, feature.source) && layer.attributePopupSuppressed !== true)
     )
     const vectorFeatures = deduplicatePopupAttributeFeatures(matchedFeatures.map((feature) => withPopupAttributes(feature, mapStore.layersOnMap)))
 
@@ -240,7 +241,9 @@ async function showAttributePopup(event: MapMouseEvent): Promise<void> {
         .setDOMContent(popupContainer)
         .addTo(mapStore.map as Map)
     const popup = attributePopup
+    const clearWalkabilitySelection = highlightWalkabilitySelection(mapStore.map as Map, vectorFeatures, mapStore.layersOnMap)
     popup.on("close", () => {
+        clearWalkabilitySelection()
         render(null, popupContainer)
         if (attributePopup === popup) attributePopup = undefined
     })

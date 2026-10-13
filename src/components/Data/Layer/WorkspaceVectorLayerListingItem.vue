@@ -48,18 +48,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { type GeoServerVectorTypeLayerDetail, type GeoserverLayerInfo, type GeoserverLayerListItem, useGeoserverStore } from "@store/geoserver";
-import {
-    createMapRuntimeId,
-    mbStyleLayerOptions,
-    rewriteSpriteLayout,
-    rewriteSpritePaint,
-    type GeoServerSourceParams,
-    type LayerParams,
-    type MapLibreLayerTypes,
-    useMapStore,
-} from "@store/map";
-import type { AddLayerObject } from "maplibre-gl";
-import type { LayerStylingBundle } from "./WorkspaceLayerListingItem.vue";
+import { useMapStore } from "@store/map";
+import { addCatalogVectorLayer, type LayerStylingBundle } from "@helpers/catalogLayerLoader";
 import { isNullOrEmpty } from "../../../core/helpers/functions";
 import { useToast } from "@helpers/toast";
 import { openSlideoverSidebar } from "@helpers/slideoverSidebarRegistry";
@@ -128,110 +118,17 @@ const sanitizeDataType = (type: string): string => {
 
 const mapStore = useMapStore()
 async function add2Map(): Promise<void> {
-    if (!isNullOrEmpty(layerDetail.value)) {
-        const resourceKey = `${layerDetail.value!.catalog?.provider.id ?? "provider"}:${props.workspace}:${layerDetail.value!.featureType.name}`
-        const runtimeId = createMapRuntimeId("layer", resourceKey)
-        const sourceParams: GeoServerSourceParams = {
-            sourceType:"geoserver",
-            identifier:runtimeId,
-            isFilterLayer:false,
-            workspaceName:props.workspace,
-            layer:layerDetail.value!,
-            sourceDataType:"vector",
-            sourceProtocol:"wmts"
-        }
-        let spriteRuntimeId: string | undefined
-        let spriteRegisteredOnLayer = false
-        try {
-            await mapStore.addMapDataSource(sourceParams)
-            if (!isNullOrEmpty(dataType) && !isNullOrEmpty(layerDetail.value)) {
-                const selectedStyle = props.layerStyling?.styles.find(
-                    (style) => style.id === props.layerStyling?.defaultStyleId
-                ) ?? props.layerStyling?.styles[0]
-                const selectedStyleLayers = (selectedStyle?.layers ?? []).map((layer) => ({
-                    ...layer,
-                    metadata: {
-                        ...(layer.metadata ?? {}),
-                        "tosca:member-id": "standalone",
-                        "tosca:style-id": "standalone-style",
-                    },
-                }))
-                if (selectedStyle?.spriteUrl !== undefined) {
-                    spriteRuntimeId = await mapStore.acquireMapSprite(
-                        selectedStyle.spriteUrl,
-                        `sprite-${runtimeId.replace(/[^a-zA-Z0-9_-]+/g, "-")}`
-                    )
-                }
-                const firstStyleLayer = selectedStyleLayers[0]
-                const layerParams: LayerParams = {
-                    sourceType:"geoserver",
-                    identifier:runtimeId,
-                    sourceIdentifier:runtimeId,
-                    layerType:(firstStyleLayer?.type as MapLibreLayerTypes | undefined) ?? mapStore.geometryConversion(dataType.value),
-                    layerStyle:firstStyleLayer === undefined ? undefined : mbStyleLayerOptions(firstStyleLayer, spriteRuntimeId),
-                    geoserverLayerDetails:layerDetail.value!,
-                    sourceLayer:`${layerDetail.value!.featureType.name}`,
-                    displayName:layerDetail.value?.featureType.title ?? undefined,
-                    sourceDataType:"vector",
-                    sourceProtocol:"wmts",
-                    workspaceName:props.workspace,
-                }
-                await mapStore.addMapLayer(layerParams)
-                const logicalLayer = mapStore.layersOnMap.find((layer) => layer.id === runtimeId)
-                if (logicalLayer !== undefined && selectedStyleLayers.length > 0) {
-                    logicalLayer.mbStyleLayers = selectedStyleLayers
-                    logicalLayer.mbStyleLegendContext = {
-                        members: [{ id: "standalone", title: cleanLayerName.value }],
-                        styles: {
-                            "standalone-style": {
-                                sprite_id: selectedStyle?.spriteUrl === undefined
-                                    ? null
-                                    : "standalone-sprite",
-                            },
-                        },
-                        sprites: selectedStyle?.spriteUrl === undefined
-                            ? {}
-                            : { "standalone-sprite": { url: selectedStyle.spriteUrl } },
-                    }
-                    logicalLayer.availableStyles = props.layerStyling?.styles
-                    logicalLayer.activeStyleId = selectedStyle?.id
-                    if (spriteRuntimeId !== undefined) {
-                        logicalLayer.spriteRuntimeIds = [spriteRuntimeId]
-                        spriteRegisteredOnLayer = true
-                    }
-                }
-                selectedStyleLayers.slice(1).forEach((styleLayer, index) => {
-                    mapStore.addCompanionLayer(runtimeId, {
-                        ...styleLayer,
-                        id: `${runtimeId}:style:${index + 1}`,
-                        type: styleLayer.type as MapLibreLayerTypes,
-                        source: runtimeId,
-                        "source-layer": layerDetail.value!.featureType.name,
-                        ...(styleLayer.paint === undefined
-                            ? {}
-                            : { paint: rewriteSpritePaint(styleLayer.paint, spriteRuntimeId) }),
-                        ...(styleLayer.layout === undefined
-                            ? {}
-                            : { layout: rewriteSpriteLayout(styleLayer.layout, spriteRuntimeId) }),
-                    } as AddLayerObject)
-                })
-                if (spriteRuntimeId !== undefined && !spriteRegisteredOnLayer) {
-                    // The sprite was acquired but never attached to a logical
-                    // layer (e.g. the layer record could not be resolved), so
-                    // its owning layer will never release it. Drop the
-                    // reference now to avoid leaking the sprite.
-                    mapStore.releaseMapSprite(spriteRuntimeId)
-                    spriteRuntimeId = undefined
-                }
-                mapStore.requestLayerPanelExpansion(runtimeId)
-                openSlideoverSidebar("maplayerListing")
-            }
-        } catch (error) {
-            if (spriteRuntimeId !== undefined && !spriteRegisteredOnLayer) {
-                mapStore.releaseMapSprite(spriteRuntimeId)
-            }
-            toast.add({ severity: "error", summary: t("toast.error"), detail: error, life: 3000 });
-        }
+    if (isNullOrEmpty(layerDetail.value)) return
+    try {
+        const { runtimeId } = await addCatalogVectorLayer({
+            detail: layerDetail.value!,
+            workspace: props.workspace,
+            styling: props.layerStyling,
+        })
+        mapStore.requestLayerPanelExpansion(runtimeId)
+        openSlideoverSidebar("maplayerListing")
+    } catch (error) {
+        toast.add({ severity: "error", summary: t("toast.error"), detail: error, life: 3000 });
     }
 }
 

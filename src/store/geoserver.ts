@@ -201,6 +201,9 @@ export interface GeoServerFeatureTypeAttribute {
 export interface PopupAttributeDefinition {
   name: string;
   labels?: Record<string, string>;
+  /** Optional local presentation metadata; absent preserves catalog popup behavior. */
+  description?: Record<string, string>;
+  nullLabel?: Record<string, string>;
 }
 
 export interface CatalogLayerStyleReference {

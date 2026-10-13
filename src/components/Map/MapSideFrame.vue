@@ -80,6 +80,19 @@ const leftItems = computed<FrameItem[]>(() => ([
             await router.push({ name: "geostory-list" })
         },
     },
+    {
+        id: "urbanStories",
+        feature: "urbanStories",
+        label: t("map.sideFrame.urbanStories"),
+        icon: "i-lucide-layers-3",
+        action: async () => {
+            if (route.name === "urban-stories") {
+                toggleSlideoverSidebar("urbanStories")
+                return
+            }
+            await router.push({ name: "urban-stories" })
+        },
+    },
 ] satisfies FrameItem[]).filter((item) => item.feature === undefined || isFeatureEnabled(item.feature)))
 
 const rightItems = computed<FrameItem[]>(() => [

@@ -69,6 +69,7 @@
       "participation": "Katılım",
       "events": "Etkinlikler",
       "geostories": "Coğrafi Hikâyeler",
+      "urbanStories": "Kent Hikâyeleri",
       "layers": "Katmanlar"
     },
     "basemap": {
@@ -582,6 +583,197 @@
       "progress": "Sahne {current} / {total}",
       "captionLabel": "Harita sahnesi açıklaması",
       "hideCaption": "Açıklamayı gizle"
+    }
+  },
+  "urbanStories": {
+    "title": "Kent Hikâyeleri",
+    "about": {
+      "title": "Urban Stories Hakkında",
+      "attribution": "SUMO-15 / NGCN Engineering Team tarafından HafenCity Üniversitesi Hamburg'da kavram kanıtı (PoC) olarak geliştirilmiştir.",
+      "disclaimer": "Bu senaryolar, mevcut coğrafi veri setlerine dayanan araştırma gösterimleridir. Sonuçlar belirsizlikler, eksiklikler veya güncel olmayan bilgiler içerebilir; resmî değerlendirme ya da operasyonel yönlendirme niteliği taşımaz."
+    },
+    "credits": {
+      "title": "Veri Kaynakları ve Katkılar",
+      "intro": "Hikâyelerde kullanılan kaynaklar. Lisans ve atıf metinleri kaynak kayıtlarını izler.",
+      "license": "Lisans",
+      "modified": "Veriler bu gösterimler için işlenmiş, birleştirilmiş ve türetilmiştir; türetilen değerler projeye aittir, veri yayıncılarına ait değildir.",
+      "groups": {
+        "hamburg": "Freie und Hansestadt Hamburg",
+        "mobility": "Ulaşım ve güvenlik",
+        "community": "OpenStreetMap ve altlık harita",
+        "other": "Diğer"
+      },
+      "items": {
+        "alkis": "Bina ayak izleri, ALKIS nitelikleri, arazi kullanımı",
+        "admin": "İlçeler, mahalleler ve istatistik bölgeleri",
+        "dgp": "Kamusal yeşil alanlar",
+        "feinkartierung": "Ayrıntılı yeşil nesneler",
+        "trees": "Yürüyüş yollarındaki sokak ağaçları",
+        "dgm1": "Yürüme süreleri için arazi eğimi",
+        "hvvCatchments": "Resmî durak etki alanları",
+        "hvvGtfs": "Duraklar, sefer sıklığı ve HamburgRiders tarife demosu",
+        "unfallatlas": "Güvenlik endeksinin dayandığı kaza verisi (yıllık verilerin birleştirilmiş kopyası)",
+        "osm": "Yaya ağı, hedefler, park girişleri",
+        "carto": "HamburgRiders koyu altlık haritası",
+        "coloringCities": "Bina yükseklikleri; yayıncı ve lisans henüz doğrulanmadı",
+        "riders": "HamburgRiders modülünün açık kaynak temeli"
+      }
+    },
+    "selector": {
+      "label": "Bir hikâye seçin"
+    },
+    "empty": "Girişi, veri uyarılarını ve veri setlerini görmek için bir hikâye seçin.",
+    "intro": {
+      "caveatsTitle": "Keşfetmeden önce okuyun"
+    },
+    "sections": {
+      "run": "Coğrafi Hikâyeyi oynat",
+      "explore": "Verileri keşfet"
+    },
+    "run": {
+      "start": "Hikâyeyi başlat",
+      "starting": "Hikâye yükleniyor…",
+      "startHint": "Rehberli hikâyeyi bölümleriyle birlikte haritada oynatır.",
+      "retry": "Tekrar dene",
+      "chapterOf": "Bölüm {current} / {total}",
+      "chapterTitle": "Bölüm",
+      "previous": "Önceki bölüm",
+      "next": "Sonraki bölüm",
+      "backToExplore": "Verileri keşfet’e dön",
+      "overview": "Genel görünüme dön",
+      "introTitle": "Giriş",
+      "noNarrative": "Bu bölümün metni yok. Harita açıklaması sahneyi anlatır.",
+      "layerWarningTitle": "Bazı harita katmanlarının ayrıntıları sınırlı",
+      "layerWarning": "Şunlar için açılır pencereler ve filtreler kullanılamıyor: {layers}.",
+      "relatedHint": "Verileri keşfet’te {count} ilgili veri kümesi",
+      "showRelated": "Göster",
+      "focusLabel": "Hikâyeye odaklan",
+      "focusHelp": "Hikâye oynarken eklediğiniz katmanları gizler. Hikâyeden çıkınca, arada değiştirmiş olsanız bile, başlamadan önceki hâline döner.",
+      "issues": {
+        "unpublishedTitle": "Hikâye yayımlanmadı",
+        "unpublished": "Bu hikâye var ancak yayımlanmamış ya da henüz göremiyorsunuz. Hiçbir şey oynatılmıyor.",
+        "fetchFailedTitle": "Hikâye şu anda kullanılamıyor",
+        "fetchFailed": "Hikâye servisine ulaşılamadı ya da hata döndü. Biraz sonra tekrar deneyin.",
+        "emptyTitle": "Hikâyede sahne yok",
+        "empty": "Hikâye yayımlanmış ancak henüz harita sahnesi içermiyor.",
+        "mapNotReadyTitle": "Harita hazır değil",
+        "mapNotReady": "Haritanın yüklenmesini bekleyin, sonra hikâyeyi yeniden başlatın."
+      }
+    },
+    "explore": {
+      "datasetCount": "{count} veri seti",
+      "groups": {
+        "building": "Binalar",
+        "street": "Sokaklar",
+        "admin": "Bölgeler",
+        "poi": "Hedefler",
+        "green": "Yeşil"
+      },
+      "mvt": {
+        "verified": "Vektör karolar hazır",
+        "pending": "Karolar bekleniyor",
+        "unavailable": "Karolar kullanılamıyor"
+      },
+      "refresh": "Durumu yenile",
+      "addedTitle": "Kent Hikâyelerinden eklenen katmanlar",
+      "addedEmpty": "Henüz katman eklenmedi. Yukarıdaki veri setlerinde “Katman olarak ekle” düğmesini kullanın.",
+      "addedFrom": "{story} hikâyesinden",
+      "visibleFromZoom": "{zoom}. yakınlaştırma düzeyinden itibaren görünür",
+      "add": "Katman olarak ekle",
+      "adding": "Ekleniyor…",
+      "showSettings": "Ayarları göster",
+      "hideSettings": "Ayarları gizle",
+      "remove": "Kaldır",
+      "metric": "Gösterge",
+      "defaultStyle": "Varsayılan stil",
+      "metricPending": "{label} (stil bekleniyor)",
+      "metricAttributesMissing": "{label} (veri eksik)",
+      "caveats": "Veri uyarıları",
+      "status": {
+        "available": "Hazır",
+        "unstyled": "Varsayılan stil",
+        "attributes-missing": "Veri eksik",
+        "temporarily-unavailable": "Geçici olarak kullanılamıyor",
+        "tiles-unavailable": "Karolar kullanılamıyor",
+        "error": "Durum bilinmiyor"
+      },
+      "attributesMissing": "Eksik sütunlar: {columns}",
+      "pendingReason": {
+        "no-style-name": "Bu göstergeye henüz bir stil atanmadı.",
+        "style-not-in-catalog": "Katalog bu stili henüz listelemiyor.",
+        "style-not-applicable": "Katalogda bu stil var ancak bu katman ve ölçütle uyuşmuyor.",
+        "not-mbstyle": "Atanan stil kullanılabilir bir MBStyle değil."
+      },
+      "addError": "Katman eklenemedi. Yeniden deneyin veya durumu yenileyin.",
+      "metricError": "Gösterge uygulanamadı.",
+      "tilesError": "Bu katmanın vektör karoları yüklenemedi.",
+      "mapNotReady": "Harita henüz hazır değil.",
+      "noZoomFloor": "Stilde alt yakınlaştırma sınırı yok",
+      "ariaMetric": "{title} için gösterge seçin",
+      "unavailableHint": "Bu veri seti harita sunucusunda henüz yayımlanmadı.",
+      "relatedTitle": "Bu bölümle ilgili: {chapter}",
+      "othersTitle": "Bu hikâyedeki diğer katmanlar",
+      "inChapter": "Bu bölümde"
+    }
+  },
+  "hamburgRiders": {
+    "story": {
+      "loading": "Loading the timetable (about 30 MB, parsed in the background)…",
+      "error": "The timetable could not be loaded: {message}",
+      "retry": "Try again",
+      "ready": "Timetable ready.",
+      "serviceNote": "Scheduled service of {date} (HVV GTFS timetable, not live data).",
+      "overview": "Back to Hamburg overview",
+      "reopen": "Show Riders controls",
+      "hint": "Choose lines in the Layers panel on the right. The Riders controls close independently of the map; closing this story removes everything it added and restores your basemap.",
+      "explore": {
+        "title": "Explore Data",
+        "hint": "Add single HamburgRiders layers to the map as data, without the dark basemap or the Riders controls. They stay until you remove them.",
+        "add": "Add as layer",
+        "remove": "Remove",
+        "added": "On the map"
+      },
+      "start": "Start HamburgRiders",
+      "stop": "Stop HamburgRiders",
+      "stopped": "HamburgRiders is stopped. Start it to see the network, vehicles and timeline."
+    },
+    "controls": {
+      "reopen": "HamburgRiders controls",
+      "close": "Close Riders controls",
+      "collapse": "Collapse",
+      "expand": "Expand"
+    },
+    "statistics": {
+      "title": "Statistics",
+      "active": "Active trips",
+      "cumulative": "Cumulative today",
+      "total": "Total trips",
+      "scope": "Counts follow the selected lines."
+    },
+    "layers": {
+      "title": "Layers",
+      "all": "All",
+      "empty": "The timetable is still loading.",
+      "modes": {
+        "s-bahn": "S-Bahn",
+        "u-bahn": "U-Bahn",
+        "bus": "Bus",
+        "regional": "Regional"
+      }
+    },
+    "timeline": {
+      "label": "HamburgRiders timeline",
+      "play": "Play",
+      "pause": "Pause",
+      "time": "Time of day",
+      "speed": "Speed",
+      "service": "Timetable of {date} · not live"
+    },
+    "about": {
+      "title": "About this data",
+      "feed": "Feed: {publisher}, version {version}, valid {start} – {end}.",
+      "source": "HVV GTFS timetable via the Hamburg transparency portal.",
+      "credits": "Based on hamburgriders (MIT), forked from utrechtriders, inspired by londonriders. Dark basemap © CARTO © OpenStreetMap contributors."
     }
   }
 }

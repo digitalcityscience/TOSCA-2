@@ -33,6 +33,7 @@
                                         </dt>
                                         <dd class="min-w-0 break-words text-[0.8125rem] text-default [overflow-wrap:anywhere]">
                                             {{ property.value }}
+                                            <p v-if="property.description" class="mt-1 text-xs text-muted">{{ property.description }}</p>
                                         </dd>
                                     </div>
                                 </dl>

@@ -20,6 +20,7 @@ import { type MapStyleLegendContext } from "@helpers/mapStyleLegend";
 import { isEditableMapStyleColorProperty } from "@helpers/mapStyleEditing";
 import { validateSpriteUrl } from "@helpers/mapStyleBundle";
 import { useToast } from "@helpers/toast";
+import { combineStyleAndUserFilter } from "@helpers/maplibreExpressions";
 import { ChunkedGeoJsonLayer } from "@helpers/deckChunkedGeoJsonLayer";
 import type { DeckGeoJsonChunk } from "@helpers/deckGeoJsonChunk";
 
@@ -52,6 +53,10 @@ export interface LayerStyleOptions {
     minzoom?: number;
     maxzoom?: number;
     visibility?: "none" | "visible";
+}
+export interface LayerUiState {
+    visible: boolean;
+    opacity: number;
 }
 export interface MapLayerStyleOption {
     attributes?: import("./geoserver").PopupAttributeDefinition[];
@@ -102,6 +107,11 @@ export interface LayerObjectWithAttributes extends CustomAddLayerObject {
     availableStyles?: MapLayerStyleOption[];
     activeStyleId?: string;
     attributes?: import("./geoserver").PopupAttributeDefinition[];
+    /**
+     * True while a feature of this layer is inspected by a side panel (Urban Stories "Inspect a building"),
+     * so a map click does not also open the generic attribute popup for it.
+     */
+    attributePopupSuppressed?: boolean;
     /**
      * Which rendering pipeline owns this layer. Absent/"maplibre" means the id
      * is a real MapLibre style layer; "deckgl" means it only exists as an
@@ -315,6 +325,13 @@ export const useMapStore = defineStore("map", () => {
     const deckLayerProps = new Map<string, Record<string, unknown>>();
     /** Styles of deck.gl GeoJSON layers, reactive for the layer panel. */
     const deckGeoJsonStyles = ref<Record<string, DeckGeoJsonStyle>>({});
+    /**
+   * Shared visibility/opacity of every listed layer, keyed by runtime id. Every
+   * `MapLayerListingItem` instance for the same layer binds to this record, so
+   * the Layers sidebar and the Urban Stories panel stay in sync (UST-09).
+   * MapLibre/deck.gl remain the source of truth; this mirrors them on every change.
+   */
+    const layerUiState = ref<Record<string, LayerUiState>>({});
     /** Which deck.gl Layer class renders each entry of `deckLayerProps`. */
     const deckLayerKinds = new Map<string, "tile3d" | "geojson">();
     /**
@@ -516,12 +533,14 @@ export const useMapStore = defineStore("map", () => {
         if (props === undefined) return;
         deckLayerProps.set(identifier, { ...props, visible });
         syncDeckOverlay();
+        patchLayerUiState(identifier, { visible });
     }
     function setDeckLayerOpacity(identifier: string, opacity: number): void {
         const props = deckLayerProps.get(identifier);
         if (props === undefined) return;
         deckLayerProps.set(identifier, { ...props, opacity });
         syncDeckOverlay();
+        patchLayerUiState(identifier, { opacity });
     }
     /**
    * Picks every pickable deck.gl object under a click point (CSS pixel
@@ -922,6 +941,7 @@ export const useMapStore = defineStore("map", () => {
         });
         // Clear the layersOnMap array
         layersOnMap.value = [];
+        layerUiState.value = {};
     }
     /**
    * Generates the styling object for a MapLibre layer based on the specified layer type and optional custom style options.
@@ -964,6 +984,7 @@ export const useMapStore = defineStore("map", () => {
         } else {
             layersOnMap.value.push(layerObject);
         }
+        layerUiState.value[layerObject.id] = readLayerUiState(layerObject);
         syncDeckLayerAnchors();
         if (
             notify &&
@@ -1268,6 +1289,7 @@ export const useMapStore = defineStore("map", () => {
                 (property) => map.value.setPaintProperty(layerId, property, opacity)
             );
         });
+        patchLayerUiState(layer.id, { opacity });
     }
 
     function requestLayerPanelExpansion(identifier: string): void {
@@ -1287,6 +1309,7 @@ export const useMapStore = defineStore("map", () => {
                 map.value.setLayoutProperty(layerId, "visibility", visibility);
             }
         });
+        patchLayerUiState(layer.id, { visible });
     }
 
     function setGroupMemberVisibility(
@@ -1301,6 +1324,51 @@ export const useMapStore = defineStore("map", () => {
                 map.value.setLayoutProperty(layerId, "visibility", visibility);
             }
         });
+        // A group counts as visible while any of its members is.
+        patchLayerUiState(layer.id, { visible: readLayerUiState(layer).visible });
+    }
+
+    /** Read-only view of the shared visibility/opacity of a listed layer. */
+    function getLayerUiState(identifier: string): LayerUiState | undefined {
+        return layerUiState.value[identifier];
+    }
+
+    function patchLayerUiState(identifier: string, patch: Partial<LayerUiState>): void {
+        let current = layerUiState.value[identifier];
+        if (current === undefined) {
+            // Records registered without add2MapLayerList (tests, future callers) start from the map.
+            const record = layersOnMap.value.find((layer) => layer.id === identifier);
+            if (record === undefined) return;
+            current = readLayerUiState(record);
+        }
+        layerUiState.value[identifier] = { ...current, ...patch };
+    }
+
+    /** Derive visibility/opacity from what MapLibre (or deck.gl) actually holds. */
+    function readLayerUiState(layer: LayerObjectWithAttributes): LayerUiState {
+        if (layer.renderer === "deckgl") {
+            const props = deckLayerProps.get(layer.id);
+            return {
+                visible: props?.visible !== false,
+                opacity: typeof props?.opacity === "number" ? props.opacity : 1,
+            };
+        }
+        const mapInstance = map.value;
+        const layerVisible = (layerId: string): boolean => (
+            mapInstance?.getLayoutProperty?.(layerId, "visibility") !== "none"
+        );
+        let visible = layerVisible(layer.id);
+        if (layer.logicalKind === "group") {
+            const memberLayerIds = Object.values(layer.groupMemberLayerIds ?? {}).flat().filter(
+                (layerId) => mapInstance?.getLayer?.(layerId) !== undefined
+            );
+            visible = memberLayerIds.length === 0 ? visible : memberLayerIds.some(layerVisible);
+        }
+        const opacityProperty = opacityPropertiesForType(layer.type as MapLibreLayerTypes).at(-1);
+        const rawOpacity = opacityProperty === undefined
+            ? undefined
+            : mapInstance?.getPaintProperty?.(layer.id, opacityProperty);
+        return { visible, opacity: typeof rawOpacity === "number" ? rawOpacity : 1 };
     }
 
     function layerOwnsSource(layer: LayerObjectWithAttributes, sourceId: string): boolean {
@@ -1424,6 +1492,7 @@ export const useMapStore = defineStore("map", () => {
         );
         if (index !== -1) {
             const [removedLayer] = layersOnMap.value.splice(index, 1);
+            delete layerUiState.value[identifier];
             syncDeckLayerAnchors();
             if (
                 removedLayer.showOnLayerList !== undefined &&
@@ -1611,6 +1680,16 @@ export const useMapStore = defineStore("map", () => {
             : undefined;
         const wasHidden = map.value.getLayoutProperty?.(identifier, "visibility") === "none";
         const oldSpriteRuntimeIds = [...(layer.spriteRuntimeIds ?? [])];
+        // UST-12: a user-set opacity survives the swap. An opacity that still equals what the
+        // outgoing style declares was never changed by the user, so the new style's own applies.
+        const opacityProperty = opacityPropertiesForType(layer.type as MapLibreLayerTypes).at(-1);
+        const declaredOpacity = opacityProperty === undefined
+            ? undefined
+            : layer.mbStyleLayers?.[0]?.paint?.[opacityProperty];
+        const currentOpacity = readLayerUiState(layer).opacity;
+        const preservedOpacity = currentOpacity !== (typeof declaredOpacity === "number" ? declaredOpacity : 1)
+            ? currentOpacity
+            : undefined;
         let newSpriteRuntimeId: string | undefined;
 
         if (selectedStyle.spriteUrl !== undefined) {
@@ -1702,15 +1781,48 @@ export const useMapStore = defineStore("map", () => {
         layer.activeStyleId = selectedStyle.id;
         layer.spriteRuntimeIds = newSpriteRuntimeId === undefined ? [] : [newSpriteRuntimeId];
         oldSpriteRuntimeIds.forEach(releaseMapSprite);
+        if (preservedOpacity !== undefined) setLogicalLayerOpacity(layer, preservedOpacity);
+        await reapplyUserFilters(layer, nextLayerSpecs);
+        // The swap rebuilt every render pass; re-read what the map now holds.
+        patchLayerUiState(identifier, readLayerUiState(layer));
+    }
+
+    /**
+     * Put the user's attribute filters (kept by the filter store) back on the new render passes,
+     * combined with each style filter, so the map and the filter UI keep agreeing (UST-12).
+     * A failure here never undoes the style swap.
+     */
+    async function reapplyUserFilters(
+        layer: LayerObjectWithAttributes,
+        renderPasses: AddLayerObject[]
+    ): Promise<void> {
+        try {
+            const { useFilterStore } = await import("./filter");
+            const filterStore = useFilterStore();
+            const applied = filterStore.appliedFiltersList.find((item) => item.layerName === layer.id);
+            if (applied === undefined || (applied.attributeFilters ?? []).length === 0) return;
+            const userFilter = await filterStore.populateLayerFilter(applied, applied.attributeRelation ?? "AND");
+            if (userFilter.length <= 1) return;
+            renderPasses.forEach((pass) => {
+                if (map.value?.getLayer(pass.id) === undefined) return;
+                const styleFilter = (pass as { filter?: unknown }).filter;
+                map.value.setFilter(pass.id, combineStyleAndUserFilter(styleFilter, userFilter) as never);
+            });
+        } catch (error) {
+            console.error(`Could not re-apply the filters of ${layer.id} after a style switch`, error);
+        }
     }
     return {
         map,
         layersOnMap,
         layerPanelExpansionTargetId,
+        layerUiState,
+        getLayerUiState,
         addMapDataSource,
         deleteMapDataSource,
         addMapLayer,
         deleteMapLayer,
+        add2MapLayerList,
         removeFromMapLayerList,
         reorderVisibleMapLayer,
         getReorderableVisibleLayersTopToBottom,

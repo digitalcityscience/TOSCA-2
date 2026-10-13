@@ -69,6 +69,7 @@
       "participation": "Participation",
       "events": "Events",
       "geostories": "GeoStories",
+      "urbanStories": "Urban Stories",
       "layers": "Layers"
     },
     "basemap": {
@@ -582,6 +583,197 @@
       "progress": "Scene {current} of {total}",
       "captionLabel": "Map scene caption",
       "hideCaption": "Hide caption"
+    }
+  },
+  "urbanStories": {
+    "title": "Urban Stories",
+    "about": {
+      "title": "About Urban Stories",
+      "attribution": "Developed as a proof of concept (PoC) by the SUMO-15 / NGCN Engineering Team at HafenCity University Hamburg.",
+      "disclaimer": "These scenarios are research demonstrations based on available geospatial datasets. Results may contain uncertainties, omissions or outdated information and do not constitute official assessments or operational guidance."
+    },
+    "credits": {
+      "title": "Data Sources & Credits",
+      "intro": "Sources used across the stories. Licence and attribution text follows the source records.",
+      "license": "Licence",
+      "modified": "Data were processed, aggregated and combined for these demonstrations; derived values are the project's own and not those of the publishers.",
+      "groups": {
+        "hamburg": "Freie und Hansestadt Hamburg",
+        "mobility": "Mobility & safety",
+        "community": "OpenStreetMap & basemap",
+        "other": "Other"
+      },
+      "items": {
+        "alkis": "Building footprints, ALKIS attributes, land use",
+        "admin": "Districts, neighbourhoods and statistical areas",
+        "dgp": "Public green areas",
+        "feinkartierung": "Detailed green objects",
+        "trees": "Street trees near walking routes",
+        "dgm1": "Terrain slope for walking times",
+        "hvvCatchments": "Official stop catchments",
+        "hvvGtfs": "Stops, service frequency and the HamburgRiders timetable demo",
+        "unfallatlas": "Accident data behind the safety index (merged copy of the yearly releases)",
+        "osm": "Pedestrian network, destinations, park entrances",
+        "carto": "Dark basemap of HamburgRiders",
+        "coloringCities": "Building heights; publisher and licence not yet confirmed",
+        "riders": "Open-source basis of the HamburgRiders module"
+      }
+    },
+    "selector": {
+      "label": "Choose a story"
+    },
+    "empty": "Choose a story to see its introduction, the data caveats and its datasets.",
+    "intro": {
+      "caveatsTitle": "Read before you explore"
+    },
+    "sections": {
+      "run": "Run GeoStory",
+      "explore": "Explore Data"
+    },
+    "run": {
+      "start": "Start story",
+      "starting": "Loading story…",
+      "startHint": "Plays the guided story on the map with its chapters.",
+      "retry": "Try again",
+      "chapterOf": "Chapter {current} of {total}",
+      "chapterTitle": "Chapter",
+      "previous": "Previous chapter",
+      "next": "Next chapter",
+      "backToExplore": "Back to Explore Data",
+      "overview": "Return to overview",
+      "introTitle": "Introduction",
+      "noNarrative": "This chapter has no text. The map caption describes the scene.",
+      "layerWarningTitle": "Some map layers have limited details",
+      "layerWarning": "Popups and filters are unavailable for: {layers}.",
+      "relatedHint": "{count} related datasets in Explore Data",
+      "showRelated": "Show them",
+      "focusLabel": "Focus on story",
+      "focusHelp": "Hides the layers you added while the story plays. Leaving the story restores them exactly as they were before it started, even if you changed them meanwhile.",
+      "issues": {
+        "unpublishedTitle": "Story not published",
+        "unpublished": "This story exists but is not published, or you cannot see it yet. Nothing is played.",
+        "fetchFailedTitle": "Story not available right now",
+        "fetchFailed": "The story service could not be reached or returned an error. Try again in a moment.",
+        "emptyTitle": "Story has no scenes",
+        "empty": "The story is published but contains no map scenes yet.",
+        "mapNotReadyTitle": "Map is not ready",
+        "mapNotReady": "Wait for the map to finish loading, then start the story again."
+      }
+    },
+    "explore": {
+      "datasetCount": "{count} datasets",
+      "groups": {
+        "building": "Buildings",
+        "street": "Streets",
+        "admin": "Areas",
+        "poi": "Destinations",
+        "green": "Green"
+      },
+      "mvt": {
+        "verified": "Vector tiles ready",
+        "pending": "Tiles pending",
+        "unavailable": "Tiles unavailable"
+      },
+      "refresh": "Refresh status",
+      "addedTitle": "Layers added from Urban Stories",
+      "addedEmpty": "No layers added yet. Use “Add as layer” on a dataset above.",
+      "addedFrom": "From {story}",
+      "visibleFromZoom": "Visible from zoom {zoom}",
+      "add": "Add as layer",
+      "adding": "Adding…",
+      "showSettings": "Show settings",
+      "hideSettings": "Hide settings",
+      "remove": "Remove",
+      "metric": "Metric",
+      "defaultStyle": "Default style",
+      "metricPending": "{label} (style pending)",
+      "metricAttributesMissing": "{label} (data missing)",
+      "caveats": "Data caveats",
+      "status": {
+        "available": "Ready",
+        "unstyled": "Default style",
+        "attributes-missing": "Data incomplete",
+        "temporarily-unavailable": "Temporarily unavailable",
+        "tiles-unavailable": "Tiles unavailable",
+        "error": "Status unknown"
+      },
+      "attributesMissing": "Missing columns: {columns}",
+      "pendingReason": {
+        "no-style-name": "No style has been assigned to this metric yet.",
+        "style-not-in-catalog": "The catalog does not list this style yet.",
+        "style-not-applicable": "The catalog has this style, but it does not fit this layer and metric.",
+        "not-mbstyle": "The assigned style is not a usable MBStyle."
+      },
+      "addError": "The layer could not be added. Try again or refresh the status.",
+      "metricError": "The metric could not be applied.",
+      "tilesError": "Vector tiles failed to load for this layer.",
+      "mapNotReady": "The map is not ready yet.",
+      "noZoomFloor": "Style has no zoom floor",
+      "ariaMetric": "Choose a metric for {title}",
+      "unavailableHint": "This dataset is not published on the map server yet.",
+      "relatedTitle": "Related to this chapter: {chapter}",
+      "othersTitle": "More layers in this story",
+      "inChapter": "In this chapter"
+    }
+  },
+  "hamburgRiders": {
+    "story": {
+      "loading": "Loading the timetable (about 30 MB, parsed in the background)…",
+      "error": "The timetable could not be loaded: {message}",
+      "retry": "Try again",
+      "ready": "Timetable ready.",
+      "serviceNote": "Scheduled service of {date} (HVV GTFS timetable, not live data).",
+      "overview": "Back to Hamburg overview",
+      "reopen": "Show Riders controls",
+      "hint": "Choose lines in the Layers panel on the right. The Riders controls close independently of the map; closing this story removes everything it added and restores your basemap.",
+      "explore": {
+        "title": "Explore Data",
+        "hint": "Add single HamburgRiders layers to the map as data, without the dark basemap or the Riders controls. They stay until you remove them.",
+        "add": "Add as layer",
+        "remove": "Remove",
+        "added": "On the map"
+      },
+      "start": "Start HamburgRiders",
+      "stop": "Stop HamburgRiders",
+      "stopped": "HamburgRiders is stopped. Start it to see the network, vehicles and timeline."
+    },
+    "controls": {
+      "reopen": "HamburgRiders controls",
+      "close": "Close Riders controls",
+      "collapse": "Collapse",
+      "expand": "Expand"
+    },
+    "statistics": {
+      "title": "Statistics",
+      "active": "Active trips",
+      "cumulative": "Cumulative today",
+      "total": "Total trips",
+      "scope": "Counts follow the selected lines."
+    },
+    "layers": {
+      "title": "Layers",
+      "all": "All",
+      "empty": "The timetable is still loading.",
+      "modes": {
+        "s-bahn": "S-Bahn",
+        "u-bahn": "U-Bahn",
+        "bus": "Bus",
+        "regional": "Regional"
+      }
+    },
+    "timeline": {
+      "label": "HamburgRiders timeline",
+      "play": "Play",
+      "pause": "Pause",
+      "time": "Time of day",
+      "speed": "Speed",
+      "service": "Timetable of {date} · not live"
+    },
+    "about": {
+      "title": "About this data",
+      "feed": "Feed: {publisher}, version {version}, valid {start} – {end}.",
+      "source": "HVV GTFS timetable via the Hamburg transparency portal.",
+      "credits": "Based on hamburgriders (MIT), forked from utrechtriders, inspired by londonriders. Dark basemap © CARTO © OpenStreetMap contributors."
     }
   }
 }

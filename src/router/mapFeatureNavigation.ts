@@ -1,6 +1,6 @@
 import { type RouteLocationNormalized } from "vue-router";
 
-export type MapFeatureArea = "home" | "events" | "geostories";
+export type MapFeatureArea = "home" | "events" | "geostories" | "urban-stories";
 
 /**
  * Returns the top-level map feature represented by a route.
@@ -19,6 +19,9 @@ export function getMapFeatureArea(
     }
     if (route.path === "/geostories" || route.path.startsWith("/geostories/")) {
         return "geostories";
+    }
+    if (route.path === "/urban-stories" || route.path.startsWith("/urban-stories/")) {
+        return "urban-stories";
     }
     return undefined;
 }

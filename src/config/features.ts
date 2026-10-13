@@ -1,10 +1,14 @@
 /**
  * Deployment-level feature switches. Set VITE_ENABLED_FEATURES at build time to a
- * comma-separated list of feature ids; leaving it unset enables every feature.
+ * comma-separated list of feature ids; leaving it unset enables every feature
+ * except the opt-in ones.
  */
-export const FEATURE_IDS = ["datastores", "events", "geostories"] as const;
+export const FEATURE_IDS = ["datastores", "events", "geostories", "urbanStories"] as const;
 
 export type FeatureId = typeof FEATURE_IDS[number];
+
+/** Features that stay off unless VITE_ENABLED_FEATURES lists them explicitly. */
+export const OPT_IN_FEATURE_IDS: readonly FeatureId[] = ["urbanStories"];
 
 function isFeatureId(value: string): value is FeatureId {
     return (FEATURE_IDS as readonly string[]).includes(value);
@@ -14,7 +18,9 @@ export function resolveEnabledFeatures(
     environment: Record<string, string | undefined>
 ): ReadonlySet<FeatureId> {
     const raw = environment.VITE_ENABLED_FEATURES?.trim();
-    if (raw === undefined || raw.length === 0) return new Set(FEATURE_IDS);
+    if (raw === undefined || raw.length === 0) {
+        return new Set(FEATURE_IDS.filter((id) => !OPT_IN_FEATURE_IDS.includes(id)));
+    }
     const requested = raw.split(",").map((value) => value.trim()).filter((value) => value.length > 0);
     const unknown = requested.filter((value) => !isFeatureId(value));
     if (unknown.length > 0) {
