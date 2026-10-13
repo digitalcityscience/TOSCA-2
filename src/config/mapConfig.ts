@@ -140,7 +140,7 @@ export const inHouseTerrainExample = {
 } satisfies TerrainDefinition;
 
 export const mapConfiguration = {
-    initialBasemapId: "backdrop",
+    initialBasemapId: "inHouseBright",
     providers: {
         maptiler: {
             baseUrl: { value: "https://api.maptiler.com" },
@@ -148,9 +148,34 @@ export const mapConfiguration = {
         },
         inHouse: {
             baseUrl: { environmentVariable: "VITE_INHOUSE_MAP_BASE_URL" },
+            apiKey: { environmentVariable: "VITE_INHOUSE_MAP_API_KEY" },
         },
     },
     basemaps: [
+        {
+            kind: "vector",
+            id: "inHouseBright",
+            titleKey: "map.basemap.inHouseBright",
+            styleUrl: { provider: "inHouse", path: "styles/osm-bright.json" },
+            thumbnailUrl: { provider: "inHouse", path: "/thumbnails/osmBright.jpg" },
+            fontStackOverride: ["Open Sans Regular"],
+        },
+        {
+            kind: "vector",
+            id: "inHouseNight",
+            titleKey: "map.basemap.inHouseNight",
+            styleUrl: { provider: "inHouse", path: "styles/osm-night.json" },
+            thumbnailUrl: { provider: "inHouse", path: "/thumbnails/osmNight.jpg" },
+            fontStackOverride: ["Open Sans Regular"],
+        },
+        {
+            kind: "raster",
+            id: "satellite",
+            titleKey: "map.basemap.satellite",
+            tiles: [{ provider: "maptiler", path: "maps/satellite/{z}/{x}/{y}.jpg" }],
+            thumbnailUrl: { provider: "maptiler", path: "maps/satellite/0/0/0.jpg" },
+            tileSize: 512,
+        },
         {
             kind: "vector",
             id: "dataviz",
@@ -166,23 +191,7 @@ export const mapConfiguration = {
             styleUrl: { provider: "maptiler", path: "maps/backdrop-v4/style.json" },
             thumbnailUrl: { provider: "maptiler", path: "maps/backdrop-v4/0/0/0.png" },
             fontStackOverride: ["Open Sans Regular"],
-        },
-        {
-            kind: "vector",
-            id: "inHouse",
-            titleKey: "map.basemap.inHouse",
-            styleUrl: { provider: "inHouse", path: "styles/osm-bright.json" },
-            thumbnailUrl: { provider: "inHouse", path: "/thumbnails/osmBright.jpg" },
-            fontStackOverride: ["Open Sans Regular"],
-        },
-        {
-            kind: "raster",
-            id: "satellite",
-            titleKey: "map.basemap.satellite",
-            tiles: [{ provider: "maptiler", path: "maps/satellite/{z}/{x}/{y}.jpg" }],
-            thumbnailUrl: { provider: "maptiler", path: "maps/satellite/0/0/0.jpg" },
-            tileSize: 512,
-        },
+        }
     ],
     terrain: {
         exaggeration: 1,

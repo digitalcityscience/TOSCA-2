@@ -76,7 +76,8 @@
     "basemap": {
       "dataviz": "Dataviz",
       "backdrop": "Arka plan",
-      "inHouse": "Kurum içi",
+      "inHouseBright": "OSM Bright",
+      "inHouseNight": "OSM Night",
       "satellite": "Uydu",
       "loadErrorTitle": "Altlık harita kullanılamıyor",
       "loadErrorDetail": "{name} yüklenemedi. Mevcut altlık haritanız etkin kalacak."

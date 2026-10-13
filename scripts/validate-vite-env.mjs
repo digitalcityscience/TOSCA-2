@@ -18,6 +18,16 @@ const optionalVariables = [
   "VITE_GEOSERVER_BASE_URL",
 ];
 
+const inHouseMapVariables = [
+  "VITE_INHOUSE_MAP_BASE_URL",
+  "VITE_INHOUSE_MAP_API_KEY",
+];
+const inHouseMapConfigured = inHouseMapVariables.some((name) => {
+  const value = environment[name];
+  return value !== undefined && value.trim() !== "";
+});
+if (inHouseMapConfigured) requiredVariables.push(...inHouseMapVariables);
+
 const missingVariables = requiredVariables.filter((name) => {
   const value = environment[name];
   return value === undefined || value.trim() === "";
@@ -30,7 +40,12 @@ if (missingVariables.length > 0) {
   process.exit(1);
 }
 
-for (const name of ["VITE_BACKEND_ROOT_URL", "VITE_GEONODE_REST_URL", ...optionalVariables]) {
+for (const name of [
+  "VITE_BACKEND_ROOT_URL",
+  "VITE_GEONODE_REST_URL",
+  "VITE_INHOUSE_MAP_BASE_URL",
+  ...optionalVariables,
+]) {
   const value = environment[name]?.trim();
   if (value !== undefined && value !== "" && !/^https?:\/\//i.test(value)) {
     console.error(`${name} must be an absolute URL including protocol. Received: ${value}`);

@@ -76,7 +76,8 @@
     "basemap": {
       "dataviz": "Dataviz",
       "backdrop": "Backdrop",
-      "inHouse": "inHouse",
+      "inHouseBright": "OSM Bright",
+      "inHouseNight": "OSM Night",
       "satellite": "Satellite",
       "loadErrorTitle": "Basemap unavailable",
       "loadErrorDetail": "We couldn't load {name}. Your current basemap is still active."
