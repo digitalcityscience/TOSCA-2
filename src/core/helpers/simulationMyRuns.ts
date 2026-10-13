@@ -1,5 +1,5 @@
 /**
- * Runs this browser started, kept in `localStorage`. Until the frontend has
+ * Runs and comparisons this browser started, kept in `localStorage`. Until the frontend has
  * sign-in, anonymous runs are only readable by id (backend `link` visibility),
  * so their ids must be remembered here to list them again.
  */
@@ -12,6 +12,8 @@ export interface MyRun {
     modelId: string;
     title: string;
     startedAt: string;
+    /** Missing in entries from before comparisons: a run. */
+    kind?: "run" | "comparison";
 }
 
 function read(): MyRun[] {

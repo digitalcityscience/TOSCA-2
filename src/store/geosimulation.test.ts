@@ -2,6 +2,7 @@ import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import {
     buildComparisonDetailUrl,
+    buildStartComparisonUrl,
     buildStartRunUrl,
     StartRunError,
     buildComparisonListUrl,
@@ -123,6 +124,23 @@ describe("geosimulation store", () => {
         expect(invalid).toBeInstanceOf(StartRunError);
         expect(invalid).toMatchObject({ status: 400, parameterErrors: ["agents: 0 is less than the minimum of 1"] });
         expect(quota).toMatchObject({ status: 429, retryAfterSeconds: 60 });
+    });
+
+    test("starts a with/without comparison", async () => {
+        const queued = { id: "c1", title: "With vs without construction", execution_state: "queued", created_at: "2026-10-12T12:00:00Z", reused: false };
+        fetchMock.mockResolvedValueOnce(jsonResponse(queued, { status: 202 }));
+        const store = useGeosimulationStore();
+
+        const started = await store.startComparison("m1", {
+            baseline: { parameters: { agents: 30, construction: false } },
+            candidate: { parameters: { agents: 30, construction: true } },
+            seed: 7,
+        });
+
+        const [url, init] = fetchMock.mock.calls[0] as [URL, RequestInit];
+        expect(String(url)).toBe(buildStartComparisonUrl("m1").toString());
+        expect(JSON.parse(init.body as string).candidate).toEqual({ parameters: { agents: 30, construction: true } });
+        expect(started).toMatchObject({ id: "c1", execution_state: "queued", reused: false });
     });
 
     test("exposes a user-safe error when the list fails", async () => {

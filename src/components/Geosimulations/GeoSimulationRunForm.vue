@@ -10,7 +10,7 @@
             :title="t('geosimulations.newRun.notRunnable')"
         />
 
-        <form v-else-if="model" class="grid gap-4" novalidate @submit.prevent="submit">
+        <form v-else-if="model" class="grid gap-4" novalidate @submit.prevent="submit('run')">
             <div class="grid gap-1">
                 <p class="text-xs font-medium uppercase tracking-wide text-muted">{{ model.title }}</p>
                 <h2 class="text-xl font-semibold leading-tight text-highlighted">{{ t("geosimulations.newRun.title") }}</h2>
@@ -88,9 +88,32 @@
             />
 
             <div class="flex flex-wrap items-center gap-3">
-                <UButton type="submit" icon="i-lucide-play" :loading="submitting" :disabled="submitting" :label="t('geosimulations.newRun.start')" />
+                <UButton
+                    type="submit"
+                    icon="i-lucide-play"
+                    :loading="submitting === 'run'"
+                    :disabled="submitting !== undefined"
+                    :label="t('geosimulations.newRun.start')"
+                />
                 <UButton color="neutral" variant="ghost" :label="t('geosimulations.newRun.reset')" @click="reset" />
             </div>
+
+            <section v-if="canCompareConstruction" class="construction-compare">
+                <div class="grid gap-0.5">
+                    <h3 class="text-sm font-semibold text-highlighted">{{ t("geosimulations.newRun.constructionTitle") }}</h3>
+                    <p class="text-xs text-muted">{{ t("geosimulations.newRun.constructionHelp") }}</p>
+                </div>
+                <UButton
+                    class="w-fit"
+                    icon="i-lucide-construction"
+                    color="neutral"
+                    variant="outline"
+                    :loading="submitting === 'construction'"
+                    :disabled="submitting !== undefined"
+                    :label="t('geosimulations.newRun.constructionCompare')"
+                    @click="submit('construction')"
+                />
+            </section>
             <p class="text-xs text-muted">{{ t("geosimulations.newRun.anonymousNote") }}</p>
         </form>
     </div>
@@ -126,7 +149,7 @@ const geosimulation = useGeosimulationStore();
 const model = ref<SimulationModelDetail>();
 const loading = ref(false);
 const loadFailed = ref(false);
-const submitting = ref(false);
+const submitting = ref<"run" | "construction">();
 const submitError = ref("");
 const otherErrors = ref<string[]>([]);
 const serverErrors = ref<Record<string, string>>({});
@@ -136,6 +159,10 @@ const title = ref("");
 const seed = ref<number | null>(null);
 
 const fields = computed(() => parameterFields(model.value?.parameter_schema));
+/** The model has a boolean `construction` parameter: offer the with/without comparison. */
+const canCompareConstruction = computed(() =>
+    fields.value.some((field) => field.name === "construction" && field.kind === "boolean")
+);
 
 function numberOf(name: string): number | undefined {
     const value = values[name];
@@ -180,21 +207,47 @@ function fieldError(name: string): string | undefined {
     return serverErrors.value[name];
 }
 
-async function submit(): Promise<void> {
+/** Start one run, or (``construction``) the same run without and with construction sites. */
+async function submit(mode: "run" | "construction"): Promise<void> {
     if (model.value === undefined) return;
     serverErrors.value = {};
     submitError.value = "";
     otherErrors.value = [];
     problems.value = validateParameterValues(fields.value, values);
     if (Object.keys(problems.value).length > 0) return;
-    submitting.value = true;
+    submitting.value = mode;
+    const parameters = submittedParameters(values);
+    const customTitle = title.value.trim();
     try {
+        if (mode === "construction") {
+            const comparison = await geosimulation.startComparison(model.value.id, {
+                baseline: { parameters: { ...parameters, construction: false } },
+                candidate: { parameters: { ...parameters, construction: true } },
+                seed: seed.value,
+                title: customTitle !== "" ? customTitle : t("geosimulations.newRun.constructionRunTitle", {
+                    agents: formatNumber(Number(parameters.agents ?? 0), locale.value),
+                }),
+            });
+            rememberRun({
+                id: comparison.id,
+                modelId: model.value.id,
+                title: comparison.title,
+                startedAt: comparison.created_at,
+                kind: "comparison",
+            });
+            await router.push({
+                name: "geosimulation-comparison",
+                params: { comparisonId: comparison.id },
+                query: comparison.reused ? { reused: "1" } : {},
+            });
+            return;
+        }
         const run = await geosimulation.startRun(model.value.id, {
-            parameters: submittedParameters(values),
+            parameters,
             seed: seed.value,
-            ...(title.value.trim() !== "" ? { title: title.value.trim() } : {}),
+            ...(customTitle !== "" ? { title: customTitle } : {}),
         });
-        rememberRun({ id: run.id, modelId: model.value.id, title: run.title, startedAt: run.created_at });
+        rememberRun({ id: run.id, modelId: model.value.id, title: run.title, startedAt: run.created_at, kind: "run" });
         await router.push({
             name: "geosimulation-run",
             params: { runId: run.id },
@@ -214,7 +267,7 @@ async function submit(): Promise<void> {
             submitError.value = error.status === 0 ? error.message : t("geosimulations.newRun.failed", { detail: error.message });
         }
     } finally {
-        submitting.value = false;
+        submitting.value = undefined;
     }
 }
 
@@ -233,6 +286,14 @@ watch(() => props.modelId, async (modelId) => {
 </script>
 
 <style scoped>
+.construction-compare {
+    display: grid;
+    gap: 0.6rem;
+    padding: 0.75rem 0.85rem;
+    border: 1px dashed rgb(148 163 184 / 0.4);
+    border-radius: 0.5rem;
+}
+
 .advanced {
     padding: 0.6rem 0.75rem;
     border: 1px solid rgb(148 163 184 / 0.2);

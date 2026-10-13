@@ -77,6 +77,9 @@ export interface SimulationComparisonSummary {
     key: string;
     title: string;
     status: SimulationStatus;
+    visibility?: SimulationVisibility;
+    /** `queued`/`running` while a comparison users started waits for its runs; `imported` for curated ones. */
+    execution_state?: SimulationExecutionState;
     baseline: SimulationRunRef;
     candidate: SimulationRunRef;
     created_at: string;
@@ -99,6 +102,10 @@ export interface SimulationComparisonDetail {
     title: string;
     description_content: SimulationDescription;
     status: SimulationStatus;
+    visibility?: SimulationVisibility;
+    is_owner?: boolean;
+    execution_state?: SimulationExecutionState;
+    execution?: SimulationRunExecution | null;
     baseline: SimulationRunSummary;
     candidate: SimulationRunSummary;
     bounds: SimulationBounds | null;
@@ -245,6 +252,21 @@ export interface StartRunRequest {
     seed?: number | null;
     title?: string;
     visibility?: Exclude<SimulationVisibility, "link">;
+}
+
+export interface StartComparisonRequest {
+    baseline: { parameters: Record<string, unknown> };
+    candidate: { parameters: Record<string, unknown> };
+    seed?: number | null;
+    title?: string;
+}
+
+export interface StartComparisonResponse extends SimulationComparisonSummary {
+    reused: boolean;
+}
+
+export function buildStartComparisonUrl(modelId: string): URL {
+    return new URL(`${GEOSIMULATIONS_API_PATH}/${encodeURIComponent(modelId)}/comparisons/`, getBackendRootUrl());
 }
 
 export interface StartRunResponse extends SimulationRunSummary {
@@ -434,19 +456,33 @@ export const useGeosimulationStore = defineStore("geosimulation", () => {
      * Resolves for a new run (202) and for a reused identical run (200, `reused`).
      */
     async function startRun(modelId: string, body: StartRunRequest): Promise<StartRunResponse> {
+        return await postStart<StartRunResponse>(buildStartRunUrl(modelId), body, "Starting a simulation run");
+    }
+
+    /**
+     * Start two runs with one seed and their comparison (or reuse an identical one);
+     * the comparison follows once both runs finished.
+     */
+    async function startComparison(modelId: string, body: StartComparisonRequest): Promise<StartComparisonResponse> {
+        return await postStart<StartComparisonResponse>(
+            buildStartComparisonUrl(modelId), body, "Starting a simulation comparison"
+        );
+    }
+
+    async function postStart<T>(url: URL, body: unknown, what: string): Promise<T> {
         let response: Response;
         try {
-            response = await fetch(buildStartRunUrl(modelId), {
+            response = await fetch(url, {
                 method: "POST",
                 headers: new Headers({ "Content-Type": "application/json", Accept: "application/json" }),
                 body: JSON.stringify(body),
             });
         } catch (err) {
-            reportDeveloperError("Starting a simulation run", err);
+            reportDeveloperError(what, err);
             throw new StartRunError(serviceUnavailableMessage("GeoSimulations"), 0);
         }
         const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
-        if (response.ok) return payload as unknown as StartRunResponse;
+        if (response.ok) return payload as T;
         const parameterErrors = Array.isArray(payload.parameters) ? payload.parameters.map(String) : [];
         const visibilityErrors = Array.isArray(payload.visibility) ? payload.visibility.map(String) : [];
         const detail = typeof payload.detail === "string" ? payload.detail : visibilityErrors[0] ?? response.statusText;
@@ -485,6 +521,7 @@ export const useGeosimulationStore = defineStore("geosimulation", () => {
         loadRun,
         clearRun,
         startRun,
+        startComparison,
         loadComparison,
         clearComparison,
         loadRunComparisons,

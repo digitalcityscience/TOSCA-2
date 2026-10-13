@@ -28,7 +28,18 @@
                 <h3 class="text-sm font-semibold text-highlighted">{{ t("geosimulations.myRuns") }}</h3>
                 <ul class="grid gap-1">
                     <li v-for="ownRun in ownRuns" :key="ownRun.id" class="flex flex-wrap items-baseline gap-x-2">
-                        <ULink class="text-sm text-primary hover:underline" :to="{ name: 'geosimulation-run', params: { runId: ownRun.id } }">
+                        <UIcon
+                            v-if="ownRun.kind === 'comparison'"
+                            name="i-lucide-git-compare"
+                            class="size-3.5 self-center text-muted"
+                            :aria-label="t('geosimulations.comparison.badge')"
+                        />
+                        <ULink
+                            class="text-sm text-primary hover:underline"
+                            :to="ownRun.kind === 'comparison'
+                                ? { name: 'geosimulation-comparison', params: { comparisonId: ownRun.id } }
+                                : { name: 'geosimulation-run', params: { runId: ownRun.id } }"
+                        >
                             {{ ownRun.title }}
                         </ULink>
                         <span class="text-xs text-muted">{{ formatStarted(ownRun.startedAt) }}</span>

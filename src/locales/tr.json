@@ -847,7 +847,17 @@
       "metric": "Gösterge",
       "change": "Değişim",
       "differenceLayers": "Fark katmanları",
-      "noDifferenceLayers": "İki çalıştırma arasında hiçbir harita katmanı değişmedi."
+      "noDifferenceLayers": "İki çalıştırma arasında hiçbir harita katmanı değişmedi.",
+      "reused": "Aynı karşılaştırma zaten mevcut; o açıldı.",
+      "waitingForRuns": "İki çalıştırma simüle ediliyor…",
+      "comparing": "Çalıştırmalar karşılaştırılıyor…",
+      "progressHelp": "Bu sayfa kendini günceller; iki çalıştırma bitince karşılaştırma görünür.",
+      "failed": "Karşılaştırma başarısız oldu.",
+      "runState": {
+        "queued": "Sırada",
+        "running": "Çalışıyor",
+        "failed": "Başarısız"
+      }
     },
     "myRuns": "Çalıştırmalarım",
     "newRun": {
@@ -876,7 +886,11 @@
         "maximum": "En çok {limit}",
         "option": "Seçeneklerden birini seçin",
         "date": "Bir tarih girin"
-      }
+      },
+      "constructionTitle": "Yol çalışmalarının etkisi",
+      "constructionHelp": "Aynı bisikletlileri o gün aktif yol çalışmaları olmadan ve olarak iki kez çalıştırın; kimin rota değiştirdiğini ve trafiğin nereye kaydığını karşılaştırın.",
+      "constructionCompare": "Yol çalışmalı ve çalışmasız karşılaştır",
+      "constructionRunTitle": "Yol çalışmalı ve çalışmasız — {agents} bisikletli"
     },
     "progress": {
       "queued": "Simülasyon sunucusu bekleniyor…",
