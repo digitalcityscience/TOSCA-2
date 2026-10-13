@@ -10,14 +10,23 @@ import {
 const environment = {
     VITE_MAPTILER_API_KEY: "map key",
     VITE_INHOUSE_MAP_BASE_URL: "https://maps.example.test/",
+    VITE_INHOUSE_MAP_API_KEY: "in-house key",
 };
+const inHouseBasemapIds = ["inHouseBright", "inHouseNight"];
 
 describe("map configuration", () => {
-    test("keeps application ids separate from provider map ids", () => {
+    test("preserves the configured basemap order and default", () => {
         const resolved = resolveMapConfiguration(mapConfiguration, environment, (key) => key);
         const dataviz = resolved.basemaps.find(({ id }) => id === "dataviz");
 
-        expect(resolved.initialBasemapId).toBe("backdrop");
+        expect(resolved.initialBasemapId).toBe("inHouseBright");
+        expect(resolved.basemaps.map(({ id }) => id)).toEqual([
+            "inHouseBright",
+            "inHouseNight",
+            "satellite",
+            "dataviz",
+            "backdrop",
+        ]);
         expect(dataviz).toMatchObject({
             kind: "vector",
             id: "dataviz",
@@ -35,15 +44,26 @@ describe("map configuration", () => {
             .toContain("/maps/satellite/0/0/0.jpg");
     });
 
-    test("resolves MapTiler and inHouse resources through the same provider model", () => {
+    test("resolves every in-house basemap through the shared provider", () => {
         const resolved = resolveMapConfiguration(mapConfiguration, environment, (key) => key);
-        const inHouse = resolved.basemaps.find(({ id }) => id === "inHouse");
+        const inHouseBasemaps = resolved.basemaps.filter(({ id }) => id.startsWith("inHouse"));
 
-        expect(inHouse).toMatchObject({
-            kind: "vector",
-            styleUrl: "https://maps.example.test/styles/osm-bright.json",
-            thumbnailUrl: "https://maps.example.test/thumbnails/osmBright.jpg",
-        });
+        expect(inHouseBasemaps).toMatchObject([
+            {
+                kind: "vector",
+                id: "inHouseBright",
+                title: "map.basemap.inHouseBright",
+                styleUrl: "https://maps.example.test/styles/osm-bright.json?key=in-house%20key",
+                thumbnailUrl: "https://maps.example.test/thumbnails/osmBright.jpg?key=in-house%20key",
+            },
+            {
+                kind: "vector",
+                id: "inHouseNight",
+                title: "map.basemap.inHouseNight",
+                styleUrl: "https://maps.example.test/styles/osm-night.json?key=in-house%20key",
+                thumbnailUrl: "https://maps.example.test/thumbnails/osmNight.jpg?key=in-house%20key",
+            },
+        ]);
     });
 
     test("builds direct Martin tile templates without encoding placeholders", () => {
@@ -53,7 +73,7 @@ describe("map configuration", () => {
             "tiles/terrain/{z}/{x}/{y}",
             environment
         )).toBe(
-            "https://maps.example.test/tiles/terrain/{z}/{x}/{y}"
+            "https://maps.example.test/tiles/terrain/{z}/{x}/{y}?key=in-house%20key"
         );
     });
 
@@ -69,7 +89,7 @@ describe("map configuration", () => {
             demSource: {
                 type: "raster-dem",
                 tiles: [
-                    "https://maps.example.test/tiles/terrain-hamburg-official/{z}/{x}/{y}",
+                    "https://maps.example.test/tiles/terrain-hamburg-official/{z}/{x}/{y}?key=in-house%20key",
                 ],
                 encoding: "mapbox",
                 tileSize: 256,
@@ -79,7 +99,7 @@ describe("map configuration", () => {
             hillshadeSource: {
                 type: "raster",
                 tiles: [
-                    "https://maps.example.test/tiles/hillshade-hamburg-official/{z}/{x}/{y}",
+                    "https://maps.example.test/tiles/hillshade-hamburg-official/{z}/{x}/{y}?key=in-house%20key",
                 ],
                 tileSize: 256,
                 minzoom: 9,
@@ -109,7 +129,24 @@ describe("map configuration", () => {
         expect(resolved.terrain.hillshadeSource.tiles).toBeUndefined();
     });
 
-    test("keeps the in-house provider keyless so secrets can stay behind the proxy", () => {
+    test("appends the encoded in-house key to provider URLs", () => {
+        const resolved = resolveMapConfiguration(
+            mapConfiguration,
+            {
+                VITE_MAPTILER_API_KEY: "key",
+                VITE_INHOUSE_MAP_BASE_URL: "https://maps.example.test",
+                VITE_INHOUSE_MAP_API_KEY: "client key/+",
+            },
+            (key) => key
+        );
+
+        expect(resolved.basemaps.find(({ id }) => id === "inHouseBright")?.thumbnailUrl)
+            .toBe("https://maps.example.test/thumbnails/osmBright.jpg?key=client%20key%2F%2B");
+    });
+
+    test("skips the in-house basemap when its API key is missing", () => {
+        vi.spyOn(console, "error").mockImplementation(() => {});
+
         const resolved = resolveMapConfiguration(
             mapConfiguration,
             {
@@ -119,8 +156,7 @@ describe("map configuration", () => {
             (key) => key
         );
 
-        expect(resolved.basemaps.find(({ id }) => id === "inHouse")?.thumbnailUrl)
-            .toBe("https://maps.example.test/thumbnails/osmBright.jpg");
+        expect(resolved.basemaps.filter(({ id }) => id.startsWith("inHouse"))).toHaveLength(0);
     });
 
     test("skips a basemap whose provider baseUrl is missing entirely", () => {
@@ -135,8 +171,10 @@ describe("map configuration", () => {
             (key) => key
         );
 
-        expect(resolved.basemaps.find(({ id }) => id === "inHouse")).toBeUndefined();
-        expect(resolved.basemaps).toHaveLength(mapConfiguration.basemaps.length - 1);
+        expect(resolved.basemaps.filter(({ id }) => id.startsWith("inHouse"))).toHaveLength(0);
+        expect(resolved.basemaps).toHaveLength(
+            mapConfiguration.basemaps.length - inHouseBasemapIds.length
+        );
     });
 
     test("falls back to the first available basemap when the initial one was skipped", () => {
@@ -144,7 +182,7 @@ describe("map configuration", () => {
 
         const configurationWithInHouseInitial: MapConfiguration = {
             ...mapConfiguration,
-            initialBasemapId: "inHouse",
+            initialBasemapId: "inHouseBright",
         };
 
         const resolved = resolveMapConfiguration(
@@ -154,7 +192,7 @@ describe("map configuration", () => {
         );
 
         expect(resolved.initialBasemapId).toBe(resolved.basemaps[0].id);
-        expect(resolved.initialBasemapId).not.toBe("inHouse");
+        expect(resolved.initialBasemapId).not.toBe("inHouseBright");
     });
 
     test("throws only when every basemap fails to resolve", () => {

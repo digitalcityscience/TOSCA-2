@@ -76,7 +76,8 @@
     "basemap": {
       "dataviz": "Dataviz",
       "backdrop": "Hintergrund",
-      "inHouse": "Intern",
+      "inHouseBright": "OSM Bright",
+      "inHouseNight": "OSM Night",
       "satellite": "Satellit",
       "loadErrorTitle": "Basiskarte nicht verfügbar",
       "loadErrorDetail": "{name} konnte nicht geladen werden. Ihre aktuelle Basiskarte bleibt aktiv."
