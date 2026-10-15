@@ -11,7 +11,7 @@
 
             <EditorJsReadonly v-if="model.description_content.blocks.length > 0" :data="model.description_content" />
 
-            <section v-if="model.runnable" class="start-run">
+            <section v-if="model.runnable && runsEnabled" class="start-run">
                 <div class="grid gap-0.5">
                     <h3 class="text-sm font-semibold text-highlighted">{{ t("geosimulations.newRun.cta") }}</h3>
                     <p class="text-xs text-muted">{{ t("geosimulations.newRun.ctaHelp") }}</p>
@@ -96,6 +96,7 @@ import EditorJsReadonly from "@components/Base/EditorJsReadonly.vue";
 import { type SimulationModelDetail, useGeosimulationStore } from "@store/geosimulation";
 import { formatSimulatedTime } from "@helpers/simulationFormat";
 import { myRuns } from "@helpers/simulationMyRuns";
+import { isFeatureEnabled } from "../../config/features";
 
 const props = defineProps<{ modelId: string }>();
 const { t, locale } = useI18n();
@@ -105,6 +106,8 @@ const loading = ref(false);
 const failed = ref(false);
 const comparisons = computed(() => model.value?.comparisons ?? []);
 const ownRuns = computed(() => (model.value ? myRuns(model.value.id) : []));
+/** Starting runs is an opt-in feature (`geosimulation-runs`): it needs a deployed runner. */
+const runsEnabled = isFeatureEnabled("geosimulation-runs");
 
 function formatStarted(iso: string): string {
     return new Intl.DateTimeFormat(locale.value, { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));

@@ -3,11 +3,12 @@ import { FEATURE_IDS, OPT_IN_FEATURE_IDS, resolveEnabledFeatures } from "./featu
 
 describe("feature configuration", () => {
     test("enables every feature except the opt-in ones when the variable is unset or blank", () => {
-        const defaults = ["datastores", "events", "geostories"];
+        const defaults = ["datastores", "events", "geostories", "geosimulations"];
 
         expect([...resolveEnabledFeatures({})]).toEqual(defaults);
         expect([...resolveEnabledFeatures({ VITE_ENABLED_FEATURES: "  " })]).toEqual(defaults);
         expect(FEATURE_IDS.filter((id) => !OPT_IN_FEATURE_IDS.includes(id))).toEqual(defaults);
+        expect(resolveEnabledFeatures({}).has("geosimulation-runs")).toBe(false);
     });
 
     test("keeps Urban Stories off unless it is listed", () => {
@@ -20,6 +21,13 @@ describe("feature configuration", () => {
 
         expect([...enabled]).toEqual(["datastores", "events", "geostories", "urbanStories"]);
         expect([...resolveEnabledFeatures({ VITE_ENABLED_FEATURES: "urbanStories" })]).toEqual(["urbanStories"]);
+    });
+
+    test("enables geosimulation runs by listing them", () => {
+        const enabled = resolveEnabledFeatures({ VITE_ENABLED_FEATURES: "geosimulations,geosimulation-runs" });
+
+        expect(enabled.has("geosimulation-runs")).toBe(true);
+        expect(enabled.has("events")).toBe(false);
     });
 
     test("enables only the listed features", () => {
