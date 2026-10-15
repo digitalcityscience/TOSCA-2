@@ -11,17 +11,30 @@ const publishedFooter = {
     name: "Default footer",
     version: 3,
     published_at: "2026-09-28T09:00:00Z",
-    logos: [],
+    logos: [
+        {
+            id: "logo-1",
+            image: "footer/footer-1/logos/partner.png",
+            url: "http://localhost:8000/media/footer/footer-1/logos/partner.png",
+            alt_text: "Partner",
+            destination_url: "",
+            display_order: 0,
+        },
+    ],
     documents: [
         {
             id: "document-1",
             title: "Privacy",
             slug: "privacy",
             path: "/privacy",
-            content: { blocks: [] },
             display_order: 0,
         },
     ],
+};
+
+const privacyDocument = {
+    ...publishedFooter.documents[0],
+    content: { blocks: [] },
 };
 
 describe("footer store", () => {
@@ -49,6 +62,7 @@ describe("footer store", () => {
 
         await expect(store.loadFooter()).resolves.toEqual(publishedFooter);
         expect(store.footer?.documents[0]?.slug).toBe("privacy");
+        expect(store.footer?.documents[0]).not.toHaveProperty("content");
 
         await expect(store.loadFooter()).resolves.toBeNull();
         expect(store.footer).toBeNull();
@@ -58,12 +72,10 @@ describe("footer store", () => {
         const fetchMock = vi.mocked(fetch);
         fetchMock
             .mockResolvedValueOnce(new Response("", { status: 404 }))
-            .mockResolvedValueOnce(new Response(JSON.stringify(publishedFooter.documents[0]), { status: 200 }));
+            .mockResolvedValueOnce(new Response(JSON.stringify(privacyDocument), { status: 200 }));
         const store = useFooterStore();
 
         await expect(store.loadDocument("missing")).resolves.toBeNull();
-        await expect(store.loadDocument("privacy")).resolves.toEqual(
-            publishedFooter.documents[0]
-        );
+        await expect(store.loadDocument("privacy")).resolves.toEqual(privacyDocument);
     });
 });

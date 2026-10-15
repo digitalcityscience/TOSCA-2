@@ -496,6 +496,7 @@
   "footer": {
     "label": "Site footer",
     "documentsLabel": "Legal information",
+    "moreDocuments": "More",
     "loadingTitle": "Loading document",
     "notFoundTitle": "Document unavailable",
     "notFoundDescription": "This document is not part of the currently published footer.",
