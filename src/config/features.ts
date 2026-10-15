@@ -1,14 +1,27 @@
 /**
  * Deployment-level feature switches. Set VITE_ENABLED_FEATURES at build time to a
  * comma-separated list of feature ids; leaving it unset enables every feature
- * except the opt-in ones.
+ * except the opt-in ones, which must be listed.
  */
-export const FEATURE_IDS = ["datastores", "events", "geostories", "urbanStories", "geosimulations"] as const;
+export const FEATURE_IDS = [
+    "datastores",
+    "events",
+    "geostories",
+    "urbanStories",
+    "geosimulations",
+    "geosimulation-runs",
+] as const;
 
 export type FeatureId = typeof FEATURE_IDS[number];
 
-/** Features that stay off unless VITE_ENABLED_FEATURES lists them explicitly. */
-export const OPT_IN_FEATURE_IDS: readonly FeatureId[] = ["urbanStories"];
+/**
+ * Features that stay off unless VITE_ENABLED_FEATURES lists them explicitly.
+ * `geosimulation-runs` (starting runs and with/without-construction comparisons
+ * from the simulation pages) needs a deployed simulation runner and backend
+ * `GEOSIMULATIONS_RUNS_ENABLED=true`; the simulation catalog (`geosimulations`)
+ * works without it.
+ */
+export const OPT_IN_FEATURE_IDS: readonly FeatureId[] = ["urbanStories", "geosimulation-runs"];
 
 function isFeatureId(value: string): value is FeatureId {
     return (FEATURE_IDS as readonly string[]).includes(value);

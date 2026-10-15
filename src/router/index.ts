@@ -138,7 +138,9 @@ const router = createRouter({
                     path: ":modelId/new",
                     name: "geosimulation-new-run",
                     component: async () => await import("../components/Geosimulations/GeoSimulationRunForm.vue"),
-                    props: true
+                    props: true,
+                    // Off unless VITE_ENABLED_FEATURES lists it (needs a simulation runner).
+                    meta: { feature: "geosimulation-runs" }
                 },
                 {
                     path: ":modelId",
