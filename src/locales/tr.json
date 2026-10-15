@@ -496,6 +496,7 @@
   "footer": {
     "label": "Site alt bilgisi",
     "documentsLabel": "Yasal bilgiler",
+    "moreDocuments": "Daha fazla",
     "loadingTitle": "Belge yükleniyor",
     "notFoundTitle": "Belge kullanılamıyor",
     "notFoundDescription": "Bu belge şu anda yayımlanmış alt bilgide yer almıyor.",

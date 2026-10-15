@@ -1,20 +1,46 @@
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 import { resolveBackendMediaUrl } from "@store/backend";
-import { useFooterStore, type PublishedFooterDocument } from "@store/footer";
+import { useFooterStore, type PublishedFooterDocumentLink } from "@store/footer";
+import FooterDocumentLinks from "./FooterDocumentLinks.vue";
+
+const FOOTER_HEIGHT_PROPERTY = "--tosca-app-footer-height";
 
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const footerStore = useFooterStore();
+const footerRef = ref<HTMLElement | null>(null);
+let resizeObserver: ResizeObserver | null = null;
+
+// Wrapped logos make the footer taller, and fixed-position panels (sidebars,
+// popovers) read this variable to stay clear of it.
+function publishFooterHeight(): void {
+    if (!footerRef.value) {
+        return;
+    }
+    const height = footerRef.value.getBoundingClientRect().height;
+    if (height > 0) {
+        document.documentElement.style.setProperty(FOOTER_HEIGHT_PROPERTY, `${height}px`);
+    }
+}
 
 onMounted(() => {
     footerStore.loadFooter().catch(() => undefined);
+    if (typeof ResizeObserver === "function" && footerRef.value) {
+        resizeObserver = new ResizeObserver(() => publishFooterHeight());
+        resizeObserver.observe(footerRef.value);
+    }
 });
 
-function openDocument(document: PublishedFooterDocument): void {
+onBeforeUnmount(() => {
+    resizeObserver?.disconnect();
+    document.documentElement.style.removeProperty(FOOTER_HEIGHT_PROPERTY);
+});
+
+function openDocument(document: PublishedFooterDocumentLink): void {
     router.push({
         name: "footer-document",
         params: { footerDocumentSlug: document.slug },
@@ -24,10 +50,10 @@ function openDocument(document: PublishedFooterDocument): void {
 </script>
 
 <template>
-  <footer class="app-footer" :aria-label="t('footer.label')">
+  <footer ref="footerRef" class="app-footer" :aria-label="t('footer.label')">
     <div v-if="footerStore.footer" class="footer-content">
-      <div v-if="footerStore.footer.logos.length" class="footer-logos">
-        <template v-for="logo in footerStore.footer.logos" :key="logo.id">
+      <ul v-if="footerStore.footer.logos.length" class="footer-logos">
+        <li v-for="logo in footerStore.footer.logos" :key="logo.id" class="footer-logo-item">
           <a
             v-if="logo.destination_url"
             class="footer-logo-link"
@@ -47,20 +73,14 @@ function openDocument(document: PublishedFooterDocument): void {
             :src="resolveBackendMediaUrl(logo.url)"
             :alt="logo.alt_text"
           >
-        </template>
-      </div>
+        </li>
+      </ul>
 
-      <nav v-if="footerStore.footer.documents.length" class="footer-documents" :aria-label="t('footer.documentsLabel')">
-        <RouterLink
-          v-for="document in footerStore.footer.documents"
-          :key="document.id"
-          class="footer-document-link"
-          :to="document.path"
-          @click.prevent="openDocument(document)"
-        >
-          {{ document.title }}
-        </RouterLink>
-      </nav>
+      <FooterDocumentLinks
+        v-if="footerStore.footer.documents.length"
+        :documents="footerStore.footer.documents"
+        @open="openDocument"
+      />
     </div>
   </footer>
 </template>
@@ -68,11 +88,15 @@ function openDocument(document: PublishedFooterDocument): void {
 <style scoped>
 .app-footer {
     position: relative;
-    z-index: 20;
+    /* Above the slideovers (40) and map side frames (60), which end at the
+       footer's top edge, so the documents' More panel opens over them; below
+       their tooltips and the modals (70+). */
+    z-index: 65;
     display: flex;
-    height: var(--tosca-app-footer-height);
+    /* Not the CSS variable: it is overwritten with this element's measured height. */
+    min-height: 2rem;
     min-width: 0;
-    flex: 0 0 var(--tosca-app-footer-height);
+    flex: 0 0 auto;
     align-items: center;
     border-top: 1px solid var(--tosca-app-border);
     background: var(--tosca-app-chrome-bg);
@@ -88,30 +112,24 @@ function openDocument(document: PublishedFooterDocument): void {
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    overflow-x: auto;
-    padding: 0 1rem;
-    scrollbar-width: none;
-}
-
-.footer-content::-webkit-scrollbar {
-    display: none;
-}
-
-.footer-logos,
-.footer-documents {
-    display: flex;
-    min-width: max-content;
-    align-items: center;
+    padding: 0.25rem 1rem;
 }
 
 .footer-logos {
-    gap: 0.65rem;
+    display: flex;
+    min-width: 0;
+    max-width: 60%;
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem 0.65rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
 }
 
-.footer-documents {
-    gap: 0.9rem;
-}
-
+.footer-logo-item,
 .footer-logo-link {
     display: inline-flex;
     align-items: center;
@@ -120,29 +138,26 @@ function openDocument(document: PublishedFooterDocument): void {
 .footer-logo {
     display: block;
     width: auto;
-    max-width: 8rem;
-    height: calc(var(--tosca-app-footer-height) - 0.55rem);
+    max-width: 6rem;
+    height: 1.45rem;
     object-fit: contain;
 }
 
-.footer-document-link {
-    color: inherit;
-    font-weight: 600;
-    text-decoration: none;
-    text-underline-offset: 0.18em;
-    transition: color 150ms ease;
-}
-
-.footer-document-link:hover,
-.footer-document-link:focus-visible {
-    color: var(--ui-primary);
-    text-decoration: underline;
-}
-
-.footer-document-link:focus-visible,
 .footer-logo-link:focus-visible {
     border-radius: 0.2rem;
     outline: 2px solid var(--ui-primary);
     outline-offset: 2px;
+}
+
+@media (max-width: 767.98px) {
+    .footer-content {
+        flex-direction: column;
+        gap: 0.45rem;
+        padding: 0.45rem 1rem;
+    }
+
+    .footer-logos {
+        max-width: 100%;
+    }
 }
 </style>

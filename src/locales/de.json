@@ -496,6 +496,7 @@
   "footer": {
     "label": "Fußzeile",
     "documentsLabel": "Rechtliche Informationen",
+    "moreDocuments": "Mehr",
     "loadingTitle": "Dokument wird geladen",
     "notFoundTitle": "Dokument nicht verfügbar",
     "notFoundDescription": "Dieses Dokument ist nicht Teil der aktuell veröffentlichten Fußzeile.",

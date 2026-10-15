@@ -8,19 +8,26 @@ const FOOTER_API_PATH = "/api/v1/footer/";
 
 export interface PublishedFooterLogo {
     id: string;
+    /** Storage path of the uploaded image; render `url` instead. */
+    image: string;
     url: string;
     alt_text: string;
     destination_url: string;
     display_order: number;
 }
 
-export interface PublishedFooterDocument {
+/** A document as listed in `GET /api/v1/footer/`: a link only, without content. */
+export interface PublishedFooterDocumentLink {
     id: string;
     title: string;
     slug: string;
     path: string;
-    content: EditorJsContent;
     display_order: number;
+}
+
+/** A document from `GET /api/v1/footer/documents/<slug>/`, including its content. */
+export interface PublishedFooterDocument extends PublishedFooterDocumentLink {
+    content: EditorJsContent;
 }
 
 export interface PublishedFooter {
@@ -29,7 +36,7 @@ export interface PublishedFooter {
     version: number;
     published_at: string;
     logos: PublishedFooterLogo[];
-    documents: PublishedFooterDocument[];
+    documents: PublishedFooterDocumentLink[];
 }
 
 interface EmptyFooterResponse {
