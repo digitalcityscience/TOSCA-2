@@ -97,6 +97,7 @@ export const useGeostorySceneStore = defineStore("geostoryScenes", () => {
 
         const previousRecordId = groupRecordId;
         groupRecordId = undefined;
+        let simulationBeforeLayerId: string | undefined;
         if (manifest !== undefined) {
             try {
                 // Add before removing so the map never flashes empty between scenes.
@@ -107,6 +108,15 @@ export const useGeostorySceneStore = defineStore("geostoryScenes", () => {
                     return;
                 }
                 groupRecordId = record.id;
+                const simulationOrder = scene.simulation?.display_order;
+                const firstLayerAboveSimulation = simulationOrder === undefined
+                    ? undefined
+                    : [...scene.layers]
+                        .filter((layer) => layer.display_order > simulationOrder)
+                        .sort((a, b) => a.display_order - b.display_order)[0];
+                simulationBeforeLayerId = firstLayerAboveSimulation === undefined
+                    ? undefined
+                    : record.groupMemberLayerIds?.[firstLayerAboveSimulation.id]?.[0];
                 // Show the scene's member legends in the layer listing.
                 mapStore.requestLayerPanelExpansion(record.id);
             } catch (error) {
@@ -118,6 +128,7 @@ export const useGeostorySceneStore = defineStore("geostoryScenes", () => {
         simulationStore.show(scene.simulation, {
             story: story.value?.id,
             reducedMotion: prefersReducedMotion(),
+            beforeLayerId: simulationBeforeLayerId,
         }).catch((error: unknown) => {
             reportDeveloperError(`Showing the simulation of GeoStory scene ${scene.id}`, error);
         });

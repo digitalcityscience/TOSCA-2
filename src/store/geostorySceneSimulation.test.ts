@@ -47,7 +47,7 @@ function story(simulations: Array<GeoStorySceneSimulation | null>): GeoStoryDeta
 
 function fakeMap() {
     const sources = new Map<string, unknown>();
-    const layers = new Map<string, { id: string }>();
+    const layers = new Map<string, { id: string; metadata?: Record<string, string> }>();
     const order: string[] = [];
     return {
         sources,
@@ -57,7 +57,7 @@ function fakeMap() {
         addSource: (id: string, source: unknown) => sources.set(id, source),
         getSource: (id: string) => sources.get(id),
         removeSource: (id: string) => sources.delete(id),
-        addLayer: (layer: { id: string }) => {
+        addLayer: (layer: { id: string; metadata?: Record<string, string> }) => {
             layers.set(layer.id, layer);
             order.push(layer.id);
         },
@@ -124,6 +124,29 @@ describe("geostory scene simulations", () => {
         expect(listed[1]).toBe(`geosim:${run.id}:${flow.id}:${flow.style[0].id}`);
         expect(listed[2]).toBe(GEOSTORY_REPLAY_LAYER_ID);
         expect(fake.order.at(-1)).toBe(listed[1]);
+    });
+
+    test("interleaves map outputs with catalog layers using display_order", async () => {
+        const detail = story([sceneSimulation({ replay: null })]);
+        const orderedLayers = [...detail.scenes[0].layers]
+            .sort((a, b) => a.display_order - b.display_order);
+        expect(orderedLayers.length).toBeGreaterThanOrEqual(2);
+        detail.scenes[0].simulation!.display_order =
+            (orderedLayers[0].display_order + orderedLayers[1].display_order) / 2;
+
+        await useGeostorySceneStore().openStory(detail);
+        await settle();
+
+        const outputId = listedIds().find((id) => id.startsWith(`geosim:${run.id}:${flow.id}:`))!;
+        const outputIndex = fake.order.indexOf(outputId);
+        const indicesFor = (sceneLayerId: string): number[] => fake.order
+            .map((id, index) => fake.getLayer(id)?.metadata?.["tosca:member-id"] === sceneLayerId ? index : -1)
+            .filter((index) => index >= 0);
+        const lowerIndices = indicesFor(orderedLayers[0].id);
+        const upperIndices = indicesFor(orderedLayers[1].id);
+
+        expect(Math.max(...lowerIndices)).toBeLessThan(outputIndex);
+        expect(outputIndex).toBeLessThan(Math.min(...upperIndices));
     });
 
     test("keeps loaded replay data across scenes on the same run", async () => {

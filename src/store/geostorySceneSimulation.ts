@@ -56,6 +56,8 @@ export const useGeostorySceneSimulationStore = defineStore("geostorySceneSimulat
     let frame: number | undefined;
     let lastFrameAt: number | undefined;
     let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+    /** First catalog render layer above the simulation block, when interleaved. */
+    let outputBeforeLayerId: string | undefined;
     /** Bumped by every `show` and `clear`, so a superseded `show` stops after its await. */
     let showToken = 0;
 
@@ -66,15 +68,20 @@ export const useGeostorySceneSimulationStore = defineStore("geostorySceneSimulat
      */
     async function show(
         next: GeoStorySceneSimulation | null | undefined,
-        { story, reducedMotion = false }: { story?: string; reducedMotion?: boolean } = {}
+        {
+            story,
+            reducedMotion = false,
+            beforeLayerId,
+        }: { story?: string; reducedMotion?: boolean; beforeLayerId?: string } = {}
     ): Promise<void> {
         const token = ++showToken;
         storyId = story ?? storyId;
+        outputBeforeLayerId = beforeLayerId;
         simulation.value = next ?? null;
         scheduleUrlRefresh();
         showReplay(simulation.value, reducedMotion);
         await showMapOutputs(simulation.value, token);
-        if (token === showToken) raiseToTop();
+        if (token === showToken) placeSimulationLayers();
     }
 
     async function showMapOutputs(next: GeoStorySceneSimulation | null, token: number): Promise<void> {
@@ -135,7 +142,7 @@ export const useGeostorySceneSimulationStore = defineStore("geostorySceneSimulat
             replayRunId = next.run.id;
             replayData = data;
             startWindow(data, reducedMotion);
-            raiseToTop();
+            placeSimulationLayers();
         } catch (error) {
             if (token !== loadToken || abort.signal.aborted) return;
             loadFailed.value = true;
@@ -269,15 +276,29 @@ export const useGeostorySceneSimulationStore = defineStore("geostorySceneSimulat
         }
     }
 
-    /** Simulation layers sit above the scene's catalog layers, the replay on top. */
-    function raiseToTop(): void {
-        const ids = [...outputRecords.values(), GEOSTORY_REPLAY_LAYER_ID];
+    /** Place map outputs at the editor-selected point; the replay remains on top. */
+    function placeSimulationLayers(): void {
+        for (const id of outputRecords.values()) {
+            const record = mapStore.layersOnMap.find((layer) => layer.id === id);
+            if (record === undefined || mapStore.map?.getLayer(id) === undefined) continue;
+            try {
+                mapStore.map.moveLayer(id, outputBeforeLayerId);
+                record.companionLayerIds?.forEach((companionId) => {
+                    if (mapStore.map?.getLayer(companionId) !== undefined) {
+                        mapStore.map.moveLayer(companionId, outputBeforeLayerId);
+                    }
+                });
+            } catch (error) {
+                reportDeveloperError(`Positioning simulation layer ${id}`, error);
+            }
+        }
+        const ids = [GEOSTORY_REPLAY_LAYER_ID];
         for (const id of ids) {
             if (!mapStore.layersOnMap.some((layer) => layer.id === id && layer.showOnLayerList !== false)) continue;
             try {
                 mapStore.reorderVisibleMapLayer(id, 0);
             } catch (error) {
-                reportDeveloperError(`Raising simulation layer ${id}`, error);
+                reportDeveloperError(`Raising simulation replay ${id}`, error);
             }
         }
     }
@@ -323,6 +344,7 @@ export const useGeostorySceneSimulationStore = defineStore("geostorySceneSimulat
         if (refreshTimer !== undefined) clearTimeout(refreshTimer);
         refreshTimer = undefined;
         simulation.value = null;
+        outputBeforeLayerId = undefined;
         storyId = undefined;
         replayRunId = undefined;
         replayData = undefined;
