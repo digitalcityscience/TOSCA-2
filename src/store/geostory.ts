@@ -18,6 +18,8 @@ import type {
     SimulationBounds,
     SimulationLabels,
     SimulationTime,
+    SimulationResultView,
+    SimulationTableOutput,
     SimulationTripsOutput,
     SimulationVectorLayerOutput,
 } from "./geosimulation";
@@ -105,6 +107,27 @@ export interface GeoStoryMapSceneBlock extends GeoStoryEditorBlock {
     type: "mapScene";
     data: {
         scene_id: string;
+    };
+}
+
+export interface GeoStoryResultPresentation {
+    id: string;
+    caption: string;
+    view: SimulationResultView;
+    source: {
+        type: "run" | "comparison";
+        id: string;
+        title: string;
+        model: { id: string; title: string };
+    };
+    output: SimulationTableOutput;
+}
+
+export interface GeoStorySimulationResultBlock extends GeoStoryEditorBlock {
+    type: "simulationResult";
+    data: {
+        presentation_id: string;
+        presentation: GeoStoryResultPresentation | null;
     };
 }
 
