@@ -1,10 +1,14 @@
 <template>
-    <div v-if="simulationStore.hasReplay" class="geostory-replay-control" role="group" :aria-label="t('geostories.scenes.replay.label')">
+    <div
+        v-if="simulationStore.hasReplay && (simulationStore.loading || simulationStore.playWindow !== undefined)"
+        class="geostory-replay-control"
+        role="group"
+        :aria-label="t('geostories.scenes.replay.label')"
+    >
         <template v-if="simulationStore.loading">
             <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin text-muted" aria-hidden="true" />
             <span class="text-xs text-muted">{{ loadingLabel }}</span>
         </template>
-        <span v-else-if="simulationStore.loadFailed" class="text-xs text-error">{{ t("geostories.scenes.replay.failed") }}</span>
         <template v-else-if="simulationStore.playWindow !== undefined">
             <UButton
                 :icon="simulationStore.playing ? 'i-lucide-pause' : 'i-lucide-play'"
@@ -22,13 +26,27 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useGeostorySceneSimulationStore } from "@store/geostorySceneSimulation";
 import { formatReplayClock } from "@helpers/simulationFormat";
+import { useToast } from "@helpers/toast";
 
 const { t, locale } = useI18n();
 const simulationStore = useGeostorySceneSimulationStore();
+const toast = useToast();
+
+watch(
+    () => simulationStore.loadFailed,
+    (failed) => {
+        if (!failed) return;
+        toast.add({
+            severity: "error",
+            summary: t("geostories.scenes.replay.failed"),
+            life: 5000,
+        });
+    }
+);
 
 const loadingLabel = computed(() =>
     t("geostories.scenes.replay.loading", { mb: (simulationStore.loadedBytes / 1e6).toFixed(1) })
