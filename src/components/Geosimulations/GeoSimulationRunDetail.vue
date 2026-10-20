@@ -56,7 +56,13 @@
 
             <SimulationMapLayerList v-if="mapOutputs.length > 0" :owner="run" :outputs="mapOutputs" />
 
-            <SimulationTable v-for="table in otherTables" :key="table.id" :table="table" />
+            <SimulationOutputView
+                v-for="presentation in resultPresentations"
+                :key="presentation.key"
+                :output="presentation.output"
+                :view="presentation.view"
+                :caption="presentation.output.title"
+            />
 
             <section v-if="comparisons.length > 0" class="grid gap-2">
                 <h3 class="text-sm font-semibold text-highlighted">{{ t("geosimulations.comparedIn") }}</h3>
@@ -97,7 +103,7 @@ import { useRoute } from "vue-router";
 import EditorJsReadonly from "@components/Base/EditorJsReadonly.vue";
 import SimulationReplayPanel from "./SimulationReplayPanel.vue";
 import SimulationMapLayerList from "./SimulationMapLayerList.vue";
-import SimulationTable from "./SimulationTable.vue";
+import SimulationOutputView from "./SimulationOutputView.vue";
 import { useMapStore } from "@store/map";
 import {
     isRunInProgress,
@@ -117,6 +123,7 @@ import {
     waitForMapStyle,
 } from "@helpers/geosimulationLayers";
 import { formatDuration, formatParameter, formatSimulatedTime, simulationKpiRows } from "@helpers/simulationFormat";
+import { resultViews } from "@helpers/simulationResults";
 import { forgetRun } from "@helpers/simulationMyRuns";
 import { reportDeveloperError } from "@helpers/userFacingError";
 
@@ -152,6 +159,9 @@ const mapOutputs = computed(() => (run.value?.outputs ?? []).filter(isVectorLaye
 const tripsOutput = computed(() => run.value?.outputs.find(isTripsOutput));
 const kpiRows = computed(() => (run.value ? simulationKpiRows(run.value, locale.value) : []));
 const otherTables = computed(() => (run.value?.outputs ?? []).filter(isTableOutput).filter((table) => table.role !== "kpis"));
+const resultPresentations = computed(() => otherTables.value.flatMap((output) =>
+    resultViews(output).map((view, index) => ({ key: `${output.id}:${index}`, output, view }))
+));
 
 /** File URLs are presigned; fetch fresh ones a minute before they expire. */
 function scheduleUrlRefresh(detail: SimulationRunDetail): void {

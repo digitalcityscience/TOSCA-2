@@ -178,9 +178,63 @@ export interface SimulationTripsOutput extends SimulationFileOutput {
     metadata: { agents?: number; encoding?: string; encoding_version?: number; vertices?: number; stops?: number };
 }
 
+export type SimulationDatasetProfile = "tabular" | "metric_set" | "timeseries" | "comparison";
+export type SimulationDatasetFieldType = "string" | "integer" | "number" | "boolean" | "datetime";
+export type SimulationDatasetFieldSemantic =
+    | "dimension"
+    | "measure"
+    | "time"
+    | "metric"
+    | "unit"
+    | "baseline"
+    | "candidate"
+    | "delta"
+    | "percent_change";
+
+export interface SimulationDatasetField {
+    key: string;
+    label: string;
+    type: SimulationDatasetFieldType;
+    semantic?: SimulationDatasetFieldSemantic;
+    unit?: string;
+}
+
+export interface SimulationDataset {
+    schema_version: 1;
+    profile: SimulationDatasetProfile;
+    fields: SimulationDatasetField[];
+    /** Retained by the API for backwards-compatible positional rows. */
+    columns: string[];
+    rows: Array<Array<string | number | boolean | null>>;
+}
+
+interface SimulationResultViewBase { version: 1 }
+export interface SimulationTableView extends SimulationResultViewBase {
+    type: "table";
+    columns?: string[];
+    sort?: { field: string; direction: "ascending" | "descending" };
+}
+export interface SimulationMetricGridView extends SimulationResultViewBase {
+    type: "metric_grid";
+    metrics?: string[];
+}
+export interface SimulationChartView extends SimulationResultViewBase {
+    type: "bar_chart" | "line_chart";
+    x?: string;
+    category?: string;
+    series: Array<{
+        field: string;
+        label?: string;
+        color?: string;
+        axis?: "primary" | "secondary";
+    }>;
+}
+export type SimulationResultView = SimulationTableView | SimulationMetricGridView | SimulationChartView;
+
 export interface SimulationTableOutput extends SimulationOutputBase {
     kind: "table";
-    data: { columns: string[]; rows: Array<Array<string | number | null>> };
+    data: SimulationDataset;
+    views: SimulationResultView[];
 }
 
 export interface SimulationImageOutput extends SimulationFileOutput {

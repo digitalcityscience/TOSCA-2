@@ -1,6 +1,22 @@
 <template>
     <div class="editorjs-readonly">
         <div ref="holder" data-testid="editorjs-holder"></div>
+        <Teleport v-for="target in simulationResultTargets" :key="target.id" :to="target.element">
+            <SimulationOutputView
+                v-if="target.presentation"
+                :output="target.presentation.output"
+                :view="target.presentation.view"
+                :caption="target.presentation.caption"
+            />
+            <UAlert
+                v-else
+                color="warning"
+                variant="subtle"
+                icon="i-lucide-file-warning"
+                title="Simulation result unavailable"
+                description="This result is no longer public or could not be loaded."
+            />
+        </Teleport>
         <UAlert
             v-if="initializationFailed"
             class="mt-3"
@@ -16,11 +32,14 @@
 <script setup lang="ts">
 import type EditorJS from "@editorjs/editorjs";
 import type { LogLevels, OutputData } from "@editorjs/editorjs";
-import { onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
 import { resolveBackendMediaUrl } from "@store/backend";
 import { reportDeveloperError } from "@helpers/userFacingError";
 import EditorJsReadonlyList from "@helpers/editorJsReadonlyList";
 import EditorJsMapSceneAnchor from "@helpers/editorJsMapSceneAnchor";
+import EditorJsSimulationResult, { SIMULATION_RESULT_CLASS } from "@helpers/editorJsSimulationResult";
+import SimulationOutputView from "@components/Geosimulations/SimulationOutputView.vue";
+import type { GeoStoryResultPresentation } from "@store/geostory";
 
 interface EditorJsBlock {
     id?: string;
@@ -53,6 +72,11 @@ const emit = defineEmits<{
 
 const holder = ref<HTMLElement>();
 const initializationFailed = ref(false);
+const simulationResultTargets = shallowRef<Array<{
+    id: string;
+    element: HTMLElement;
+    presentation: GeoStoryResultPresentation | null;
+}>>([]);
 let editor: EditorJS | undefined;
 let lifecycleVersion = 0;
 let renderVersion = 0;
@@ -72,6 +96,7 @@ watch(
 onBeforeUnmount(() => {
     lifecycleVersion += 1;
     renderVersion += 1;
+    simulationResultTargets.value = [];
     const instance = editor;
     editor = undefined;
     if (instance !== undefined) {
@@ -117,6 +142,7 @@ async function initializeEditor(): Promise<void> {
             delimiter: Delimiter,
             code: Code,
             image: Image,
+            simulationResult: EditorJsSimulationResult,
             ...(props.mapSceneAnchors ? { mapScene: EditorJsMapSceneAnchor } : {}),
         },
         data: normalizeEditorData(props.data),
@@ -131,6 +157,7 @@ async function initializeEditor(): Promise<void> {
         }
         return;
     }
+    await refreshSimulationResultTargets();
     emit("rendered", holder.value);
 }
 
@@ -147,8 +174,32 @@ async function renderData(): Promise<void> {
     }
     await instance.blocks.render(normalizeEditorData(props.data));
     if (currentRender === renderVersion && instance === editor && holder.value !== undefined) {
+        await refreshSimulationResultTargets();
         emit("rendered", holder.value);
     }
+}
+
+async function refreshSimulationResultTargets(): Promise<void> {
+    await nextTick();
+    if (!holder.value) return;
+    const presentations = new Map<string, GeoStoryResultPresentation | null>();
+    for (const block of props.data.blocks ?? []) {
+        if (block.type !== "simulationResult") continue;
+        const id = block.data?.presentation_id;
+        if (typeof id !== "string") continue;
+        const presentation = block.data?.presentation;
+        presentations.set(id, isResultPresentation(presentation) ? presentation : null);
+    }
+    simulationResultTargets.value = Array.from(
+        holder.value.querySelectorAll<HTMLElement>(`.${SIMULATION_RESULT_CLASS}`)
+    ).map((element, index) => {
+        const id = element.dataset.presentationId ?? `missing-${index}`;
+        return { id, element, presentation: presentations.get(id) ?? null };
+    });
+}
+
+function isResultPresentation(value: unknown): value is GeoStoryResultPresentation {
+    return typeof value === "object" && value !== null && "output" in value && "view" in value;
 }
 
 function normalizeEditorData(content: EditorJsContent): OutputData {

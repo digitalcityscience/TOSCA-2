@@ -98,7 +98,13 @@
                 {{ t("geosimulations.comparison.noDifferenceLayers") }}
             </p>
 
-            <SimulationTable v-for="table in tables" :key="table.id" :table="table" />
+            <SimulationOutputView
+                v-for="presentation in resultPresentations"
+                :key="presentation.key"
+                :output="presentation.output"
+                :view="presentation.view"
+                :caption="presentation.output.title"
+            />
         </template>
     </div>
 </template>
@@ -109,7 +115,7 @@ import { useI18n } from "vue-i18n";
 import { useRoute } from "vue-router";
 import EditorJsReadonly from "@components/Base/EditorJsReadonly.vue";
 import SimulationMapLayerList from "./SimulationMapLayerList.vue";
-import SimulationTable from "./SimulationTable.vue";
+import SimulationOutputView from "./SimulationOutputView.vue";
 import { useMapStore } from "@store/map";
 import {
     isRunInProgress,
@@ -127,6 +133,7 @@ import {
     waitForMapStyle,
 } from "@helpers/geosimulationLayers";
 import { formatSimulatedTime, simulationKpiChangeRows } from "@helpers/simulationFormat";
+import { resultViews } from "@helpers/simulationResults";
 import { reportDeveloperError } from "@helpers/userFacingError";
 import { forgetRun } from "@helpers/simulationMyRuns";
 
@@ -171,6 +178,9 @@ const mapOutputs = computed(() =>
     (comparison.value?.outputs ?? []).filter(isVectorLayerOutput).sort((a, b) => a.display_order - b.display_order)
 );
 const tables = computed(() => (comparison.value?.outputs ?? []).filter(isTableOutput));
+const resultPresentations = computed(() => tables.value.flatMap((output) =>
+    resultViews(output).map((view, index) => ({ key: `${output.id}:${index}`, output, view }))
+));
 
 /** File URLs are presigned; fetch fresh ones a minute before they expire. */
 function scheduleUrlRefresh(detail: SimulationComparisonDetail): void {
