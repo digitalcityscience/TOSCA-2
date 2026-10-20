@@ -187,6 +187,8 @@ export interface GeoStorySceneReplay {
  * replay window. Outputs have the simulation API's shapes; URLs are presigned.
  */
 export interface GeoStorySceneSimulation {
+    /** Position of the simulation block among the scene's catalog layers. */
+    display_order?: number;
     run: { id: string; title: string; model: { id: string; title: string } };
     time: SimulationTime;
     bounds: SimulationBounds | null;
