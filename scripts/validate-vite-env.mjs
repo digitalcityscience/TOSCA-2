@@ -6,6 +6,9 @@ const environment = { ...loadEnv("production", process.cwd(), ""), ...process.en
 
 const requiredVariables = [
   "VITE_BASE_URL",
+  "VITE_KEYCLOAK_URL",
+  "VITE_KEYCLOAK_REALM",
+  "VITE_KEYCLOAK_CLIENT_ID",
   "VITE_BACKEND_ROOT_URL",
   "VITE_GEONODE_REST_URL",
   "VITE_MAPTILER_API_KEY",
@@ -41,6 +44,7 @@ if (missingVariables.length > 0) {
 }
 
 for (const name of [
+  "VITE_KEYCLOAK_URL",
   "VITE_BACKEND_ROOT_URL",
   "VITE_GEONODE_REST_URL",
   "VITE_INHOUSE_MAP_BASE_URL",

@@ -17,6 +17,15 @@
     "switchToLight": "Switch to light mode",
     "switchToDark": "Switch to dark mode"
   },
+  "auth": {
+    "account": "Account",
+    "login": "Log in",
+    "logout": "Log out",
+    "manageAccount": "Manage account",
+    "noRoles": "No realm roles assigned",
+    "openMenu": "Open account menu",
+    "roles": "Realm roles"
+  },
   "locale": {
     "label": "Language",
     "en": "English",

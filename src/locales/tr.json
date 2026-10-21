@@ -17,6 +17,15 @@
     "switchToLight": "Açık moda geç",
     "switchToDark": "Koyu moda geç"
   },
+  "auth": {
+    "account": "Hesap",
+    "login": "Giriş yap",
+    "logout": "Çıkış yap",
+    "manageAccount": "Hesabı yönet",
+    "noRoles": "Atanmış realm rolü yok",
+    "openMenu": "Hesap menüsünü aç",
+    "roles": "Realm rolleri"
+  },
   "locale": {
     "label": "Dil",
     "en": "İngilizce",
