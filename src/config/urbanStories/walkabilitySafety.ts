@@ -11,8 +11,8 @@ export const walkabilitySafetyStory: UrbanStoryConfig = {
     key: "walkability-safety",
     title: { en: "Street comfort & safety", de: "Gehkomfort und Sicherheit auf Straßen" },
     intro: {
-        en: "Compare walking conditions and recorded crashes. Click a street to see the value behind its colour.",
-        de: "Vergleichen Sie Gehbedingungen und erfasste Unfälle. Klicken Sie auf eine Straße, um den Wert hinter der Farbe zu sehen.",
+        en: "Five scenes on the walking network: comfort, recorded crashes, sidewalk mapping and street grade. Click a street to see the value behind its colour.",
+        de: "Fünf Szenen zum Fußwegenetz: Gehkomfort, erfasste Unfälle, Gehwegerfassung und Steigung. Klicken Sie auf eine Straße, um den Wert hinter der Farbe zu sehen.",
     },
     caveats: [CAVEATS.modelled, {
         en: "Streets appear from zoom 9. For crash counts, grey is the background network and coloured lines have one or more records. Line width helps you see the map; it is not pavement width. Records are not personal risk.",

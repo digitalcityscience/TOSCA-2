@@ -14,3 +14,6 @@ config.global.plugins.push(testI18n);
 
 // .env is gitignored, so CI has no GeoServer root; the WFS helpers build absolute URLs from it.
 vi.stubEnv("VITE_GEOSERVER_BASE_URL", "http://geoserver.test/geoserver");
+vi.stubEnv("VITE_KEYCLOAK_URL", "http://keycloak.test");
+vi.stubEnv("VITE_KEYCLOAK_REALM", "test-realm");
+vi.stubEnv("VITE_KEYCLOAK_CLIENT_ID", "test-spa");

@@ -17,6 +17,15 @@
     "switchToLight": "Zum hellen Modus wechseln",
     "switchToDark": "Zum dunklen Modus wechseln"
   },
+  "auth": {
+    "account": "Konto",
+    "login": "Anmelden",
+    "logout": "Abmelden",
+    "manageAccount": "Konto verwalten",
+    "noRoles": "Keine Realm-Rollen zugewiesen",
+    "openMenu": "Kontomenü öffnen",
+    "roles": "Realm-Rollen"
+  },
   "locale": {
     "label": "Sprache",
     "en": "Englisch",
