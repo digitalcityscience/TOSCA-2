@@ -5,7 +5,7 @@
 
 <script setup lang="ts">
 import maplibre, { type MapMouseEvent, type Map } from "maplibre-gl"
-import { h, nextTick, onMounted, ref, render } from "vue";
+import { h, nextTick, onBeforeUnmount, onMounted, ref, render } from "vue";
 import { useI18n } from "vue-i18n";
 import { useMapStore } from "@store/map";
 import { withPopupAttributes } from "../../core/helpers/popupAttributes"
@@ -15,6 +15,8 @@ import { useDrawStore } from "@store/draw";
 import { BaseMapControl, type BaseMapControlOptions } from "@helpers/baseMapControl";
 import { syncTerrainHillshadeVisibility } from "@helpers/mapTerrain";
 import { useToast } from "@helpers/toast";
+import { transformMapRequest } from "../../auth/authFetch";
+import { authSession } from "../../auth/session";
 import {
     mapConfiguration,
     resolveMapConfiguration,
@@ -34,6 +36,15 @@ const clickedLayers = ref()
 type PopupAnchor = "center" | "top" | "bottom" | "left" | "right" | "top-left" | "top-right" | "bottom-left" | "bottom-right";
 let attributePopup: maplibre.Popup | undefined
 let featureInfoRequest: AbortController | undefined
+// An open attribute popup may show a private feature: close it (and drop a
+// pending feature-info request) when the signed-in identity changes.
+const stopSessionListener = authSession.onSessionChange(() => {
+    featureInfoRequest?.abort()
+    featureInfoRequest = undefined
+    attributePopup?.remove()
+    attributePopup = undefined
+})
+onBeforeUnmount(stopSessionListener)
 onMounted(() => {
     const configuredLng = Number(import.meta.env.VITE_MAP_START_LNG)
     const configuredLat = Number(import.meta.env.VITE_MAP_START_LAT)
@@ -76,6 +87,9 @@ onMounted(() => {
         center: [lng, lat], // starting position [lng, lat]
         zoom, // starting zoom
         maxPitch: 85,
+        // Signs tile/style/sprite requests to the backend and GeoServer with
+        // the user's access token so private layers render.
+        transformRequest: (url) => transformMapRequest(url),
     })
     if (mapStore.map !== undefined) {
         /**

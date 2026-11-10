@@ -7,6 +7,7 @@ import {
     isAreaClass,
     type AreaClass,
 } from "../../config/urbanStories/styles/greenSpaces/constants";
+import { authFetch } from "../../auth/authFetch";
 
 /**
  * Read-only data access of the Green Spaces story: small WFS reads against the TOSCA GeoServer (the existing GeoStories
@@ -48,7 +49,7 @@ export function resetGreenSpacesDataCache(): void {
 
 async function wfs(params: Record<string, string>): Promise<Response> {
     const query = new URLSearchParams({ service: "WFS", version: "2.0.0", request: "GetFeature", outputFormat: "application/json", ...params });
-    const response = await fetch(`${owsUrl()}?${query.toString()}`);
+    const response = await authFetch(`${owsUrl()}?${query.toString()}`);
     if (!response.ok) throw new Error(`GeoServer WFS answered ${response.status}`);
     return response;
 }

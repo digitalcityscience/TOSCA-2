@@ -20,11 +20,24 @@
   "auth": {
     "account": "Hesap",
     "login": "Giriş yap",
+    "signingIn": "Giriş yapılıyor…",
     "logout": "Çıkış yap",
     "manageAccount": "Hesabı yönet",
-    "noRoles": "Atanmış realm rolü yok",
     "openMenu": "Hesap menüsünü aç",
-    "roles": "Realm rolleri"
+    "organization": "Kuruluş",
+    "popupBlocked": "Giriş penceresi engellendi",
+    "popupBlockedDetail": "Bu site için açılır pencerelere izin verin ve tekrar deneyin.",
+    "loginFailed": "Giriş başarısız oldu. Lütfen tekrar deneyin.",
+    "notConfigured": "Bu kurulum için giriş yapılandırılmamış.",
+    "sessionExpired": "Oturumunuz kapatıldı",
+    "sessionExpiredDetail": "Oturumunuzun süresi doldu. Özel içeriklerinizi görmek için tekrar giriş yapın.",
+    "layersRemovedTitle": "Özel katmanlar kaldırıldı",
+    "layersRemovedDetail": "Bir katman herkese açık değil ve haritadan kaldırıldı. | {count} katman herkese açık değil ve haritadan kaldırıldı.",
+    "maybePrivate": "Bu öğe bulunamadı. Özel olabilir: erişiminiz varsa görmek için giriş yapın.",
+    "maybePrivateSignedIn": "Bu öğe bulunamadı veya hesabınızın buna erişimi yok.",
+    "notFoundTitle": "Bulunamadı",
+    "privateItemClosedTitle": "Özel öğe kapatıldı",
+    "privateItemClosedDetail": "Oturumu kapattınız ve bu öğe herkese açık değil."
   },
   "locale": {
     "label": "Dil",

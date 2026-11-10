@@ -1,5 +1,6 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
 import { ref } from "vue";
+import { authSession } from "../auth/session";
 import {
     fetchBackendJson,
     getBackendRootUrl,
@@ -330,6 +331,21 @@ export const useGeostoryStore = defineStore("geostory", () => {
     const loadingDetail = ref(false);
     const error = ref("");
     const selectedStory = ref<GeoStoryDetail>();
+
+    // Signed-in users see private and draft stories of their organization.
+    // Reload a shown list for the new identity (on logout drop it first, so
+    // private stories disappear at once). An open story decides on its own
+    // whether it may stay open (GeoStoryDetail).
+    const stopSessionListener = authSession.onSessionChange((reason) => {
+        const listWasLoaded = stories.value.length > 0 || loadingList.value;
+        if (reason !== "login") {
+            stories.value = [];
+            next.value = null;
+            previous.value = null;
+        }
+        if (listWasLoaded) loadStories().catch(() => undefined);
+    });
+    import.meta.hot?.dispose(stopSessionListener);
 
     async function loadStories(): Promise<void> {
         loadingList.value = true;

@@ -1,7 +1,9 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
 import { ref } from "vue";
+import { authSession } from "../auth/session";
 import { fetchBackendJson, getBackendRootUrl, resolveBackendUrl } from "./backend";
 import { reportDeveloperError, serviceUnavailableMessage } from "@helpers/userFacingError";
+import { authFetch } from "../auth/authFetch";
 
 /**
  * GeoSimulations read API.
@@ -403,6 +405,19 @@ export const useGeosimulationStore = defineStore("geosimulation", () => {
     const selectedComparison = ref<SimulationComparisonDetail>();
     const loadingComparison = ref(false);
 
+    // Models, runs and comparisons depend on who is signed in (own and
+    // organization runs). Reload a shown model list for the new identity; an
+    // open model, run or comparison decides on its own whether it may stay.
+    const stopSessionListener = authSession.onSessionChange((reason) => {
+        const listWasLoaded = models.value.length > 0 || loadingModels.value;
+        if (reason !== "login") {
+            models.value = [];
+            nextModelsUrl.value = null;
+        }
+        if (listWasLoaded) loadModels().catch(() => undefined);
+    });
+    import.meta.hot?.dispose(stopSessionListener);
+
     async function loadModels(): Promise<void> {
         loadingModels.value = true;
         error.value = "";
@@ -526,7 +541,7 @@ export const useGeosimulationStore = defineStore("geosimulation", () => {
     async function postStart<T>(url: URL, body: unknown, what: string): Promise<T> {
         let response: Response;
         try {
-            response = await fetch(url, {
+            response = await authFetch(url, {
                 method: "POST",
                 headers: new Headers({ "Content-Type": "application/json", Accept: "application/json" }),
                 body: JSON.stringify(body),
