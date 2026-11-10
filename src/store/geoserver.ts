@@ -9,6 +9,9 @@ import {
   resolveBackendUrl,
 } from "./backend";
 import type { EditorJsDescriptionContent } from "@helpers/editorJsDescription";
+import { authFetch, registerTokenOrigin } from "../auth/authFetch";
+import { authSession } from "../auth/session";
+import { reportDeveloperError } from "@helpers/userFacingError";
 
 const CATALOG_API_PATH = "/api/v1/catalog";
 
@@ -521,6 +524,7 @@ export interface RasterFeatureInfoPoint {
 const FEATURE_INFO_POINT_OFFSET = 0.000001;
 
 function rasterProviderBaseUrl(detail: GeoserverRasterTypeLayerDetail): string {
+  registerTokenOrigin(detail.catalog?.provider.base_url);
   return (detail.catalog?.provider.base_url ?? String(import.meta.env.VITE_GEOSERVER_BASE_URL ?? ""))
     .replace(/\/+$/, "");
 }
@@ -615,7 +619,7 @@ async function fetchFeatureInfo(
   layer: RasterFeatureInfoLayer,
   signal?: AbortSignal
 ): Promise<PopupAttributeFeature[]> {
-  const response = await fetch(url, {
+  const response = await authFetch(url, {
     method: "GET",
     redirect: "follow",
     signal,
@@ -1047,22 +1051,52 @@ export const useGeoserverStore = defineStore("geoserver", () => {
   const styleListCache = new Map<string, Promise<CatalogStyleListItem[]>>();
   const layerGroupManifestCache = new Map<string, Promise<CatalogLayerGroupManifest>>();
   let catalogLoadPromise: Promise<WorkspaceListResponse> | undefined;
+  /**
+   * Bumped on every sign-in/out. A catalog response that started under an
+   * older session (e.g. the anonymous load still running when the user signs
+   * in) must not overwrite the newer one.
+   */
+  let catalogGeneration = 0;
 
   async function getProviderList(force = false): Promise<CatalogProvider[]> {
     if (!force && providers.value.length > 0) {
       return providers.value;
     }
 
+    const generation = catalogGeneration;
     const response = await fetchBackendJson<CatalogProvider[]>(
       buildCatalogProvidersUrl(),
       "Catalog providers"
     );
-    providers.value = response.map((provider) => ({
-      ...provider,
-      base_url: provider.base_url.replace(/\/+$/, ""),
-    }));
-    return providers.value;
+    const list = response.map((provider) => {
+      registerTokenOrigin(provider.base_url);
+      return {
+        ...provider,
+        base_url: provider.base_url.replace(/\/+$/, ""),
+      };
+    });
+    if (generation === catalogGeneration) providers.value = list;
+    return list;
   }
+
+  // Signing in or out changes which workspaces, layers and capabilities the
+  // backend and GeoServer return: drop the caches and reload what was shown.
+  const stopSessionListener = authSession.onSessionChange(() => {
+    const catalogWasLoading = catalogLoadPromise !== undefined;
+    catalogGeneration += 1;
+    wmsCapabilitiesCache.clear();
+    styleListCache.clear();
+    layerGroupManifestCache.clear();
+    catalogLoadPromise = undefined;
+    if (catalogWasLoading || workspaceList.value.length > 0 || providers.value.length > 0) {
+      getWorkspaceList(true).catch((error: unknown) => {
+        reportDeveloperError("Reloading the catalog after sign-in change", error);
+      });
+    }
+  });
+  // During development, hot-reloading this module creates a new store; drop
+  // the old one's listener so a sign-in does not reload the catalog twice.
+  import.meta.hot?.dispose(stopSessionListener);
 
   /**
    * Retrieves catalog workspaces provider-first and flattens them for the
@@ -1079,6 +1113,7 @@ export const useGeoserverStore = defineStore("geoserver", () => {
       return await catalogLoadPromise;
     }
 
+    const generation = catalogGeneration;
     const request = (async (): Promise<WorkspaceListResponse> => {
       loadingCatalog.value = true;
       catalogError.value = "";
@@ -1100,14 +1135,20 @@ export const useGeoserverStore = defineStore("geoserver", () => {
           })
         );
 
+        if (generation !== catalogGeneration) {
+          // Signed in or out meanwhile: answer with the newer session's catalog.
+          return await getWorkspaceList();
+        }
         workspacesByProvider.value = Object.fromEntries(providerWorkspaceEntries);
         workspaceList.value = providerWorkspaceEntries.flatMap(([, workspaces]) => workspaces);
         return { workspaces: { workspace: workspaceList.value } };
       } catch (error) {
-        catalogError.value = "The data catalog could not be loaded.";
+        if (generation === catalogGeneration) {
+          catalogError.value = "The data catalog could not be loaded.";
+        }
         throw error;
       } finally {
-        loadingCatalog.value = false;
+        if (generation === catalogGeneration) loadingCatalog.value = false;
       }
     })();
 
@@ -1228,6 +1269,7 @@ export const useGeoserverStore = defineStore("geoserver", () => {
         url,
         `Catalog layer group ${item.name}`
       ).then((response) => {
+        registerTokenOrigin(response.group.provider.base_url);
         if (!providers.value.some((provider) => provider.id === response.group.provider.id)) {
           providers.value.push({
             ...response.group.provider,
@@ -1369,7 +1411,7 @@ export const useGeoserverStore = defineStore("geoserver", () => {
     const url = new URL(
       `${providerBaseUrl}/${workspace}/wms?service=WMS&version=1.1.0&request=GetMap&layers=${workspace}:${layer}&bbox=${bbox ?? ""}&width=512&height=512&srs=EPSG:4326&format=geojson&CQL_FILTER=${cqlFilter ?? ""}&styles=`
     );
-    const response = await fetch(url, {
+    const response = await authFetch(url, {
       method: "GET",
       redirect: "follow",
       headers: new Headers({
@@ -1393,7 +1435,7 @@ export const useGeoserverStore = defineStore("geoserver", () => {
    * @returns The JSON style, or undefined when the style uses another format.
    */
   async function getLayerStyling(url:string):Promise<any | undefined> {
-    const response = await fetch(resolveBackendUrl(url), {
+    const response = await authFetch(resolveBackendUrl(url), {
       method: "GET",
       redirect: "follow",
       headers: new Headers({
@@ -1440,7 +1482,7 @@ export const useGeoserverStore = defineStore("geoserver", () => {
       `${providerBaseUrl}/${workspace}/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities`
     );
     const promise = (async (): Promise<WmsCapabilities> => {
-      const response = await fetch(url, {
+      const response = await authFetch(url, {
         method: "GET",
         redirect: "follow",
       });

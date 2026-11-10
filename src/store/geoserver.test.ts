@@ -23,6 +23,7 @@ import {
     type WorkspaceListItem,
     useGeoserverStore,
 } from "./geoserver";
+import { authSession, type SessionChangeReason } from "../auth/session";
 
 describe("catalog layer styles", () => {
     test("resolves GeoServer alternatives through the provider-scoped Django catalog", () => {
@@ -367,6 +368,35 @@ describe("catalog store", () => {
             "http://localhost:8000/api/v1/catalog/providers/provider%2F1/styles"
         );
         expect(styles[0]).toMatchObject({ id: "style-1", format: "mbstyle" });
+    });
+
+    test("a sign-in during the anonymous catalog load wins over the stale anonymous answer", async () => {
+        let notifySessionChange: (reason: SessionChangeReason) => void = () => undefined;
+        vi.spyOn(authSession, "onSessionChange").mockImplementation((listener) => {
+            notifySessionChange = listener;
+            return () => undefined;
+        });
+        const workspacesResponse = (name: string) => jsonResponse({ workspaces: { workspace: [{ name, href: "" }] } });
+        let finishAnonymousProviders: (response: Response) => void = () => undefined;
+        fetchMock
+            .mockReturnValueOnce(new Promise<Response>((resolve) => { finishAnonymousProviders = resolve; }))
+            .mockResolvedValueOnce(jsonResponse([provider]))
+            .mockResolvedValueOnce(workspacesResponse("Private"))
+            .mockResolvedValueOnce(workspacesResponse("Public"));
+
+        const catalog = useGeoserverStore();
+        const anonymousLoad = catalog.getWorkspaceList();
+        await Promise.resolve();
+        notifySessionChange("login");
+        await vi.waitFor(() => expect(catalog.workspaceList.map((item) => item.name)).toEqual(["Private"]));
+
+        // The anonymous request finishes last; it must not replace the signed-in catalog.
+        finishAnonymousProviders(jsonResponse([provider]));
+        const answer = await anonymousLoad;
+
+        expect(catalog.workspaceList.map((item) => item.name)).toEqual(["Private"]);
+        expect(answer.workspaces.workspace.map((item) => item.name)).toEqual(["Private"]);
+        vi.restoreAllMocks();
     });
 
     test("loads providers before their workspaces and retains provider ownership", async () => {

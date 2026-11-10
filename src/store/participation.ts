@@ -1,9 +1,11 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
+import { authSession } from "../auth/session";
 import { type FeatureCollection, type Feature, type Point } from "@helpers/geojson";
 import { type GeoJSONSourceParams, type LayerParams, useMapStore } from "./map";
 import { type Map } from "maplibre-gl";
 import { type DrawMode, useDrawStore } from "./draw";
+import { authFetch } from "../auth/authFetch";
 export interface CenterLocation {
     lng: number;
     lat: number;
@@ -486,6 +488,14 @@ export const useParticipationStore = defineStore("participation", () => {
      *  This part contains operations related to campaigns. Such as fetching active campaigns and campaign details.
      */
     const activeCampaigns = ref<CampaignListItem[]>([]);
+
+    // Campaigns may be limited to an organization: reload a shown list.
+    const stopSessionListener = authSession.onSessionChange((reason) => {
+        const listWasLoaded = activeCampaigns.value.length > 0;
+        if (reason !== "login") activeCampaigns.value = [];
+        if (listWasLoaded) populateCampaignList();
+    });
+    import.meta.hot?.dispose(stopSessionListener);
     /**
      * Retrieves the list of active campaigns.
      * @returns A promise that resolves to an array of CampaignListItem objects.
@@ -494,7 +504,7 @@ export const useParticipationStore = defineStore("participation", () => {
     async function getActiveCampaigns(): Promise<CampaignListItem[]> {
         const url = `${import.meta.env.VITE_GEONODE_REST_URL}/v2/cpt/campaigns`;
         try {
-            const response = await fetch(url, {
+            const response = await authFetch(url, {
                 method: "GET"
             });
             return await response.json();
@@ -522,7 +532,7 @@ export const useParticipationStore = defineStore("participation", () => {
     async function getCampaignDetail(campaignURL: string): Promise<CampaignDetail> {
         const url = `${import.meta.env.VITE_GEONODE_REST_URL}/v2/cpt/campaigns/${campaignURL}`;
         try {
-            const response = await fetch(url, {
+            const response = await authFetch(url, {
                 method: "GET"
             });
             return await response.json();
@@ -535,7 +545,7 @@ export const useParticipationStore = defineStore("participation", () => {
         locationSelectionOnProgress.value = false;
         drawTool.externalAppOnProgress = false;
         const url = `${import.meta.env.VITE_GEONODE_REST_URL}/v2/cpt/feedback/`;
-        const feedback = await fetch(url, {
+        const feedback = await authFetch(url, {
             method: "POST",
             headers: {
                 Accept: "application/json",

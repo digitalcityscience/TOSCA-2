@@ -5,8 +5,9 @@
             <USkeleton class="h-36 w-full rounded-lg" />
         </div>
 
+        <NotFoundOrPrivate v-if="notFound" @retry="retryLoad" />
         <UAlert
-            v-if="errorMessage !== ''"
+            v-else-if="errorMessage !== ''"
             color="error"
             variant="subtle"
             icon="i-lucide-circle-alert"
@@ -42,6 +43,10 @@
 </template>
 
 <script setup lang="ts">
+import { useCloseWhenPrivateAfterLogout } from "../../auth/privateContent";
+import { buildEventDetailUrl } from "@store/events";
+import NotFoundOrPrivate from "@components/Base/NotFoundOrPrivate.vue";
+import { isNotFoundError } from "@store/backend";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { type EventDetail, useEventsStore } from "@store/events";
@@ -68,6 +73,9 @@ const geoserver = useGeoserverStore();
 const mapStore = useMapStore();
 const toast = useToast();
 const errorMessage = ref("");
+const notFound = ref(false);
+// Logging out while a private event is open: close it and go back to the list.
+useCloseWhenPrivateAfterLogout(() => buildEventDetailUrl(props.eventId), { name: "event-list" });
 
 const event = computed<EventDetail | undefined>(() => {
     return events.selectedEvent?.id === props.eventId ? events.selectedEvent : undefined;
@@ -83,6 +91,7 @@ watch(
 
 async function loadEvent(eventId: string): Promise<void> {
     errorMessage.value = "";
+    notFound.value = false;
     const detail = await events.getEventDetail(eventId);
     await loadEventLayersOnMap(detail, geoserver, mapStore, {
         onLayerError: (error, layer) => {
@@ -133,6 +142,10 @@ function retryLoad(): void {
 }
 
 function handleLoadError(error: unknown): void {
+    if (isNotFoundError(error)) {
+        notFound.value = true;
+        return;
+    }
     errorMessage.value = serviceUnavailableMessage("event");
     reportDeveloperError(`Opening event ${props.eventId}`, error);
 }

@@ -20,11 +20,24 @@
   "auth": {
     "account": "Account",
     "login": "Log in",
+    "signingIn": "Signing in…",
     "logout": "Log out",
     "manageAccount": "Manage account",
-    "noRoles": "No realm roles assigned",
     "openMenu": "Open account menu",
-    "roles": "Realm roles"
+    "organization": "Organization",
+    "popupBlocked": "Sign-in window was blocked",
+    "popupBlockedDetail": "Allow pop-ups for this site and try again.",
+    "loginFailed": "Sign-in failed. Please try again.",
+    "notConfigured": "Sign-in is not configured for this deployment.",
+    "sessionExpired": "You have been signed out",
+    "sessionExpiredDetail": "Your session expired. Log in again to see your private content.",
+    "layersRemovedTitle": "Private layers removed",
+    "layersRemovedDetail": "One layer is not public and was removed from the map. | {count} layers are not public and were removed from the map.",
+    "maybePrivate": "This item was not found. It may be private: log in to see it if you have access.",
+    "maybePrivateSignedIn": "This item was not found, or your account has no access to it.",
+    "notFoundTitle": "Not found",
+    "privateItemClosedTitle": "Private item closed",
+    "privateItemClosedDetail": "You logged out, and this item is not public."
   },
   "locale": {
     "label": "Language",

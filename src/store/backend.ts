@@ -1,3 +1,4 @@
+import { authFetch } from "../auth/authFetch";
 function trimTrailingSlash(value: string): string {
     return value.replace(/\/+$/, "");
 }
@@ -73,8 +74,27 @@ export function resolveBackendMediaUrl(url?: string | null): string | undefined 
     return resolveBackendUrl(url).toString();
 }
 
+/** A backend answer that was not 2xx; keeps the HTTP status for callers. */
+export class BackendRequestError extends Error {
+    readonly status: number;
+
+    constructor(message: string, status: number) {
+        super(message);
+        this.name = "BackendRequestError";
+        this.status = status;
+    }
+}
+
+/**
+ * The backend answers 404 for items the caller may not read (private or
+ * draft), the same as for missing ones.
+ */
+export function isNotFoundError(error: unknown): boolean {
+    return error instanceof BackendRequestError && error.status === 404;
+}
+
 export async function fetchBackendJson<T>(url: URL, resourceName: string): Promise<T> {
-    const response = await fetch(url, {
+    const response = await authFetch(url, {
         method: "GET",
         redirect: "follow",
         headers: new Headers({
@@ -85,8 +105,9 @@ export async function fetchBackendJson<T>(url: URL, resourceName: string): Promi
     if (!response.ok) {
         const body = await response.text();
         const message = body === "" ? response.statusText : body;
-        throw new Error(
-            `${resourceName} request failed (${response.status} ${response.statusText}): ${message}`
+        throw new BackendRequestError(
+            `${resourceName} request failed (${response.status} ${response.statusText}): ${message}`,
+            response.status
         );
     }
 

@@ -90,6 +90,8 @@
 </template>
 
 <script setup lang="ts">
+import { useCloseWhenPrivateAfterLogout } from "../../auth/privateContent";
+import { buildModelDetailUrl } from "@store/geosimulation";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import EditorJsReadonly from "@components/Base/EditorJsReadonly.vue";
@@ -99,6 +101,8 @@ import { myRuns } from "@helpers/simulationMyRuns";
 import { isFeatureEnabled } from "../../config/features";
 
 const props = defineProps<{ modelId: string }>();
+// Logging out while a private model is open: close it and go back to the list.
+useCloseWhenPrivateAfterLogout(() => buildModelDetailUrl(props.modelId), { name: "geosimulation-list" });
 const { t, locale } = useI18n();
 const geosimulation = useGeosimulationStore();
 const model = ref<SimulationModelDetail>();

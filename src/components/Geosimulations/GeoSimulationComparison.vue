@@ -1,6 +1,7 @@
 <template>
     <div class="grid gap-4">
         <USkeleton v-if="loading && !comparison" class="h-72 w-full rounded-lg" />
+        <NotFoundOrPrivate v-else-if="failed && notFound" @retry="openComparison(comparisonId)" />
         <UAlert v-else-if="failed" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('geosimulations.comparison.unavailable')" />
 
         <template v-else-if="comparison">
@@ -110,6 +111,10 @@
 </template>
 
 <script setup lang="ts">
+import { useCloseWhenPrivateAfterLogout } from "../../auth/privateContent";
+import { buildComparisonDetailUrl } from "@store/geosimulation";
+import NotFoundOrPrivate from "@components/Base/NotFoundOrPrivate.vue";
+import { isNotFoundError } from "@store/backend";
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute } from "vue-router";
@@ -149,6 +154,9 @@ const geosimulation = useGeosimulationStore();
 const comparison = ref<SimulationComparisonDetail>();
 const loading = ref(false);
 const failed = ref(false);
+const notFound = ref(false);
+// Logging out while a private comparison is open: close it and go back to the list.
+useCloseWhenPrivateAfterLogout(() => buildComparisonDetailUrl(props.comparisonId), { name: "geosimulation-list" });
 let refreshTimer: ReturnType<typeof setTimeout> | undefined;
 let pollTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -246,6 +254,7 @@ async function openComparison(comparisonId: string, previousId?: string): Promis
     if (previousId !== undefined) await removeSimulationRunLayers(mapStore, previousId);
     loading.value = true;
     failed.value = false;
+    notFound.value = false;
     try {
         const detail = await geosimulation.loadComparison(comparisonId);
         comparison.value = detail;
@@ -253,7 +262,8 @@ async function openComparison(comparisonId: string, previousId?: string): Promis
         else await showOnMap(detail);
     } catch (error) {
         failed.value = true;
-        if (String(error).includes("(404")) forgetRun(comparisonId);
+        notFound.value = isNotFoundError(error);
+        if (notFound.value) forgetRun(comparisonId);
         reportDeveloperError(`Opening simulation comparison ${comparisonId}`, error);
     } finally {
         loading.value = false;

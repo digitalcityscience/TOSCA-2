@@ -8,6 +8,7 @@ import type {
 import type { Feature, FeatureCollection } from "@helpers/geojson";
 import { reportDeveloperError, serviceUnavailableMessage } from "@helpers/userFacingError";
 import { fetchBackendJson, getBackendRootUrl } from "./backend";
+import { authSession } from "../auth/session";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -557,10 +558,34 @@ export const useExternalDataSourcesStore = defineStore("externalDataSources", ()
     let categoriesLoadPromise: Promise<ExternalCategorySummary[]> | undefined;
     const categoryDetailPromises = new Map<string, Promise<ExternalCategoryDetail>>();
 
+    // Signed-in users also see private services and categories: reload them
+    // when the identity changes.
+    // Responses that started under an older session are dropped (see
+    // `sessionGeneration`), so a slow anonymous load cannot overwrite the
+    // signed-in one.
+    let sessionGeneration = 0;
+    const stopSessionListener = authSession.onSessionChange(() => {
+        const hadServices = loaded.value || servicesLoadPromise !== undefined;
+        const hadCategories = categoriesLoaded.value || categoriesLoadPromise !== undefined;
+        sessionGeneration += 1;
+        loaded.value = false;
+        categoriesLoaded.value = false;
+        servicesLoadPromise = undefined;
+        categoriesLoadPromise = undefined;
+        categoryDetails.value = {};
+        categoryDetailPromises.clear();
+        if (hadServices) loadExternalServices().catch(() => undefined);
+        if (hadCategories) loadExternalCategories().catch(() => undefined);
+    });
+    // Hot-reloading this module in development creates a new store; drop the
+    // old one's listener so a sign-in does not reload everything twice.
+    import.meta.hot?.dispose(stopSessionListener);
+
     async function loadExternalServices(): Promise<ExternalDataSourceConfig[]> {
         if (loaded.value) return sources.value;
         if (servicesLoadPromise !== undefined) return await servicesLoadPromise;
 
+        const generation = sessionGeneration;
         const request = (async (): Promise<ExternalDataSourceConfig[]> => {
             loading.value = true;
             error.value = "";
@@ -569,10 +594,12 @@ export const useExternalDataSourcesStore = defineStore("externalDataSources", ()
                     buildExternalServicesUrl(),
                     "External catalog"
                 );
+                if (generation !== sessionGeneration) return await loadExternalServices();
                 sources.value = response.map(mapExternalService);
                 loaded.value = true;
                 return sources.value;
             } catch (cause) {
+                if (generation !== sessionGeneration) throw cause;
                 sources.value = [];
                 error.value = serviceUnavailableMessage("external catalog");
                 reportDeveloperError("Loading external catalog services", cause);
@@ -586,7 +613,7 @@ export const useExternalDataSourcesStore = defineStore("externalDataSources", ()
         try {
             return await request;
         } finally {
-            servicesLoadPromise = undefined;
+            if (servicesLoadPromise === request) servicesLoadPromise = undefined;
         }
     }
 
@@ -594,17 +621,21 @@ export const useExternalDataSourcesStore = defineStore("externalDataSources", ()
         if (categoriesLoaded.value) return categories.value;
         if (categoriesLoadPromise !== undefined) return await categoriesLoadPromise;
 
+        const generation = sessionGeneration;
         const request = (async (): Promise<ExternalCategorySummary[]> => {
             categoriesLoading.value = true;
             categoriesError.value = "";
             try {
-                categories.value = await fetchBackendJson<ExternalCategorySummary[]>(
+                const response = await fetchBackendJson<ExternalCategorySummary[]>(
                     buildExternalCategoriesUrl(),
                     "External categories"
                 );
+                if (generation !== sessionGeneration) return await loadExternalCategories();
+                categories.value = response;
                 categoriesLoaded.value = true;
                 return categories.value;
             } catch (cause) {
+                if (generation !== sessionGeneration) throw cause;
                 categories.value = [];
                 categoriesError.value = serviceUnavailableMessage("external catalog");
                 reportDeveloperError("Loading external catalog categories", cause);
@@ -618,7 +649,7 @@ export const useExternalDataSourcesStore = defineStore("externalDataSources", ()
         try {
             return await request;
         } finally {
-            categoriesLoadPromise = undefined;
+            if (categoriesLoadPromise === request) categoriesLoadPromise = undefined;
         }
     }
 
@@ -630,11 +661,14 @@ export const useExternalDataSourcesStore = defineStore("externalDataSources", ()
 
         categoryLoading.value = { ...categoryLoading.value, [slug]: true };
         categoryErrors.value = { ...categoryErrors.value, [slug]: "" };
+        const generation = sessionGeneration;
         const request = fetchBackendJson<ExternalCategoryDetail>(
             buildExternalCategoryUrl(slug),
             "External category"
         ).then((category) => {
-            categoryDetails.value = { ...categoryDetails.value, [slug]: category };
+            if (generation === sessionGeneration) {
+                categoryDetails.value = { ...categoryDetails.value, [slug]: category };
+            }
             return category;
         }).catch((cause: unknown) => {
             categoryErrors.value = {
@@ -645,7 +679,7 @@ export const useExternalDataSourcesStore = defineStore("externalDataSources", ()
             throw cause;
         }).finally(() => {
             categoryLoading.value = { ...categoryLoading.value, [slug]: false };
-            categoryDetailPromises.delete(slug);
+            if (categoryDetailPromises.get(slug) === request) categoryDetailPromises.delete(slug);
         });
 
         categoryDetailPromises.set(slug, request);

@@ -20,11 +20,24 @@
   "auth": {
     "account": "Konto",
     "login": "Anmelden",
+    "signingIn": "Anmeldung läuft…",
     "logout": "Abmelden",
     "manageAccount": "Konto verwalten",
-    "noRoles": "Keine Realm-Rollen zugewiesen",
     "openMenu": "Kontomenü öffnen",
-    "roles": "Realm-Rollen"
+    "organization": "Organisation",
+    "popupBlocked": "Anmeldefenster wurde blockiert",
+    "popupBlockedDetail": "Erlauben Sie Pop-ups für diese Seite und versuchen Sie es erneut.",
+    "loginFailed": "Anmeldung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "notConfigured": "Die Anmeldung ist für diese Installation nicht eingerichtet.",
+    "sessionExpired": "Sie wurden abgemeldet",
+    "sessionExpiredDetail": "Ihre Sitzung ist abgelaufen. Melden Sie sich erneut an, um Ihre privaten Inhalte zu sehen.",
+    "layersRemovedTitle": "Private Ebenen entfernt",
+    "layersRemovedDetail": "Eine Ebene ist nicht öffentlich und wurde von der Karte entfernt. | {count} Ebenen sind nicht öffentlich und wurden von der Karte entfernt.",
+    "maybePrivate": "Dieser Eintrag wurde nicht gefunden. Er ist möglicherweise privat: Melden Sie sich an, um ihn zu sehen, falls Sie Zugriff haben.",
+    "maybePrivateSignedIn": "Dieser Eintrag wurde nicht gefunden oder Ihr Konto hat keinen Zugriff darauf.",
+    "notFoundTitle": "Nicht gefunden",
+    "privateItemClosedTitle": "Privater Eintrag geschlossen",
+    "privateItemClosedDetail": "Sie haben sich abgemeldet, und dieser Eintrag ist nicht öffentlich."
   },
   "locale": {
     "label": "Sprache",
