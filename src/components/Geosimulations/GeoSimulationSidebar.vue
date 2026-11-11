@@ -45,7 +45,9 @@ const backTarget = computed<{ label: string; to: RouteLocationRaw } | undefined>
         return { label: t("geosimulations.backToModels"), to: { name: "geosimulation-list" } };
     }
     if (route.name === "geosimulation-run") {
-        const modelId = geosimulation.selectedRun?.model.id;
+        const model = geosimulation.selectedRun?.model;
+        // A public run of an organization-only model: the model page is not readable.
+        const modelId = model?.readable === false ? undefined : model?.id;
         return modelId === undefined
             ? { label: t("geosimulations.backToModels"), to: { name: "geosimulation-list" } }
             : { label: t("geosimulations.backToRuns"), to: { name: "geosimulation-model", params: { modelId } } };
@@ -54,7 +56,9 @@ const backTarget = computed<{ label: string; to: RouteLocationRaw } | undefined>
         return { label: t("geosimulations.backToRuns"), to: { name: "geosimulation-model", params: { modelId: route.params.modelId } } };
     }
     if (route.name === "geosimulation-comparison") {
-        const modelId = geosimulation.selectedComparison?.model.id;
+        const model = geosimulation.selectedComparison?.model;
+        // A public run of an organization-only model: the model page is not readable.
+        const modelId = model?.readable === false ? undefined : model?.id;
         return modelId === undefined
             ? { label: t("geosimulations.backToModels"), to: { name: "geosimulation-list" } }
             : { label: t("geosimulations.backToRuns"), to: { name: "geosimulation-model", params: { modelId } } };
