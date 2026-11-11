@@ -114,7 +114,8 @@ export interface SimulationKpiChange {
 /** Two runs of one model compared; outputs are difference layers and change tables (no replay). */
 export interface SimulationComparisonDetail {
     id: string;
-    model: { id: string; key: string; title: string };
+    /** `readable: false`: a public result of a model this visitor cannot open (absent on older backends). */
+    model: { id: string; key: string; title: string; readable?: boolean };
     key: string;
     title: string;
     description_content: SimulationDescription;
@@ -275,7 +276,8 @@ export interface SimulationRunExecution {
 
 export interface SimulationRunDetail {
     id: string;
-    model: { id: string; key: string; title: string };
+    /** `readable: false`: a public result of a model this visitor cannot open (absent on older backends). */
+    model: { id: string; key: string; title: string; readable?: boolean };
     key: string;
     title: string;
     description_content: SimulationDescription;
