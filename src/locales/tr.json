@@ -914,7 +914,13 @@
       "constructionTitle": "Yol çalışmalarının etkisi",
       "constructionHelp": "Aynı bisikletlileri o gün aktif yol çalışmaları olmadan ve olarak iki kez çalıştırın; kimin rota değiştirdiğini ve trafiğin nereye kaydığını karşılaştırın.",
       "constructionCompare": "Yol çalışmalı ve çalışmasız karşılaştır",
-      "constructionRunTitle": "Yol çalışmalı ve çalışmasız — {agents} bisikletli"
+      "constructionRunTitle": "Yol çalışmalı ve çalışmasız — {agents} bisikletli",
+      "denied": {
+        "signIn": "Bu simülasyonu çalıştırmak için giriş yapın.",
+        "members": "Bu simülasyonu yalnızca {organization} üyeleri çalıştırabilir.",
+        "editors": "Bu simülasyonu yalnızca {organization} editörleri çalıştırabilir.",
+        "notAllowed": "Bu simülasyonu çalıştıramazsınız."
+      }
     },
     "progress": {
       "queued": "Simülasyon sunucusu bekleniyor…",
@@ -923,6 +929,12 @@
       "seconds": "{count} sn",
       "failed": "Çalıştırma başarısız oldu.",
       "reused": "Aynı çalıştırma zaten mevcut; yenisi başlatılmak yerine o açıldı."
+    },
+    "visibility": {
+      "public": "Herkes",
+      "organization": "Yalnızca kurum",
+      "private": "Yalnızca siz",
+      "link": "Bağlantıya sahip herkes"
     }
   }
 }

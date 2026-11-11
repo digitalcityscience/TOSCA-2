@@ -914,7 +914,13 @@
       "constructionTitle": "Einfluss von Baustellen",
       "constructionHelp": "Dieselben Radfahrenden zweimal simulieren, ohne und mit den an diesem Tag aktiven Baustellen, und vergleichen, wer umfährt und wo sich Verkehr verlagert.",
       "constructionCompare": "Mit und ohne Baustellen vergleichen",
-      "constructionRunTitle": "Mit vs. ohne Baustellen — {agents} Radfahrende"
+      "constructionRunTitle": "Mit vs. ohne Baustellen — {agents} Radfahrende",
+      "denied": {
+        "signIn": "Melden Sie sich an, um Läufe dieser Simulation zu starten.",
+        "members": "Nur Mitglieder von {organization} können Läufe dieser Simulation starten.",
+        "editors": "Nur Redakteur:innen von {organization} können Läufe dieser Simulation starten.",
+        "notAllowed": "Sie können keine Läufe dieser Simulation starten."
+      }
     },
     "progress": {
       "queued": "Wartet auf den Simulationsserver…",
@@ -923,6 +929,12 @@
       "seconds": "{count} s",
       "failed": "Der Lauf ist fehlgeschlagen.",
       "reused": "Ein identischer Lauf existiert bereits und wurde statt eines neuen geöffnet."
+    },
+    "visibility": {
+      "public": "Alle",
+      "organization": "Nur Organisation",
+      "private": "Nur Sie",
+      "link": "Alle mit dem Link"
     }
   }
 }

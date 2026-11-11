@@ -14,13 +14,24 @@
             <section v-if="model.runnable && runsEnabled" class="start-run">
                 <div class="grid gap-0.5">
                     <h3 class="text-sm font-semibold text-highlighted">{{ t("geosimulations.newRun.cta") }}</h3>
-                    <p class="text-xs text-muted">{{ t("geosimulations.newRun.ctaHelp") }}</p>
+                    <p class="text-xs text-muted">{{ runDenied ?? t("geosimulations.newRun.ctaHelp") }}</p>
                 </div>
                 <UButton
+                    v-if="!runDenied"
                     class="w-fit"
                     icon="i-lucide-play"
                     :to="{ name: 'geosimulation-new-run', params: { modelId: model.id } }"
                     :label="t('geosimulations.newRun.title')"
+                />
+                <UButton
+                    v-else-if="!isAuthenticated"
+                    class="w-fit"
+                    color="neutral"
+                    variant="outline"
+                    :label="loginPending ? t('auth.signingIn') : t('auth.login')"
+                    :loading="loginPending"
+                    :disabled="status === 'disabled' || status === 'initializing'"
+                    @click="login"
                 />
             </section>
 
@@ -54,7 +65,16 @@
                     <div class="grid gap-2">
                         <div class="flex items-start justify-between gap-2">
                             <h4 class="font-semibold leading-tight text-highlighted">{{ run.title }}</h4>
-                            <UBadge v-if="run.status !== 'published'" color="warning" variant="subtle" :label="t(`geosimulations.status.${run.status}`)" />
+                            <div class="flex shrink-0 gap-1">
+                                <UBadge v-if="run.status !== 'published'" color="warning" variant="subtle" :label="t(`geosimulations.status.${run.status}`)" />
+                                <UBadge
+                                    v-if="run.visibility && run.visibility !== 'public'"
+                                    color="neutral"
+                                    variant="subtle"
+                                    icon="i-lucide-lock"
+                                    :label="t(`geosimulations.visibility.${run.visibility}`)"
+                                />
+                            </div>
                         </div>
                         <p class="text-xs text-muted">{{ formatSimulatedTime(run.time, locale) }}</p>
                         <UButton class="w-fit" :to="{ name: 'geosimulation-run', params: { runId: run.id } }" :label="t('geosimulations.openRun')" size="sm" />
@@ -68,7 +88,16 @@
                     <div class="grid gap-2">
                         <div class="flex items-start justify-between gap-2">
                             <h4 class="font-semibold leading-tight text-highlighted">{{ comparison.title }}</h4>
-                            <UBadge v-if="comparison.status !== 'published'" color="warning" variant="subtle" :label="t(`geosimulations.status.${comparison.status}`)" />
+                            <div class="flex shrink-0 gap-1">
+                                <UBadge v-if="comparison.status !== 'published'" color="warning" variant="subtle" :label="t(`geosimulations.status.${comparison.status}`)" />
+                                <UBadge
+                                    v-if="comparison.visibility && comparison.visibility !== 'public'"
+                                    color="neutral"
+                                    variant="subtle"
+                                    icon="i-lucide-lock"
+                                    :label="t(`geosimulations.visibility.${comparison.visibility}`)"
+                                />
+                            </div>
                         </div>
                         <p class="text-xs text-muted">
                             {{ t("geosimulations.comparison.versus", { baseline: comparison.baseline.title, candidate: comparison.candidate.title }) }}
@@ -91,8 +120,11 @@
 
 <script setup lang="ts">
 import { useCloseWhenPrivateAfterLogout } from "../../auth/privateContent";
+import { useLogin } from "../../auth/useLogin";
+import { authSession } from "../../auth/session";
+import { runAccessDenial } from "@helpers/simulationRunAccess";
 import { buildModelDetailUrl } from "@store/geosimulation";
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import EditorJsReadonly from "@components/Base/EditorJsReadonly.vue";
 import { type SimulationModelDetail, useGeosimulationStore } from "@store/geosimulation";
@@ -112,22 +144,36 @@ const comparisons = computed(() => model.value?.comparisons ?? []);
 const ownRuns = computed(() => (model.value ? myRuns(model.value.id) : []));
 /** Starting runs is an opt-in feature (`geosimulation-runs`): it needs a deployed runner. */
 const runsEnabled = isFeatureEnabled("geosimulation-runs");
+const { login, loginPending, status, isAuthenticated } = useLogin();
+/** Why this visitor cannot start runs (`undefined`: they can). */
+const runDenied = computed(() => {
+    const reason = model.value ? runAccessDenial(model.value, isAuthenticated.value) : undefined;
+    return reason === undefined ? undefined : t(`geosimulations.newRun.denied.${reason}`, { organization: model.value?.organization.name ?? "" });
+});
 
 function formatStarted(iso: string): string {
     return new Intl.DateTimeFormat(locale.value, { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
 }
 
-watch(() => props.modelId, async (modelId) => {
-    loading.value = true;
+let loadGeneration = 0;
+async function load(modelId: string, { quiet = false } = {}): Promise<void> {
+    const generation = ++loadGeneration;
+    if (!quiet) loading.value = true;
     failed.value = false;
     try {
-        model.value = await geosimulation.loadModel(modelId);
+        const loaded = await geosimulation.loadModel(modelId);
+        if (generation === loadGeneration) model.value = loaded;
     } catch {
-        failed.value = true;
+        if (generation === loadGeneration) failed.value = true;
     } finally {
-        loading.value = false;
+        if (generation === loadGeneration) loading.value = false;
     }
-}, { immediate: true });
+}
+
+watch(() => props.modelId, (modelId) => void load(modelId), { immediate: true });
+// Signing in or out changes which runs are listed and whether this visitor may start runs.
+const stopSessionListener = authSession.onSessionChange(() => void load(props.modelId, { quiet: true }));
+onBeforeUnmount(stopSessionListener);
 </script>
 
 <style scoped>
