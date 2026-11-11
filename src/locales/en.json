@@ -914,7 +914,13 @@
       "constructionTitle": "Construction impact",
       "constructionHelp": "Run the same cyclists twice, without and with the construction sites active on the date, and compare who reroutes and where traffic shifts.",
       "constructionCompare": "Compare with and without construction",
-      "constructionRunTitle": "With vs without construction — {agents} cyclists"
+      "constructionRunTitle": "With vs without construction — {agents} cyclists",
+      "denied": {
+        "signIn": "Sign in to start runs of this simulation.",
+        "members": "Only members of {organization} can start runs of this simulation.",
+        "editors": "Only editors of {organization} can start runs of this simulation.",
+        "notAllowed": "You can't start runs of this simulation."
+      }
     },
     "progress": {
       "queued": "Waiting for the simulation server…",
@@ -923,6 +929,12 @@
       "seconds": "{count} s",
       "failed": "The run failed.",
       "reused": "An identical run already exists, so it was opened instead of starting a new one."
+    },
+    "visibility": {
+      "public": "Anyone",
+      "organization": "Organization only",
+      "private": "Only you",
+      "link": "Anyone with the link"
     }
   }
 }

@@ -41,8 +41,19 @@ export interface SimulationModelListItem {
     updated_at: string;
 }
 
-/** `private`: only the user who started it; `organization`: the model's organization; `link`: anonymous, readable by id. */
-export type SimulationVisibility = "private" | "organization" | "link";
+/**
+ * Who reads a run or comparison once it is published: `public` anyone (if the
+ * model is public too), `organization` the model's organization, `private`
+ * only the user who started it, `link` anonymous runs (by id, never listed).
+ * Drafts are read by the model's organization and the run's creator.
+ */
+export type SimulationVisibility = "public" | "private" | "organization" | "link";
+
+/** Who sees a published model. */
+export type SimulationModelVisibility = "public" | "organization";
+
+/** Who may start runs of a model. */
+export type SimulationRunAccess = "anyone" | "signed_in" | "organization" | "editors";
 
 export interface SimulationRunSummary {
     id: string;
@@ -61,8 +72,12 @@ export interface SimulationModelDetail extends SimulationModelListItem {
     organization: { slug: string; name: string };
     parameter_schema: Record<string, unknown> | null;
     default_parameters: Record<string, unknown>;
-    /** Visitors can start runs (`POST …/{id}/runs/`); absent before backend Task 12.12. */
+    /** Runs can be started at all (enabled, active runner); absent before backend Task 12.12. */
     runnable?: boolean;
+    /** This caller may start runs (`runnable` and `run_access` allow it); absent on older backends. */
+    can_run?: boolean;
+    run_access?: SimulationRunAccess;
+    visibility?: SimulationModelVisibility;
     runs: SimulationRunSummary[];
     /** Comparisons of two of the model's runs; absent from backends before Task 12.10. */
     comparisons?: SimulationComparisonSummary[];
@@ -307,7 +322,7 @@ export interface StartRunRequest {
     parameters: Record<string, unknown>;
     seed?: number | null;
     title?: string;
-    visibility?: Exclude<SimulationVisibility, "link">;
+    visibility?: "private" | "organization";
 }
 
 export interface StartComparisonRequest {
