@@ -17,6 +17,7 @@ components.d.ts
 .env
 .env.development
 .env.production
+*.tsbuildinfo
 # Editor directories and files
 .claude
 .codex

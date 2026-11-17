@@ -6,9 +6,6 @@ const environment = { ...loadEnv("production", process.cwd(), ""), ...process.en
 
 const requiredVariables = [
   "VITE_BASE_URL",
-  "VITE_KEYCLOAK_URL",
-  "VITE_KEYCLOAK_REALM",
-  "VITE_KEYCLOAK_CLIENT_ID",
   "VITE_BACKEND_ROOT_URL",
   "VITE_GEONODE_REST_URL",
   "VITE_MAPTILER_API_KEY",
@@ -21,15 +18,18 @@ const optionalVariables = [
   "VITE_GEOSERVER_BASE_URL",
 ];
 
-const inHouseMapVariables = [
-  "VITE_INHOUSE_MAP_BASE_URL",
-  "VITE_INHOUSE_MAP_API_KEY",
-];
-const inHouseMapConfigured = inHouseMapVariables.some((name) => {
-  const value = environment[name];
-  return value !== undefined && value.trim() !== "";
-});
-if (inHouseMapConfigured) requiredVariables.push(...inHouseMapVariables);
+// All-or-nothing groups: unset turns the feature off (no Keycloak vars: the
+// app runs without sign-in), a partial set is a configuration mistake.
+for (const group of [
+  ["VITE_INHOUSE_MAP_BASE_URL", "VITE_INHOUSE_MAP_API_KEY"],
+  ["VITE_KEYCLOAK_URL", "VITE_KEYCLOAK_REALM", "VITE_KEYCLOAK_CLIENT_ID"],
+]) {
+  const configured = group.some((name) => {
+    const value = environment[name];
+    return value !== undefined && value.trim() !== "";
+  });
+  if (configured) requiredVariables.push(...group);
+}
 
 const missingVariables = requiredVariables.filter((name) => {
   const value = environment[name];

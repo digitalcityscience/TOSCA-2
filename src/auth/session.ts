@@ -311,16 +311,14 @@ export function createAuthSession(
     }
 
     if (manager !== undefined) {
-        // Automatic renewal (and popup sign-in) store a new user.
+        // Renewal (and popup sign-in) store a new user.
         manager.events.addUserLoaded((loaded) => {
             if (user.value !== null || status.value === "initializing") applyUser(loaded);
         });
-        manager.events.addSilentRenewError((error) => {
-            if (error instanceof ErrorResponse) void expireSession();
-        });
-        manager.events.addAccessTokenExpired(() => {
-            void refreshAccessToken();
-        });
+        // Renew ahead of expiry and, as a fallback, at expiry. Both go through
+        // refreshAccessToken, so firing together sends one request.
+        manager.events.addAccessTokenExpiring(() => void refreshAccessToken());
+        manager.events.addAccessTokenExpired(() => void refreshAccessToken());
         channel?.addEventListener("message", (event) => {
             const message = event.data as { type?: unknown } | null;
             if (message?.type === "logout" && user.value !== null) void clearSession("logout");
