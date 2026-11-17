@@ -1,5 +1,6 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
 import { computed, ref } from "vue";
+import { authSession } from "../auth/session";
 import { type FeatureCollection, type Point } from "@helpers/geojson";
 import {
     fetchBackendJson,
@@ -370,6 +371,27 @@ export const useEventsStore = defineStore("events", () => {
     const loadedRangeEnd = ref<Date | null>(null);
     const canLoadMore = computed(() => windowCap.value === null);
     let activeExtension: Promise<void> | undefined;
+
+    // A new identity sees different events (private ones of the user's
+    // organization). Reload what is shown with the same filters; on logout
+    // first drop it at once, so private events disappear immediately.
+    const stopSessionListener = authSession.onSessionChange((reason) => {
+        const listWasLoaded = windowStart.value !== null || loadingList.value;
+        const mapWasLoaded = loadedMapRequestKey.value !== "" || activeMapRequest !== undefined;
+        taxonomyRegistriesByProfile.value = {};
+        loadedMapRequestKey.value = "";
+        activeMapRequest = undefined;
+        activeMapRequestKey = "";
+        activeExtension = undefined;
+        if (reason !== "login") {
+            events.value = [];
+            spatialEvents.value = { type: "FeatureCollection", features: [] };
+            onlineEvents.value = [];
+        }
+        if (listWasLoaded) loadEvents().catch(() => undefined);
+        if (mapWasLoaded) loadEventMap().catch(() => undefined);
+    });
+    import.meta.hot?.dispose(stopSessionListener);
 
     function setFilters(nextFilters: EventFilters): void {
         filters.value = { ...nextFilters };

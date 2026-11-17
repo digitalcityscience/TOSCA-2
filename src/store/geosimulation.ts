@@ -1,7 +1,9 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
 import { ref } from "vue";
+import { authSession } from "../auth/session";
 import { fetchBackendJson, getBackendRootUrl, resolveBackendUrl } from "./backend";
 import { reportDeveloperError, serviceUnavailableMessage } from "@helpers/userFacingError";
+import { authFetch } from "../auth/authFetch";
 
 /**
  * GeoSimulations read API.
@@ -39,8 +41,19 @@ export interface SimulationModelListItem {
     updated_at: string;
 }
 
-/** `private`: only the user who started it; `organization`: the model's organization; `link`: anonymous, readable by id. */
-export type SimulationVisibility = "private" | "organization" | "link";
+/**
+ * Who reads a run or comparison once it is published: `public` anyone (if the
+ * model is public too), `organization` the model's organization, `private`
+ * only the user who started it, `link` anonymous runs (by id, never listed).
+ * Drafts are read by the model's organization and the run's creator.
+ */
+export type SimulationVisibility = "public" | "private" | "organization" | "link";
+
+/** Who sees a published model. */
+export type SimulationModelVisibility = "public" | "organization";
+
+/** Who may start runs of a model. */
+export type SimulationRunAccess = "anyone" | "signed_in" | "organization" | "editors";
 
 export interface SimulationRunSummary {
     id: string;
@@ -59,8 +72,12 @@ export interface SimulationModelDetail extends SimulationModelListItem {
     organization: { slug: string; name: string };
     parameter_schema: Record<string, unknown> | null;
     default_parameters: Record<string, unknown>;
-    /** Visitors can start runs (`POST …/{id}/runs/`); absent before backend Task 12.12. */
+    /** Runs can be started at all (enabled, active runner); absent before backend Task 12.12. */
     runnable?: boolean;
+    /** This caller may start runs (`runnable` and `run_access` allow it); absent on older backends. */
+    can_run?: boolean;
+    run_access?: SimulationRunAccess;
+    visibility?: SimulationModelVisibility;
     runs: SimulationRunSummary[];
     /** Comparisons of two of the model's runs; absent from backends before Task 12.10. */
     comparisons?: SimulationComparisonSummary[];
@@ -97,7 +114,8 @@ export interface SimulationKpiChange {
 /** Two runs of one model compared; outputs are difference layers and change tables (no replay). */
 export interface SimulationComparisonDetail {
     id: string;
-    model: { id: string; key: string; title: string };
+    /** `readable: false`: a public result of a model this visitor cannot open (absent on older backends). */
+    model: { id: string; key: string; title: string; readable?: boolean };
     key: string;
     title: string;
     description_content: SimulationDescription;
@@ -258,7 +276,8 @@ export interface SimulationRunExecution {
 
 export interface SimulationRunDetail {
     id: string;
-    model: { id: string; key: string; title: string };
+    /** `readable: false`: a public result of a model this visitor cannot open (absent on older backends). */
+    model: { id: string; key: string; title: string; readable?: boolean };
     key: string;
     title: string;
     description_content: SimulationDescription;
@@ -305,7 +324,7 @@ export interface StartRunRequest {
     parameters: Record<string, unknown>;
     seed?: number | null;
     title?: string;
-    visibility?: Exclude<SimulationVisibility, "link">;
+    visibility?: "private" | "organization";
 }
 
 export interface StartComparisonRequest {
@@ -402,6 +421,19 @@ export const useGeosimulationStore = defineStore("geosimulation", () => {
     const selectedRun = ref<SimulationRunDetail>();
     const selectedComparison = ref<SimulationComparisonDetail>();
     const loadingComparison = ref(false);
+
+    // Models, runs and comparisons depend on who is signed in (own and
+    // organization runs). Reload a shown model list for the new identity; an
+    // open model, run or comparison decides on its own whether it may stay.
+    const stopSessionListener = authSession.onSessionChange((reason) => {
+        const listWasLoaded = models.value.length > 0 || loadingModels.value;
+        if (reason !== "login") {
+            models.value = [];
+            nextModelsUrl.value = null;
+        }
+        if (listWasLoaded) loadModels().catch(() => undefined);
+    });
+    import.meta.hot?.dispose(stopSessionListener);
 
     async function loadModels(): Promise<void> {
         loadingModels.value = true;
@@ -526,7 +558,7 @@ export const useGeosimulationStore = defineStore("geosimulation", () => {
     async function postStart<T>(url: URL, body: unknown, what: string): Promise<T> {
         let response: Response;
         try {
-            response = await fetch(url, {
+            response = await authFetch(url, {
                 method: "POST",
                 headers: new Headers({ "Content-Type": "application/json", Accept: "application/json" }),
                 body: JSON.stringify(body),

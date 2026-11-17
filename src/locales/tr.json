@@ -17,6 +17,28 @@
     "switchToLight": "Açık moda geç",
     "switchToDark": "Koyu moda geç"
   },
+  "auth": {
+    "account": "Hesap",
+    "login": "Giriş yap",
+    "signingIn": "Giriş yapılıyor…",
+    "logout": "Çıkış yap",
+    "manageAccount": "Hesabı yönet",
+    "openMenu": "Hesap menüsünü aç",
+    "organization": "Kuruluş",
+    "popupBlocked": "Giriş penceresi engellendi",
+    "popupBlockedDetail": "Bu site için açılır pencerelere izin verin ve tekrar deneyin.",
+    "loginFailed": "Giriş başarısız oldu. Lütfen tekrar deneyin.",
+    "notConfigured": "Bu kurulum için giriş yapılandırılmamış.",
+    "sessionExpired": "Oturumunuz kapatıldı",
+    "sessionExpiredDetail": "Oturumunuzun süresi doldu. Özel içeriklerinizi görmek için tekrar giriş yapın.",
+    "layersRemovedTitle": "Özel katmanlar kaldırıldı",
+    "layersRemovedDetail": "Bir katman herkese açık değil ve haritadan kaldırıldı. | {count} katman herkese açık değil ve haritadan kaldırıldı.",
+    "maybePrivate": "Bu öğe bulunamadı. Özel olabilir: erişiminiz varsa görmek için giriş yapın.",
+    "maybePrivateSignedIn": "Bu öğe bulunamadı veya hesabınızın buna erişimi yok.",
+    "notFoundTitle": "Bulunamadı",
+    "privateItemClosedTitle": "Özel öğe kapatıldı",
+    "privateItemClosedDetail": "Oturumu kapattınız ve bu öğe herkese açık değil."
+  },
   "locale": {
     "label": "Dil",
     "en": "İngilizce",
@@ -892,7 +914,13 @@
       "constructionTitle": "Yol çalışmalarının etkisi",
       "constructionHelp": "Aynı bisikletlileri o gün aktif yol çalışmaları olmadan ve olarak iki kez çalıştırın; kimin rota değiştirdiğini ve trafiğin nereye kaydığını karşılaştırın.",
       "constructionCompare": "Yol çalışmalı ve çalışmasız karşılaştır",
-      "constructionRunTitle": "Yol çalışmalı ve çalışmasız — {agents} bisikletli"
+      "constructionRunTitle": "Yol çalışmalı ve çalışmasız — {agents} bisikletli",
+      "denied": {
+        "signIn": "Bu simülasyonu çalıştırmak için giriş yapın.",
+        "members": "Bu simülasyonu yalnızca {organization} üyeleri çalıştırabilir.",
+        "editors": "Bu simülasyonu yalnızca {organization} editörleri çalıştırabilir.",
+        "notAllowed": "Bu simülasyonu çalıştıramazsınız."
+      }
     },
     "progress": {
       "queued": "Simülasyon sunucusu bekleniyor…",
@@ -901,6 +929,12 @@
       "seconds": "{count} sn",
       "failed": "Çalıştırma başarısız oldu.",
       "reused": "Aynı çalıştırma zaten mevcut; yenisi başlatılmak yerine o açıldı."
+    },
+    "visibility": {
+      "public": "Herkes",
+      "organization": "Yalnızca kurum",
+      "private": "Yalnızca siz",
+      "link": "Bağlantıya sahip herkes"
     }
   }
 }

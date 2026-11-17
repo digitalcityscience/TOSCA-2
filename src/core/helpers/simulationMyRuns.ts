@@ -1,7 +1,13 @@
+import { authSession } from "../../auth/session";
+
 /**
- * Runs and comparisons this browser started, kept in `localStorage`. Until the frontend has
- * sign-in, anonymous runs are only readable by id (backend `link` visibility),
- * so their ids must be remembered here to list them again.
+ * Anonymous runs and comparisons this browser started, kept in `localStorage`.
+ * They are only readable by id (backend `link` visibility), so their ids must
+ * be remembered here to list them again.
+ *
+ * Runs started while signed in are not stored: they belong to the account
+ * (the backend lists them), and their titles must not stay readable on a
+ * shared device after logout.
  */
 
 const STORAGE_KEY = "tosca.geosimulations.myRuns.v1";
@@ -42,6 +48,7 @@ export function myRuns(modelId?: string): MyRun[] {
 }
 
 export function rememberRun(run: MyRun): void {
+    if (authSession.status.value === "authenticated") return;
     write([run, ...read().filter((item) => item.id !== run.id)]);
 }
 

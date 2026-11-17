@@ -20,6 +20,9 @@ import { type MapStyleLegendContext } from "@helpers/mapStyleLegend";
 import { isEditableMapStyleColorProperty } from "@helpers/mapStyleEditing";
 import { validateSpriteUrl } from "@helpers/mapStyleBundle";
 import { useToast } from "@helpers/toast";
+import { registerTokenOrigin } from "../auth/authFetch";
+import { authSession } from "../auth/session";
+import { i18n } from "../core/i18n";
 import { combineStyleAndUserFilter } from "@helpers/maplibreExpressions";
 import { ChunkedGeoJsonLayer } from "@helpers/deckChunkedGeoJsonLayer";
 import { SimulationReplayLayer } from "@helpers/deckSimulationReplayLayer";
@@ -134,6 +137,12 @@ export interface LayerObjectWithAttributes extends CustomAddLayerObject {
      * come from the simulation API.
      */
     simulationOutput?: SimulationOutputLayerInfo;
+    /**
+     * Added while a user was signed in, so its data may be private to them.
+     * On logout such layers are checked and removed if an anonymous visitor
+     * may not read them (see `src/auth/privateContent.ts`).
+     */
+    addedWhileSignedIn?: boolean;
 }
 export interface SimulationOutputLayerInfo {
     runId: string;
@@ -294,7 +303,10 @@ function buildWmtsTileUrl(opts: {
 function providerBaseUrl(
     detail: GeoServerVectorTypeLayerDetail | GeoserverRasterTypeLayerDetail
 ): string {
-    return detail.catalog?.provider.base_url ??
+    const catalogBaseUrl = detail.catalog?.provider.base_url;
+    // Providers come from Django's catalog; they may receive the user's token.
+    registerTokenOrigin(catalogBaseUrl);
+    return catalogBaseUrl ??
         String(import.meta.env.VITE_GEOSERVER_BASE_URL ?? "").replace(/\/+$/, "");
 }
 export const useMapStore = defineStore("map", () => {
@@ -1046,6 +1058,7 @@ export const useMapStore = defineStore("map", () => {
         } else {
             layersOnMap.value.push(layerObject);
         }
+        if (authSession.status.value === "authenticated") layerObject.addedWhileSignedIn = true;
         layerUiState.value[layerObject.id] = readLayerUiState(layerObject);
         syncDeckLayerAnchors();
         if (
@@ -1431,6 +1444,49 @@ export const useMapStore = defineStore("map", () => {
             ? undefined
             : mapInstance?.getPaintProperty?.(layer.id, opacityProperty);
         return { visible, opacity: typeof rawOpacity === "number" ? rawOpacity : 1 };
+    }
+
+    /**
+     * Removes the given layers (and their now unused sources) from the map
+     * and the layer list, tolerating ones that are already gone. Used after
+     * logout for layers an anonymous visitor may not see.
+     *
+     * @returns How many of them were shown in the layer list.
+     */
+    async function removeLayers(layers: LayerObjectWithAttributes[], { notifyPrivate = false } = {}): Promise<number> {
+        if (layers.length === 0) return 0;
+        const sources = new Set(
+            layers
+                .filter((layer) => layer.logicalKind !== "group" && layer.renderer !== "deckgl")
+                .map((layer) => layer.source)
+        );
+        for (const layer of layers) {
+            try {
+                if (isNullOrEmpty(map.value)) throw new Error("No map");
+                await deleteMapLayer(layer.id, false);
+            } catch {
+                // Already gone from the map (or no map): still drop the record.
+                if (layersOnMap.value.some((item) => item.id === layer.id)) removeFromMapLayerList(layer.id, false);
+            }
+        }
+        for (const sourceId of sources) {
+            if (layersOnMap.value.some((layer) => layerOwnsSource(layer, sourceId))) continue;
+            try {
+                if (map.value?.getSource(sourceId) !== undefined) deleteMapDataSource(sourceId);
+            } catch (error) {
+                console.error(`Removing source ${sourceId} failed`, error);
+            }
+        }
+        const listed = layers.filter((layer) => layer.showOnLayerList === true).length;
+        if (notifyPrivate && listed > 0) {
+            toast.add({
+                severity: "info",
+                summary: i18n.global.t("auth.layersRemovedTitle"),
+                detail: i18n.global.t("auth.layersRemovedDetail", { count: listed }, listed),
+                life: 6000,
+            });
+        }
+        return listed;
     }
 
     function layerOwnsSource(layer: LayerObjectWithAttributes, sourceId: string): boolean {
@@ -1886,6 +1942,7 @@ export const useMapStore = defineStore("map", () => {
         deleteMapLayer,
         add2MapLayerList,
         removeFromMapLayerList,
+        removeLayers,
         reorderVisibleMapLayer,
         getReorderableVisibleLayersTopToBottom,
         addCompanionLayer,

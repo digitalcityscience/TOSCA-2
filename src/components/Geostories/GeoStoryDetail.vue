@@ -5,8 +5,9 @@
             <USkeleton class="h-48 w-full rounded-lg" />
         </div>
 
+        <NotFoundOrPrivate v-if="notFound" @retry="retryLoad" />
         <UAlert
-            v-if="errorMessage !== ''"
+            v-else-if="errorMessage !== ''"
             color="error"
             variant="subtle"
             icon="i-lucide-circle-alert"
@@ -114,6 +115,10 @@
 </template>
 
 <script setup lang="ts">
+import { useCloseWhenPrivateAfterLogout } from "../../auth/privateContent";
+import { buildStoryDetailUrl } from "@store/geostory";
+import NotFoundOrPrivate from "@components/Base/NotFoundOrPrivate.vue";
+import { isNotFoundError } from "@store/backend";
 import { computed, inject, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
@@ -148,6 +153,9 @@ const mapStore = useMapStore();
 const sceneStore = useGeostorySceneStore();
 const toast = useToast();
 const errorMessage = ref("");
+const notFound = ref(false);
+// Logging out while a private story is open: close it and go back to the list.
+useCloseWhenPrivateAfterLogout(() => buildStoryDetailUrl(props.storyId), { name: "geostory-list" });
 const heroImageLoading = ref(false);
 
 const story = computed<GeoStoryDetail | undefined>(() => {
@@ -195,6 +203,7 @@ watch(heroImageUrl, (url) => {
 
 async function loadStory(storyId: string): Promise<void> {
     errorMessage.value = "";
+    notFound.value = false;
     const detail = await geostory.getStoryDetail(storyId);
     if (detail.id !== props.storyId) return; // a newer story was opened meanwhile
     await mapStore.resetMapData(false);
@@ -280,6 +289,10 @@ function retryLoad(): void {
 }
 
 function handleLoadError(error: unknown): void {
+    if (isNotFoundError(error)) {
+        notFound.value = true;
+        return;
+    }
     errorMessage.value = serviceUnavailableMessage("GeoStory");
     reportDeveloperError(`Opening GeoStory ${props.storyId}`, error);
 }

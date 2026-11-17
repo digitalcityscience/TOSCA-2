@@ -17,6 +17,28 @@
     "switchToLight": "Switch to light mode",
     "switchToDark": "Switch to dark mode"
   },
+  "auth": {
+    "account": "Account",
+    "login": "Log in",
+    "signingIn": "Signing in…",
+    "logout": "Log out",
+    "manageAccount": "Manage account",
+    "openMenu": "Open account menu",
+    "organization": "Organization",
+    "popupBlocked": "Sign-in window was blocked",
+    "popupBlockedDetail": "Allow pop-ups for this site and try again.",
+    "loginFailed": "Sign-in failed. Please try again.",
+    "notConfigured": "Sign-in is not configured for this deployment.",
+    "sessionExpired": "You have been signed out",
+    "sessionExpiredDetail": "Your session expired. Log in again to see your private content.",
+    "layersRemovedTitle": "Private layers removed",
+    "layersRemovedDetail": "One layer is not public and was removed from the map. | {count} layers are not public and were removed from the map.",
+    "maybePrivate": "This item was not found. It may be private: log in to see it if you have access.",
+    "maybePrivateSignedIn": "This item was not found, or your account has no access to it.",
+    "notFoundTitle": "Not found",
+    "privateItemClosedTitle": "Private item closed",
+    "privateItemClosedDetail": "You logged out, and this item is not public."
+  },
   "locale": {
     "label": "Language",
     "en": "English",
@@ -892,7 +914,13 @@
       "constructionTitle": "Construction impact",
       "constructionHelp": "Run the same cyclists twice, without and with the construction sites active on the date, and compare who reroutes and where traffic shifts.",
       "constructionCompare": "Compare with and without construction",
-      "constructionRunTitle": "With vs without construction — {agents} cyclists"
+      "constructionRunTitle": "With vs without construction — {agents} cyclists",
+      "denied": {
+        "signIn": "Sign in to start runs of this simulation.",
+        "members": "Only members of {organization} can start runs of this simulation.",
+        "editors": "Only editors of {organization} can start runs of this simulation.",
+        "notAllowed": "You can't start runs of this simulation."
+      }
     },
     "progress": {
       "queued": "Waiting for the simulation server…",
@@ -901,6 +929,12 @@
       "seconds": "{count} s",
       "failed": "The run failed.",
       "reused": "An identical run already exists, so it was opened instead of starting a new one."
+    },
+    "visibility": {
+      "public": "Anyone",
+      "organization": "Organization only",
+      "private": "Only you",
+      "link": "Anyone with the link"
     }
   }
 }

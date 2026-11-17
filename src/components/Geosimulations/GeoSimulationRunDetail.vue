@@ -1,6 +1,7 @@
 <template>
     <div class="grid gap-4">
         <USkeleton v-if="loading && !run" class="h-72 w-full rounded-lg" />
+        <NotFoundOrPrivate v-else-if="failed && notFound" @retry="openRun(runId)" />
         <UAlert v-else-if="failed" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('geosimulations.runUnavailable')" />
 
         <template v-else-if="run">
@@ -97,6 +98,10 @@
 </template>
 
 <script setup lang="ts">
+import { useCloseWhenPrivateAfterLogout } from "../../auth/privateContent";
+import { buildRunDetailUrl } from "@store/geosimulation";
+import NotFoundOrPrivate from "@components/Base/NotFoundOrPrivate.vue";
+import { isNotFoundError } from "@store/backend";
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute } from "vue-router";
@@ -139,6 +144,9 @@ const geosimulation = useGeosimulationStore();
 const run = ref<SimulationRunDetail>();
 const loading = ref(false);
 const failed = ref(false);
+const notFound = ref(false);
+// Logging out while a private run is open: close it and go back to the list.
+useCloseWhenPrivateAfterLogout(() => buildRunDetailUrl(props.runId), { name: "geosimulation-list" });
 const comparisons = ref<SimulationComparisonSummary[]>([]);
 let refreshTimer: ReturnType<typeof setTimeout> | undefined;
 let pollTimer: ReturnType<typeof setTimeout> | undefined;
@@ -231,6 +239,7 @@ async function openRun(runId: string, previousRunId?: string): Promise<void> {
     if (previousRunId !== undefined) await removeSimulationRunLayers(mapStore, previousRunId);
     loading.value = true;
     failed.value = false;
+    notFound.value = false;
     try {
         const detail = await geosimulation.loadRun(runId);
         run.value = detail;
@@ -240,7 +249,8 @@ async function openRun(runId: string, previousRunId?: string): Promise<void> {
     } catch (error) {
         failed.value = true;
         // A remembered run that no longer exists (retention) is dropped from "My runs".
-        if (String(error).includes("(404")) forgetRun(runId);
+        notFound.value = isNotFoundError(error);
+        if (notFound.value) forgetRun(runId);
         reportDeveloperError(`Opening simulation run ${runId}`, error);
     } finally {
         loading.value = false;

@@ -6,6 +6,7 @@ import {
     WALK_THRESHOLD_MIN,
     type Criteria,
 } from "../../config/urbanStories/styles/transitEquity";
+import { authFetch } from "../../auth/authFetch";
 
 /**
  * Read-only data access of the Public Transport Equity story: attribute-only and small WFS reads against the
@@ -40,7 +41,7 @@ export function resetEquityDataCache(): void {
 
 async function wfs(params: Record<string, string>): Promise<Response> {
     const query = new URLSearchParams({ service: "WFS", version: "2.0.0", request: "GetFeature", ...params });
-    const response = await fetch(`${owsUrl()}?${query.toString()}`);
+    const response = await authFetch(`${owsUrl()}?${query.toString()}`);
     if (!response.ok) throw new Error(`GeoServer WFS answered ${response.status}`);
     return response;
 }

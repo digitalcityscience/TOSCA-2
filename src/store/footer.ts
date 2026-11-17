@@ -3,6 +3,7 @@ import { ref } from "vue";
 import type { EditorJsContent } from "@components/Base/EditorJsReadonly.vue";
 import { reportDeveloperError, serviceUnavailableMessage } from "@helpers/userFacingError";
 import { fetchBackendJson, getBackendRootUrl } from "./backend";
+import { authFetch } from "../auth/authFetch";
 
 const FOOTER_API_PATH = "/api/v1/footer/";
 
@@ -85,7 +86,7 @@ export const useFooterStore = defineStore("footer", () => {
     }
 
     async function loadDocument(slug: string): Promise<PublishedFooterDocument | null> {
-        const response = await fetch(buildPublishedFooterDocumentUrl(slug), {
+        const response = await authFetch(buildPublishedFooterDocumentUrl(slug), {
             method: "GET",
             redirect: "follow",
             headers: new Headers({

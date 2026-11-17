@@ -17,6 +17,28 @@
     "switchToLight": "Zum hellen Modus wechseln",
     "switchToDark": "Zum dunklen Modus wechseln"
   },
+  "auth": {
+    "account": "Konto",
+    "login": "Anmelden",
+    "signingIn": "Anmeldung läuft…",
+    "logout": "Abmelden",
+    "manageAccount": "Konto verwalten",
+    "openMenu": "Kontomenü öffnen",
+    "organization": "Organisation",
+    "popupBlocked": "Anmeldefenster wurde blockiert",
+    "popupBlockedDetail": "Erlauben Sie Pop-ups für diese Seite und versuchen Sie es erneut.",
+    "loginFailed": "Anmeldung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "notConfigured": "Die Anmeldung ist für diese Installation nicht eingerichtet.",
+    "sessionExpired": "Sie wurden abgemeldet",
+    "sessionExpiredDetail": "Ihre Sitzung ist abgelaufen. Melden Sie sich erneut an, um Ihre privaten Inhalte zu sehen.",
+    "layersRemovedTitle": "Private Ebenen entfernt",
+    "layersRemovedDetail": "Eine Ebene ist nicht öffentlich und wurde von der Karte entfernt. | {count} Ebenen sind nicht öffentlich und wurden von der Karte entfernt.",
+    "maybePrivate": "Dieser Eintrag wurde nicht gefunden. Er ist möglicherweise privat: Melden Sie sich an, um ihn zu sehen, falls Sie Zugriff haben.",
+    "maybePrivateSignedIn": "Dieser Eintrag wurde nicht gefunden oder Ihr Konto hat keinen Zugriff darauf.",
+    "notFoundTitle": "Nicht gefunden",
+    "privateItemClosedTitle": "Privater Eintrag geschlossen",
+    "privateItemClosedDetail": "Sie haben sich abgemeldet, und dieser Eintrag ist nicht öffentlich."
+  },
   "locale": {
     "label": "Sprache",
     "en": "Englisch",
@@ -892,7 +914,13 @@
       "constructionTitle": "Einfluss von Baustellen",
       "constructionHelp": "Dieselben Radfahrenden zweimal simulieren, ohne und mit den an diesem Tag aktiven Baustellen, und vergleichen, wer umfährt und wo sich Verkehr verlagert.",
       "constructionCompare": "Mit und ohne Baustellen vergleichen",
-      "constructionRunTitle": "Mit vs. ohne Baustellen — {agents} Radfahrende"
+      "constructionRunTitle": "Mit vs. ohne Baustellen — {agents} Radfahrende",
+      "denied": {
+        "signIn": "Melden Sie sich an, um Läufe dieser Simulation zu starten.",
+        "members": "Nur Mitglieder von {organization} können Läufe dieser Simulation starten.",
+        "editors": "Nur Redakteur:innen von {organization} können Läufe dieser Simulation starten.",
+        "notAllowed": "Sie können keine Läufe dieser Simulation starten."
+      }
     },
     "progress": {
       "queued": "Wartet auf den Simulationsserver…",
@@ -901,6 +929,12 @@
       "seconds": "{count} s",
       "failed": "Der Lauf ist fehlgeschlagen.",
       "reused": "Ein identischer Lauf existiert bereits und wurde statt eines neuen geöffnet."
+    },
+    "visibility": {
+      "public": "Alle",
+      "organization": "Nur Organisation",
+      "private": "Nur Sie",
+      "link": "Alle mit dem Link"
     }
   }
 }

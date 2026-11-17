@@ -6,6 +6,7 @@ import {
     type SourceSpecification,
     type StyleSpecification,
 } from "maplibre-gl";
+import { authFetch } from "../../auth/authFetch";
 
 export interface CompiledStyleBundleLayer {
     specification: LayerSpecification;
@@ -46,7 +47,7 @@ const IMAGE_PAINT_PROPERTIES = [
 
 /** Fetch and minimally validate a MapLibre v8 style document. */
 export async function fetchMapStyle(styleUrl: string): Promise<StyleSpecification> {
-    const response = await fetch(styleUrl);
+    const response = await authFetch(styleUrl);
     if (!response.ok) {
         throw new Error(`Failed to load basemap style (${response.status} ${response.statusText})`);
     }
@@ -64,7 +65,7 @@ export async function fetchMapStyle(styleUrl: string): Promise<StyleSpecificatio
  * missing icons instead of surfacing as a load failure.
  */
 export async function validateSpriteUrl(url: string): Promise<void> {
-    const response = await fetch(resolveSpriteResourceUrl(url, ".json"));
+    const response = await authFetch(resolveSpriteResourceUrl(url, ".json"));
     if (!response.ok) {
         throw new Error(`Failed to load sprite (${response.status} ${response.statusText})`);
     }

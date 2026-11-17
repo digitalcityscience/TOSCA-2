@@ -9,6 +9,13 @@
             icon="i-lucide-circle-slash"
             :title="t('geosimulations.newRun.notRunnable')"
         />
+        <UAlert
+            v-else-if="model && runDenied"
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-lock"
+            :title="runDenied"
+        />
 
         <form v-else-if="model" class="grid gap-4" novalidate @submit.prevent="submit('run')">
             <div class="grid gap-1">
@@ -139,6 +146,8 @@ import {
     validateParameterValues,
 } from "@helpers/simulationParameters";
 import { rememberRun } from "@helpers/simulationMyRuns";
+import { runAccessDenial } from "@helpers/simulationRunAccess";
+import { useAuth } from "../../auth/session";
 import { formatNumber } from "@helpers/simulationFormat";
 
 const props = defineProps<{ modelId: string }>();
@@ -147,6 +156,11 @@ const router = useRouter();
 const geosimulation = useGeosimulationStore();
 
 const model = ref<SimulationModelDetail>();
+const auth = useAuth();
+const runDenied = computed(() => {
+    const reason = model.value ? runAccessDenial(model.value, auth.isAuthenticated.value) : undefined;
+    return reason === undefined ? undefined : t(`geosimulations.newRun.denied.${reason}`, { organization: model.value?.organization.name ?? "" });
+});
 const loading = ref(false);
 const loadFailed = ref(false);
 const submitting = ref<"run" | "construction">();
