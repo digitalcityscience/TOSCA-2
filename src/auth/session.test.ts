@@ -31,7 +31,7 @@ function fakeManager(stored: User | null = null) {
         metadataService: { getEndSessionEndpoint: vi.fn(async () => "https://kc.test/logout") },
         events: {
             addUserLoaded: (cb: (value?: unknown) => void) => { handlers.userLoaded = cb; },
-            addSilentRenewError: (cb: (value?: unknown) => void) => { handlers.renewError = cb; },
+            addAccessTokenExpiring: (cb: (value?: unknown) => void) => { handlers.expiring = cb; },
             addAccessTokenExpired: (cb: (value?: unknown) => void) => { handlers.expired = cb; },
         },
     };
@@ -139,12 +139,24 @@ describe("createAuthSession", () => {
         warn.mockRestore();
     });
 
-    it("logs out when automatic renewal is refused by the server", async () => {
-        const { manager, handlers } = fakeManager(makeUser());
+    it("sends one refresh when the expiring and expired events fire together", async () => {
+        const { manager, raw, handlers } = fakeManager(makeUser());
         const session = createAuthSession(manager);
         await session.initialize();
 
-        handlers.renewError(new ErrorResponse({ error: "invalid_grant" }));
+        handlers.expiring();
+        handlers.expired();
+        await vi.waitFor(() => expect(session.getCurrentAccessToken()).toBe("renewed"));
+        expect(raw.signinSilent).toHaveBeenCalledTimes(1);
+    });
+
+    it("logs out when renewal is refused by the server", async () => {
+        const { manager, raw, handlers } = fakeManager(makeUser());
+        const session = createAuthSession(manager);
+        await session.initialize();
+        raw.signinSilent.mockRejectedValueOnce(new ErrorResponse({ error: "invalid_grant" }));
+
+        handlers.expiring();
         await vi.waitFor(() => expect(session.status.value).toBe("anonymous"));
     });
 

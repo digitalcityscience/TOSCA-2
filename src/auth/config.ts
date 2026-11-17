@@ -56,8 +56,9 @@ export function createUserManagerSettings(config: AuthConfig): UserManagerSettin
         // Tokens live in this tab's sessionStorage: a reload keeps the user
         // signed in, closing the tab forgets them.
         userStore: new WebStorageStateStore({ store: window.sessionStorage }),
-        // Renew with the refresh token one minute before the access token expires.
-        automaticSilentRenew: true,
+        // The session renews on the "expiring" event itself (one de-duplicated
+        // refresh path); the library's own renewal would race it.
+        automaticSilentRenew: false,
         accessTokenExpiringNotificationTimeInSeconds: 60,
         silentRequestTimeoutInSeconds: 5,
         // The id token already carries the profile; skip the userinfo round trip.
