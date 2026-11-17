@@ -27,7 +27,7 @@ function fakeManager(stored: User | null = null) {
         removeUser: vi.fn(async () => undefined),
         signinPopup: vi.fn(async () => makeUser()),
         signinSilent: vi.fn(async () => makeUser({ access: "renewed" })),
-        settings: { client_id: "web", authority: "https://kc.test/realms/ngcn-prod" },
+        settings: { client_id: "web", authority: "https://kc.test/realms/example-realm" },
         metadataService: { getEndSessionEndpoint: vi.fn(async () => "https://kc.test/logout") },
         events: {
             addUserLoaded: (cb: (value?: unknown) => void) => { handlers.userLoaded = cb; },
@@ -232,11 +232,11 @@ describe("helpers", () => {
     it("builds the callback URL under the base path and disables auth without settings", () => {
         expect(readAuthConfig({
             VITE_KEYCLOAK_URL: "https://kc.test/",
-            VITE_KEYCLOAK_REALM: "ngcn-prod",
+            VITE_KEYCLOAK_REALM: "example-realm",
             VITE_KEYCLOAK_CLIENT_ID: "web",
             BASE_URL: "/tosca/",
         }, "https://app.test")).toEqual({
-            authority: "https://kc.test/realms/ngcn-prod",
+            authority: "https://kc.test/realms/example-realm",
             clientId: "web",
             scope: "openid profile email",
             callbackUrl: "https://app.test/tosca/auth-callback.html",

@@ -2,7 +2,7 @@ import { WebStorageStateStore, type UserManagerSettings } from "oidc-client-ts";
 
 /** Public OIDC settings for the browser client. No secrets belong here. */
 export interface AuthConfig {
-    /** Keycloak realm issuer, e.g. `https://auth.example.org/realms/ngcn-prod`. */
+    /** Keycloak realm issuer, e.g. `https://auth.example.org/realms/example-realm`. */
     authority: string;
     clientId: string;
     scope: string;
