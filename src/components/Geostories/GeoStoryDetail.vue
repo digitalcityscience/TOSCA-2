@@ -70,6 +70,7 @@
                         {{ story.summary }}
                     </p>
                     <GeoStorySceneProgress @select="selectScene" />
+                    <GeoStoryActiveLegend />
                 </header>
 
                 <USeparator />
@@ -134,6 +135,7 @@ import {
     serviceUnavailableMessage,
 } from "@helpers/userFacingError";
 import EditorJsReadonly from "@components/Base/EditorJsReadonly.vue";
+import GeoStoryActiveLegend from "@components/Geostories/GeoStoryActiveLegend.vue";
 import GeoStorySceneProgress from "@components/Geostories/GeoStorySceneProgress.vue";
 import { slideoverScrollContainerKey } from "@helpers/slideoverSidebarRegistry";
 import {

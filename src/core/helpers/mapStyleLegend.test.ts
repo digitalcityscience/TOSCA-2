@@ -60,4 +60,29 @@ describe("createMapStyleLegendEntries", () => {
             },
         });
     });
+
+    test("creates separate, labelled legend entries for 3D extrusion classes", () => {
+        const entries = createMapStyleLegendEntries([
+            {
+                id: "facade-concrete",
+                type: "fill-extrusion",
+                metadata: { "tosca:legend-label": "Concrete" },
+                paint: { "fill-extrusion-color": "#4a4a4a", "fill-extrusion-opacity": 0.9 },
+            },
+            {
+                id: "facade-outline",
+                type: "line",
+                metadata: { "tosca:legend-hidden": true },
+                paint: { "line-color": "#3b3b3b" },
+            },
+        ]);
+
+        expect(entries).toEqual([expect.objectContaining({
+            id: "facade-concrete",
+            label: "Concrete",
+            kind: "fill-extrusion",
+            colors: ["#4a4a4a"],
+            opacity: 0.9,
+        })]);
+    });
 });

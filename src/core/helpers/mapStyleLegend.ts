@@ -1,6 +1,7 @@
 export type MapStyleLegendKind =
     | "circle"
     | "fill"
+    | "fill-extrusion"
     | "heatmap"
     | "line"
     | "symbol";
@@ -37,6 +38,7 @@ export interface MapStyleLegendContext {
 const colorProperties: Record<MapStyleLegendKind, string[]> = {
     circle: ["circle-color", "circle-stroke-color"],
     fill: ["fill-color", "fill-outline-color"],
+    "fill-extrusion": ["fill-extrusion-color"],
     heatmap: ["heatmap-color"],
     line: ["line-color"],
     symbol: ["icon-color", "text-color", "icon-halo-color", "text-halo-color"],
@@ -45,6 +47,7 @@ const colorProperties: Record<MapStyleLegendKind, string[]> = {
 const opacityProperties: Record<MapStyleLegendKind, string[]> = {
     circle: ["circle-opacity"],
     fill: ["fill-opacity"],
+    "fill-extrusion": ["fill-extrusion-opacity"],
     heatmap: ["heatmap-opacity"],
     line: ["line-opacity"],
     symbol: ["icon-opacity", "text-opacity"],
@@ -53,6 +56,7 @@ const opacityProperties: Record<MapStyleLegendKind, string[]> = {
 const defaultColors: Record<MapStyleLegendKind, string[]> = {
     circle: ["#64748b"],
     fill: ["#94a3b8"],
+    "fill-extrusion": ["#94a3b8"],
     heatmap: ["#313695", "#74add1", "#ffffbf", "#f46d43", "#a50026"],
     line: ["#64748b"],
     symbol: ["#64748b"],
@@ -61,6 +65,7 @@ const defaultColors: Record<MapStyleLegendKind, string[]> = {
 const supportedKinds = new Set<MapStyleLegendKind>([
     "circle",
     "fill",
+    "fill-extrusion",
     "heatmap",
     "line",
     "symbol",
@@ -72,6 +77,9 @@ export function createMapStyleLegendEntries(
     context?: MapStyleLegendContext
 ): MapStyleLegendEntry[] {
     return layers.flatMap((layer, index) => {
+        if (isRecord(layer.metadata) && layer.metadata["tosca:legend-hidden"] === true) {
+            return [];
+        }
         if (typeof layer.type !== "string" || !supportedKinds.has(layer.type as MapStyleLegendKind)) {
             return [];
         }

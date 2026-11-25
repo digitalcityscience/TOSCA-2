@@ -179,6 +179,14 @@ function markStyle(entry: MapStyleLegendEntry): Record<string, string> {
     border: 1px solid rgb(15 23 42 / 0.22);
 }
 
+.map-style-legend-mark-fill-extrusion {
+    width: 1.45rem;
+    height: 1.1rem;
+    border-radius: 0.12rem 0.12rem 0.28rem 0.28rem;
+    box-shadow: 0.18rem 0.15rem 0 rgb(15 23 42 / 0.22);
+    transform: skewY(-8deg);
+}
+
 .map-style-legend-mark-circle {
     width: 0.8rem;
     height: 0.8rem;
