@@ -1,3 +1,4 @@
+import { getConfig } from "../core/config";
 import { resolveGroupPopupAttributes } from "../core/helpers/groupPopupAttributes";
 /* eslint "@stylistic/indent": "off" */
 /* eslint "no-tabs": "off" */
@@ -525,7 +526,7 @@ const FEATURE_INFO_POINT_OFFSET = 0.000001;
 
 function rasterProviderBaseUrl(detail: GeoserverRasterTypeLayerDetail): string {
   registerTokenOrigin(detail.catalog?.provider.base_url);
-  return (detail.catalog?.provider.base_url ?? String(import.meta.env.VITE_GEOSERVER_BASE_URL ?? ""))
+  return (detail.catalog?.provider.base_url ?? String(getConfig("VITE_GEOSERVER_BASE_URL") ?? ""))
     .replace(/\/+$/, "");
 }
 
@@ -770,7 +771,7 @@ export interface WmsCapabilities {
 export function buildWmsLegendUrl(
   workspace: string,
   layerName: string,
-  providerBaseUrl = String(import.meta.env.VITE_GEOSERVER_BASE_URL ?? ""),
+  providerBaseUrl = String(getConfig("VITE_GEOSERVER_BASE_URL") ?? ""),
   styleName?: string
 ): string {
   const params = new URLSearchParams({

@@ -1,4 +1,6 @@
-FROM node:22-alpine AS build
+# The build output is static files, the same for every CPU, so this stage runs
+# once on the build machine's own architecture even for a multi-platform image.
+FROM --platform=$BUILDPLATFORM node:22-alpine AS build
 
 WORKDIR /app
 
@@ -7,11 +9,15 @@ RUN npm ci
 
 COPY . .
 
-RUN node scripts/validate-vite-env.mjs && npm run build
+# No VITE_* values are needed here: the container sets them when it starts.
+RUN npm run build
 
 FROM nginx:1.27-alpine AS production
 
+RUN apk add --no-cache jq
+
 COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY --chmod=755 docker/40-write-config.sh /docker-entrypoint.d/40-write-config.sh
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80

@@ -1,3 +1,4 @@
+import { getConfig } from "../core/config";
 import { authFetch } from "../auth/authFetch";
 function trimTrailingSlash(value: string): string {
     return value.replace(/\/+$/, "");
@@ -14,12 +15,12 @@ function normalizeRootUrl(value: string): string {
 }
 
 function getConfiguredBackendRootUrl(): string {
-    const backendRoot = normalizeRootUrl(String(import.meta.env.VITE_BACKEND_ROOT_URL ?? ""));
+    const backendRoot = normalizeRootUrl(String(getConfig("VITE_BACKEND_ROOT_URL") ?? ""));
     if (backendRoot !== "") {
         return backendRoot;
     }
 
-    const geonodeRestUrl = normalizeRootUrl(String(import.meta.env.VITE_GEONODE_REST_URL ?? ""));
+    const geonodeRestUrl = normalizeRootUrl(String(getConfig("VITE_GEONODE_REST_URL") ?? ""));
     if (geonodeRestUrl !== "") {
         return geonodeRestUrl.replace(/\/api$/, "");
     }

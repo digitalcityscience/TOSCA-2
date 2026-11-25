@@ -4,6 +4,7 @@
 </template>
 
 <script setup lang="ts">
+import { getConfig, pickConfig } from "../../core/config";
 import maplibre, { type MapMouseEvent, type Map } from "maplibre-gl"
 import { h, nextTick, onBeforeUnmount, onMounted, ref, render } from "vue";
 import { useI18n } from "vue-i18n";
@@ -19,6 +20,7 @@ import { transformMapRequest } from "../../auth/authFetch";
 import { authSession } from "../../auth/session";
 import {
     mapConfiguration,
+    mapConfigurationVariables,
     resolveMapConfiguration,
 } from "../../config/mapConfig";
 import {
@@ -46,12 +48,16 @@ const stopSessionListener = authSession.onSessionChange(() => {
 })
 onBeforeUnmount(stopSessionListener)
 onMounted(() => {
-    const configuredLng = Number(import.meta.env.VITE_MAP_START_LNG)
-    const configuredLat = Number(import.meta.env.VITE_MAP_START_LAT)
+    const configuredLng = Number(getConfig("VITE_MAP_START_LNG"))
+    const configuredLat = Number(getConfig("VITE_MAP_START_LAT"))
     const lng = Number.isNaN(configuredLng) ? 9.993163 : configuredLng
     const lat = Number.isNaN(configuredLat) ? 53.552123 : configuredLat
-    const zoom = Number.isNaN(Number(import.meta.env.VITE_MAP_START_ZOOM)) ? 15 : Number(import.meta.env.VITE_MAP_START_ZOOM);
-    const resolvedMapConfiguration = resolveMapConfiguration(mapConfiguration, import.meta.env, t);
+    const zoom = Number.isNaN(Number(getConfig("VITE_MAP_START_ZOOM"))) ? 15 : Number(getConfig("VITE_MAP_START_ZOOM"));
+    const resolvedMapConfiguration = resolveMapConfiguration(
+        mapConfiguration,
+        pickConfig(...mapConfigurationVariables(mapConfiguration)),
+        t
+    );
     const terrain = {
         source: "terrain-dem",
         exaggeration: resolvedMapConfiguration.terrain.exaggeration,

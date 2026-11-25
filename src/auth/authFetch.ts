@@ -1,3 +1,4 @@
+import { getConfig } from "../core/config";
 import { getBackendRootUrl } from "../store/backend";
 import { authSession, type AuthSession } from "./session";
 
@@ -51,8 +52,8 @@ export function createTokenOrigins(initial: () => Array<string | undefined>) {
 
 export const tokenOrigins = createTokenOrigins(() => [
     getBackendRootUrl(),
-    String(import.meta.env.VITE_BACKEND_ROOT_URL ?? ""),
-    String(import.meta.env.VITE_GEOSERVER_BASE_URL ?? ""),
+    String(getConfig("VITE_BACKEND_ROOT_URL") ?? ""),
+    String(getConfig("VITE_GEOSERVER_BASE_URL") ?? ""),
 ]);
 
 /** Allows a GeoServer provider (from Django's catalog) to receive the access token. */

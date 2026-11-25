@@ -1,4 +1,5 @@
 import { WebStorageStateStore, type UserManagerSettings } from "oidc-client-ts";
+import { pickConfig } from "../core/config";
 
 /** Public OIDC settings for the browser client. No secrets belong here. */
 export interface AuthConfig {
@@ -20,12 +21,16 @@ function text(value: unknown): string {
 }
 
 /**
- * Reads the Keycloak settings from the build environment. Returns undefined
+ * Reads the Keycloak settings from the deployment configuration. Returns undefined
  * when they are missing, which turns sign-in off: the app keeps working for
  * anonymous visitors instead of failing to start.
  */
 export function readAuthConfig(
-    environment: AuthEnvironment = import.meta.env as AuthEnvironment,
+    environment: AuthEnvironment = {
+        ...pickConfig("VITE_KEYCLOAK_URL", "VITE_KEYCLOAK_REALM", "VITE_KEYCLOAK_CLIENT_ID", "VITE_KEYCLOAK_SCOPE"),
+        // Vite's own base path, fixed when the app is built.
+        BASE_URL: import.meta.env.BASE_URL,
+    },
     origin: string = typeof window === "undefined" ? "http://localhost" : window.location.origin
 ): AuthConfig | undefined {
     const url = text(environment.VITE_KEYCLOAK_URL).replace(/\/+$/, "");
