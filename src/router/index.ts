@@ -156,6 +156,19 @@ const router = createRouter({
             }
         },
         {
+            path: "/sionna",
+            name: "sionna",
+            components: {
+                default: MapView,
+                sionna: async () => await import("../components/Sionna/SionnaSidebar.vue")
+            },
+            meta: {
+                feature: "sionna",
+                sidebar: "sionna",
+                sidebarPosition: "left"
+            }
+        },
+        {
             path: "/:footerDocumentSlug",
             name: "footer-document",
             components: {

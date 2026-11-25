@@ -93,7 +93,8 @@
       "geostories": "Coğrafi Hikâyeler",
       "urbanStories": "Kent Hikâyeleri",
       "layers": "Katmanlar",
-      "geosimulations": "Simülasyonlar"
+      "geosimulations": "Simülasyonlar",
+      "sionna": "Radyo planlama"
     },
     "basemap": {
       "dataviz": "Dataviz",
@@ -807,6 +808,164 @@
       "feed": "Feed: {publisher}, version {version}, valid {start} – {end}.",
       "source": "HVV GTFS timetable via the Hamburg transparency portal.",
       "credits": "Based on hamburgriders (MIT), forked from utrechtriders, inspired by londonriders. Dark basemap © CARTO © OpenStreetMap contributors."
+    }
+  },
+  "sionna": {
+    "title": "Radyo planlama (Sionna RT)",
+    "runner": {
+      "ready": "Yerel GPU hazır ({variant})",
+      "cpu": "Runner GPU olmadan çalışıyor ({variant}); hesaplar yavaş olur",
+      "offline": "Yerel Sionna runner çalışmıyor",
+      "offlineHelp": "{url} adresinde bekleniyor. Ya runner bu bilgisayarda başlatılmadı, ya bu siteye henüz izin vermiyor, ya da tarayıcı erişimi engelledi.",
+      "retry": "Tekrar dene",
+      "startHelp": "Runner, kullandığınız bilgisayarın GPU'sunda hesaplar. Onu orada, TOSCA-Sionna-Runner klasöründe başlatın ve bu siteye ({origin}) izin verin:",
+      "permissionHelp": "Chrome ve Edge ardından bu sitenin yerel ağınızdaki cihazlara erişip erişemeyeceğini bir kez sorar: izin verin. Engellediyseniz site ayarlarından (adresin solundaki simge) \"Yerel ağ erişimi\" iznini açın. Bir tarayıcı sormadan yine bağlanamıyorsa Chrome, Edge ya da Firefox kullanın."
+    },
+    "scene": {
+      "title": "Sahne",
+      "select": "Sahne seçimi",
+      "placeholder": "Yerel verilerden bir sahne seçin",
+      "kind": {
+        "area": "Hamburg alanları (LoD3, haritada gösterilir)",
+        "cityjson": "CityJSON karoları (haritada gösterilir)",
+        "mitsuba": "Mitsuba sahneleri (harita konumu yok)",
+        "builtin": "Sionna'nın hazır sahneleri"
+      },
+      "upload": "Başka dosya yükle",
+      "uploadHint": "Bir CityJSON dosyası (.city.json, .city.jsonl) ya da bir Mitsuba sahnesinin tek .zip dosyası (.xml ve meshes klasörü).",
+      "notOnMap": "Bu sahnenin harita konumu yok: sonuçlar haritada değil, aşağıdaki resimde görünür.",
+      "loaded": "{name}: {objects} nesne, {x} × {y} × {z} m",
+      "failed": "Sahne yüklenemedi: {detail}"
+    },
+    "area": {
+      "title": "İlgi alanı",
+      "help": "Haritada bir dikdörtgen çizin (iki tıklama: karşılıklı köşeler). Radyo haritası bu alanı kapsar; çevresindeki tampon mesafesine kadar olan Hamburg LoD3 binaları sinyali engellemeye ve yansıtmaya devam eder.",
+      "draw": "Alanı haritada çiz",
+      "cancel": "İptal",
+      "buffer": "Alan çevresindeki tampon (m)",
+      "drawing": "Haritada alanın ilk köşesine tıklayın. Esc iptal eder.",
+      "drawingEnd": "Karşı köşeye tıklayın. Esc iptal eder.",
+      "loading": "Alanın binaları yükleniyor. İlk seferde LoD3 karoları indirilir (birkaç yüz MB'a kadar), bu yaklaşık bir dakika sürer."
+    },
+    "devices": {
+      "title": "Radyo cihazları",
+      "hint": "Konumlar sahne koordinatlarında (metre); yaw ve pitch derece cinsinden.",
+      "hintMap": "“Verici ekle” ya da “Alıcı ekle”yi seçin, sonra çatılara ya da zemine tıklayın: Esc'ye ya da düğmeye yeniden basana kadar her tıklama bir cihaz ekler. Yeni cihaz tıklanan yüzeyin 1,5 m üstüne konur. Kısayollar: K ya da Ctrl + tıklama verici, L ya da Ctrl + sağ tıklama alıcı ekler. Z, zeminden yükseklik (metre).",
+      "x": "X",
+      "y": "Y",
+      "z": "Z",
+      "yaw": "Yaw",
+      "pitch": "Pitch",
+      "remove": "{name} cihazını kaldır",
+      "pick": "{name} taşı: haritada yeni yerine tıklayın",
+      "add": {
+        "transmitters": "Verici ekle",
+        "receivers": "Alıcı ekle"
+      },
+      "clear": "Tüm radyo cihazlarını kaldır",
+      "placing": {
+        "transmitters": "Verici eklemek için çatılara ya da zemine tıklayın. Esc bitirir.",
+        "receivers": "Alıcı eklemek için çatılara ya da zemine tıklayın. Esc bitirir."
+      },
+      "select": "{name} seç",
+      "moving": "{name} nereye gidecekse oraya tıklayın. Esc vazgeçer.",
+      "keys": "{name} seçili: ok tuşları 1 m taşır (Shift ile 10 m), Page Up / Page Down yüksekliği değiştirir, Delete siler.",
+      "route": "{name} için rota çiz",
+      "routing": "{name} için rotanın noktalarına tıklayın. Backspace son noktayı siler, Esc bitirir."
+    },
+    "radioMap": {
+      "compute": "Radyo haritasını hesapla",
+      "scale": "Yol kazancı"
+    },
+    "paths": {
+      "compute": "Işın yollarını hesapla"
+    },
+    "remove": "Kaldır",
+    "blocked": {
+      "transmitter": "Önce bir verici ekleyin.",
+      "receiver": "Işın yolları için bir alıcı gerekir."
+    },
+    "runFailed": "Hesap başarısız oldu",
+    "result": {
+      "radioMap": "Radyo haritası: %{coverage} kapsama, {min} ile {max} dB arası (medyan {median} dB), {nx} × {ny} hücre",
+      "paths": "ışın yolu bulunamadı | 1 ışın yolu | {count} ışın yolu",
+      "seconds": "{seconds} sn'de hesaplandı",
+      "title": "Sonuçlar ve lejant",
+      "empty": "Bir radyo haritası ya da yollar hesaplayın. Sonuçlar haritada ayrı katmanlar olarak görünür ve burada açıklanır.",
+      "radioMapTitle": "Radyo haritası",
+      "radioMapHelp": "Her hücrede en güçlü vericinin yol kazancı, zeminden {height} m yükseklikte. Saydam hücrelere sinyal ulaşmıyor.",
+      "pathsTitle": "Yayılım yolları",
+      "pathsHelp": "Vericiden alıcıya her yol için bir 3B çizgi; yansıma ve kırınım noktalarından geçer. Renk ve kalınlık, en güçlü yolun altında 10 dB'lik sınıflarla yol kazancını gösterir. Tipi, kazancı ve gecikmesi için haritada bir yola tıklayın.",
+      "pathClass": "{max} ile {min} dB arası",
+      "pathClassLast": "{max} dB altı",
+      "type": {
+        "los": "doğrudan görüş",
+        "reflection": "yansıma",
+        "scattering": "saçılma",
+        "refraction": "kırılma",
+        "diffraction": "kırınım"
+      },
+      "alt": "Sonuçla birlikte işlenmiş sahne",
+      "routeTitle": "Alıcı rotası",
+      "routeHelp": "Yollar tek hesapta her rota boyunca 5 m arayla hesaplanır. Oynat, alıcıları rotalarında {speed} m/s hızla yürütür; yollar ve lejant onu izler.",
+      "routePosition": "Rotadaki konum",
+      "play": "Oynat",
+      "pause": "Duraklat",
+      "flow": "Sinyal akışı",
+      "flowHelp": "Her yolda vericilerden aynı anda bir darbe çıkar ve yolun gecikmesi kadar sonra alıcıya varır; yaklaşık bir milyar kat yavaşlatılmış."
+    },
+    "layers": {
+      "buildings": "Sionna binaları",
+      "transmitters": "Sionna vericileri",
+      "receivers": "Sionna alıcıları",
+      "paths": "Sionna yayılım yolları",
+      "radioMap": "Sionna radyo haritası",
+      "area": "Sionna ilgi alanı"
+    },
+    "storage": {
+      "used": "Runner'daki çalışma dosyaları: {files} dosyada {size} MB.",
+      "delete": "Sahneyi kapat ve dosyaları sil",
+      "help": "İş istasyonunda yalnızca açık sahnenin dönüştürülmüş ağları tutulur; yeni bir sahne yüklemek öncekini siler, klasör de runner açılırken ve kapanırken boşaltılır. Radyo haritaları ve yollar diske hiç yazılmaz: katmanları kaldırana ya da sahneyi kapatana kadar yalnızca bu sayfada yaşar."
+    },
+    "useCases": {
+      "title": "Kullanım senaryoları",
+      "help": "Açık sahne için hazır radyo planlama soruları. Çalıştır, parametreleri varsayılanlara ve senaryonun değerlerine ayarlar, cihazları sahnenin binalarına göre yerleştirir ve sonucu hesaplar. Sonrasında her şey düzenlenebilir kalır.",
+      "run": "Çalıştır",
+      "question": "Soru",
+      "setup": "Kurulum",
+      "read": "Nasıl okunur",
+      "cases": {
+        "macroCell": {
+          "title": "Makro hücre kapsaması (5G n78, 3,5 GHz)",
+          "question": "Çatıdaki bir baz istasyonu sokak seviyesindeki kullanıcılara nereye kadar ulaşır, binalar nerede gölge yapar?",
+          "setup": "En yüksek çatının 5 m üstünde bir verici, izotropik anten. Zeminden 1,5 m yükseklikte radyo haritası, 2 m hücreler, en fazla 3 etkileşim, ölçek −140 ile −60 dB.",
+          "read": "Parlak hücrelerde yol kazancı yüksek, koyu hücreler gölgede, saydam hücrelere hiç yol ulaşmıyor. Yüksek binaların arkasındaki boşluklar ikinci bir saha ya da küçük hücre adayıdır. 46 dBm verici gücüyle −100 dB yol kazancı yaklaşık −54 dBm alınan güç demektir."
+        },
+        "smallCell": {
+          "title": "mmWave küçük hücre (28 GHz)",
+          "question": "Sokak seviyesindeki bir mmWave küçük hücre nereye kadar ulaşır, 28 GHz'te bina engeli ne kadar sert?",
+          "setup": "Sahne ortasına yakın, sokağın 6 m üstünde (sokak lambası yüksekliği) bir verici. 28 GHz, 1 m hücreli radyo haritası, ölçek −160 ile −70 dB.",
+          "read": "mmWave'de harita görüş hattını izler: vericinin gördüğü sokaklar kaplanır, köşeler karanlıktır. 3,5 GHz makro hücreyle karşılaştırınca mmWave'in neden sık saha gerektirdiği görülür."
+        },
+        "link": {
+          "title": "Noktadan noktaya bağlantı (26 GHz backhaul)",
+          "question": "Sabit kablosuz ya da backhaul bağlantısı için iki çatı arasında açık görüş hattı var mı?",
+          "setup": "Verici en yüksek çatının 3 m üstünde, alıcı 6 m ve üstü en uzak çatının 3 m üstünde. 26 GHz; görüş hattı, yansıma ve kırınım içeren yollar, en fazla 2 etkileşim.",
+          "read": "Lejantta \"doğrudan görüş\" yolu varsa bağlantı açıktır. Yoksa en güçlü yol bir yansıma ya da kırınımdır ve bağlantı çok dB kaybeder: direği taşıyın ya da başka bir çatı seçin. Kazanç ve gecikme için bir yola tıklayın."
+        },
+        "driveTest": {
+          "title": "Sokak boyunca sürüş testi (3,5 GHz)",
+          "question": "Kullanıcı bölgede hareket ederken alım nasıl değişir, örneğin handover planlaması için?",
+          "setup": "En yüksek çatının 5 m üstünde verici, sahnenin sokaklarından geçen bir alıcı rotası, her 5 m'de yollar, en fazla 3 etkileşim. Oynatma kendiliğinden başlar.",
+          "read": "Alıcı ilerlerken lejantı izleyin: görüş hattı kaybolunca en güçlü sınıf 10 ile 30 dB düşer. Durdurup kaydırıcıyla bağlantının zayıfladığı yeri tam olarak bulun."
+        },
+        "multipath": {
+          "title": "Çok yollu yayılım ve gecikme yayılımı",
+          "question": "Bir kullanıcıya hangi yollar ulaşıyor ve varış zamanları ne kadar farklı?",
+          "setup": "En yüksek çatının 5 m üstünde verici, en uzak köşeye doğru sokakta bir alıcı. En fazla 5 etkileşimli yollar: görüş hattı, yansımalar ve kırınım. Sinyal akışı açık.",
+          "read": "Darbeler gecikme sırasına göre varır. İlk ve son güçlü yol arasındaki fark gecikme yayılımıdır: OFDM'in döngüsel öneki bundan uzun olmalıdır (15 kHz aralıklı LTE ve 5G'de 4,7 µs). Gecikmeyi ns cinsinden görmek için yollara tıklayın."
+        }
+      }
     }
   },
   "geosimulations": {

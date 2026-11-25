@@ -26,6 +26,7 @@ import { i18n } from "../core/i18n";
 import { combineStyleAndUserFilter } from "@helpers/maplibreExpressions";
 import { ChunkedGeoJsonLayer } from "@helpers/deckChunkedGeoJsonLayer";
 import { SimulationReplayLayer } from "@helpers/deckSimulationReplayLayer";
+import { SionnaLayer } from "@helpers/deckSionnaLayer";
 import type { DeckGeoJsonChunk } from "@helpers/deckGeoJsonChunk";
 
 /**
@@ -182,7 +183,7 @@ export type MapLibreLayerTypes =
   | "hillshade"
   | "background";
 /** MapLibre style-spec types, plus synthetic types for non-MapLibre renderers. */
-export type LayerRenderType = MapLibreLayerTypes | "deckgl-tile3d" | "deckgl-geojson" | "deckgl-replay";
+export type LayerRenderType = MapLibreLayerTypes | "deckgl-tile3d" | "deckgl-geojson" | "deckgl-replay" | "deckgl-sionna";
 
 interface BaseLayerParams {
     sourceType: SourceType;
@@ -360,7 +361,7 @@ export const useMapStore = defineStore("map", () => {
    */
     const layerUiState = ref<Record<string, LayerUiState>>({});
     /** Which deck.gl Layer class renders each entry of `deckLayerProps`. */
-    const deckLayerKinds = new Map<string, "tile3d" | "geojson" | "replay">();
+    const deckLayerKinds = new Map<string, "tile3d" | "geojson" | "replay" | "sionna">();
     /**
    * Rebuilds every deck.gl Layer instance from `deckLayerProps` and pushes them
    * to the overlay. Called after any add/remove/prop change.
@@ -377,6 +378,7 @@ export const useMapStore = defineStore("map", () => {
             const kind = deckLayerKinds.get(identifier);
             if (kind === "geojson") return new ChunkedGeoJsonLayer(props);
             if (kind === "replay") return new SimulationReplayLayer(props);
+            if (kind === "sionna") return new SionnaLayer(props);
             return new PickableTile3DLayer(props);
         });
         deckOverlay.value.setProps({ layers });
@@ -510,30 +512,34 @@ export const useMapStore = defineStore("map", () => {
         displayName?: string
         props: Record<string, unknown>
         simulationOutput?: SimulationOutputLayerInfo
+        /** "sionna": a Sionna RT layer (see `SionnaLayer`), driven the same way. */
+        kind?: "replay" | "sionna"
+        /** Position in the layer list (defaults to the end). */
+        index?: number
     }): LayerObjectWithAttributes {
         if (isNullOrEmpty(map.value)) {
             throw new Error("There is no map to add layer");
         }
-        const { identifier, displayName, props, simulationOutput } = params;
+        const { identifier, displayName, props, simulationOutput, kind = "replay", index } = params;
         if (identifier === "" || deckLayerProps.has(identifier)) {
             throw new Error(`Cannot add deck.gl layer ${identifier}`);
         }
         initializeDeckOverlay();
-        deckLayerKinds.set(identifier, "replay");
+        deckLayerKinds.set(identifier, kind);
         deckLayerProps.set(identifier, { id: identifier, opacity: 1, visible: true, pickable: true, ...props });
         syncDeckOverlay();
         const layerRecord: LayerObjectWithAttributes = {
             id: identifier,
             source: identifier,
             sourceType: "deckgl",
-            type: "deckgl-replay",
+            type: `deckgl-${kind}`,
             renderer: "deckgl",
             showOnLayerList: true,
             keepOnTop: false,
             displayName,
             simulationOutput,
         };
-        add2MapLayerList(layerRecord, undefined, { notify: false });
+        add2MapLayerList(layerRecord, index, { notify: false });
         return layersOnMap.value.find((layer) => layer.id === identifier) ?? layerRecord;
     }
     /**
@@ -640,7 +646,21 @@ export const useMapStore = defineStore("map", () => {
         }
         return picks
             .filter((pick) => pick.picked && pick.layer !== null)
+            .filter((pick) => layersOnMap.value.find((layer) => layer.id === pick.layer!.id)?.attributePopupSuppressed !== true)
             .map((pick) => buildDeckPopupFeature(pick));
+    }
+    /**
+   * The topmost deck.gl object under a point, in the given layers only, with
+   * the 3D point on its surface (`coordinate`: lon, lat, metres).
+   */
+    function pickDeckInfo(point: { x: number, y: number }, layerIds: string[]): PickingInfo | undefined {
+        if (deckOverlay.value === undefined) return undefined;
+        deckOverlay.value.setProps({ _pickable: true });
+        try {
+            return deckOverlay.value.pickObject({ x: point.x, y: point.y, radius: 4, layerIds, unproject3D: true }) ?? undefined;
+        } finally {
+            deckOverlay.value.setProps({ _pickable: false });
+        }
     }
     /**
    * Asynchronously adds a new data source to Maplibre map sources. The source can be either GeoJSON data or a Geoserver vector tile source.
@@ -1977,6 +1997,7 @@ export const useMapStore = defineStore("map", () => {
         setDeckLayerVisibility,
         setDeckLayerOpacity,
         pickDeckObjects,
+        pickDeckInfo,
     };
 });
 
@@ -2191,7 +2212,7 @@ function hexToRgb(hex: string): [number, number, number] {
 
 function buildDeckPopupFeature(pick: PickingInfo): PopupAttributeFeature {
     const layerId = pick.layer!.id;
-    if (pick.layer instanceof ChunkedGeoJsonLayer || pick.layer instanceof SimulationReplayLayer) {
+    if (pick.layer instanceof ChunkedGeoJsonLayer || pick.layer instanceof SimulationReplayLayer || pick.layer instanceof SionnaLayer) {
         const properties = (pick.object as { properties?: Record<string, unknown> } | undefined)?.properties ?? {};
         return { source: layerId, id: pick.index, properties };
     }

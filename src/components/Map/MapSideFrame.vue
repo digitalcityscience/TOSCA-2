@@ -106,6 +106,19 @@ const leftItems = computed<FrameItem[]>(() => ([
             await router.push({ name: "geosimulation-list" })
         },
     },
+    {
+        id: "sionna",
+        feature: "sionna",
+        label: t("map.sideFrame.sionna"),
+        icon: "i-lucide-radio-tower",
+        action: async () => {
+            if (route.name === "sionna") {
+                toggleSlideoverSidebar("sionna")
+                return
+            }
+            await router.push({ name: "sionna" })
+        },
+    },
 ] satisfies FrameItem[]).filter((item) => item.feature === undefined || isFeatureEnabled(item.feature)))
 
 const rightItems = computed<FrameItem[]>(() => [

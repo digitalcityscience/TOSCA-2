@@ -93,7 +93,8 @@
       "geostories": "GeoStories",
       "urbanStories": "Urban Stories",
       "layers": "Ebenen",
-      "geosimulations": "Simulationen"
+      "geosimulations": "Simulationen",
+      "sionna": "Funkplanung"
     },
     "basemap": {
       "dataviz": "Dataviz",
@@ -807,6 +808,164 @@
       "feed": "Feed: {publisher}, Version {version}, gültig {start} – {end}.",
       "source": "HVV-GTFS-Fahrplan über das Transparenzportal Hamburg.",
       "credits": "Basierend auf hamburgriders (MIT), Fork von utrechtriders, inspiriert von londonriders. Dunkle Basiskarte © CARTO © OpenStreetMap-Mitwirkende."
+    }
+  },
+  "sionna": {
+    "title": "Funkplanung (Sionna RT)",
+    "runner": {
+      "ready": "Lokale GPU bereit ({variant})",
+      "cpu": "Der Runner arbeitet ohne GPU ({variant}); Läufe werden langsam",
+      "offline": "Der lokale Sionna-Runner läuft nicht",
+      "offlineHelp": "Erwartet unter {url}. Entweder läuft der Runner auf diesem Computer nicht, er erlaubt diese Seite noch nicht, oder der Browser hat den Zugriff blockiert.",
+      "retry": "Erneut versuchen",
+      "startHelp": "Der Runner rechnet auf der GPU des Computers, an dem Sie arbeiten. Starten Sie ihn dort im Ordner TOSCA-Sionna-Runner und erlauben Sie diese Seite ({origin}):",
+      "permissionHelp": "Chrome und Edge fragen dann einmal, ob diese Seite auf Geräte in Ihrem lokalen Netzwerk zugreifen darf: Erlauben Sie es. Wenn Sie es blockiert haben, erlauben Sie „Zugriff auf lokales Netzwerk“ in den Website-Einstellungen (Symbol links neben der Adresse). Kann ein Browser ohne Nachfrage trotzdem keine Verbindung aufbauen, nutzen Sie Chrome, Edge oder Firefox."
+    },
+    "scene": {
+      "title": "Szene",
+      "select": "Szenenauswahl",
+      "placeholder": "Szene aus den lokalen Daten wählen",
+      "kind": {
+        "area": "Hamburger Gebiete (LoD3, auf der Karte)",
+        "cityjson": "CityJSON-Kacheln (auf der Karte)",
+        "mitsuba": "Mitsuba-Szenen (ohne Kartenposition)",
+        "builtin": "Eingebaute Sionna-Szenen"
+      },
+      "upload": "Andere Datei hochladen",
+      "uploadHint": "Eine CityJSON-Datei (.city.json, .city.jsonl) oder eine .zip-Datei einer Mitsuba-Szene (ihre .xml und der meshes-Ordner).",
+      "notOnMap": "Diese Szene hat keine Kartenposition: Ergebnisse erscheinen im Bild unten, nicht auf der Karte.",
+      "loaded": "{name}: {objects} Objekte, {x} × {y} × {z} m",
+      "failed": "Die Szene konnte nicht geladen werden: {detail}"
+    },
+    "area": {
+      "title": "Untersuchungsgebiet",
+      "help": "Zeichnen Sie ein Rechteck auf der Karte (zwei Klicks: gegenüberliegende Ecken). Die Funkkarte deckt dieses Gebiet ab; die Hamburger LoD3-Gebäude im Puffer darum blockieren und reflektieren das Signal weiterhin.",
+      "draw": "Gebiet auf der Karte zeichnen",
+      "cancel": "Abbrechen",
+      "buffer": "Puffer um das Gebiet (m)",
+      "drawing": "Klicken Sie die erste Ecke des Gebiets auf der Karte an. Esc bricht ab.",
+      "drawingEnd": "Klicken Sie die gegenüberliegende Ecke an. Esc bricht ab.",
+      "loading": "Die Gebäude des Gebiets werden geladen. Beim ersten Mal werden die LoD3-Kacheln heruntergeladen (bis zu einigen hundert MB), das dauert etwa eine Minute."
+    },
+    "devices": {
+      "title": "Funkgeräte",
+      "hint": "Positionen in Szenenkoordinaten (Meter); Gier- und Nickwinkel in Grad.",
+      "hintMap": "„Sender hinzufügen“ oder „Empfänger hinzufügen“ wählen, dann auf Dächer oder den Boden klicken: Jeder Klick fügt ein Gerät hinzu, bis Esc oder die Schaltfläche erneut gedrückt wird. Ein neues Gerät steht 1,5 m über der angeklickten Fläche. Kurzbefehle: K oder Strg + Klick fügt einen Sender hinzu, L oder Strg + Rechtsklick einen Empfänger. Z ist die Höhe über Grund in Metern.",
+      "x": "X",
+      "y": "Y",
+      "z": "Z",
+      "yaw": "Gieren",
+      "pitch": "Nicken",
+      "remove": "{name} entfernen",
+      "pick": "{name} verschieben: neue Stelle auf der Karte anklicken",
+      "add": {
+        "transmitters": "Sender hinzufügen",
+        "receivers": "Empfänger hinzufügen"
+      },
+      "clear": "Alle Funkgeräte entfernen",
+      "placing": {
+        "transmitters": "Auf Dächer oder den Boden klicken, um Sender hinzuzufügen. Esc beendet.",
+        "receivers": "Auf Dächer oder den Boden klicken, um Empfänger hinzuzufügen. Esc beendet."
+      },
+      "select": "{name} auswählen",
+      "moving": "Klicken Sie, wohin {name} soll. Esc bricht ab.",
+      "keys": "{name} ausgewählt: Pfeiltasten verschieben um 1 m (mit Umschalt 10 m), Bild auf / Bild ab ändern die Höhe, Entf entfernt das Gerät.",
+      "route": "Route für {name} zeichnen",
+      "routing": "Klicken Sie die Punkte der Route für {name}. Rücktaste entfernt den letzten Punkt, Esc beendet."
+    },
+    "radioMap": {
+      "compute": "Funkkarte berechnen",
+      "scale": "Pfadgewinn"
+    },
+    "paths": {
+      "compute": "Pfade berechnen"
+    },
+    "remove": "Entfernen",
+    "blocked": {
+      "transmitter": "Fügen Sie zuerst einen Sender hinzu.",
+      "receiver": "Pfade brauchen einen Empfänger."
+    },
+    "runFailed": "Der Lauf ist fehlgeschlagen",
+    "result": {
+      "radioMap": "Funkkarte: {coverage} % abgedeckt, {min} bis {max} dB (Median {median} dB), {nx} × {ny} Zellen",
+      "paths": "keine Pfade gefunden | 1 Pfad | {count} Pfade",
+      "seconds": "Berechnet in {seconds} s",
+      "title": "Ergebnisse und Legende",
+      "empty": "Berechnen Sie eine Funkkarte oder Pfade. Die Ergebnisse erscheinen als eigene Ebenen auf der Karte und werden hier erklärt.",
+      "radioMapTitle": "Funkkarte",
+      "radioMapHelp": "Pfadgewinn des stärksten Senders je Zelle, {height} m über Grund. Transparente Zellen empfangen kein Signal.",
+      "pathsTitle": "Ausbreitungspfade",
+      "pathsHelp": "Eine 3D-Linie je Pfad vom Sender zum Empfänger, über seine Reflexions- und Beugungspunkte. Farbe und Breite zeigen den Pfadgewinn in 10-dB-Klassen unter dem stärksten Pfad. Ein Klick auf einen Pfad zeigt Typ, Gewinn und Laufzeit.",
+      "pathClass": "{max} bis {min} dB",
+      "pathClassLast": "unter {max} dB",
+      "type": {
+        "los": "Sichtverbindung",
+        "reflection": "Reflexion",
+        "scattering": "Streuung",
+        "refraction": "Brechung",
+        "diffraction": "Beugung"
+      },
+      "alt": "Gerenderte Szene mit dem Ergebnis",
+      "routeTitle": "Empfängerroute",
+      "routeHelp": "Die Pfade werden in einem Lauf alle 5 m entlang jeder Route berechnet. Abspielen führt die Empfänger mit {speed} m/s entlang ihrer Routen; Pfade und Legende folgen.",
+      "routePosition": "Position auf der Route",
+      "play": "Abspielen",
+      "pause": "Pause",
+      "flow": "Signalfluss",
+      "flowHelp": "Ein Impuls verlässt die Sender auf allen Pfaden gleichzeitig und erreicht den Empfänger nach der Laufzeit des Pfads, etwa eine Milliarde Mal langsamer."
+    },
+    "layers": {
+      "buildings": "Sionna-Gebäude",
+      "transmitters": "Sionna-Sender",
+      "receivers": "Sionna-Empfänger",
+      "paths": "Sionna-Ausbreitungspfade",
+      "radioMap": "Sionna-Funkkarte",
+      "area": "Sionna-Untersuchungsgebiet"
+    },
+    "storage": {
+      "used": "Arbeitsdateien auf dem Runner: {size} MB in {files} Dateien.",
+      "delete": "Szene schließen und Dateien löschen",
+      "help": "Auf der Workstation bleiben nur die umgewandelten Netze der offenen Szene; eine neue Szene löscht die vorige, und der Ordner wird beim Start und Stopp des Runners geleert. Funkkarten und Pfade werden nie auf die Festplatte geschrieben: Sie leben in dieser Seite, bis Sie die Ebenen entfernen oder die Szene schließen."
+    },
+    "useCases": {
+      "title": "Anwendungsfälle",
+      "help": "Fertige Fragen der Funknetzplanung für die offene Szene. Ausführen setzt die Parameter auf die Standardwerte plus die Werte des Falls, platziert die Geräte anhand der Gebäude der Szene und berechnet das Ergebnis. Danach bleibt alles bearbeitbar.",
+      "run": "Ausführen",
+      "question": "Frage",
+      "setup": "Aufbau",
+      "read": "So lesen Sie es",
+      "cases": {
+        "macroCell": {
+          "title": "Makrozellen-Versorgung (5G n78, 3,5 GHz)",
+          "question": "Wo erreicht eine Dachstation die Nutzer auf Straßenniveau, und wo schatten Gebäude sie ab?",
+          "setup": "Ein Sender 5 m über dem höchsten Dach, isotrope Antenne. Funkkarte 1,5 m über Grund, 2-m-Zellen, bis zu 3 Interaktionen, Skala −140 bis −60 dB.",
+          "read": "Helle Zellen haben hohen Pfadgewinn, dunkle sind abgeschattet, transparente erhalten gar keinen Pfad. Versorgungslücken hinter hohen Gebäuden sind Kandidaten für einen zweiten Standort oder eine Kleinzelle. Bei 46 dBm Sendeleistung entsprechen −100 dB Pfadgewinn etwa −54 dBm Empfangsleistung."
+        },
+        "smallCell": {
+          "title": "mmWave-Kleinzelle (28 GHz)",
+          "question": "Wie weit reicht eine mmWave-Kleinzelle auf Straßenniveau, und wie stark blockieren Gebäude bei 28 GHz?",
+          "setup": "Ein Sender 6 m über der Straße (Laternenhöhe) nahe der Szenenmitte. 28 GHz, Funkkarte mit 1-m-Zellen, Skala −160 bis −70 dB.",
+          "read": "Bei mmWave folgt die Karte der Sichtverbindung: Straßen, die der Sender sieht, sind versorgt, Ecken sind dunkel. Der Vergleich mit der 3,5-GHz-Makrozelle zeigt, warum mmWave dichte Standorte braucht."
+        },
+        "link": {
+          "title": "Richtfunkstrecke (26 GHz Backhaul)",
+          "question": "Gibt es freie Sicht zwischen zwei Dächern für eine Fixed-Wireless- oder Backhaul-Strecke?",
+          "setup": "Sender 3 m über dem höchsten Dach, Empfänger 3 m über dem entferntesten Dach ab 6 m. 26 GHz, Pfade mit Sichtverbindung, Reflexion und Beugung, bis zu 2 Interaktionen.",
+          "read": "Ein Pfad „Sichtverbindung“ in der Legende heißt: Die Strecke ist frei. Fehlt er, ist der stärkste Pfad eine Reflexion oder Beugung und die Strecke verliert viele dB: Mast versetzen oder anderes Dach wählen. Klicken Sie einen Pfad für Gewinn und Laufzeit."
+        },
+        "driveTest": {
+          "title": "Messfahrt entlang einer Straße (3,5 GHz)",
+          "question": "Wie ändert sich der Empfang, während sich ein Nutzer durch das Gebiet bewegt, etwa für die Handover-Planung?",
+          "setup": "Sender 5 m über dem höchsten Dach, eine Empfängerroute quer durch die Straßen der Szene, Pfade alle 5 m, bis zu 3 Interaktionen. Die Wiedergabe startet von selbst.",
+          "read": "Beobachten Sie die Legende, während sich der Empfänger bewegt: Verschwindet die Sichtverbindung, fällt die stärkste Klasse um 10 bis 30 dB. Halten Sie an und suchen Sie mit dem Schieberegler die Stelle, an der die Verbindung schwach wird."
+        },
+        "multipath": {
+          "title": "Mehrwegeausbreitung und Laufzeitspreizung",
+          "question": "Welche Pfade erreichen einen Nutzer, und wie weit liegen ihre Ankunftszeiten auseinander?",
+          "setup": "Sender 5 m über dem höchsten Dach, ein Empfänger in der Straße Richtung entfernteste Ecke. Pfade mit bis zu 5 Interaktionen: Sichtverbindung, Reflexionen und Beugung. Der Signalfluss ist an.",
+          "read": "Die Impulse kommen in der Reihenfolge ihrer Laufzeit an. Der Abstand zwischen dem ersten und dem letzten starken Pfad ist die Laufzeitspreizung: OFDM braucht ein längeres zyklisches Präfix (4,7 µs bei LTE und 5G mit 15 kHz Abstand). Klicken Sie Pfade für ihre Laufzeit in ns."
+        }
+      }
     }
   },
   "geosimulations": {

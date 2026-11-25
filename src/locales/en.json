@@ -93,7 +93,8 @@
       "geostories": "GeoStories",
       "urbanStories": "Urban Stories",
       "layers": "Layers",
-      "geosimulations": "Simulations"
+      "geosimulations": "Simulations",
+      "sionna": "Radio planning"
     },
     "basemap": {
       "dataviz": "Dataviz",
@@ -807,6 +808,164 @@
       "feed": "Feed: {publisher}, version {version}, valid {start} – {end}.",
       "source": "HVV GTFS timetable via the Hamburg transparency portal.",
       "credits": "Based on hamburgriders (MIT), forked from utrechtriders, inspired by londonriders. Dark basemap © CARTO © OpenStreetMap contributors."
+    }
+  },
+  "sionna": {
+    "title": "Radio planning (Sionna RT)",
+    "runner": {
+      "ready": "Local GPU ready ({variant})",
+      "cpu": "The runner works without a GPU ({variant}); runs will be slow",
+      "offline": "The local Sionna runner is not running",
+      "offlineHelp": "Expected at {url}. Either the runner is not started on this computer, it does not allow this site yet, or the browser blocked access to it.",
+      "retry": "Try again",
+      "startHelp": "The runner computes on the GPU of the computer you are using. Start it there, in the TOSCA-Sionna-Runner folder, and allow this site ({origin}):",
+      "permissionHelp": "Chrome and Edge then ask once whether this site may access devices on your local network: allow it. If you blocked it, allow \"Local network access\" in the site settings (icon left of the address). If a browser still cannot connect without asking, use Chrome, Edge or Firefox."
+    },
+    "scene": {
+      "title": "Scene",
+      "select": "Scene selection",
+      "placeholder": "Choose a scene from the local data",
+      "kind": {
+        "area": "Hamburg areas (LoD3, shown on the map)",
+        "cityjson": "CityJSON tiles (shown on the map)",
+        "mitsuba": "Mitsuba scenes (no map position)",
+        "builtin": "Sionna built-in scenes"
+      },
+      "upload": "Upload another file",
+      "uploadHint": "A CityJSON file (.city.json, .city.jsonl), or one .zip of a Mitsuba scene (its .xml and meshes folder).",
+      "notOnMap": "This scene has no map position: results appear in the picture below, not on the map.",
+      "loaded": "{name}: {objects} objects, {x} × {y} × {z} m",
+      "failed": "The scene could not be loaded: {detail}"
+    },
+    "area": {
+      "title": "Area of interest",
+      "help": "Draw a rectangle on the map (two clicks: opposite corners). The radio map covers this area; the Hamburg LoD3 buildings around it, up to the buffer distance, still block and reflect the signal.",
+      "draw": "Draw area on map",
+      "cancel": "Cancel",
+      "buffer": "Buffer around the area (m)",
+      "drawing": "Click the first corner of the area on the map. Esc cancels.",
+      "drawingEnd": "Click the opposite corner. Esc cancels.",
+      "loading": "Loading the buildings of the area. The first time, the LoD3 tiles are downloaded (up to a few hundred MB), which takes a minute."
+    },
+    "devices": {
+      "title": "Radio devices",
+      "hint": "Positions in scene coordinates (metres); yaw and pitch in degrees.",
+      "hintMap": "Click “Add transmitters” or “Add receivers”, then click roofs or the ground: every click adds one, until you press Esc or the button again. A new device sits 1.5 m above the surface you clicked. Shortcuts: K or Ctrl + click adds a transmitter, L or Ctrl + right click a receiver. Z is metres above ground.",
+      "x": "X",
+      "y": "Y",
+      "z": "Z",
+      "yaw": "Yaw",
+      "pitch": "Pitch",
+      "remove": "Remove {name}",
+      "pick": "Move {name}: click its new place on the map",
+      "add": {
+        "transmitters": "Add transmitters",
+        "receivers": "Add receivers"
+      },
+      "clear": "Clear all radio devices",
+      "placing": {
+        "transmitters": "Click roofs or the ground to add transmitters. Esc stops.",
+        "receivers": "Click roofs or the ground to add receivers. Esc stops."
+      },
+      "select": "Select {name}",
+      "moving": "Click where {name} should go. Esc cancels.",
+      "keys": "{name} selected: arrow keys move it 1 m (with Shift 10 m), Page Up / Page Down change its height, Delete removes it.",
+      "route": "Draw a route for {name}",
+      "routing": "Click the points of the route for {name}. Backspace removes the last point, Esc finishes."
+    },
+    "radioMap": {
+      "compute": "Compute radio map",
+      "scale": "Path gain"
+    },
+    "paths": {
+      "compute": "Compute paths"
+    },
+    "remove": "Remove",
+    "blocked": {
+      "transmitter": "Add a transmitter first.",
+      "receiver": "Paths need a receiver."
+    },
+    "runFailed": "The run failed",
+    "result": {
+      "radioMap": "Radio map: {coverage} % covered, {min} to {max} dB (median {median} dB), {nx} × {ny} cells",
+      "paths": "no paths found | 1 path | {count} paths",
+      "seconds": "Computed in {seconds} s",
+      "title": "Results and legend",
+      "empty": "Compute a radio map or paths. Results appear on the map as their own layers and are explained here.",
+      "radioMapTitle": "Radio map",
+      "radioMapHelp": "Path gain of the strongest transmitter in each cell, {height} m above ground. Transparent cells receive no signal.",
+      "pathsTitle": "Propagation paths",
+      "pathsHelp": "One 3D line per path from a transmitter to a receiver, through its reflection and diffraction points. Colour and width show the path gain in 10 dB classes below the strongest path. Click a path on the map for its type, gain and delay.",
+      "pathClass": "{max} to {min} dB",
+      "pathClassLast": "below {max} dB",
+      "type": {
+        "los": "line of sight",
+        "reflection": "reflection",
+        "scattering": "scattering",
+        "refraction": "refraction",
+        "diffraction": "diffraction"
+      },
+      "alt": "Rendered scene with the result",
+      "routeTitle": "Receiver route",
+      "routeHelp": "Paths are computed every 5 m along each route in one run. Play walks the receivers along their routes at {speed} m/s; the paths and the legend follow.",
+      "routePosition": "Position along the route",
+      "play": "Play",
+      "pause": "Pause",
+      "flow": "Signal flow",
+      "flowHelp": "A pulse leaves the transmitters on every path at once and reaches the receiver after the path's delay, about a billion times slower."
+    },
+    "layers": {
+      "buildings": "Sionna buildings",
+      "transmitters": "Sionna transmitters",
+      "receivers": "Sionna receivers",
+      "paths": "Sionna propagation paths",
+      "radioMap": "Sionna radio map",
+      "area": "Sionna area of interest"
+    },
+    "storage": {
+      "used": "Working files on the runner: {size} MB in {files} files.",
+      "delete": "Close scene and delete files",
+      "help": "Only the open scene's converted meshes are kept on the workstation; loading another scene deletes the previous one, and the folder is emptied when the runner starts or stops. Radio maps and paths are never written to disk: they live in this page until you remove the layers or close the scene."
+    },
+    "useCases": {
+      "title": "Use cases",
+      "help": "Ready-made radio planning questions for the open scene. Run sets the parameters to the defaults plus the case's values, places the devices from the scene's buildings and computes the result. Everything stays editable afterwards.",
+      "run": "Run",
+      "question": "Question",
+      "setup": "Setup",
+      "read": "How to read it",
+      "cases": {
+        "macroCell": {
+          "title": "Macro cell coverage (5G n78, 3.5 GHz)",
+          "question": "Where does a rooftop base station reach users at street level, and where do buildings shadow it?",
+          "setup": "One transmitter 5 m above the tallest roof, isotropic antenna. Radio map at 1.5 m above ground, 2 m cells, up to 3 interactions, scale −140 to −60 dB.",
+          "read": "Bright cells have high path gain, dark cells are shadowed, transparent cells get no path at all. Coverage gaps behind tall buildings are candidates for a second site or a small cell. With 46 dBm transmit power, −100 dB path gain is about −54 dBm received power."
+        },
+        "smallCell": {
+          "title": "mmWave small cell (28 GHz)",
+          "question": "How far does a street-level mmWave small cell reach, and how hard is building blockage at 28 GHz?",
+          "setup": "One transmitter 6 m above the street (lamp post height) near the scene centre. 28 GHz, radio map with 1 m cells, scale −160 to −70 dB.",
+          "read": "At mmWave the map follows the line of sight: streets the transmitter sees are covered, corners are dark. Compare with the 3.5 GHz macro cell to see why mmWave needs dense sites."
+        },
+        "link": {
+          "title": "Point-to-point link (26 GHz backhaul)",
+          "question": "Is there a clear line of sight between two rooftops for a fixed wireless or backhaul link?",
+          "setup": "Transmitter 3 m above the tallest roof, receiver 3 m above the farthest roof of 6 m or more. 26 GHz, paths with line of sight, reflection and diffraction, up to 2 interactions.",
+          "read": "A \"line of sight\" path in the legend means the link is clear. Without it, the strongest path is a reflection or diffraction and the link loses many dB: move a mast or choose another roof. Click a path for its gain and delay."
+        },
+        "driveTest": {
+          "title": "Drive test along a street (3.5 GHz)",
+          "question": "How does reception change while a user moves through the area, for example for handover planning?",
+          "setup": "Transmitter 5 m above the tallest roof, a receiver route across the scene through the streets, paths every 5 m, up to 3 interactions. Playback starts on its own.",
+          "read": "Watch the legend while the receiver moves: when the line of sight disappears the strongest class drops by 10 to 30 dB. Pause and use the slider to find the exact place where the link becomes weak."
+        },
+        "multipath": {
+          "title": "Multipath and delay spread",
+          "question": "Which paths reach a user, and how far apart in time do they arrive?",
+          "setup": "Transmitter 5 m above the tallest roof, a receiver in the street towards the far corner. Paths with up to 5 interactions: line of sight, reflections and diffraction. Signal flow is on.",
+          "read": "The pulses arrive in delay order. The spread between the first and the last strong path is the delay spread: OFDM needs a cyclic prefix longer than it (4.7 µs in LTE and 5G at 15 kHz spacing). Click paths for their delay in ns."
+        }
+      }
     }
   },
   "geosimulations": {

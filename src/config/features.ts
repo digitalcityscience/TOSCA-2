@@ -10,6 +10,7 @@ export const FEATURE_IDS = [
     "urbanStories",
     "geosimulations",
     "geosimulation-runs",
+    "sionna",
 ] as const;
 
 export type FeatureId = typeof FEATURE_IDS[number];
@@ -19,9 +20,10 @@ export type FeatureId = typeof FEATURE_IDS[number];
  * `geosimulation-runs` (starting runs and with/without-construction comparisons
  * from the simulation pages) needs a deployed simulation runner and backend
  * `GEOSIMULATIONS_RUNS_ENABLED=true`; the simulation catalog (`geosimulations`)
- * works without it.
+ * works without it. `sionna` (radio planning) needs the Sionna runner on the
+ * user's own machine (repository `TOSCA-Sionna-Runner`).
  */
-export const OPT_IN_FEATURE_IDS: readonly FeatureId[] = ["urbanStories", "geosimulation-runs"];
+export const OPT_IN_FEATURE_IDS: readonly FeatureId[] = ["urbanStories", "geosimulation-runs", "sionna"];
 
 function isFeatureId(value: string): value is FeatureId {
     return (FEATURE_IDS as readonly string[]).includes(value);
