@@ -71,6 +71,11 @@ docker run --rm -p 8080:80 --env-file path/to/deployment.env tosca-2
   `/config.js`. Never put a secret in one.
 - An `--env-file` takes values literally, so write `NAME=value` without quotes.
 - The app is served from the web root; `VITE_BASE_URL` must be `/` or unset.
+- `npm run build` and `npm run preview` on your own machine use production
+  mode: they do not read `.env.development`, so the built app has no values.
+  To check a production build locally, run the Docker image with an env file.
+- On a read-only root filesystem, set `TOSCA_CONFIG_FILE` to a writable path
+  and make nginx serve that file at `/config.js`.
 - Pushes to `main` and `v*` tags publish the image to
   `ghcr.io/digitalcityscience/tosca-2` (`.github/workflows/docker_publish.yml`)
   for both `amd64` and `arm64` (Apple silicon); `docker pull` picks the right one.
