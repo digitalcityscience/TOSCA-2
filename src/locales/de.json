@@ -39,6 +39,33 @@
     "privateItemClosedTitle": "Privater Eintrag geschlossen",
     "privateItemClosedDetail": "Sie haben sich abgemeldet, und dieser Eintrag ist nicht öffentlich."
   },
+  "aiBridge": {
+    "menuItem": "KI-Assistent verbinden",
+    "title": "KI-Assistent verbinden",
+    "intro": "Ein Assistent, den Sie in ChatGPT oder Claude hinzugefügt haben (TOSCA-Connector), kann auf dieser Karte arbeiten: Layer hinzufügen, filtern, den Ausschnitt ändern.",
+    "connecting": "Verbindung wird aufgebaut…",
+    "reconnecting": "Verbindung unterbrochen. Neuer Versuch…",
+    "tellCode": "Nennen Sie Ihrem Assistenten diesen Code, zum Beispiel: „Verbinde dich mit meiner TOSCA-Karte, der Code ist …“",
+    "copy": "Kopieren",
+    "copied": "Code kopiert",
+    "codeValidFor": "Der Code gilt einmal und noch {time}.",
+    "codeExpired": "Der Code ist abgelaufen.",
+    "newCode": "Neuer Code",
+    "connected": "Ein Assistent ist mit dieser Karte verbunden",
+    "connectedDetail": "Noch keine Befehle ausgeführt. | 1 Befehl in diesem Tab ausgeführt. | {count} Befehle in diesem Tab ausgeführt.",
+    "connectedShort": "KI verbunden",
+    "waitingShort": "KI: wartet",
+    "headerHint": "Verbindung zum KI-Assistenten",
+    "scopeNote": "Der Assistent handelt mit Ihrem Konto und nur in diesem Browser-Tab. Er kann ändern, was die Karte zeigt, aber keine Daten. Das Schließen des Tabs oder das Abmelden beendet die Verbindung.",
+    "disconnect": "Trennen",
+    "retry": "Erneut versuchen",
+    "errors": {
+      "unauthorized": "Ihre Anmeldung ist nicht mehr gültig. Melden Sie sich erneut an.",
+      "forbidden": "Ihr Konto hat keine Rolle, die das Verbinden eines Assistenten erlaubt.",
+      "too_many_sessions": "Zu viele TOSCA-Tabs warten auf einen Assistenten. Schließen Sie einige und versuchen Sie es erneut.",
+      "unavailable": "Der Assistenten-Dienst ist zurzeit nicht erreichbar."
+    }
+  },
   "locale": {
     "label": "Sprache",
     "en": "Englisch",

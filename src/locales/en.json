@@ -39,6 +39,33 @@
     "privateItemClosedTitle": "Private item closed",
     "privateItemClosedDetail": "You logged out, and this item is not public."
   },
+  "aiBridge": {
+    "menuItem": "Connect AI assistant",
+    "title": "Connect AI assistant",
+    "intro": "Let an assistant you added in ChatGPT or Claude (TOSCA connector) work on this map: add layers, filter them, move the view.",
+    "connecting": "Connecting…",
+    "reconnecting": "Connection lost. Reconnecting…",
+    "tellCode": "Tell this code to your assistant, for example: “Connect to my TOSCA map, the code is …”",
+    "copy": "Copy",
+    "copied": "Code copied",
+    "codeValidFor": "The code works once and is valid for {time}.",
+    "codeExpired": "The code has expired.",
+    "newCode": "New code",
+    "connected": "An assistant is connected to this map",
+    "connectedDetail": "No commands run yet. | 1 command run in this tab. | {count} commands run in this tab.",
+    "connectedShort": "AI connected",
+    "waitingShort": "AI: waiting",
+    "headerHint": "AI assistant connection",
+    "scopeNote": "The assistant acts with your account in this browser tab only. It can change what the map shows; it cannot change data. Closing the tab or logging out ends the connection.",
+    "disconnect": "Disconnect",
+    "retry": "Try again",
+    "errors": {
+      "unauthorized": "Your sign-in is no longer valid. Log in again.",
+      "forbidden": "Your account has no role that allows connecting an assistant.",
+      "too_many_sessions": "Too many TOSCA tabs are waiting for an assistant. Close some and try again.",
+      "unavailable": "The assistant service cannot be reached at the moment."
+    }
+  },
   "locale": {
     "label": "Language",
     "en": "English",

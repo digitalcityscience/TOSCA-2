@@ -39,6 +39,33 @@
     "privateItemClosedTitle": "Özel öğe kapatıldı",
     "privateItemClosedDetail": "Oturumu kapattınız ve bu öğe herkese açık değil."
   },
+  "aiBridge": {
+    "menuItem": "Yapay zekâ asistanı bağla",
+    "title": "Yapay zekâ asistanı bağla",
+    "intro": "ChatGPT ya da Claude'a eklediğiniz asistan (TOSCA bağlayıcısı) bu haritada çalışabilir: katman ekler, filtreler, görünümü değiştirir.",
+    "connecting": "Bağlanıyor…",
+    "reconnecting": "Bağlantı koptu. Yeniden bağlanıyor…",
+    "tellCode": "Bu kodu asistanınıza söyleyin, örneğin: “TOSCA haritama bağlan, kod …”",
+    "copy": "Kopyala",
+    "copied": "Kod kopyalandı",
+    "codeValidFor": "Kod bir kez kullanılır ve {time} daha geçerlidir.",
+    "codeExpired": "Kodun süresi doldu.",
+    "newCode": "Yeni kod",
+    "connected": "Bu haritaya bir asistan bağlı",
+    "connectedDetail": "Henüz komut çalışmadı. | Bu sekmede 1 komut çalıştı. | Bu sekmede {count} komut çalıştı.",
+    "connectedShort": "YZ bağlı",
+    "waitingShort": "YZ: bekliyor",
+    "headerHint": "Yapay zekâ asistanı bağlantısı",
+    "scopeNote": "Asistan sizin hesabınızla ve yalnızca bu tarayıcı sekmesinde işlem yapar. Haritada gösterileni değiştirebilir, veriyi değiştiremez. Sekmeyi kapatmak ya da çıkış yapmak bağlantıyı bitirir.",
+    "disconnect": "Bağlantıyı kes",
+    "retry": "Yeniden dene",
+    "errors": {
+      "unauthorized": "Oturumunuz artık geçerli değil. Yeniden giriş yapın.",
+      "forbidden": "Hesabınızda asistan bağlamaya izin veren bir rol yok.",
+      "too_many_sessions": "Çok fazla TOSCA sekmesi asistan bekliyor. Bazılarını kapatıp yeniden deneyin.",
+      "unavailable": "Asistan servisine şu anda ulaşılamıyor."
+    }
+  },
   "locale": {
     "label": "Dil",
     "en": "İngilizce",

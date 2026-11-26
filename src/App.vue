@@ -4,12 +4,14 @@ import { RouterView } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { useMapStore } from "./store/map";
 import LocaleSwitcher from "./components/Base/LocaleSwitcher.vue";
+import AiAssistantConnection from "./components/Base/AiAssistantConnection.vue";
 import AppFooter from "./components/Footer/AppFooter.vue";
 import FooterDocumentModal from "./components/Footer/FooterDocumentModal.vue";
 import { brandName } from "./config/branding";
 import { useAuth } from "./auth/session";
 import { useLogin } from "./auth/useLogin";
 import { useToast } from "./core/helpers/toast";
+import { useAiBridgeStore } from "./store/aiBridge";
 
 type ThemeMode = "light" | "dark";
 
@@ -17,6 +19,9 @@ const { t } = useI18n();
 const mapStore = useMapStore();
 const toast = useToast();
 const auth = useAuth();
+// "Connect AI assistant" (MCP map bridge); hidden unless the deployment configures it.
+const aiBridge = useAiBridgeStore();
+const aiConnection = ref<InstanceType<typeof AiAssistantConnection>>();
 const { status: authStatus, isAuthenticated, loginPending, profile, accountUrl, diagnostics } = auth;
 // Claims panel for checking Keycloak/backend setup; development builds only.
 const authDebugEnabled = import.meta.env.DEV && new URLSearchParams(window.location.search).has("auth-debug");
@@ -81,6 +86,7 @@ watch(themeMode, (mode) => {
             <summary class="cursor-pointer rounded px-2 py-1 text-muted hover:bg-elevated">Auth debug</summary>
             <pre class="absolute right-0 z-50 mt-1 w-96 overflow-auto rounded border border-default bg-default p-3 text-left text-xs text-default shadow-lg">{{ JSON.stringify(diagnostics, null, 2) }}</pre>
           </details>
+          <AiAssistantConnection v-if="aiBridge.available && isAuthenticated" ref="aiConnection" />
           <LocaleSwitcher />
           <UTooltip :text="themeToggleLabel">
             <UButton
@@ -134,6 +140,16 @@ watch(themeMode, (mode) => {
                   </div>
                 </div>
                 <div class="grid gap-2 border-t border-default pt-3">
+                  <UButton
+                    v-if="aiBridge.available"
+                    icon="i-lucide-bot"
+                    color="neutral"
+                    variant="soft"
+                    block
+                    @click="aiConnection?.start()"
+                  >
+                    {{ t('aiBridge.menuItem') }}
+                  </UButton>
                   <UButton icon="i-lucide-settings" color="neutral" variant="soft" block @click="openAccountManagement">
                     {{ t('auth.manageAccount') }}
                   </UButton>
