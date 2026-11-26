@@ -209,6 +209,13 @@ export const mapConfiguration = {
     },
 } satisfies MapConfiguration;
 
+/** Names of the configuration values the providers of a map configuration read. */
+export function mapConfigurationVariables(configuration: MapConfiguration): string[] {
+    return Object.values(configuration.providers)
+        .flatMap((provider) => [provider.baseUrl, provider.apiKey])
+        .flatMap((value) => value !== undefined && "environmentVariable" in value ? [value.environmentVariable] : []);
+}
+
 export function resolveMapConfiguration(
     configuration: MapConfiguration,
     environment: Record<string, string | undefined>,

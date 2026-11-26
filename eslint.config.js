@@ -21,6 +21,7 @@ export default withVueTs(
             "dist/**",
             "docs/**",
             "postcss.config.js",
+            "public/**",
             "src/presets/**/*.js",
             "tailwind.config.js",
             "vite.config.ts",
@@ -75,6 +76,13 @@ export default withVueTs(
             ],
             "@typescript-eslint/require-await": "off",
             "import-x/no-duplicates": "error",
+            "no-restricted-syntax": [
+                "error",
+                {
+                    selector: "MemberExpression[object.object.type='MetaProperty'][object.property.name='env'][property.name=/^VITE_/]",
+                    message: "Read VITE_* values with getConfig() from src/core/config.ts so the container can set them at start.",
+                },
+            ],
             "no-tabs": ["error", { allowIndentationTabs: true }],
             "vue/no-useless-template-attributes": "off",
         },

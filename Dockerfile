@@ -1,4 +1,6 @@
-FROM node:22-alpine AS build
+# The build output is static files, the same for every CPU, so this stage runs
+# once on the build machine's own architecture even for a multi-platform image.
+FROM --platform=$BUILDPLATFORM node:22-alpine AS build
 
 WORKDIR /app
 
@@ -7,12 +9,27 @@ RUN npm ci
 
 COPY . .
 
-RUN node scripts/validate-vite-env.mjs && npm run build
+# No VITE_* values are needed here: the container sets them when it starts.
+RUN npm run build
 
 FROM nginx:1.27-alpine AS production
 
+RUN apk add --no-cache jq
+
 COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY --chmod=755 docker/40-write-config.sh /docker-entrypoint.d/40-write-config.sh
 COPY --from=build /app/dist /usr/share/nginx/html
+
+# Set by `make image` and by the release workflow; a plain `docker build` gives
+# a "dev" image. /version.json tells which build a deployment is serving.
+ARG VERSION=dev
+ARG REVISION=unknown
+RUN printf '{"component":"tosca-frontend","version":"%s","revision":"%s"}\n' "$VERSION" "$REVISION" \
+    > /usr/share/nginx/html/version.json
+LABEL org.opencontainers.image.title="tosca-frontend" \
+      org.opencontainers.image.source="https://github.com/digitalcityscience/TOSCA-Frontend" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${REVISION}"
 
 EXPOSE 80
 

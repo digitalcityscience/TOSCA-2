@@ -1,5 +1,7 @@
+import { pickConfig } from "../core/config";
+
 /**
- * Deployment-level feature switches. Set VITE_ENABLED_FEATURES at build time to a
+ * Deployment-level feature switches. Set VITE_ENABLED_FEATURES in the deployment to a
  * comma-separated list of feature ids; leaving it unset enables every feature
  * except the opt-in ones, which must be listed.
  */
@@ -44,7 +46,7 @@ export function resolveEnabledFeatures(
     return new Set(requested.filter(isFeatureId));
 }
 
-export const enabledFeatures = resolveEnabledFeatures(import.meta.env);
+export const enabledFeatures = resolveEnabledFeatures(pickConfig("VITE_ENABLED_FEATURES"));
 
 export function isFeatureEnabled(id: FeatureId): boolean {
     return enabledFeatures.has(id);

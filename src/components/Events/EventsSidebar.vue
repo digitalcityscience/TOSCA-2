@@ -32,6 +32,7 @@
 </template>
 
 <script setup lang="ts">
+import { getConfig } from "../../core/config";
 import bbox from "@turf/bbox";
 import { onMounted, ref } from "vue";
 import { RouterView, useRoute, useRouter } from "vue-router";
@@ -128,15 +129,15 @@ function resetMapCamera(): void {
 }
 
 function mapStartLng(): number {
-    return mapStartNumber(import.meta.env.VITE_MAP_START_LNG, 9.993163);
+    return mapStartNumber(getConfig("VITE_MAP_START_LNG"), 9.993163);
 }
 
 function mapStartLat(): number {
-    return mapStartNumber(import.meta.env.VITE_MAP_START_LAT, 53.552123);
+    return mapStartNumber(getConfig("VITE_MAP_START_LAT"), 53.552123);
 }
 
 function mapStartZoom(): number {
-    return mapStartNumber(import.meta.env.VITE_MAP_START_ZOOM, 15);
+    return mapStartNumber(getConfig("VITE_MAP_START_ZOOM"), 15);
 }
 
 function mapStartNumber(value: unknown, fallback: number): number {

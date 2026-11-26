@@ -1,3 +1,4 @@
+import { getConfig } from "../config";
 import {
     ADMIN_FIELDS,
     AREA_CLASSES,
@@ -26,7 +27,7 @@ const BUILDINGS = "HAMBURG-BUILDINGS:hamburg_buildings";
 const STADTTEILE = "HAMBURG-ADMINISTRATIVE:hamburg_stadtteile";
 
 function owsUrl(): string {
-    return `${String(import.meta.env.VITE_GEOSERVER_BASE_URL ?? "").replace(/\/+$/, "")}/ows`;
+    return `${String(getConfig("VITE_GEOSERVER_BASE_URL") ?? "").replace(/\/+$/, "")}/ows`;
 }
 
 const cache = new Map<string, Promise<unknown>>();

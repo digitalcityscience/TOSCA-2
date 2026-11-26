@@ -4,7 +4,6 @@ dist
 .github
 .env
 .env.*
-!.env.production
 coverage
 html
 .nyc_output

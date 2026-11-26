@@ -1,3 +1,4 @@
+import { getConfig } from "../core/config";
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
 import { authSession } from "../auth/session";
@@ -502,7 +503,7 @@ export const useParticipationStore = defineStore("participation", () => {
      * @throws An error if there is an issue fetching the campaigns.
      */
     async function getActiveCampaigns(): Promise<CampaignListItem[]> {
-        const url = `${import.meta.env.VITE_GEONODE_REST_URL}/v2/cpt/campaigns`;
+        const url = `${getConfig("VITE_GEONODE_REST_URL") ?? ""}/v2/cpt/campaigns`;
         try {
             const response = await authFetch(url, {
                 method: "GET"
@@ -530,7 +531,7 @@ export const useParticipationStore = defineStore("participation", () => {
      * @throws An error if there is an issue fetching the campaign detail.
      */
     async function getCampaignDetail(campaignURL: string): Promise<CampaignDetail> {
-        const url = `${import.meta.env.VITE_GEONODE_REST_URL}/v2/cpt/campaigns/${campaignURL}`;
+        const url = `${getConfig("VITE_GEONODE_REST_URL") ?? ""}/v2/cpt/campaigns/${campaignURL}`;
         try {
             const response = await authFetch(url, {
                 method: "GET"
@@ -544,7 +545,7 @@ export const useParticipationStore = defineStore("participation", () => {
         feedbackOnProgress.value = false;
         locationSelectionOnProgress.value = false;
         drawTool.externalAppOnProgress = false;
-        const url = `${import.meta.env.VITE_GEONODE_REST_URL}/v2/cpt/feedback/`;
+        const url = `${getConfig("VITE_GEONODE_REST_URL") ?? ""}/v2/cpt/feedback/`;
         const feedback = await authFetch(url, {
             method: "POST",
             headers: {

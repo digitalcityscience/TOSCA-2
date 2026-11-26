@@ -1,3 +1,4 @@
+import { getConfig } from "../core/config";
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref, shallowRef } from "vue";
 import {
@@ -307,7 +308,7 @@ function providerBaseUrl(
     // Providers come from Django's catalog; they may receive the user's token.
     registerTokenOrigin(catalogBaseUrl);
     return catalogBaseUrl ??
-        String(import.meta.env.VITE_GEOSERVER_BASE_URL ?? "").replace(/\/+$/, "");
+        String(getConfig("VITE_GEOSERVER_BASE_URL") ?? "").replace(/\/+$/, "");
 }
 export const useMapStore = defineStore("map", () => {
     const spriteRegistry = new Map<

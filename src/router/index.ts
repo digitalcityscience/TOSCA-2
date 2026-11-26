@@ -1,3 +1,4 @@
+import { getConfig } from "../core/config";
 import { createRouter, createWebHistory } from "vue-router"
 import MapView from "../views/MapView.vue"
 import { useParticipationStore } from "@store/participation"
@@ -13,7 +14,7 @@ declare module "vue-router" {
 }
 
 const router = createRouter({
-    history: createWebHistory(String(import.meta.env.VITE_BASE_URL)),
+    history: createWebHistory(getConfig("VITE_BASE_URL") ?? "/"),
     routes: [
         {
             path: "/",
