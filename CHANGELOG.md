@@ -6,6 +6,12 @@ All notable changes to the TOSCA web app. The project uses
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-26
+
+First release published to GHCR as a versioned image. One image serves every
+installation; each one configures it at start (see the README). This is the
+web app that runs the NGCN installation of the TOSCA platform.
+
 ### Added
 - Runtime configuration: the image holds no environment-specific values; the
   container checks its `VITE_*` variables at start and writes `/config.js`.
