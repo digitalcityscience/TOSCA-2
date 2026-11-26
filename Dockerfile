@@ -20,6 +20,17 @@ COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY --chmod=755 docker/40-write-config.sh /docker-entrypoint.d/40-write-config.sh
 COPY --from=build /app/dist /usr/share/nginx/html
 
+# Set by `make image` and by the release workflow; a plain `docker build` gives
+# a "dev" image. /version.json tells which build a deployment is serving.
+ARG VERSION=dev
+ARG REVISION=unknown
+RUN printf '{"component":"tosca-frontend","version":"%s","revision":"%s"}\n' "$VERSION" "$REVISION" \
+    > /usr/share/nginx/html/version.json
+LABEL org.opencontainers.image.title="tosca-frontend" \
+      org.opencontainers.image.source="https://github.com/digitalcityscience/TOSCA-Frontend" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${REVISION}"
+
 EXPOSE 80
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
