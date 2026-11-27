@@ -1,6 +1,6 @@
 import type { OverviewCamera } from "./types";
 
-/** The TOSCA start view (`VITE_MAP_START_*` in the production `.env`), used until story owners pick their own. */
+/** The TOSCA start view (`VITE_MAP_START_*` in the platform's `.env.production`), used until story owners pick their own. */
 export const HAMBURG_OVERVIEW_CAMERA: OverviewCamera = {
     center: [10.03668, 53.545863],
     zoom: 12,

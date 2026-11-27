@@ -6,6 +6,15 @@ All notable changes to the TOSCA web app. The project uses
 
 ## [Unreleased]
 
+### Added
+- `make release VERSION=X.Y.Z` tags `main` and pushes the tag after checking
+  it is releasable; `make image` builds the image locally as CI does.
+
+### Changed
+- The environment template is now `.env.development.example` (was
+  `.env.example`). Environment files are named `.env.<mode>` with the mode
+  written out, in every TOSCA repository.
+
 ## [1.0.0] - 2026-11-26
 
 First release published to GHCR as a versioned image. One image serves every
