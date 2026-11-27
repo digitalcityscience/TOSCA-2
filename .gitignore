@@ -14,9 +14,10 @@ dist-ssr
 auto-imports.d.ts
 components.d.ts
 *.local
+# Environment files: only the *.example templates are committed.
 .env
-.env.development
-.env.production
+.env.*
+!.env.*.example
 *.tsbuildinfo
 # Editor directories and files
 .claude

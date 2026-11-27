@@ -47,11 +47,18 @@ npm ci
 ```
 
 ### **3. Configure Environment Variables**
-Create `.env.development` from `.env.example` and set the values. The file is
-gitignored; `npm run dev` reads it.
+Create `.env.development` from `.env.development.example` and set the values.
+The file is gitignored; `npm run dev` reads it.
 ```sh
-cp .env.example .env.development
+cp .env.development.example .env.development
 ```
+
+Environment files follow one rule in every TOSCA repository: the committed
+template is `.env.<mode>.example`, your copy is `.env.<mode>`, and the mode is
+written out in full (`development`, `production`). There is no plain `.env`
+and no `.env.example`. This repository has only the development pair: a
+deployed container gets its values from the platform's `.env.production`
+(see [Docker](#docker)).
 
 ### **4. Run the Development Server**
 ```sh
@@ -65,7 +72,7 @@ The application will be available at `http://localhost:5173/` by default.
 ## Docker
 
 The image contains no environment-specific values. The container reads the same
-`VITE_*` variables as `.env.example` from its environment when it starts,
+`VITE_*` variables as `.env.development.example` from its environment when it starts,
 checks them, and writes them to `/config.js`, which the app loads before it
 starts. One image therefore serves every environment, and changing a value
 needs a container restart, not a rebuild.
@@ -184,8 +191,12 @@ To release:
 1. Through a pull request to `main`, set `version` in `package.json` (and
    `package-lock.json`, e.g. `npm version X.Y.Z --no-git-tag-version`) and add a
    `## [X.Y.Z]` section to [CHANGELOG.md](CHANGELOG.md).
-2. Tag the merged commit and push the tag:
-   `git tag -a vX.Y.Z -m "tosca-frontend X.Y.Z" && git push origin vX.Y.Z`.
+2. On the merged `main`, run `make release VERSION=X.Y.Z`. It checks that the
+   checkout is clean and exactly `origin/main` and that `package.json` and the
+   changelog name this version, then creates the tag `vX.Y.Z` and pushes it.
+
+`make image` builds the image on your machine with the same Dockerfile and
+build arguments as CI (`IMAGE=name:tag` to choose the tag).
 
 A published version is never overwritten: the release workflow stops if the
 image tag already exists. Pushes to `main` no longer publish an image.
