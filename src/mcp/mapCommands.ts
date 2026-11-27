@@ -6,8 +6,7 @@
 import buffer from "@turf/buffer";
 import flatten from "@turf/flatten";
 import { type Feature, type FeatureCollection } from "geojson";
-import { mapConfiguration, resolveMapConfiguration } from "../config/mapConfig";
-import { i18n } from "../core/i18n";
+import { mapConfiguration } from "../config/mapConfig";
 import { useDrawStore } from "@store/draw";
 import { useGeostoryStore } from "@store/geostory";
 import { type GeoJSONSourceParams, type LayerParams, useMapStore } from "@store/map";
@@ -68,8 +67,8 @@ export const mapViewCommands: Record<string, CommandHandler> = {
         const map = readyMap();
         if (params.enabled) {
             if (map.getSource("terrain-dem") === undefined) throw new CommandError("This map has no terrain data.");
-            const configuration = resolveMapConfiguration(mapConfiguration, import.meta.env, i18n.global.t);
-            map.setTerrain({ source: "terrain-dem", exaggeration: configuration.terrain.exaggeration });
+            // resolveMapConfiguration gives the same value (exaggeration ?? 1) but also needs every basemap's settings.
+            map.setTerrain({ source: "terrain-dem", exaggeration: mapConfiguration.terrain.exaggeration ?? 1 });
         } else {
             map.setTerrain(null);
         }

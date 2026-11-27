@@ -11,6 +11,7 @@
  * - A lost connection is reopened with growing pauses; the server keeps the
  *   pairing for a short time.
  */
+import { getConfig } from "../core/config";
 import { commandErrorMessage, dispatch, type CommandParams } from "./commands";
 
 export type BridgeStatus = "off" | "connecting" | "waiting" | "paired" | "reconnecting" | "error";
@@ -270,9 +271,10 @@ export type MapBridge = ReturnType<typeof createMapBridge>;
 
 /**
  * WebSocket URL of the bridge from `VITE_MCP_BRIDGE_URL` (`wss://…/mcp-bridge/ws`;
- * an `https://` address is accepted too). Undefined turns the feature off.
+ * an `https://` address is accepted too), read through `getConfig` so a container
+ * can set it at start. Undefined turns the feature off.
  */
-export function readBridgeUrl(value: unknown = import.meta.env.VITE_MCP_BRIDGE_URL): string | undefined {
+export function readBridgeUrl(value: unknown = getConfig("VITE_MCP_BRIDGE_URL")): string | undefined {
     const raw = typeof value === "string" ? value.trim() : "";
     if (raw === "") return undefined;
     try {
