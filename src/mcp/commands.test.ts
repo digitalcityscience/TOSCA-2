@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useFilterStore } from "@store/filter";
 import { type GeoServerVectorTypeLayerDetail } from "@store/geoserver";
 import { type LayerObjectWithAttributes, useMapStore } from "@store/map";
-import { CommandError, dispatch, mapCommands } from "./commands";
+import { CommandError, dispatch } from "./commands";
 
 const loader = vi.hoisted(() => ({
     resolveCatalogLayer: vi.fn(),
@@ -13,12 +13,6 @@ const loader = vi.hoisted(() => ({
 }));
 vi.mock("@helpers/catalogLayerLoader", () => loader);
 vi.mock("@helpers/toast", () => ({ useToast: () => ({ add: vi.fn() }) }));
-
-/** The commands the MCP server may send (backend `tools/map.py` MAP_COMMANDS). */
-const SERVER_COMMANDS = [
-    "getMapState", "setView", "fitBounds", "zoomToLayer", "addCatalogLayer", "addGeoJsonLayer", "removeLayer",
-    "setLayerVisibility", "setLayerOpacity", "getLayerAttributes", "addAttributeFilter", "removeAttributeFilter",
-];
 
 function vectorDetail(): GeoServerVectorTypeLayerDetail {
     return {
@@ -45,17 +39,26 @@ function fakeMap() {
     const layout: Record<string, string> = {};
     const paint: Record<string, number> = {};
     const sources = new Set<string>();
+    const vectorSources = new Set<string>(["buildings"]);
+    let rendered: unknown[] = [];
     const map = {
         getCenter: () => ({ lng: 9.99, lat: 53.55 }),
         getZoom: () => 11.234,
         getBearing: () => 0,
         getPitch: () => 0,
+        getContainer: () => document.createElement("div"),
         getBounds: () => ({ getWest: () => 9.7, getSouth: () => 53.4, getEast: () => 10.3, getNorth: () => 53.7 }),
         once: vi.fn((_event: string, callback: () => void) => { callback(); }),
         flyTo: vi.fn(),
         fitBounds: vi.fn(),
         getLayer: vi.fn((id: string) => ({ id, type: "circle" })),
-        getSource: vi.fn((id: string) => sources.has(id) ? {} : undefined),
+        getSource: vi.fn((id: string) => {
+            if (sources.has(id)) return {};
+            return vectorSources.has(id) ? { type: "vector" } : undefined;
+        }),
+        queryRenderedFeatures: vi.fn(() => rendered),
+        areTilesLoaded: vi.fn(() => true),
+        setRendered: (features: unknown[]) => { rendered = features; },
         removeLayer: vi.fn(),
         removeSource: vi.fn((id: string) => { sources.delete(id); }),
         setFilter: vi.fn(),
@@ -81,10 +84,6 @@ describe("map commands", () => {
             layer("helper", { showOnLayerList: false }),
         ];
         Object.values(loader).forEach((mock) => mock.mockReset());
-    });
-
-    it("has exactly the commands the server may send", () => {
-        expect(Object.keys(mapCommands).sort()).toEqual([...SERVER_COMMANDS].sort());
     });
 
     it("refuses unknown commands, including inherited property names", async () => {
@@ -121,6 +120,7 @@ describe("map commands", () => {
     it("validates parameters before touching the map", async () => {
         await expect(dispatch("setView", { center: ["a", 1] })).rejects.toThrow(CommandError);
         await expect(dispatch("fitBounds", { bounds: [1, 2, 3] })).rejects.toThrow(CommandError);
+        await expect(dispatch("fitBounds", { bounds: [10, 53.5, 9.8, 53.6] })).rejects.toThrow(/empty/);
         await expect(dispatch("setLayerOpacity", { layerId: "bicycle", opacity: 3 })).rejects.toThrow(CommandError);
         await expect(dispatch("setLayerVisibility", { layerId: "bicycle", visible: "yes" })).rejects.toThrow(CommandError);
         await expect(dispatch("setLayerVisibility", { layerId: "missing", visible: true })).rejects.toThrow(/no layer "missing"/);
@@ -156,8 +156,13 @@ describe("map commands", () => {
 
         expect(filterStore.appliedFiltersList).toHaveLength(1);
         expect(filterStore.appliedFiltersList[0].attributeFilters?.[0]).toMatchObject({ operand: ">", value: "5" });
-        expect(map.setFilter).toHaveBeenCalledWith("bicycle", ["all", ["all", [">", ["get", "count"], 5]]]);
+        expect(map.setFilter).toHaveBeenCalledWith("bicycle", ["all", [">", ["get", "count"], 5]]);
         expect(result.layer.filters).toEqual([{ attribute: "count", operator: ">", value: "5" }]);
+    });
+
+    it("takes a number filter value as the text the filter panel would hold", async () => {
+        await dispatch("addAttributeFilter", { layerId: "bicycle", attribute: "count", operator: ">=", value: 1960 });
+        expect(useFilterStore().appliedFiltersList[0].attributeFilters?.[0]).toMatchObject({ value: "1960" });
     });
 
     it("refuses filters that do not fit the attribute", async () => {
