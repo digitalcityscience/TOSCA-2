@@ -14,7 +14,8 @@
     "lint": "eslint .",
     "test": "vitest",
     "build": "vue-tsc && vite build --mode production",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "mcp:export": "node scripts/export-mcp-commands.mjs"
   },
   "dependencies": {
     "@deck.gl/core": "^9.3.10",
