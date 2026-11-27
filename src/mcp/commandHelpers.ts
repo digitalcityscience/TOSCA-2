@@ -88,9 +88,15 @@ export function describeLayer(layer: LayerObjectWithAttributes): Record<string, 
         source: layer.sourceType,
         visible: state.visible,
         opacity: state.opacity,
+        // Where the layer comes from in the catalog (a geostory scene is saved from this).
         catalog: layer.workspaceName === undefined || detail === undefined
             ? undefined
-            : { workspace: layer.workspaceName, name: detail.featureType.name },
+            : {
+                providerId: detail.catalog?.provider.id,
+                workspace: layer.workspaceName,
+                name: detail.featureType.name,
+                style: layer.availableStyles?.find((style) => style.id === layer.activeStyleId)?.name,
+            },
         filters: (applied?.attributeFilters ?? []).map((filter) => ({
             attribute: filter.attribute.name,
             operator: filter.operand,
@@ -107,7 +113,23 @@ export function describeLayer(layer: LayerObjectWithAttributes): Record<string, 
             }))
             : undefined,
         time: layer.time,
+        // The members of a group (MapLayerListingItem.vue lists them with their own check box).
+        members: layer.logicalKind === "group"
+            ? (layer.groupManifest?.members ?? []).map((member) => ({
+                id: member.id,
+                title: member.title || member.layer_title || member.name,
+                visible: memberVisible(layer, member.id),
+            }))
+            : undefined,
     };
+}
+
+/** A group member is shown while any of its map layers is (`map.ts` `setGroupMemberVisibility` sets them together). */
+function memberVisible(layer: LayerObjectWithAttributes, memberId: string): boolean {
+    const map = useMapStore().map;
+    const ids = layer.groupMemberLayerIds?.[memberId] ?? [];
+    if (map === undefined || map === null || ids.length === 0) return true;
+    return ids.some((id) => map.getLayer(id) !== undefined && map.getLayoutProperty(id, "visibility") !== "none");
 }
 
 export function describeMap(): Record<string, unknown> {

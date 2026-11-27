@@ -21,6 +21,8 @@ import { type CommandHandler, type CommandParams, CommandError, describeLayer, f
 
 /** How many allowed times an answer lists when a time is refused. */
 const TIMES_SHOWN = 20;
+/** How long loadOgcLayer waits for "load all" before it answers with the progress (below the server's timeout). */
+const LOAD_ALL_WAIT_MS = 45_000;
 
 /** An external service the user may see, as the data panel lists them (`WorkspaceListing.vue`). */
 async function externalService(serviceId: string, type: ExternalDataSourceConfig["type"]): Promise<ExternalDataSourceConfig> {
@@ -211,5 +213,39 @@ export const dataCommands: Record<string, CommandHandler> = {
     resetOgcLayerQuery: async (params) => {
         const { layer } = queryableOgcLayer(text(params, "layerId"));
         return await runOgcQuery(layer.id, undefined, []);
+    },
+
+    // OgcLayerQueryControls.vue: "Load all" (loadAll), "Stop" (cancelFullLoad), "Reload" / "Retry" (refreshLayer)
+    loadOgcLayer: async (params) => {
+        const ogcLayers = useOgcLayersStore();
+        const layer = findLayer(text(params, "layerId"));
+        const state = ogcLayers.layers[layer.id];
+        if (state === undefined) throw new CommandError(`Layer "${layer.id}" is not an OGC API layer.`);
+        const action = text(params, "action");
+        if (action === "stop") {
+            if (state.mode !== "full" || !state.loading) throw new CommandError(`Layer "${layer.id}" is not loading all features.`);
+            ogcLayers.cancelFullLoad(layer.id);
+        } else if (action === "reload") {
+            await ogcLayers.refreshLayer(layer.id);
+        } else if (action === "all") {
+            if (ogcLayers.capabilitiesForLayer(layer.id).full_load !== true) {
+                throw new CommandError(`The service of "${layer.id}" does not allow loading all features.`);
+            }
+            // The panel's "Load all" runs until every page is in; answer once it is done or after a while.
+            const finished = ogcLayers.loadAll(layer.id);
+            await Promise.race([finished, new Promise((resolve) => setTimeout(resolve, LOAD_ALL_WAIT_MS))]);
+        } else {
+            throw new CommandError("\"action\" must be all, stop or reload.");
+        }
+        const current = ogcLayers.layers[layer.id];
+        if (current?.errorKind === "request") throw new CommandError("The service could not be reached.");
+        return {
+            layer: describeLayer(findLayer(layer.id)),
+            mode: current?.mode,
+            loaded: current?.loadedCount,
+            matched: current?.totalMatched,
+            stillLoading: current?.loading === true,
+            stopped: current?.stopped === true,
+        };
     },
 };

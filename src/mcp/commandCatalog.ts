@@ -220,8 +220,13 @@ export const commandCatalog: readonly CommandSpec[] = [
         name: "setLayerVisibility",
         group: "manage",
         title: "Show or hide a layer",
-        description: "Set whether a layer on the map is visible.",
-        params: object({ layerId: LAYER_ID, visible: { type: "boolean" } }, ["layerId", "visible"]),
+        description: "Set whether a layer on the map is visible. For a layer group, `memberId` shows or hides one "
+            + "member only (get_map_state lists a group's members).",
+        params: object({
+            layerId: LAYER_ID,
+            visible: { type: "boolean" },
+            memberId: { type: "string", minLength: 1, description: "Id of one member of a layer group, from get_map_state." },
+        }, ["layerId", "visible"]),
         effect: "view",
         timeoutSeconds: 10,
         status: "available",
@@ -303,7 +308,8 @@ export const commandCatalog: readonly CommandSpec[] = [
         group: "view",
         title: "Read the map",
         description: "What the user's TOSCA map shows right now: the view (center, zoom, bounds) and every layer "
-            + "with its id, title, visibility, opacity and filters, including layers the user added by hand. "
+            + "with its id, title, visibility, opacity and filters, including layers the user added by hand; "
+            + "catalog layers also name their source (providerId, workspace, name, active style). "
             + "Read it again instead of relying on an earlier answer.",
         params: object({}),
         effect: "read",
@@ -420,6 +426,18 @@ export const commandCatalog: readonly CommandSpec[] = [
         params: object({ longitude: LONGITUDE, latitude: LATITUDE }, ["longitude", "latitude"]),
         effect: "read",
         timeoutSeconds: 15,
+        status: "available",
+    },
+    {
+        name: "getSelectedFeatures",
+        group: "read",
+        title: "What the user clicked",
+        description: "The features at the places the user last clicked on the map (newest first, up to five clicks "
+            + "since the assistant connected), with the attributes the click popup showed. Use it for \"this "
+            + "building\" or \"what I clicked\": `latest` is the current one.",
+        params: object({}),
+        effect: "read",
+        timeoutSeconds: 10,
         status: "available",
     },
     {
@@ -555,6 +573,21 @@ export const commandCatalog: readonly CommandSpec[] = [
         title: "Reset an OGC API layer query",
         description: "Load an OGC API layer again without conditions and with every attribute.",
         params: object({ layerId: LAYER_ID }, ["layerId"]),
+        effect: "view",
+        timeoutSeconds: 60,
+        status: "available",
+    },
+    {
+        name: "loadOgcLayer",
+        group: "filter",
+        title: "Load all features of an OGC API layer",
+        description: "For an OGC API layer: `all` loads every feature that matches its query (not only those in "
+            + "view; can be slow for large collections, answers with the progress after about 45 seconds), `stop` "
+            + "stops such a load, `reload` loads the layer again (e.g. after an error).",
+        params: object({
+            layerId: LAYER_ID,
+            action: { type: "string", enum: ["all", "stop", "reload"] },
+        }, ["layerId", "action"]),
         effect: "view",
         timeoutSeconds: 60,
         status: "available",

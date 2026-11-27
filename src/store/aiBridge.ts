@@ -2,6 +2,7 @@ import { acceptHMRUpdate, defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { authSession } from "../auth/session";
 import { createMapBridge, readBridgeUrl, type BridgeState, type MapBridge } from "../mcp/bridge";
+import { startSelectionTracking, stopSelectionTracking } from "../mcp/selection";
 
 /**
  * "Connect AI assistant": lets an assistant the user added in ChatGPT or Claude
@@ -23,7 +24,12 @@ export const useAiBridgeStore = defineStore("aiBridge", () => {
             bridge = createMapBridge({
                 url,
                 getAccessToken: () => authSession.getAccessToken(),
-                onState: (next) => { state.value = next; },
+                onState: (next) => {
+                    state.value = next;
+                    // Map clicks are remembered (for get_selected_features) only while the connection is on.
+                    if (next.status === "off" || next.status === "error") stopSelectionTracking();
+                    else startSelectionTracking();
+                },
             });
             // Another user (or nobody) is signed in now: the pairing belonged to the old session.
             authSession.onSessionChange(() => bridge?.disconnect());

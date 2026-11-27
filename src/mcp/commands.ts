@@ -44,6 +44,7 @@ import { dataCommands, rasterTime } from "./dataCommands";
 import { layerDisplayCommands } from "./layerDisplayCommands";
 import { describeBasemaps, mapViewCommands } from "./mapCommands";
 import { loadedTileFeatures, primitiveText, propertyNames, renderedLayerFeatures } from "./layerFeatures";
+import { recentSelections } from "./selection";
 
 export { CommandError, type CommandOrigin, type CommandParams } from "./commandHelpers";
 import {
@@ -310,7 +311,8 @@ export const mapCommands: Record<string, CommandHandler> = {
         if (mapStore.layersOnMap.some((layer) => layer.id === identifier) || readyMap().getSource(identifier) !== undefined) {
             throw new CommandError(`A layer named "${title}" is already on the map. Choose another title.`);
         }
-        const isFilterLayer = features[0].geometry.type === "Polygon";
+        // Polygons and multipolygons can be the area of a geometry filter (draw.ts saves drawn polygons the same way).
+        const isFilterLayer = family === "Polygon";
         const source: GeoJSONSourceParams = { sourceType: "geojson", identifier, isFilterLayer, geoJSONSrc: geojson! };
         await mapStore.addMapDataSource(source);
         try {
@@ -339,11 +341,19 @@ export const mapCommands: Record<string, CommandHandler> = {
         return { removed: layer.id };
     },
 
-    // MapLayerListingItem.vue: changeLayerVisibility
+    // MapLayerListingItem.vue: changeLayerVisibility, and toggleGroupMember for one member of a group
     setLayerVisibility: (params) => {
         const mapStore = useMapStore();
         const layer = findLayer(text(params, "layerId"));
         if (typeof params.visible !== "boolean") throw new CommandError("\"visible\" must be true or false.");
+        if (params.memberId !== undefined && params.memberId !== null) {
+            const memberId = text(params, "memberId");
+            if (layer.logicalKind !== "group" || layer.groupMemberLayerIds?.[memberId] === undefined) {
+                throw new CommandError(`Layer "${layer.id}" has no group member "${memberId}"; get_map_state lists the members.`);
+            }
+            mapStore.setGroupMemberVisibility(layer, memberId, params.visible);
+            return { layer: describeLayer(layer) };
+        }
         if (layer.renderer === "deckgl") mapStore.setDeckLayerVisibility(layer.id, params.visible);
         else mapStore.setLogicalLayerVisibility(layer, params.visible);
         return { layer: describeLayer(layer) };
@@ -530,6 +540,18 @@ export const mapCommands: Record<string, CommandHandler> = {
             ...(inView
                 ? { note: "Only the features drawn in the current map view, after the layer's filters. Move the map to read others. Geometries come from the map tiles and are simplified when zoomed out." }
                 : {}),
+        };
+    },
+
+    // MapContainer.vue: showAttributePopup, for the clicks the user made (recorded by ./selection)
+    getSelectedFeatures: () => {
+        const selections = recentSelections();
+        return {
+            latest: selections[0] ?? null,
+            earlier: selections.slice(1),
+            note: selections.length === 0
+                ? "The user has not clicked on the map since the assistant connected."
+                : "What the user clicked, newest first, with the attributes the click popup showed then.",
         };
     },
 

@@ -35,6 +35,32 @@ function locale(): string {
     return String(i18n.global.locale.value);
 }
 
+/**
+ * The features drawn at a screen point with the attributes the click popup shows
+ * (`MapContainer.vue` `showAttributePopup`: vector and deck.gl features; raster values are not read).
+ */
+export function featuresAtPoint(map: any, point: { x: number, y: number }): { total: number, features: Array<Record<string, unknown>> } {
+    const mapStore = useMapStore();
+    const clickable = (map.getStyle().layers as Array<{ id: string, type: string }>)
+        .filter((layer) => !NOT_CLICKABLE.includes(layer.type))
+        .map((layer) => layer.id);
+    const rendered = (map.queryRenderedFeatures(point, { layers: clickable }) as PopupAttributeFeature[])
+        .filter((feature) => mapStore.layersOnMap.some((layer) => (
+            mapStore.layerOwnsSource(layer, feature.source) && layer.attributePopupSuppressed !== true
+        )));
+    const features = [
+        ...deduplicatePopupAttributeFeatures(rendered.map((feature) => withPopupAttributes(feature, mapStore.layersOnMap))),
+        ...deduplicatePopupAttributeFeatures(mapStore.pickDeckObjects(point)),
+    ];
+    return {
+        total: features.length,
+        features: features.slice(0, MAX_IDENTIFIED).map((feature) => ({
+            layer: mapStore.displayNameForSource(feature.source) ?? feature.source,
+            attributes: Object.fromEntries(popupPropertyRows(feature, locale()).map((row) => [row.label, row.value])),
+        })),
+    };
+}
+
 function legendEntries(entries: MapStyleLegendEntry[]): Array<Record<string, unknown>> {
     return entries.map((entry) => ({
         label: entry.memberLabel === undefined ? entry.label : `${entry.memberLabel}: ${entry.label}`,
@@ -155,7 +181,6 @@ export const layerDisplayCommands: Record<string, CommandHandler> = {
 
     // MapContainer.vue: showAttributePopup (vector and deck.gl features; raster values are not read)
     identifyAt: (params) => {
-        const mapStore = useMapStore();
         const map = readyMap();
         const longitude = finite(params.longitude, "longitude");
         const latitude = finite(params.latitude, "latitude");
@@ -164,24 +189,9 @@ export const layerDisplayCommands: Record<string, CommandHandler> = {
         if (point.x < 0 || point.y < 0 || point.x > canvas.clientWidth || point.y > canvas.clientHeight) {
             throw new CommandError("The point is outside the current map view; move the map there first.");
         }
-        const clickable = (map.getStyle().layers as Array<{ id: string, type: string }>)
-            .filter((layer) => !NOT_CLICKABLE.includes(layer.type))
-            .map((layer) => layer.id);
-        const rendered = (map.queryRenderedFeatures(point, { layers: clickable }) as PopupAttributeFeature[])
-            .filter((feature) => mapStore.layersOnMap.some((layer) => (
-                mapStore.layerOwnsSource(layer, feature.source) && layer.attributePopupSuppressed !== true
-            )));
-        const features = [
-            ...deduplicatePopupAttributeFeatures(rendered.map((feature) => withPopupAttributes(feature, mapStore.layersOnMap))),
-            ...deduplicatePopupAttributeFeatures(mapStore.pickDeckObjects(point)),
-        ];
         return {
             point: [longitude, latitude],
-            total: features.length,
-            features: features.slice(0, MAX_IDENTIFIED).map((feature) => ({
-                layer: mapStore.displayNameForSource(feature.source) ?? feature.source,
-                attributes: Object.fromEntries(popupPropertyRows(feature, locale()).map((row) => [row.label, row.value])),
-            })),
+            ...featuresAtPoint(map, point),
             note: "Features drawn at this point in the current view. Values of raster (image) layers are not read.",
         };
     },
